@@ -10,9 +10,9 @@ Status as of October 2026.
 | --- | --- | --- |
 | 0 | Make the move from Homebase safe | Done |
 | 1 | Finish Portly | In progress |
-| 2 | Go public | Not started |
-| 3 | Switch existing Homebase installs over | Not started |
-| 4 | The rest of the alpha | Not started |
+| 2 | Switch existing Homebase installs over | In progress |
+| 3 | The rest of the alpha | Not started |
+| 4 | Go public | Not started |
 
 ## Phase 0: make the move safe (done)
 
@@ -56,37 +56,40 @@ saved so it can be brought over in phase 1.
    - an observed value for the extension ID test.
 5. **Version 0.2.0-alpha.1** with a CHANGELOG.
 
-## Phase 2: go public
+## Phase 2: switch existing installs over
 
-Each step needs a go-ahead:
-- Create the public repository, push it and get the first CI run green.
-- Publish the first release.
-- Publish the GitHub Pages site from Portly.
-- Test the one-line installer (`irm <site>/install.ps1 | iex`) on a clean Windows account.
-- Optionally rename the app on the Google and Microsoft sign-in consent screens. The redirect
-  addresses don't change.
+The first PC was switched over in October 2026, with its Homebase data carried over, and the
+Pages site is now published from Portly (`portly --update` keeps it current).
 
-## Phase 3: switch existing installs over
-
-On each PC that runs Homebase:
-1. Run `setup.ps1` from Portly. The first PC starts from scratch (`setup.ps1 -NoHomebaseCopy`);
-   others can carry their Homebase data over.
+On each other PC that runs Homebase:
+1. Run `setup.ps1` from Portly. It carries the Homebase data over (`-NoHomebaseCopy` starts from
+   scratch instead).
 2. Check that Portly is up (`portly --status`).
 3. Swap the browser extension. (Setup replaces the old `homebase` command with `portly` by itself.)
 
-Then publish the Pages site from Portly and test a real Outlook.com calendar in the browser-only
-build. Finally, archive the old Homebase repository (it stays private) and its leftover branches.
+Then test a real Outlook.com calendar in the browser-only build. Finally, archive the old Homebase
+repository (it stays private) and its leftover branches.
 
-## Phase 4: the rest of the alpha
+## Phase 3: the rest of the alpha
 
-- The new-tab extension published to the Chrome Web Store (unlisted) and Edge Add-ons, instead of
-  loading it unpacked.
 - Default Google and Microsoft sign-in apps, so connecting an account doesn't need your own app
   registration.
 - A first-run checklist in the app.
 - An "add another PC" kit.
 - One server reachable from several PCs, with a login. Until that login exists, the server stays
-  on loopback only (ARCHITECTURE section 4).
+  on loopback only (ARCHITECTURE section 4). Proposed design:
+  [design/multi-pc.md](design/multi-pc.md).
 
 The plan for the alpha: each PC runs its own server for now, with a shared server later. The
 Pages site works for anyone with a server on their own PC, and new tabs follow the local server.
+
+## Phase 4: go public
+
+Each step needs a go-ahead:
+- Create the public repository, push it and get the first CI run green.
+- Publish the first release.
+- Test the one-line installer (`irm <site>/install.ps1 | iex`) on a clean Windows account.
+- Publish the new-tab extension to the Chrome Web Store (unlisted) and Edge Add-ons, instead of
+  loading it unpacked.
+- Optionally rename the app on the Google and Microsoft sign-in consent screens. The redirect
+  addresses don't change.
