@@ -34,6 +34,41 @@ the browser's extensions page for the one manual step (**Developer mode** → **
 doesn't start. Click **Reload** on the extension when it says the extension changed. Details,
 and how releases are built and published: [Releases](setup/releases.md).
 
+## Coming from Homebase
+
+Portly is Homebase's new name. Installing Portly on a PC that ran Homebase carries everything over;
+Homebase's own folders are left as they were, so you can go back until you delete them.
+
+- **Your data and accounts:** `install-autostart.ps1` (which `install.ps1` and `setup.ps1` run)
+  asks Portly to copy `%LOCALAPPDATA%\Homebase\homebase.db` (or the `homebase.db` in the folder
+  `HOMEBASE_DATA_DIR` named) and `vault.key` into `%LOCALAPPDATA%\Portly` when it first starts.
+  Connected accounts keep working: the key is protected for your Windows user wherever it lives, and
+  the Google and Microsoft redirect addresses did not change. The server log says so (`copied the
+  data of Homebase`), and `migrated-from-homebase.json` in the data folder records it. Starting
+  Portly any other way (`npm start`, a development server) never copies anything.
+- **If the copy fails,** Portly doesn't start with empty data: it stops and tries again at the next
+  start, and the log says why. To try again later run `portly --copy-from-homebase`; to give up and
+  start without Homebase's data run `portly --copy-from-homebase --cancel`. If Portly already has
+  data of its own, the installer warns and copies nothing; `portly --copy-from-homebase --replace`
+  copies Homebase's over it and keeps Portly's old database beside it
+  (`portly.db.before-homebase-<time>`).
+- **Settings and autostart:** the installer copies your `HOMEBASE_*` user variables to their
+  `PORTLY_*` names (never over one you already set). It stops the **Homebase Server** task just
+  before it starts Portly, since both use the same port, and removes that task and the
+  `com.homebase.launcher` registrations only once Portly answers. The old task's definition is saved
+  as `homebase-task-backup.xml` in Portly's data folder. If Portly doesn't come up, Homebase is
+  started again and nothing of it is removed. With `-NoStart`, Homebase stays installed.
+  `-DryRun` shows exactly what it would do.
+- **Browsers:** a browser paired with Homebase stays paired, and the Pages site keeps the data it
+  kept in the browser: on its first load Portly copies Homebase's `homebase:` settings and its
+  in-browser database to the new names. Export files from Homebase import as they are.
+- **By hand:** in `chrome://extensions` (or `edge://extensions`) **Remove** *Homebase New Tab* and
+  **Load unpacked** Portly's `extension` folder (same extension ID, so nothing else changes). The old
+  `homebase` command stays on your PATH until you run the old checkout's
+  `scripts\install-cli.ps1 -Uninstall` (Portly installs `portly`). Publish the Pages site again from
+  Portly (`publish-static.ps1` accepts the Homebase publish it replaces). When everything works,
+  delete `%LOCALAPPDATA%\Homebase` and the old checkout.
+
 ## Requirements
 
 - Windows 11. The credential vault uses Windows DPAPI and autostart uses Task Scheduler.

@@ -30,6 +30,16 @@
     http://localhost:<port>/api/health answers - this checks the installation end to end (use
     -NoStart to skip it). Running it again updates everything (also to switch modes).
 
+    Coming from Homebase (Portly's name before the rename): first its user variables are copied
+    to their PORTLY_ names (HOMEBASE_PAGES_URL -> PORTLY_PAGES_URL, ...; never over a value that is
+    already set). When Portly has no database yet, a request (copy-from-homebase.json in the data
+    folder) asks Portly to copy Homebase's database and vault key at its first start; Homebase's
+    data folder is left alone. Once Portly's task is registered, Homebase's server is stopped (it
+    holds the port). Only once Portly answers its health check are the "Homebase Server" task (its
+    definition saved to homebase-task-backup.xml in the data folder) and the com.homebase.launcher
+    registrations removed; if Portly does not come up, Homebase's task is started again. With
+    -NoStart, Homebase stays installed. -DryRun lists these steps too.
+
     The port and data folder come from the PORTLY_PORT / PORTLY_DATA_DIR user (or machine)
     environment variables when set, exactly as the task will see them. Before changing anything,
     the PORTLY_* variables are checked with the server's own configuration loader
@@ -120,6 +130,17 @@ function Invoke-Install {
 
     $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
     $scriptPath = Join-Path $PSScriptRoot 'install-autostart.ps1'
+
+    # Coming from Homebase (ARCHITECTURE section 19). Only the variables are copied now, before
+    # anything reads the PORTLY_* settings; Homebase's server is stopped once Portly's task is
+    # registered and removed only once Portly answers (below).
+    $legacy = Get-HbLegacyPlan
+    if (-not $legacy.Empty) {
+        Write-HbStep "$(if ($DryRun) { '[dry run] ' } else { '' })Moving over from Homebase (Portly's name before the rename)"
+        Write-HbLegacyPlan -Plan $legacy
+        if (-not $DryRun) { Invoke-HbLegacyEnvCopy -Plan $legacy }
+        Write-Host ''
+    }
     $hintArguments = Format-HbInstallArguments -Bound $Bound
     $problems = New-Object System.Collections.Generic.List[string]
 
@@ -177,6 +198,16 @@ function Invoke-Install {
         }
     }
 
+    # Homebase's database is copied by the server at its next start, only when requested here.
+    $homebaseCopy = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    $homebaseCopyText = switch ($homebaseCopy.State) {
+        'none' { 'no Homebase database found' }
+        'done' { "already copied ($($homebaseCopy.CopiedAt))" }
+        'pending' { "requested; Portly copies $($homebaseCopy.Source) at its next start" }
+        'portly-has-database' { "NOT copied: Portly already has a database in $dataDir" }
+        default { "Portly will copy $($homebaseCopy.Source) at its first start" }
+    }
+
     $logFile = Get-HbLogFile -DataDir $dataDir
     $supervisorLog = Get-HbSupervisorLogFile -DataDir $dataDir
     $userId = Get-HbCurrentUserId
@@ -200,6 +231,7 @@ function Invoke-Install {
     Write-HbField 'Data folder' $dataDir
     Write-HbField 'Log files' "$logFile, $supervisorLog"
     Write-HbField 'Configuration' $configText
+    if ($homebaseCopy.State -ne 'none') { Write-HbField 'Homebase data' $homebaseCopyText }
     if ($null -ne $existing) {
         Write-HbField 'Existing task' "$($existing.State), $(Get-HbTaskTriggerMode -Task $existing) mode - it will be replaced"
     } else {
@@ -216,6 +248,10 @@ function Invoke-Install {
     }
     if ($port -lt 1024) {
         Write-Warning "Port $port is below 1024; the new-tab extension only accepts ports 1024-65535."
+    }
+    if ($homebaseCopy.State -eq 'portly-has-database') {
+        Write-Warning ("Portly already has a database in $dataDir, so Homebase's data ($($homebaseCopy.Source)) will not be copied. " +
+            'To replace Portly''s database with Homebase''s (the current one is kept beside it), run: portly --copy-from-homebase --replace')
     }
     if ($Trigger -eq 'Browser' -and $NoNativeHost) {
         Write-Warning ('-Trigger Browser with -NoNativeHost: the task has no trigger and the browser cannot start it, so nothing starts Portly by itself. ' +
@@ -260,13 +296,22 @@ function Invoke-Install {
         } elseif ($NoNativeHost) {
             Write-HbInfo '- leave the native messaging host alone (-NoNativeHost)'
         }
+        if ($homebaseCopy.State -eq 'request') {
+            Write-HbInfo "- ask Portly to copy Homebase's data at its first start: write $($homebaseCopy.RequestPath)"
+        }
         if ($running.Count -gt 0) {
             Write-HbInfo "- stop the Portly processes started from this folder: $(Format-HbProcessList -Trees $running)"
         }
         if ($NoStart) {
             Write-HbInfo '- leave Portly stopped (-NoStart)'
+            if ($null -ne $legacy.Task) { Write-HbInfo "- leave Homebase installed and running (-NoStart: Portly cannot be checked)" }
         } else {
+            if ($null -ne $legacy.Task) { Write-HbInfo "- stop the '$PortlyLegacyTaskName' task and its processes (it holds the port)" }
             Write-HbInfo "- start the task and wait up to $TimeoutSeconds s for http://localhost:$port/api/health"
+            if (-not $legacy.Empty -and ($null -ne $legacy.Task -or @($legacy.RegistryKeys).Count -gt 0)) {
+                Write-HbInfo "- when Portly answers: save the Homebase task to $(Join-Path $dataDir 'homebase-task-backup.xml') and remove it and com.homebase.launcher"
+                if ($null -ne $legacy.Task) { Write-HbInfo "- when Portly does not come up: start the '$PortlyLegacyTaskName' task again" }
+            }
         }
         Write-Host ''
         Write-HbOk 'Dry run complete: nothing was registered, written, built, stopped or started.'
@@ -313,6 +358,11 @@ function Invoke-Install {
         Write-HbOk "Wrote $($nativeHost.Destination) and the registry keys for Chrome and Edge (allowed extension: $($nativeHost.ExtensionId))"
     }
 
+    if ($homebaseCopy.State -eq 'request') {
+        $requestPath = Write-HbHomebaseCopyRequest -DataDir $dataDir
+        Write-HbOk "Asked Portly to copy Homebase's data at its first start ($requestPath)"
+    }
+
     # Replace whatever the previous registration started. Stop-ScheduledTask ends only conhost,
     # so the node supervisor/server started from this folder are stopped explicitly.
     $current = Get-HbTask
@@ -329,58 +379,103 @@ function Invoke-Install {
     $nextStart = if ($Trigger -eq 'Logon') { 'at your next sign-in' } else { 'when Chrome or Edge next opens (or a new tab finds it not running)' }
     if ($NoStart) {
         Write-HbOk "Not started now (-NoStart). It starts $nextStart, or any time with: Start-ScheduledTask -TaskName '$PortlyTaskName'"
-        Write-HbExtensionReminder -Plan $nativeHost
-        return 0
-    }
-
-    $already = Test-HbHealth -Port $port -TimeoutSeconds 2
-    if ($already.Ok) {
-        Write-Warning ("Portly is already $(Format-HbHealth $already), started outside the task (npm start or scripts\start.ps1?). " +
-            "The task will start Portly $nextStart. To switch now, stop the other instance (Ctrl+C in its window) and run: " +
-            "Start-ScheduledTask -TaskName '$PortlyTaskName'")
-        Write-HbExtensionReminder -Plan $nativeHost
-        return 0
-    }
-    if ($null -ne $already.Listeners -and $already.Listeners.Count -gt 0) {
-        Write-HbFailure "Port $port is in use by $(Format-HbPortOwners $already.Listeners), which does not answer as Portly, so Portly cannot start there."
-        Write-HbInfo "The task is registered. Stop that program (or set the PORTLY_PORT user environment variable to a free port and run this script again), then run: Start-ScheduledTask -TaskName '$PortlyTaskName'"
-        return 1
-    }
-
-    Write-HbStep 'Starting the task (checks the installation end to end)'
-    Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
-    $startedAt = [System.DateTime]::UtcNow
-    Write-HbInfo "Waiting up to $TimeoutSeconds s for http://localhost:$port/api/health ..."
-    $health = Wait-HbHealth -Port $port -TimeoutSeconds $TimeoutSeconds -ContinueWhile {
-        # Give the task a few seconds to show as Running; after that, stop waiting if it exited.
-        $task = Get-HbTask
-        (([System.DateTime]::UtcNow - $startedAt).TotalSeconds -lt 5) -or ($null -ne $task -and "$($task.State)" -eq 'Running')
-    }
-
-    if ($health.Ok) {
-        Write-HbOk "Portly is $(Format-HbHealth $health)"
-        if ($health.Vault -eq 'locked') {
-            Write-Warning 'The credential vault is locked: open Portly > Settings > Accounts and follow the banner.'
+        if (-not $legacy.Empty) {
+            Write-HbInfo "Homebase is still installed: it is removed only once Portly answers. Run this script again without -NoStart to switch over."
         }
-        Write-Host ''
-        Write-HbInfo "From now on it starts $nextStart."
         Write-HbExtensionReminder -Plan $nativeHost
-        Write-HbInfo "Open http://localhost:$port - or install the new-tab extension (docs\setup\extension.md)."
-        Write-HbInfo 'Check on it later with: scripts\status.ps1   Remove it with: scripts\uninstall-autostart.ps1'
         return 0
     }
 
-    Write-HbFailure "Portly did not come up: $(Format-HbHealth $health)"
-    $task = Get-HbTask
-    if ($null -ne $task) {
-        $info = Get-ScheduledTaskInfo -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
-        Write-HbField 'Task state' "$($task.State)"
-        Write-HbField 'Last result' (Format-HbTaskResult -Code $info.LastTaskResult)
+    # Homebase's server holds the port. Stop it now, but remove it only once Portly answers;
+    # otherwise (a failed start, an error) start it again, so this PC is never left without a server.
+    $legacyStopped = $false
+    $keepLegacyStopped = $false
+    try {
+        if ($null -ne $legacy.Task) {
+            Write-HbStep "Stopping Homebase's server (the '$PortlyLegacyTaskName' task; removed only once Portly answers)"
+            $legacyStopped = Suspend-HbLegacyServer -Plan $legacy
+            Start-Sleep -Milliseconds 500
+        }
+
+        $already = Test-HbHealth -Port $port -TimeoutSeconds 2
+        if ($already.Ok -and $already.App -eq 'portly') {
+            # Another Portly holds the port, so Homebase could not start there anyway.
+            $keepLegacyStopped = $true
+            Write-Warning ("Portly is already $(Format-HbHealth $already), started outside the task (npm start or scripts\start.ps1?). " +
+                "The task will start Portly $nextStart. To switch now, stop the other instance (Ctrl+C in its window) and run: " +
+                "Start-ScheduledTask -TaskName '$PortlyTaskName'")
+            if (-not $legacy.Empty) { Write-HbInfo 'Homebase is still installed. Run this script again once the task runs Portly to remove it.' }
+            Write-HbExtensionReminder -Plan $nativeHost
+            return 0
+        }
+        if ($null -ne $already.Listeners -and $already.Listeners.Count -gt 0) {
+            $what = if ($already.Ok) { "a server that answers as '$($already.App)', not Portly" } else { 'does not answer as Portly' }
+            Write-HbFailure "Port $port is in use by $(Format-HbPortOwners $already.Listeners), which $what, so Portly cannot start there."
+            Write-HbInfo "The task is registered. Stop that program (or set the PORTLY_PORT user environment variable to a free port and run this script again), then run: Start-ScheduledTask -TaskName '$PortlyTaskName'"
+            return 1
+        }
+
+        Write-HbStep 'Starting the task (checks the installation end to end)'
+        Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
+        $startedAt = [System.DateTime]::UtcNow
+        Write-HbInfo "Waiting up to $TimeoutSeconds s for http://localhost:$port/api/health ..."
+        $health = Wait-HbHealth -Port $port -TimeoutSeconds $TimeoutSeconds -ContinueWhile {
+            # Give the task a few seconds to show as Running; after that, stop waiting if it exited.
+            $task = Get-HbTask
+            (([System.DateTime]::UtcNow - $startedAt).TotalSeconds -lt 5) -or ($null -ne $task -and "$($task.State)" -eq 'Running')
+        }
+
+        if ($health.Ok -and $health.App -eq 'portly') {
+            $keepLegacyStopped = $true
+            Write-HbOk "Portly is $(Format-HbHealth $health)"
+            if ($health.Vault -eq 'locked') {
+                Write-Warning 'The credential vault is locked: open Portly > Settings > Accounts and follow the banner.'
+            }
+            if ($null -ne $legacy.Task -or @($legacy.RegistryKeys).Count -gt 0) {
+                $backup = Join-Path $dataDir 'homebase-task-backup.xml'
+                Write-HbStep "Removing Homebase's task and native host registrations (its data folder stays)"
+                try {
+                    Remove-HbLegacyInstall -Plan $legacy -BackupPath $backup
+                } catch {
+                    Write-HbFailure "Portly works, but Homebase could not be removed: $($_.Exception.Message). Run this script again."
+                    return 1
+                }
+                if ($null -ne $legacy.Task) { Write-HbOk "Removed. The old task's definition is saved in $backup" } else { Write-HbOk 'Removed' }
+                Write-HbInfo 'In the browser, remove the Homebase New Tab extension and load Portly''s (docs\SETUP.md, Coming from Homebase).'
+            }
+            Write-Host ''
+            Write-HbInfo "From now on it starts $nextStart."
+            Write-HbExtensionReminder -Plan $nativeHost
+            Write-HbInfo "Open http://localhost:$port - or install the new-tab extension (docs\setup\extension.md)."
+            Write-HbInfo 'Check on it later with: scripts\status.ps1   Remove it with: scripts\uninstall-autostart.ps1'
+            return 0
+        }
+
+        Write-HbFailure "Portly did not come up: $(Format-HbHealth $health)"
+        $task = Get-HbTask
+        if ($null -ne $task) {
+            $info = Get-ScheduledTaskInfo -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
+            Write-HbField 'Task state' "$($task.State)"
+            Write-HbField 'Last result' (Format-HbTaskResult -Code $info.LastTaskResult)
+        }
+        Write-HbInfo 'Everything stays registered. Troubleshooting: docs\setup\troubleshooting.md'
+        Write-HbLogTail -LogFile $supervisorLog -Lines 10
+        Write-HbLogTail -LogFile $logFile -Lines 20
+        return 1
+    } finally {
+        if ($legacyStopped -and -not $keepLegacyStopped) {
+            # Portly's own task must not keep the port either.
+            try { Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -ErrorAction Stop } catch { }
+            $null = Stop-HbSupervisorProcesses -RepoRoot $repoRoot
+            Write-HbStep "Starting Homebase's server again (nothing of it was removed)"
+            try {
+                Resume-HbLegacyServer -Plan $legacy
+                Write-HbOk "Started the '$PortlyLegacyTaskName' task again"
+            } catch {
+                Write-HbFailure "Could not start the '$PortlyLegacyTaskName' task again: $($_.Exception.Message). Run: Start-ScheduledTask -TaskName '$PortlyLegacyTaskName'"
+            }
+        }
     }
-    Write-HbInfo 'Everything stays registered. Troubleshooting: docs\setup\troubleshooting.md'
-    Write-HbLogTail -LogFile $supervisorLog -Lines 10
-    Write-HbLogTail -LogFile $logFile -Lines 20
-    return 1
 }
 
 # The one-time extension step after the ID was pinned with a manifest "key".

@@ -43,6 +43,7 @@ import { EXIT_ALREADY_RUNNING, EXIT_PERMANENT_FAILURE, EXIT_STARTUP_FAILURE, fat
 import { createHealthRecorder, isInactiveSubject, type HealthRecorder } from './lib/health.ts';
 import { createInFlightRequests, type InFlightRequests } from './lib/inflight.ts';
 import { isShutdownMessage } from './lib/ipc.ts';
+import { migrateFromHomebase } from './lib/legacy-homebase.ts';
 import { newRunId, outsideLogContext } from './lib/log-context.ts';
 import { createLogger, errorFields, type LogFields, type RootLogger } from './lib/logger.ts';
 import { createScheduler, type Scheduler } from './lib/scheduler.ts';
@@ -78,6 +79,7 @@ type StartupPhase =
   | 'logger'
   | 'web-dist'
   | 'port-probe'
+  | 'legacy'
   | 'db'
   | 'migrate'
   | 'health'
@@ -368,6 +370,12 @@ async function main(): Promise<void> {
       }
     }
   });
+
+  // A pending request (install-autostart.ps1, `portly --copy-from-homebase`): copy Homebase's
+  // database and vault key before the db phase creates an empty one (lib/legacy-homebase.ts).
+  await timed('legacy', () =>
+    migrateFromHomebase({ dataDir: config.dataDir, db: config.paths.db, vaultKey: config.paths.vaultKey }, { log }),
+  );
 
   const db = await timed('db', () => openDb(config.paths.db));
   state.db = db;

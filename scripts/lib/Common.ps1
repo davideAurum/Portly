@@ -343,6 +343,7 @@ function Test-HbHealth {
         Url       = "http://localhost:$Port/api/health"
         Version   = $null
         Vault     = $null
+        App       = $null
         Error     = $null
         Listeners = $null
     }
@@ -385,6 +386,8 @@ function Test-HbHealth {
         $result.Ok = $true
         $result.Version = Get-HbProperty $json 'version'
         $result.Vault = Get-HbProperty $json 'vault'
+        # 'portly'; Homebase (Portly's name before the rename) answers 'homebase'.
+        $result.App = Get-HbProperty $json 'app'
         return $result
     } catch {
         $chain = @(Get-HbExceptionChain $_)
@@ -557,6 +560,205 @@ function Initialize-HbReleaseLinks {
     }
     $null = New-Item -ItemType Junction -Path $link -Target $target
     return $link
+}
+
+# --------------------------------------------------------------------------------------------
+# Homebase, Portly's name before the rename (ARCHITECTURE section 19)
+# --------------------------------------------------------------------------------------------
+
+$PortlyLegacyTaskName = 'Homebase Server'
+$PortlyLegacyNativeHostRegistry = @(
+    [pscustomobject]@{ Browser = 'Chrome'; SubKey = 'Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher' }
+    [pscustomobject]@{ Browser = 'Edge'; SubKey = 'Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher' }
+)
+# The user variables Homebase read, each carried over to its PORTLY_ name.
+$PortlyLegacyEnvNames = @(@($PortlyEnvNames) + 'PORTLY_PAGES_REPO' | ForEach-Object { $_ -replace '^PORTLY_', 'HOMEBASE_' })
+
+# What install-autostart.ps1 carries over from Homebase: user variables HOMEBASE_X whose PORTLY_X
+# is not set (Copy: From, To, Value), the 'Homebase Server' task (Task, or $null; it would take
+# Portly's port) and the com.homebase.launcher registry keys that exist (RegistryKeys). Homebase's
+# data folder is never touched (the server copies the database when asked to, Get-HbHomebaseCopyPlan).
+# -EnvReader { param($Name) }, -RegistryReader { param($SubKey) } and -TaskReader { } replace the
+# user environment, HKCU and Task Scheduler (tests).
+function Get-HbLegacyPlan {
+    param([scriptblock]$EnvReader, [scriptblock]$RegistryReader, [scriptblock]$TaskReader)
+    if ($null -eq $EnvReader) { $EnvReader = { param([string]$Name) [System.Environment]::GetEnvironmentVariable($Name, 'User') } }
+    if ($null -eq $RegistryReader) { $RegistryReader = { param([string]$SubKey) Get-HbRegistryDefaultValue -SubKey $SubKey } }
+    if ($null -eq $TaskReader) {
+        $TaskReader = { Get-ScheduledTask -TaskName $PortlyLegacyTaskName -TaskPath '\' -ErrorAction SilentlyContinue | Select-Object -First 1 }
+    }
+    $copy = New-Object System.Collections.Generic.List[object]
+    foreach ($name in $PortlyLegacyEnvNames) {
+        $value = & $EnvReader $name
+        if ([string]::IsNullOrWhiteSpace($value)) { continue }
+        $target = $name -replace '^HOMEBASE_', 'PORTLY_'
+        if (-not [string]::IsNullOrWhiteSpace((& $EnvReader $target))) { continue }
+        $copy.Add([pscustomobject]@{ From = $name; To = $target; Value = "$value".Trim() })
+    }
+    $task = & $TaskReader
+    $keys = @($PortlyLegacyNativeHostRegistry | Where-Object { $null -ne (& $RegistryReader $_.SubKey) })
+    return [pscustomobject]@{
+        Copy         = $copy.ToArray()
+        Task         = $task
+        RegistryKeys = $keys
+        Empty        = ($copy.Count -eq 0 -and $null -eq $task -and $keys.Count -eq 0)
+    }
+}
+
+# What a real install-autostart.ps1 run does with Homebase, in this order: copy the variables
+# (before the PORTLY_* settings are read); once Portly's task is registered, stop Homebase's server
+# (it holds the port); once Portly answers its health check, save the old task's definition and
+# remove the task and the registrations. If Portly does not come up, Homebase is started again.
+function Write-HbLegacyPlan {
+    param([Parameter(Mandatory)]$Plan)
+    foreach ($entry in @($Plan.Copy)) { Write-HbInfo "- copy the user variable $($entry.From) to $($entry.To) = $($entry.Value)" }
+    if ($null -ne $Plan.Task) {
+        Write-HbInfo "- once Portly's task is registered, stop the scheduled task '$PortlyLegacyTaskName' (it holds the port)"
+        Write-HbInfo "- once Portly answers, save that task's definition and remove it; if Portly does not come up, start it again"
+    }
+    foreach ($entry in @($Plan.RegistryKeys)) { Write-HbInfo "- once Portly answers, remove the $($entry.Browser) registration of the native host com.homebase.launcher" }
+    Write-HbInfo '- leave the Homebase data folder as it is'
+}
+
+# Copies the HOMEBASE_X user variables of a Get-HbLegacyPlan to their PORTLY_X names (user scope
+# and this process). -EnvWriter { param($Name, $Value) } replaces the user environment (tests).
+function Invoke-HbLegacyEnvCopy {
+    param([Parameter(Mandatory)]$Plan, [scriptblock]$EnvWriter)
+    if ($null -eq $EnvWriter) {
+        $EnvWriter = {
+            param([string]$Name, [string]$Value)
+            [System.Environment]::SetEnvironmentVariable($Name, $Value, 'User')
+            Set-Item -LiteralPath "Env:$Name" -Value $Value
+        }
+    }
+    foreach ($entry in @($Plan.Copy)) { & $EnvWriter $entry.To $entry.Value }
+}
+
+# Stops Homebase's server (its task, and the supervisor processes it started from its checkout)
+# without removing anything, so Resume-HbLegacyServer can start it again. Returns $true when there
+# was a task to stop. -TaskStopper { param($Task) } replaces Task Scheduler and the processes (tests).
+function Suspend-HbLegacyServer {
+    param([Parameter(Mandatory)]$Plan, [scriptblock]$TaskStopper)
+    if ($null -eq $Plan.Task) { return $false }
+    if ($null -eq $TaskStopper) {
+        $TaskStopper = {
+            param($Task)
+            try { Stop-ScheduledTask -InputObject $Task -ErrorAction Stop } catch { }
+            # The task runs <checkout>\server\src\supervisor.ts from <checkout>: stop what it started.
+            $folder = "$(@($Task.Actions)[0].WorkingDirectory)"
+            if ($folder -and (Test-Path -LiteralPath (Join-Path $folder 'server\src\supervisor.ts') -PathType Leaf)) {
+                $null = Stop-HbSupervisorProcesses -RepoRoot $folder
+            }
+        }
+    }
+    & $TaskStopper $Plan.Task
+    return $true
+}
+
+# Starts Homebase's task again after Suspend-HbLegacyServer (Portly did not come up).
+# -TaskStarter { param($Task) } replaces Task Scheduler (tests).
+function Resume-HbLegacyServer {
+    param([Parameter(Mandatory)]$Plan, [scriptblock]$TaskStarter)
+    if ($null -eq $Plan.Task) { return }
+    if ($null -eq $TaskStarter) { $TaskStarter = { param($Task) Start-ScheduledTask -InputObject $Task } }
+    & $TaskStarter $Plan.Task
+}
+
+# Removes what Homebase registered, once Portly works: saves the task's definition to -BackupPath
+# first (it can be restored with Register-ScheduledTask -TaskName 'Homebase Server'
+# -Xml (Get-Content -Raw <file>)), then unregisters the task and deletes the com.homebase.launcher
+# keys. A failed save stops here, before anything is removed. -TaskExporter { param($Task, $Path) },
+# -TaskRemover { param($Task) } and -RegistryRemover { param($SubKey) } replace the real changes (tests).
+function Remove-HbLegacyInstall {
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [Parameter(Mandatory)][string]$BackupPath,
+        [scriptblock]$TaskExporter,
+        [scriptblock]$TaskRemover,
+        [scriptblock]$RegistryRemover
+    )
+    if ($null -eq $TaskExporter) {
+        $TaskExporter = {
+            param($Task, [string]$Path)
+            $xml = Export-ScheduledTask -TaskName $Task.TaskName -TaskPath $Task.TaskPath
+            # The XML declares UTF-16.
+            [System.IO.File]::WriteAllText($Path, $xml, [System.Text.Encoding]::Unicode)
+        }
+    }
+    if ($null -eq $TaskRemover) { $TaskRemover = { param($Task) Unregister-ScheduledTask -InputObject $Task -Confirm:$false } }
+    if ($null -eq $RegistryRemover) { $RegistryRemover = { param([string]$SubKey) Remove-HbRegistryKey -SubKey $SubKey } }
+    if ($null -ne $Plan.Task) {
+        $folder = Split-Path -Parent $BackupPath
+        if (-not (Test-Path -LiteralPath $folder -PathType Container)) { $null = New-Item -ItemType Directory -Force -Path $folder }
+        & $TaskExporter $Plan.Task $BackupPath
+        & $TaskRemover $Plan.Task
+    }
+    foreach ($entry in @($Plan.RegistryKeys)) { & $RegistryRemover $entry.SubKey }
+}
+
+# The request the server acts on at its next start, and the record it leaves
+# (server/src/lib/legacy-homebase.ts): Portly copies Homebase's database only when asked to.
+$PortlyHomebaseCopyRequest = 'copy-from-homebase.json'
+$PortlyHomebaseCopyMarker = 'migrated-from-homebase.json'
+
+# Whether Portly should be asked to copy Homebase's database into -DataDir. The source is
+# homebase.db in -DataDir itself, else - only without a PORTLY_DATA_DIR (-CustomDataDir) - in
+# Homebase's default folder (the server looks in the same places). State is one of:
+#   none                 no Homebase database was found
+#   done                 the marker says it was copied (CopiedAt)
+#   pending              a request is already waiting for the next start
+#   portly-has-database  portly.db exists, so copying needs a request with replace
+#   request              nothing copied yet: request it
+# -LocalAppData replaces %LOCALAPPDATA% (tests).
+function Get-HbHomebaseCopyPlan {
+    param([Parameter(Mandatory)][string]$DataDir, [switch]$CustomDataDir, [string]$LocalAppData)
+    if (-not $LocalAppData) { $LocalAppData = [System.Environment]::GetFolderPath('LocalApplicationData') }
+    $candidates = @(Join-Path $DataDir 'homebase.db')
+    if (-not $CustomDataDir) { $candidates += (Join-Path (Join-Path $LocalAppData 'Homebase') 'homebase.db') }
+    $source = $null
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $source = $candidate; break }
+    }
+    $requestPath = Join-Path $DataDir $PortlyHomebaseCopyRequest
+    $markerPath = Join-Path $DataDir $PortlyHomebaseCopyMarker
+    $marker = $null
+    if (Test-Path -LiteralPath $markerPath -PathType Leaf) {
+        try { $marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json } catch { $marker = $null }
+    }
+    $markerStatus = Get-HbProperty $marker 'status'
+    $state = if ($null -eq $source) { 'none' }
+    elseif ($markerStatus -eq 'copied') { 'done' }
+    elseif (Test-Path -LiteralPath $requestPath -PathType Leaf) { 'pending' }
+    elseif (Test-Path -LiteralPath (Join-Path $DataDir 'portly.db') -PathType Leaf) { 'portly-has-database' }
+    else { 'request' }
+    return [pscustomobject]@{
+        DataDir      = $DataDir
+        Source       = $source
+        RequestPath  = $requestPath
+        State        = $state
+        MarkerStatus = $markerStatus
+        CopiedAt     = Get-HbProperty $marker 'at'
+    }
+}
+
+# Writes the copy request into -DataDir (creating it) and returns its path. -Replace: the server
+# moves an existing portly.db aside instead of keeping it.
+function Write-HbHomebaseCopyRequest {
+    param([Parameter(Mandatory)][string]$DataDir, [switch]$Replace)
+    if (-not (Test-Path -LiteralPath $DataDir -PathType Container)) { $null = New-Item -ItemType Directory -Force -Path $DataDir }
+    $request = [ordered]@{ requestedAt = [System.DateTime]::UtcNow.ToString('o'); replace = [bool]$Replace }
+    $path = Join-Path $DataDir $PortlyHomebaseCopyRequest
+    [System.IO.File]::WriteAllText($path, ($request | ConvertTo-Json -Compress), (New-Object System.Text.UTF8Encoding($false)))
+    return $path
+}
+
+# Withdraws a waiting copy request. Returns $true when there was one.
+function Remove-HbHomebaseCopyRequest {
+    param([Parameter(Mandatory)][string]$DataDir)
+    $path = Join-Path $DataDir $PortlyHomebaseCopyRequest
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $false }
+    Remove-Item -LiteralPath $path -Force
+    return $true
 }
 
 function Test-HbWebBuilt {

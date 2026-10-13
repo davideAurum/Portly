@@ -151,7 +151,8 @@ pushes. Run it with `-DryRun` first to see the list. Options:
 It refuses to run when the folder is not a git repository, when it is the Portly repository
 itself (or any other Portly checkout), when its working tree has uncommitted changes or untracked
 files, when no branch is checked out, or when the repository holds anything but an earlier
-Portly publish (`index.html` with `<meta name="portly-build" content="static">`, `assets/`,
+Portly publish (`index.html` with `<meta name="portly-build" content="static">` — or `homebase-build`
+from before the rename — `assets/`, `install.ps1`, `setup.ps1`,
 `favicon.svg`, `.nojekyll`, `CNAME`, `README.md`) — unless `-ReplaceEverything`. When `origin` is
 on github.com and there is no `CNAME`, `-Base` must match the repository: `/` for
 `<user>.github.io`, `/<repo>/` for any other (for a custom domain, set it up in the repository's

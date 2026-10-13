@@ -19,6 +19,10 @@
         How it is set up: port, folders, logs, autostart, extension, Pages (status.ps1 -View Settings).
     portly --start
         Start the Portly Server scheduled task.
+    portly --copy-from-homebase [--replace | --cancel]
+        Ask Portly to copy the data of Homebase (its name before the rename) at its next start
+        and restart the task to do it; --replace copies over Portly's own database (moved
+        aside, not deleted), --cancel withdraws the request (ARCHITECTURE section 19).
     portly --help
         This text.
 
@@ -48,6 +52,11 @@ Usage: portly <command> [options]
   --settings    How Portly is set up: port, folders, logs, autostart,
                 browser extension and GitHub Pages.
   --start      Start the Portly server.
+  --copy-from-homebase
+                Copy the data of Homebase (Portly's old name) into Portly,
+                restarting Portly to do it.
+                  --replace       over Portly's own data (kept beside it)
+                  --cancel        withdraw a copy that waits or keeps failing
   --help        Show this text.
 '@
 
@@ -117,6 +126,56 @@ function Invoke-HbReleaseUpdate {
     } finally {
         Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
     }
+}
+
+# portly --copy-from-homebase: asks Portly to copy Homebase's data at its next start (--replace:
+# over Portly's own database, which is kept beside it), or withdraws that request (--cancel); then
+# restarts the Portly Server task when it is installed, so the copy is made now.
+function Invoke-HbCopyFromHomebase {
+    param([Parameter(Mandatory)][string]$RepoRoot, [switch]$Replace, [switch]$Cancel)
+    $dataDir = Get-HbDataDir -Scope Task -RepoRoot $RepoRoot
+    if ($Cancel) {
+        if (Remove-HbHomebaseCopyRequest -DataDir $dataDir) {
+            Write-HbOk 'Withdrew the request: Portly starts with its own data, without copying Homebase''s.'
+        } else {
+            Write-HbInfo 'No copy from Homebase was waiting.'
+        }
+        return 0
+    }
+    $plan = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    if ($plan.State -eq 'none') {
+        Write-HbFailure "No Homebase database (homebase.db) was found for the data folder $dataDir."
+        return 1
+    }
+    if ($plan.State -eq 'done' -and -not $Replace) {
+        Write-HbOk "Homebase's data was already copied ($($plan.CopiedAt)). To copy it again over Portly's current data, add --replace."
+        return 0
+    }
+    if ($plan.State -eq 'portly-has-database' -and -not $Replace) {
+        Write-HbFailure "Portly already has a database in $dataDir. To replace it with Homebase's (the current one is kept beside it as portly.db.before-homebase-<time>), add --replace."
+        return 1
+    }
+    $requestPath = Write-HbHomebaseCopyRequest -DataDir $dataDir -Replace:$Replace
+    Write-HbOk "Asked Portly to copy $($plan.Source) at its next start ($requestPath)"
+
+    if ($null -eq (Get-HbTask)) {
+        Write-HbInfo 'Start Portly to make the copy (or withdraw the request with: portly --copy-from-homebase --cancel).'
+        return 0
+    }
+    Write-HbStep 'Restarting Portly to make the copy'
+    try { Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -ErrorAction Stop } catch { }
+    $null = Stop-HbSupervisorProcesses -RepoRoot $RepoRoot
+    Start-Sleep -Milliseconds 500
+    Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
+    $port = (Get-HbPortSetting -Scope Task).Port
+    $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
+    $after = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    if ($health.Ok -and $after.State -eq 'done') {
+        Write-HbOk "Copied. Portly is $(Format-HbHealth $health)"
+        return 0
+    }
+    Write-HbFailure "The copy was not made (Portly: $(Format-HbHealth $health); copy: $($after.MarkerStatus)). See: portly --status --logs"
+    return 1
 }
 
 function Write-HbVersion {
@@ -192,6 +251,15 @@ function Invoke-HbCli {
             if ($health.Ok) { Write-HbOk "Portly is $(Format-HbHealth $health)"; return 0 }
             Write-HbFailure "Portly did not start: $(Format-HbHealth $health). Try: portly --status --logs"
             return 1
+        }
+        'copy-from-homebase' {
+            $mapped = ConvertTo-HbCliParameters -Options $rest -Map @{
+                '--replace' = @{ Name = 'Replace'; Value = $true }
+                '--cancel'  = @{ Name = 'Cancel'; Value = $true }
+            }
+            if ($null -eq $mapped) { return 2 }
+            if ($mapped.ContainsKey('Replace') -and $mapped.ContainsKey('Cancel')) { Write-HbFailure 'Use --replace or --cancel, not both.'; return 2 }
+            return Invoke-HbCopyFromHomebase -RepoRoot $repoRoot @mapped
         }
         'version' {
             if ($rest.Count -gt 0) { Write-HbFailure '--version takes no options.'; return 2 }

@@ -437,6 +437,7 @@ describe('static core: import', () => {
     // A UTF-8 BOM is tolerated.
     const bom = new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode(JSON.stringify(baseFile()))]);
     cases.push(['BOM-prefixed export', bom, 200]);
+    cases.push(['a file exported by Homebase (before the rename)', JSON.stringify({ ...baseFile(), format: 'homebase-export' }), 200]);
 
     for (const [name, content, status] of cases) {
       const res = await preview(content);

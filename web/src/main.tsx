@@ -1,5 +1,7 @@
 // Must stay the first import: sets zod `jitless` before any schema is built (§4.3 CSP, no eval).
 import './zodConfig.ts';
+// Then Homebase's browser settings, before any module reads storage (legacyStorage.ts).
+import './legacyStorage.ts';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { toast } from 'sonner';

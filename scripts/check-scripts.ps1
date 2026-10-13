@@ -117,6 +117,77 @@ if (Test-Path -LiteralPath $workflowDir -PathType Container) {
 Write-Host ''
 Write-Host 'Common.ps1 helpers' -ForegroundColor White
 
+# Coming from Homebase: planned and carried out against fakes and temporary folders only (never
+# the real user environment, task, registry or data folder).
+$legacyEnv = @{ HOMEBASE_PAGES_URL = 'https://me.github.io/'; HOMEBASE_PORT = '5800'; PORTLY_PORT = '6000'; HOMEBASE_DATA_DIR = '  ' }
+$legacyChrome = 'Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher'
+$legacyPlan = Get-HbLegacyPlan -EnvReader { param($Name) $legacyEnv[$Name] } -RegistryReader { param($SubKey) if ($SubKey -eq $legacyChrome) { 'C:\x.json' } else { $null } } -TaskReader { $null }
+Assert-That -Name 'Get-HbLegacyPlan copies only HOMEBASE_ variables whose PORTLY_ name is unset, and finds the old host keys' -Condition (
+    @($legacyPlan.Copy).Count -eq 1 -and $legacyPlan.Copy[0].From -eq 'HOMEBASE_PAGES_URL' -and $legacyPlan.Copy[0].To -eq 'PORTLY_PAGES_URL' -and
+    $legacyPlan.Copy[0].Value -eq 'https://me.github.io/' -and @($legacyPlan.RegistryKeys).Count -eq 1 -and $null -eq $legacyPlan.Task -and -not $legacyPlan.Empty)
+Assert-That -Name 'Get-HbLegacyPlan is empty without anything of Homebase' -Condition (
+    (Get-HbLegacyPlan -EnvReader { param($Name) $null } -RegistryReader { param($SubKey) $null } -TaskReader { $null }).Empty)
+$legacyCalls = New-Object System.Collections.Generic.List[string]
+Invoke-HbLegacyEnvCopy -Plan $legacyPlan -EnvWriter { param($Name, $Value) $legacyCalls.Add("env $Name=$Value") }
+Assert-That -Name 'Invoke-HbLegacyEnvCopy copies only the variables' -Condition (
+    ($legacyCalls -join '|') -ceq 'env PORTLY_PAGES_URL=https://me.github.io/') -Detail ($legacyCalls -join '|')
+
+$legacyTask = [pscustomobject]@{ TaskName = 'Homebase Server'; TaskPath = '\' }
+$legacyTaskPlan = Get-HbLegacyPlan -EnvReader { param($Name) $null } -RegistryReader { param($SubKey) if ($SubKey -eq $legacyChrome) { 'C:\x.json' } else { $null } } -TaskReader { $legacyTask }
+$legacyCalls.Clear()
+$suspended = Suspend-HbLegacyServer -Plan $legacyTaskPlan -TaskStopper { param($Task) $legacyCalls.Add("stop $($Task.TaskName)") }
+Resume-HbLegacyServer -Plan $legacyTaskPlan -TaskStarter { param($Task) $legacyCalls.Add("start $($Task.TaskName)") }
+Assert-That -Name 'Suspend-HbLegacyServer only stops the Homebase Server task, and Resume-HbLegacyServer starts it again' -Condition (
+    $suspended -and ($legacyCalls -join '|') -ceq 'stop Homebase Server|start Homebase Server') -Detail ($legacyCalls -join '|')
+Assert-That -Name 'Suspend-HbLegacyServer does nothing without a Homebase task' -Condition (
+    -not (Suspend-HbLegacyServer -Plan $legacyPlan -TaskStopper { param($Task) throw 'called' }))
+
+$legacyBackup = Join-Path $workDir 'legacy\data\homebase-task-backup.xml'
+$legacyCalls.Clear()
+Remove-HbLegacyInstall -Plan $legacyTaskPlan -BackupPath $legacyBackup -TaskExporter { param($Task, $Path) $legacyCalls.Add("export $($Task.TaskName) $Path") } -TaskRemover { param($Task) $legacyCalls.Add("remove $($Task.TaskName)") } -RegistryRemover { param($SubKey) $legacyCalls.Add("reg $SubKey") }
+Assert-That -Name 'Remove-HbLegacyInstall saves the task definition first, then removes the task and the host keys' -Condition (
+    ($legacyCalls -join '|') -ceq "export Homebase Server $legacyBackup|remove Homebase Server|reg $legacyChrome" -and
+    (Test-Path -LiteralPath (Split-Path -Parent $legacyBackup) -PathType Container)) -Detail ($legacyCalls -join '|')
+$legacyCalls.Clear()
+Assert-Throws -Name 'Remove-HbLegacyInstall removes nothing when the task definition cannot be saved' -Pattern 'disk full' -Action {
+    Remove-HbLegacyInstall -Plan $legacyTaskPlan -BackupPath $legacyBackup -TaskExporter { param($Task, $Path) throw 'disk full' } -TaskRemover { param($Task) $legacyCalls.Add('remove') } -RegistryRemover { param($SubKey) $legacyCalls.Add('reg') }
+}
+Assert-That -Name 'Remove-HbLegacyInstall left the task and keys after a failed save' -Condition ($legacyCalls.Count -eq 0) -Detail ($legacyCalls -join '|')
+
+# The copy request (server/src/lib/legacy-homebase.ts reads it).
+$copyLocal = Join-Path $workDir 'copy\Local'
+$copyData = Join-Path $copyLocal 'Portly'
+$copyHomebase = Join-Path $copyLocal 'Homebase'
+Assert-That -Name 'Get-HbHomebaseCopyPlan: none without a Homebase database' -Condition (
+    (Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal).State -eq 'none')
+$null = New-Item -ItemType Directory -Path $copyHomebase -Force
+Set-Content -LiteralPath (Join-Path $copyHomebase 'homebase.db') -Value 'db'
+$copyPlan = Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal
+Assert-That -Name "Get-HbHomebaseCopyPlan: request, from Homebase's default folder" -Condition (
+    $copyPlan.State -eq 'request' -and $copyPlan.Source -eq (Join-Path $copyHomebase 'homebase.db')) -Detail "$($copyPlan.State) $($copyPlan.Source)"
+Assert-That -Name "Get-HbHomebaseCopyPlan: a custom data folder ignores Homebase's default folder" -Condition (
+    (Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal -CustomDataDir).State -eq 'none')
+$requestPath = Write-HbHomebaseCopyRequest -DataDir $copyData
+$requestBytes = [System.IO.File]::ReadAllBytes($requestPath)
+$request = [System.Text.Encoding]::UTF8.GetString($requestBytes) | ConvertFrom-Json
+Assert-That -Name 'Write-HbHomebaseCopyRequest writes JSON without a BOM (replace false)' -Condition (
+    $requestBytes[0] -eq [byte][char]'{' -and $request.replace -eq $false -and "$($request.requestedAt)" -ne '') -Detail ([System.Text.Encoding]::UTF8.GetString($requestBytes))
+Assert-That -Name 'Get-HbHomebaseCopyPlan: pending once requested' -Condition ((Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal).State -eq 'pending')
+$null = Write-HbHomebaseCopyRequest -DataDir $copyData -Replace
+Assert-That -Name 'Write-HbHomebaseCopyRequest -Replace' -Condition (((Get-Content -LiteralPath $requestPath -Raw) | ConvertFrom-Json).replace -eq $true)
+Assert-That -Name 'Remove-HbHomebaseCopyRequest withdraws it, once' -Condition (
+    (Remove-HbHomebaseCopyRequest -DataDir $copyData) -and -not (Test-Path -LiteralPath $requestPath) -and -not (Remove-HbHomebaseCopyRequest -DataDir $copyData))
+Set-Content -LiteralPath (Join-Path $copyData 'portly.db') -Value 'db'
+Assert-That -Name 'Get-HbHomebaseCopyPlan: portly-has-database' -Condition ((Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal).State -eq 'portly-has-database')
+Set-Content -LiteralPath (Join-Path $copyData 'migrated-from-homebase.json') -Value '{"status":"copied","at":"2026-10-12T12:00:00.000Z"}'
+$copyDone = Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal
+Assert-That -Name 'Get-HbHomebaseCopyPlan: done, from the marker' -Condition ($copyDone.State -eq 'done' -and "$($copyDone.CopiedAt)" -match '^2026-10-12') -Detail "$($copyDone.State) $($copyDone.CopiedAt)"
+Set-Content -LiteralPath (Join-Path $copyData 'migrated-from-homebase.json') -Value '{"status":"failed"}'
+Assert-That -Name 'Get-HbHomebaseCopyPlan: a failed copy is not done' -Condition ((Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal).State -eq 'portly-has-database')
+Set-Content -LiteralPath (Join-Path $copyData 'homebase.db') -Value 'db'
+Assert-That -Name 'Get-HbHomebaseCopyPlan prefers homebase.db in the data folder itself' -Condition (
+    (Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal -CustomDataDir).Source -eq (Join-Path $copyData 'homebase.db'))
+
 Assert-That -Name 'ConvertTo-HbPort accepts 5757' -Condition ((ConvertTo-HbPort '5757') -eq 5757)
 Assert-That -Name 'ConvertTo-HbPort trims whitespace' -Condition ((ConvertTo-HbPort ' 8080 ') -eq 8080)
 foreach ($bad in @('', 'abc', '0', '65536', '-1', '+80', '1e3', '5757.0', '0x10', '123456')) {
@@ -887,6 +958,14 @@ try {
                 # (Windows PowerShell may wrap long lines; compare with whitespace collapsed.)
                 $flat = { param([string]$Text) $Text -replace '\s+', ' ' }
 
+                # An earlier publish from before the rename to Portly (Homebase's marker) that also
+                # carries install.ps1 and setup.ps1: still a publish of this app.
+                $legacyIndex = '<!doctype html><html><head><meta name="homebase-build" content="static"><script type="module" src="/pages/assets/app.js"></script></head></html>'
+                $legacyRepo = & $newPagesRepo 'publish-legacy' @{ 'index.html' = $legacyIndex; 'assets/app.js' = 'app'; 'install.ps1' = 'x'; 'setup.ps1' = 'x' }
+                $publishLegacy = & $run 'publish-static.ps1' @('-PublicRepoPath', $legacyRepo, '-Base', '/pages/', '-DryRun', '-NoPush')
+                Assert-That -Name 'publish-static.ps1 -DryRun accepts an earlier publish from before the rename (homebase-build, install.ps1, setup.ps1)' -Condition (
+                    $publishLegacy.ExitCode -eq 0 -and $publishLegacy.Text.Contains('- install.ps1') -and $publishLegacy.Text.Contains('- setup.ps1')) -Detail $publishLegacy.Text
+
                 # An earlier Portly publish (index.html with the build marker, assets\, .nojekyll) plus a CNAME.
                 $markerIndex = '<!doctype html><html><head><meta name="portly-build" content="static"><script type="module" src="/pages/assets/app.js"></script></head></html>'
                 $pagesRepo = & $newPagesRepo 'publish-pages' @{ 'index.html' = $markerIndex; 'assets/app.js' = 'app'; '.nojekyll' = ''; 'CNAME' = 'portly.example.invalid' }
@@ -996,6 +1075,12 @@ try {
             $cliBadOption = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--rebuild', '--nope')
             Assert-That -Name 'portly rejects an unknown command or option with exit code 2' -Condition (
                 $cliUnknown.ExitCode -eq 2 -and $cliBadOption.ExitCode -eq 2 -and $cliBadOption.Text.Contains("Unknown option '--nope'")) -Detail "$($cliUnknown.Text)`n$($cliBadOption.Text)"
+            # Only refusals: a real --copy-from-homebase would act on the user's own data folder.
+            $cliCopyBad = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--copy-from-homebase', '--nope')
+            $cliCopyBoth = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--copy-from-homebase', '--replace', '--cancel')
+            Assert-That -Name 'portly --copy-from-homebase refuses an unknown option, and --replace with --cancel (exit 2)' -Condition (
+                $cliCopyBad.ExitCode -eq 2 -and $cliCopyBoth.ExitCode -eq 2 -and $cliCopyBoth.Text.Contains('not both') -and
+                $cliHelp.Text.Contains('--copy-from-homebase')) -Detail "$($cliCopyBad.Text)`n$($cliCopyBoth.Text)"
             $cliSettings = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--settings')
             Assert-That -Name 'portly --settings shows only the settings section and exits 0' -Condition (
                 $cliSettings.ExitCode -eq 0 -and $cliSettings.Text.Contains('Portly settings') -and $cliSettings.Text.Contains('Data folder') -and

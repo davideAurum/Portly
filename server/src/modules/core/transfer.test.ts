@@ -310,6 +310,7 @@ describe('core: import', () => {
       ['constructor.prototype in settings', JSON.stringify(baseFile()).replace('"settings":{}', '"settings":{"constructor":{"prototype":{"polluted":true}}}'), 400],
       ['deep nesting', JSON.stringify({ ...baseFile(), deep }), 400],
       ['wrong format', JSON.stringify({ ...baseFile(), format: 'other-app' }), 422],
+      ['a file exported by Homebase (before the rename)', JSON.stringify({ ...baseFile(), format: 'homebase-export' }), 200],
       ['future version', JSON.stringify({ ...baseFile(), version: 2 }), 422],
       ['array root', '[]', 422],
       ['too many profiles', JSON.stringify(withProfiles(51)), 422],

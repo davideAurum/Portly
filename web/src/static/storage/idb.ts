@@ -47,6 +47,49 @@ export function openStaticDatabase(factory: IDBFactory = indexedDB, name = STATI
   });
 }
 
+/** Database names before the rename to Portly: `homebase-static:<base path>`. */
+const LEGACY_PREFIX = 'homebase-static:';
+const PREFIX = 'portly-static:';
+
+/**
+ * The first time this deployment opens its database, copies the one Homebase (Portly's name before
+ * the rename) kept under `homebase-static:<base path>`: both stores, every record. Only when the
+ * new database does not exist yet and the old one does; the old one is left as it is. Browsers
+ * without `indexedDB.databases()` skip it. Returns whether anything was copied; never rejects.
+ */
+export async function copyLegacyStaticDatabase(factory: IDBFactory, name: string): Promise<boolean> {
+  if (!name.startsWith(PREFIX) || typeof factory.databases !== 'function') return false;
+  const legacyName = `${LEGACY_PREFIX}${name.slice(PREFIX.length)}`;
+  try {
+    const names = (await factory.databases()).map((info) => info.name);
+    if (names.includes(name) || !names.includes(legacyName)) return false;
+    const legacy = await openStaticDatabase(factory, legacyName);
+    try {
+      const read = legacy.transaction([KV, BLOBS], 'readonly');
+      const [keys, values, blobs] = await Promise.all([
+        request(read.objectStore(KV).getAllKeys()),
+        request(read.objectStore(KV).getAll()),
+        request(read.objectStore(BLOBS).getAll()),
+      ]);
+      const target = await openStaticDatabase(factory, name);
+      try {
+        const write = target.transaction([KV, BLOBS], 'readwrite');
+        const done = transactionDone(write);
+        keys.forEach((key, i) => write.objectStore(KV).put(values[i], key));
+        for (const blob of blobs) write.objectStore(BLOBS).put(blob);
+        await done;
+      } finally {
+        target.close();
+      }
+    } finally {
+      legacy.close();
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** JSON-normalized copy (only plain data is stored: no class instances, no undefined). */
 function plainJson(value: unknown): unknown {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -77,7 +120,8 @@ export class IndexedDbStorage implements StaticStorage {
     db.onclose = () => this.markClosed("The browser closed Portly's storage; reload this page");
   }
 
-  static async open(factory?: IDBFactory, name?: string): Promise<IndexedDbStorage> {
+  static async open(factory: IDBFactory = indexedDB, name = STATIC_DB_NAME): Promise<IndexedDbStorage> {
+    await copyLegacyStaticDatabase(factory, name);
     return new IndexedDbStorage(await openStaticDatabase(factory, name));
   }
 

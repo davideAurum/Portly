@@ -17,8 +17,9 @@
     Safety rails: the folder must be the root of a git repository with a branch checked out and a
     clean working tree (no uncommitted changes, no untracked files), and it must not be this
     Portly checkout or any other Portly checkout. The repository must be empty or hold only
-    an earlier Portly publish (index.html with <meta name="portly-build" content="static">,
-    assets/, setup.ps1, the files of web\public, .nojekyll, CNAME, README.md); anything else is refused
+    an earlier Portly publish (index.html with <meta name="portly-build" content="static">, or
+    "homebase-build" from before the rename, assets/, install.ps1, setup.ps1, the files of
+    web\public, .nojekyll, CNAME, README.md); anything else is refused
     unless -ReplaceEverything. When origin is on github.com and there is no CNAME file, -Base must
     match the repository ('/' for <user>.github.io, '/<repo>/' otherwise). Only the build's own
     paths are staged. -DryRun only prints the plan: it builds nothing and changes nothing, and it
@@ -77,8 +78,9 @@ $ErrorActionPreference = 'Stop'
 # Files of the public repository that are not part of the build and survive a publish.
 $HbPublishKeep = @('CNAME', 'README.md')
 $HbNoJekyll = '.nojekyll'
-# web\vite.config.ts (staticHtml) puts this tag into every static build's index.html.
-$HbBuildMarker = '<meta\s[^>]*name\s*=\s*["'']?portly-build["'']?[^>]*content\s*=\s*["'']?static\b'
+# web\vite.config.ts (staticHtml) puts this tag into every static build's index.html (homebase-build
+# before the rename to Portly).
+$HbBuildMarker = '<meta\s[^>]*name\s*=\s*["'']?(portly|homebase)-build["'']?[^>]*content\s*=\s*["'']?static\b'
 
 # Runs git in a folder. Output is captured (stderr included) unless -ShowOutput, which streams it
 # to the console (commit, push). Throws on a non-zero exit code unless -AllowFailure.
@@ -159,11 +161,11 @@ function Get-HbPagesUrl {
 }
 
 # Top-level names an earlier publish leaves in the public repository: the build's own entries
-# (index.html, assets, setup.ps1, whatever web\public holds), .nojekyll and the kept files.
+# (index.html, assets, install.ps1, setup.ps1, whatever web\public holds), .nojekyll and the kept files.
 function Get-HbPublishedNames {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $names = New-Object System.Collections.Generic.List[string]
-    foreach ($name in (@('index.html', 'assets', 'setup.ps1', $HbNoJekyll) + $HbPublishKeep)) { $names.Add($name) }
+    foreach ($name in (@('index.html', 'assets', 'install.ps1', 'setup.ps1', $HbNoJekyll) + $HbPublishKeep)) { $names.Add($name) }
     $publicDir = Join-Path $RepoRoot 'web\public'
     if (Test-Path -LiteralPath $publicDir -PathType Container) {
         foreach ($entry in @(Get-ChildItem -LiteralPath $publicDir -Force)) { $names.Add($entry.Name) }

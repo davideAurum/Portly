@@ -13,6 +13,13 @@ import { SettingsSchema } from './settings.ts';
 
 export const EXPORT_FORMAT = 'portly-export';
 export const EXPORT_VERSION = 1;
+/** The format of files exported before the rename to Portly: imported like {@link EXPORT_FORMAT}. */
+export const LEGACY_EXPORT_FORMAT = 'homebase-export';
+
+/** True for the `format` of an export file Portly imports (its own, or Homebase's). */
+export function isExportFormat(value: unknown): boolean {
+  return value === EXPORT_FORMAT || value === LEGACY_EXPORT_FORMAT;
+}
 
 /** Max import file size (multipart upload), bytes. */
 export const MAX_IMPORT_BYTES = 25 * 1024 * 1024;

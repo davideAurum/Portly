@@ -19,6 +19,7 @@
 import {
   EXPORT_FORMAT,
   EXPORT_VERSION,
+  isExportFormat,
   ExportBookmarkGroupSchema,
   ExportBookmarkSchema,
   ExportSchema,
@@ -264,13 +265,14 @@ export function parseImportFile(bytes: Buffer): ExportFile {
     throw new HttpError(400, 'bad_request', 'The file is not valid JSON');
   }
   assertSafeJson(raw, 'The import file');
-  if (!isPlainObject(raw) || raw.format !== EXPORT_FORMAT) {
+  if (!isPlainObject(raw) || !isExportFormat(raw.format)) {
     throw new HttpError(422, 'validation_failed', 'This is not a Portly export file');
   }
   if (raw.version !== EXPORT_VERSION) {
     throw new HttpError(422, 'validation_failed', `Unsupported export version (expected ${EXPORT_VERSION})`);
   }
-  const result = ExportSchema.safeParse(raw);
+  // A file exported before the rename (`homebase-export`) has the same content.
+  const result = ExportSchema.safeParse({ ...raw, format: EXPORT_FORMAT });
   if (!result.success) {
     throw new HttpError(422, 'validation_failed', 'The import file is invalid', formatZodIssues(result.error).slice(0, MAX_REPORTED_ISSUES));
   }
