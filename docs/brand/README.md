@@ -1,0 +1,39 @@
+# Portly brand
+
+The Portly mark is **Beacon**: a lighthouse on the harbor, the steady light you come home to in
+every new tab. Colors and type are shared with the earlier "Porthole" exploration.
+
+| File | Use |
+| --- | --- |
+| `portly-icon.svg` | App icon, full detail. Use at 48 px and up. |
+| `portly-icon-small.svg` | Simplified icon for 16–32 px (tabs, toolbar). Same file as `web/public/favicon.svg`. |
+| `portly-mark.svg` | The lighthouse without its tile, for light backgrounds. |
+| `portly-lockup.svg` | Icon plus the "portly" wordmark. The wordmark is live text in Fredoka SemiBold. |
+
+The extension PNGs (`extension/icons/icon-{16,32,48,128}.png`) and `site/icon-128.png` are drawn
+by `extension/tools/generate-icons.mjs`, which mirrors these SVGs. Change both together, then run
+`node extension/tools/generate-icons.mjs`.
+
+## Colors
+
+| Name | Hex | Role |
+| --- | --- | --- |
+| Harbor | `#0B4F63` | Icon tile, wordmark, primary text on light |
+| Deep | `#072F3B` | Dark backgrounds |
+| Tide | `#137A85` | The rock and sea at the base, secondary accents |
+| Sky | `#A6DEDB` | Sea line, light accents |
+| Brass | `#E3A82B` | Bands, roof, rail |
+| Sun | `#FFD166` | Lantern and beams |
+| Foam | `#EAF5F4` | Light backgrounds |
+
+## Type
+
+Fredoka (Google Fonts, SIL Open Font License): 600 for the wordmark and headlines, 500 for
+subheads. Inside the app, text stays in the system UI font.
+
+## Rules
+
+- Keep clear space around the logo of at least the tower's width.
+- Below 48 px use the simplified drawings; below 24 px use `portly-icon-small.svg`.
+- Brass and Sun are fills, never text colors. Text is Harbor or Deep.
+- Don't stretch, rotate, outline or recolor the mark.

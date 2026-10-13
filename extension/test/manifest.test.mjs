@@ -5,8 +5,9 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it } from 'node:test';
-import { ICON_SIZES, decodePng, iconIsCurrent } from '../tools/generate-icons.mjs';
+import { ICON_FILES, ICON_SIZES, decodePng, iconIsCurrent } from '../tools/generate-icons.mjs';
 import { ACTION_TITLE } from '../lib/add-page.js';
 import { EXTENSION_DIR, loadPage, readExtensionFile } from './helpers.mjs';
 
@@ -191,4 +192,8 @@ describe('icons', () => {
       assert.ok(iconIsCurrent(size), 'run `node extension/tools/generate-icons.mjs` to regenerate');
     });
   }
+  it('site/icon-128.png matches tools/generate-icons.mjs', () => {
+    const site = ICON_FILES.find(({ file }) => file.endsWith(`site${path.sep}icon-128.png`));
+    assert.ok(site && iconIsCurrent(site.size, site.file), 'run `node extension/tools/generate-icons.mjs` to regenerate');
+  });
 });
