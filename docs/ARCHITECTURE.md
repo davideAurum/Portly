@@ -478,6 +478,11 @@ server_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)   -- 'instance_id': rando
 `003_diagnostics.sql` (§17): `diag_health` (one row per health subject) and `diag_outcomes` (its outcome history).
 Machine-local: never exported or imported.
 
+`004_beacon_defaults.sql`: no schema change. Moves an `appearance` settings row that still holds the pre-Beacon
+defaults (accent `#2563eb`; the `#1e3a8a` to `#6d28d9` gradient at 160 degrees) to the Beacon ones, matching colors
+case-insensitively; anything the user chose is kept. Mirrors `upgradeLegacyThemeDefaults()` in `shared/src/theme.ts`;
+the browser-only build runs the same upgrade once from its settings `ready()` (marker in the `upgrades` slice).
+
 ---
 
 ## 6. Server structure
@@ -488,7 +493,7 @@ server/src/
                          accounts → app → listeners → scheduler (§3)
   supervisor.ts          autostart supervisor (§3)
   config.ts  app.ts  context.ts
-  db/{open,migrate,helpers}.ts, db/migrations/{001_init,002_pairing,003_diagnostics}.sql
+  db/{open,migrate,helpers}.ts, db/migrations/{001_init,002_pairing,003_diagnostics,004_beacon_defaults}.sql
   security/{gate,headers,vault,safe-fetch,dpapi,pairing,foreign-origins}.ts
   lib/{logger,log-context,health,inflight,provider-errors,exit-codes,startup,ids,errors,cache,scheduler,validate,
        settings,routes}.ts
@@ -666,6 +671,8 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
 - **Theme** — `{mode: 'light'|'dark'|'system', accent: HexColor, background: {type:'color', color} |
   {type:'gradient', angle: 0–360, stops: {color, at: 0–100}[2..5]} | {type:'image', uploadId: Uuid, blur: 0–40, dim: 0–0.9},
   font: 'system'|'serif'|'mono'|'rounded', density: 'comfortable'|'compact', radius: 0–24, widgetOpacity: 0.3–1}`.
+  Defaults follow the Beacon brand (`docs/brand/README.md`): accent Tide `#137a85`, background the Harbor `#0b4f63` to
+  Deep `#072f3b` gradient at 160 degrees.
 - **accounts.ts** — `AccountKind`, `Capability = 'calendar'|'mail'`, `Account {id, kind, label, email|null, color|null,
   capabilities, enabledCapabilities, status: 'ok'|'error'|'reauth', statusMessage|null, createdAt, updatedAt}`,
   per-kind config types, create payloads, `OAuthProvider = 'google'|'microsoft'`, `OAuthResult`.
@@ -850,7 +857,8 @@ All types allow multiple instances.
 Button (primary|secondary|ghost|danger; sm|md; loading), IconButton (required aria-label), Input, TextArea, Select,
 Checkbox, Switch, SegmentedControl, Field (label/help/error), Dialog + ConfirmDialog, Popover, Menu, Tooltip, Tabs,
 toast (sonner; supports Undo action), ColorPicker (12 swatches + native color input + hex field), ImageUpload,
-Spinner, Skeleton, EmptyState {icon, title, body, action}, ErrorState (maps ApiError codes: `reauth_required` →
+Spinner, Skeleton, EmptyState {icon | media, title, body, action}, BrandMark / BrandLockup (the Beacon lighthouse,
+full drawing at 48 px and up), ErrorState (maps ApiError codes: `reauth_required` →
 ReconnectButton, `not_configured` → "Set up" link, else Retry), Badge, LetterTile, ExternalLink, RelativeTime, Kbd,
 plus `ui/accounts/{AccountPicker, AccountBadge, ReconnectButton}`.
 Tokens (`web/src/styles/tokens.css`, light + dark): `--hb-bg, --hb-surface, --hb-surface-2, --hb-text, --hb-text-muted,

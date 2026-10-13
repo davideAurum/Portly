@@ -2,7 +2,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { LayoutSchema, emptyLayout } from '@portly/shared';
+import {
+  DEFAULT_ACCENT,
+  LayoutSchema,
+  ThemeSchema,
+  defaultThemeBackground,
+  emptyLayout,
+  upgradeLegacyThemeDefaults,
+  type Theme,
+} from '@portly/shared';
 import { createMemoryLogger } from '../lib/logger.ts';
 import { camelize, fromBool, msToIso, parseJsonColumn, toBool } from './helpers.ts';
 import { listMigrations, migrate } from './migrate.ts';
@@ -236,6 +244,45 @@ describe('migrations', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  describe('004_beacon_defaults', () => {
+    /** Migrates up to 003 only, stores `appearance`, then runs every remaining migration. */
+    function upgradeFrom003(appearance: unknown): Theme {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-mig-'));
+      try {
+        for (const m of listMigrations().filter((m) => m.number < 4)) fs.copyFileSync(m.file, path.join(dir, m.name));
+        migrate(db, { dirs: [dir] });
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+      db.run("INSERT INTO settings (namespace, value, updated_at) VALUES ('appearance', ?, 1)", [JSON.stringify(appearance)]);
+      expect(migrate(db)).toContain('004_beacon_defaults.sql');
+      const row = db.get<{ value: string }>("SELECT value FROM settings WHERE namespace = 'appearance'");
+      return ThemeSchema.parse(JSON.parse(row?.value ?? 'null'));
+    }
+
+    it('moves the old default accent and gradient to the Beacon defaults and keeps everything else', () => {
+      const stored = ThemeSchema.parse({
+        mode: 'dark',
+        accent: '#2563EB',
+        background: { type: 'gradient', angle: 160, stops: [{ color: '#1E3A8A', at: 0 }, { color: '#6d28d9', at: 100 }] },
+      });
+      const upgraded = upgradeFrom003(stored);
+      expect(upgraded.accent).toBe(DEFAULT_ACCENT);
+      expect(upgraded.background).toEqual(defaultThemeBackground());
+      expect(upgraded.mode).toBe('dark');
+      expect(upgraded).toEqual(upgradeLegacyThemeDefaults(stored));
+    });
+
+    it('leaves a chosen accent and a different gradient alone', () => {
+      const stored = ThemeSchema.parse({
+        accent: '#e11d48',
+        background: { type: 'gradient', angle: 135, stops: [{ color: '#1e3a8a', at: 0 }, { color: '#6d28d9', at: 100 }] },
+      });
+      expect(upgradeFrom003(stored)).toEqual(stored);
+      expect(upgradeLegacyThemeDefaults(stored)).toBe(stored);
+    });
   });
 });
 

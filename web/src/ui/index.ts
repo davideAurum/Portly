@@ -30,6 +30,7 @@ export { ImageUpload } from './ImageUpload.tsx';
 export { Spinner } from './Spinner.tsx';
 export { Skeleton, SkeletonLines, SkeletonList } from './Skeleton.tsx';
 export { EmptyState, type EmptyStateProps } from './EmptyState.tsx';
+export { BrandLockup, BrandMark, type BrandMarkProps } from './BrandMark.tsx';
 export { ErrorState, QueryView, StaleIndicator, type QueryViewMeta, type QueryViewProps } from './ErrorState.tsx';
 export { ErrorBoundary } from './ErrorBoundary.tsx';
 export { Badge, Kbd, LetterTile, type BadgeTone } from './Badge.tsx';

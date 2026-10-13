@@ -10,7 +10,7 @@ import 'react-resizable/css/styles.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import ReactGridLayout, { useContainerWidth, type Layout as GridLayoutValue } from 'react-grid-layout';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, LayoutGrid, Plus } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import type { Layout, WidgetInstance, WidgetPosition } from '@portly/shared';
 import { qk } from '../api/keys.ts';
 import { getCapabilities } from '../capabilities.ts';
@@ -19,6 +19,7 @@ import { useDebouncedCallback } from '../lib/useDebouncedCallback.ts';
 import { useIsNarrow } from '../lib/useMediaQuery.ts';
 import { Button } from '../ui/Button.tsx';
 import { ConfirmDialog } from '../ui/Dialog.tsx';
+import { BrandMark } from '../ui/BrandMark.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { reserveToastSpace, toast, toastError } from '../ui/toast.ts';
 import { getWidgetDefinition, stackSizingOf } from '../widgets/registry.ts';
@@ -221,7 +222,7 @@ export function Grid({ layout, profileId }: GridProps) {
       {items.length === 0 ? (
         <div className={styles.empty}>
           <EmptyState
-            icon={LayoutGrid}
+            media={<BrandMark size={64} />}
             title="This profile has no widgets yet"
             body={emptyProfileBody()}
             action={

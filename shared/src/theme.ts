@@ -60,19 +60,27 @@ export const ThemeBackgroundSchema = z.discriminatedUnion('type', [
 ]);
 export type ThemeBackground = z.output<typeof ThemeBackgroundSchema>;
 
-/** Fresh copy of the default background (a function so callers can never mutate a shared default). */
+/**
+ * Fresh copy of the default background (a function so callers can never mutate a shared default):
+ * the Beacon brand's Harbor to Deep gradient (docs/brand/README.md).
+ */
 export function defaultThemeBackground(): ThemeBackground {
   return {
     type: 'gradient',
     angle: 160,
     stops: [
-      { color: '#1e3a8a', at: 0 },
-      { color: '#6d28d9', at: 100 },
+      { color: '#0b4f63', at: 0 },
+      { color: '#072f3b', at: 100 },
     ],
   };
 }
 
-export const DEFAULT_ACCENT = '#2563eb';
+/** Tide: white button text and the Tide-derived link color both pass WCAG AA in light and dark. */
+export const DEFAULT_ACCENT = '#137a85';
+
+/** The accent and gradient that were the defaults before the Beacon brand. */
+export const LEGACY_DEFAULT_ACCENT = '#2563eb';
+export const LEGACY_DEFAULT_GRADIENT = Object.freeze({ angle: 160, from: '#1e3a8a', to: '#6d28d9' });
 
 export const ThemeSchema = z
   .object({
@@ -88,3 +96,26 @@ export const ThemeSchema = z
 
 export type Theme = z.output<typeof ThemeSchema>;
 export type ThemeInput = z.input<typeof ThemeSchema>;
+
+function isLegacyDefaultBackground(background: ThemeBackground): boolean {
+  if (background.type !== 'gradient' || background.angle !== LEGACY_DEFAULT_GRADIENT.angle || background.stops.length !== 2) return false;
+  const [first, second] = background.stops;
+  return (
+    first?.color.toLowerCase() === LEGACY_DEFAULT_GRADIENT.from &&
+    first.at === 0 &&
+    second?.color.toLowerCase() === LEGACY_DEFAULT_GRADIENT.to &&
+    second.at === 100
+  );
+}
+
+/**
+ * One-time upgrade of stored appearance settings to the Beacon defaults (the server's
+ * `004_beacon_defaults.sql` migration and the static backend's settings `ready()` do the same).
+ * Settings are stored with their defaults filled in, so an accent or background that still equals
+ * the old default exactly was never chosen and moves to the new default; anything else is kept.
+ */
+export function upgradeLegacyThemeDefaults(theme: Theme): Theme {
+  const accent = theme.accent.toLowerCase() === LEGACY_DEFAULT_ACCENT ? DEFAULT_ACCENT : theme.accent;
+  const background = isLegacyDefaultBackground(theme.background) ? defaultThemeBackground() : theme.background;
+  return accent === theme.accent && background === theme.background ? theme : { ...theme, accent, background };
+}

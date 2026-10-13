@@ -7,12 +7,13 @@
  * `?` opens the shortcut help.
  */
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { House, Keyboard, Pencil, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { Keyboard, Pencil, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { getCapabilities } from '../capabilities.ts';
 import { Dashboard } from '../grid/Dashboard.tsx';
 import { EditModeProvider, useEditMode } from '../grid/editMode.tsx';
 import { focusSearchInput, useHotkey } from '../lib/hotkeys.ts';
 import { SettingsShell } from '../settings/SettingsShell.tsx';
+import { BrandMark } from '../ui/BrandMark.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { clearAddBookmarkRequest, parseAddBookmarkRequest, type AddBookmarkRequest } from '../widgets/launchpad/addRequest.ts';
 import { Tooltip } from '../ui/Tooltip.tsx';
@@ -60,8 +61,8 @@ function ShellLayout() {
       <header className={styles.topbar}>
         <nav className={styles.group} aria-label="Dashboard">
           <Tooltip content="Dashboard">
-            <a className={styles.iconChip} href={routeHref({ name: 'home' })} aria-label="Portly dashboard" aria-current={onDashboard ? 'page' : undefined}>
-              <House aria-hidden="true" />
+            <a className={styles.brandHome} href={routeHref({ name: 'home' })} aria-label="Portly dashboard" aria-current={onDashboard ? 'page' : undefined}>
+              <BrandMark size={36} />
             </a>
           </Tooltip>
           {onDashboard ? <ProfileSwitcher /> : null}

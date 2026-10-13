@@ -43,10 +43,10 @@ describe('Appearance settings', () => {
     await user.click(await screen.findByRole('radio', { name: 'Color' }));
     await waitFor(() => expect(requestsTo('PATCH /api/settings')).toHaveLength(1));
     expect(requestsTo('PATCH /api/settings')[0]!.body).toEqual({
-      appearance: { background: { type: 'color', color: '#1e3a8a', angle: null, stops: null } },
+      appearance: { background: { type: 'color', color: '#0b4f63', angle: null, stops: null } },
     });
-    expect(server.settings.appearance.background).toEqual({ type: 'color', color: '#1e3a8a' });
-    expect(document.documentElement.style.getPropertyValue('--hb-backdrop')).toBe('#1e3a8a');
+    expect(server.settings.appearance.background).toEqual({ type: 'color', color: '#0b4f63' });
+    expect(document.documentElement.style.getPropertyValue('--hb-backdrop')).toBe('#0b4f63');
   });
 
   it('switching Image → Gradient → Image brings the uploaded photo back (UX-11)', async () => {

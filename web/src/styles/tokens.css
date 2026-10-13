@@ -10,25 +10,25 @@
   color-scheme: light;
 
   /* Surfaces & text */
-  --hb-bg: #e9edf4;
+  --hb-bg: #e8f2f2;
   --hb-surface: #ffffff;
-  --hb-surface-2: #f1f4f9;
-  --hb-surface-3: #e6ebf3;
+  --hb-surface-2: #eef5f5;
+  --hb-surface-3: #e2eded;
   /* Raised elements on a surface (selected segments, thumbs). */
   --hb-surface-raised: #ffffff;
-  --hb-text: #111827;
-  --hb-text-muted: #5b6474;
-  --hb-text-subtle: #8a93a3;
-  --hb-border: rgb(15 23 42 / 0.1);
-  --hb-border-strong: rgb(15 23 42 / 0.18);
+  --hb-text: #0b2a33;
+  --hb-text-muted: #4b6670;
+  --hb-text-subtle: #6f8a92;
+  --hb-border: rgb(7 47 59 / 0.1);
+  --hb-border-strong: rgb(7 47 59 / 0.18);
 
   /* Brand & status */
-  --hb-accent: #2563eb;
+  --hb-accent: #137a85;
   --hb-accent-contrast: #ffffff;
   --hb-danger: #dc2626;
   --hb-warning: #b45309;
   --hb-success: #15803d;
-  --hb-focus: #2563eb;
+  --hb-focus: #137a85;
 
   /* Derived tints (computed from the tokens above, so they follow the user's accent). */
   --hb-accent-soft: color-mix(in srgb, var(--hb-accent) 14%, transparent);
@@ -36,8 +36,8 @@
   --hb-danger-soft: color-mix(in srgb, var(--hb-danger) 12%, transparent);
   --hb-warning-soft: color-mix(in srgb, var(--hb-warning) 14%, transparent);
   --hb-success-soft: color-mix(in srgb, var(--hb-success) 12%, transparent);
-  --hb-hover: rgb(15 23 42 / 0.05);
-  --hb-active: rgb(15 23 42 / 0.09);
+  --hb-hover: rgb(7 47 59 / 0.05);
+  --hb-active: rgb(7 47 59 / 0.09);
 
   /* Shape */
   --hb-radius-sm: 6px;
@@ -64,9 +64,9 @@
   --hb-text-2xl: 30px;
 
   /* Elevation */
-  --hb-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 6px 24px -6px rgb(15 23 42 / 0.14);
-  --hb-shadow-lg: 0 2px 6px rgb(15 23 42 / 0.08), 0 24px 56px -12px rgb(15 23 42 / 0.28);
-  --hb-overlay: rgb(15 23 42 / 0.38);
+  --hb-shadow: 0 1px 2px rgb(7 47 59 / 0.05), 0 6px 24px -6px rgb(7 47 59 / 0.14);
+  --hb-shadow-lg: 0 2px 6px rgb(7 47 59 / 0.08), 0 24px 56px -12px rgb(7 47 59 / 0.28);
+  --hb-overlay: rgb(7 47 59 / 0.38);
 
   /* Glass (widgets, settings panels, header chips) */
   --hb-widget-opacity: 0.85;
@@ -86,7 +86,7 @@
   --hb-duration: 160ms;
 
   /* Page backdrop (color / gradient / image) — set from the theme. */
-  --hb-backdrop: linear-gradient(160deg, #1e3a8a 0%, #6d28d9 100%);
+  --hb-backdrop: linear-gradient(160deg, #0b4f63 0%, #072f3b 100%);
   --hb-backdrop-blur: 0px;
   --hb-backdrop-dim: 0;
 }
@@ -94,26 +94,26 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --hb-bg: #0a0e19;
-  --hb-surface: #151b2b;
-  --hb-surface-2: #1c2336;
-  --hb-surface-3: #252d43;
-  --hb-surface-raised: #2c3552;
-  --hb-text: #e8ebf4;
-  --hb-text-muted: #9aa3b7;
-  --hb-text-subtle: #6f7890;
+  --hb-bg: #04161c;
+  --hb-surface: #0d2830;
+  --hb-surface-2: #12333d;
+  --hb-surface-3: #1a3f4a;
+  --hb-surface-raised: #214a56;
+  --hb-text: #e4f1f0;
+  --hb-text-muted: #93b3b8;
+  --hb-text-subtle: #6b8c93;
   --hb-border: rgb(255 255 255 / 0.09);
   --hb-border-strong: rgb(255 255 255 / 0.16);
   --hb-danger: #f87171;
   --hb-warning: #fbbf24;
   --hb-success: #4ade80;
-  --hb-focus: #93c5fd;
+  --hb-focus: #a6dedb;
   --hb-accent-text: color-mix(in srgb, var(--hb-accent) 72%, #ffffff);
   --hb-hover: rgb(255 255 255 / 0.06);
   --hb-active: rgb(255 255 255 / 0.1);
   --hb-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 28px -6px rgb(0 0 0 / 0.5);
   --hb-shadow-lg: 0 2px 6px rgb(0 0 0 / 0.4), 0 28px 64px -12px rgb(0 0 0 / 0.65);
-  --hb-overlay: rgb(3 6 14 / 0.6);
+  --hb-overlay: rgb(2 12 16 / 0.6);
   --hb-glass-border: rgb(255 255 255 / 0.08);
 }
 
@@ -121,26 +121,26 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --hb-bg: #0a0e19;
-    --hb-surface: #151b2b;
-    --hb-surface-2: #1c2336;
-    --hb-surface-3: #252d43;
-    --hb-surface-raised: #2c3552;
-    --hb-text: #e8ebf4;
-    --hb-text-muted: #9aa3b7;
-    --hb-text-subtle: #6f7890;
+    --hb-bg: #04161c;
+    --hb-surface: #0d2830;
+    --hb-surface-2: #12333d;
+    --hb-surface-3: #1a3f4a;
+    --hb-surface-raised: #214a56;
+    --hb-text: #e4f1f0;
+    --hb-text-muted: #93b3b8;
+    --hb-text-subtle: #6b8c93;
     --hb-border: rgb(255 255 255 / 0.09);
     --hb-border-strong: rgb(255 255 255 / 0.16);
     --hb-danger: #f87171;
     --hb-warning: #fbbf24;
     --hb-success: #4ade80;
-    --hb-focus: #93c5fd;
+    --hb-focus: #a6dedb;
     --hb-accent-text: color-mix(in srgb, var(--hb-accent) 72%, #ffffff);
     --hb-hover: rgb(255 255 255 / 0.06);
     --hb-active: rgb(255 255 255 / 0.1);
     --hb-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 28px -6px rgb(0 0 0 / 0.5);
     --hb-shadow-lg: 0 2px 6px rgb(0 0 0 / 0.4), 0 28px 64px -12px rgb(0 0 0 / 0.65);
-    --hb-overlay: rgb(3 6 14 / 0.6);
+    --hb-overlay: rgb(2 12 16 / 0.6);
     --hb-glass-border: rgb(255 255 255 / 0.08);
   }
 }

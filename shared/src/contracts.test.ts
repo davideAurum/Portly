@@ -68,7 +68,7 @@ describe('SettingsSchema defaults', () => {
     expect(s.general.userName).toBe('Dana');
     expect(s.general.timeFormat).toBe('system');
     expect(s.appearance.mode).toBe('dark');
-    expect(s.appearance.accent).toBe('#2563eb');
+    expect(s.appearance.accent).toBe('#137a85');
   });
 
   it('returns fresh objects (defaults are never shared)', () => {

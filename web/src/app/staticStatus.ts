@@ -77,6 +77,8 @@ const SLICE_QUERY_KEYS: Readonly<Record<string, readonly (readonly string[])[]>>
   'calendar-events': [['calendar', 'events']],
   // When each account was last synced: nothing a query returns.
   'calendar-sync': [],
+  // Which one-time upgrades ran: nothing a query returns (an upgrade's own changes come with their slices).
+  upgrades: [],
 });
 
 /** The query-key prefixes for changed slices, or null when everything should be refetched. */

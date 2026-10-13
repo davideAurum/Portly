@@ -1,24 +1,24 @@
 /*
  * Styles for the extension pages (new-tab fallback + options). Mirrors the Portly design
- * tokens (web/src/styles/tokens.css): the default gradient backdrop with a calm glass card,
+ * tokens (web/src/styles/tokens.css): the Beacon Harbor-to-Deep backdrop with a calm glass card,
  * system fonts, light and dark via prefers-color-scheme.
  */
 
 :root {
   color-scheme: light;
 
-  --backdrop: linear-gradient(160deg, #1e3a8a 0%, #6d28d9 100%);
+  --backdrop: linear-gradient(160deg, #0b4f63 0%, #072f3b 100%);
   --surface: rgb(255 255 255 / 0.9);
-  --surface-2: #f3f5f9;
-  --text: #111827;
-  --text-muted: #5b6474;
-  --border: rgb(15 23 42 / 0.12);
-  --accent: #3b82f6;
+  --surface-2: #eef5f5;
+  --text: #0b2a33;
+  --text-muted: #4b6670;
+  --border: rgb(7 47 59 / 0.12);
+  --accent: #137a85;
   --accent-contrast: #ffffff;
   --danger: #dc2626;
   --success: #15803d;
-  --focus: #2563eb;
-  --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.12);
+  --focus: #137a85;
+  --shadow: 0 1px 2px rgb(7 47 59 / 0.06), 0 8px 24px rgb(7 47 59 / 0.12);
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -32,16 +32,16 @@
   :root {
     color-scheme: dark;
 
-    --surface: rgb(22 27 46 / 0.92);
-    --surface-2: #1e2438;
-    --text: #e6e9f2;
-    --text-muted: #9aa3b5;
+    --surface: rgb(13 40 48 / 0.92);
+    --surface-2: #12333d;
+    --text: #e4f1f0;
+    --text-muted: #93b3b8;
     --border: rgb(255 255 255 / 0.12);
-    --accent: #60a5fa;
-    --accent-contrast: #0b1020;
+    --accent: #a6dedb;
+    --accent-contrast: #072f3b;
     --danger: #f87171;
     --success: #4ade80;
-    --focus: #93c5fd;
+    --focus: #a6dedb;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
   }
 }
@@ -54,7 +54,7 @@
 
 html {
   min-height: 100%;
-  background: #1e3a8a var(--backdrop) fixed;
+  background: #0b4f63 var(--backdrop) fixed;
 }
 
 body {

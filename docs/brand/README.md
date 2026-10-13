@@ -37,3 +37,14 @@ subheads. Inside the app, text stays in the system UI font.
 - Below 48 px use the simplified drawings; below 24 px use `portly-icon-small.svg`.
 - Brass and Sun are fills, never text colors. Text is Harbor or Deep.
 - Don't stretch, rotate, outline or recolor the mark.
+
+## In the app
+
+- Default theme: accent Tide, background the Harbor to Deep gradient at 160 degrees. Earlier
+  installs that still had the old defaults (blue accent, indigo to violet gradient) move to these
+  once; colors someone chose stay. The old gradient is still offered as the "Dusk" preset.
+- The lighthouse (`web/src/ui/BrandMark.tsx`) is the header's home button, the empty dashboard's
+  artwork and the mark on Settings > About. The extension's fallback and options pages use the
+  Harbor background too.
+- Contrast: white on Tide is about 5:1; the link color derived from Tide is about 6.9:1 on white
+  and 5:1 on the dark surface.

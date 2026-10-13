@@ -14,14 +14,14 @@
  * 5. the result must pass the strict `SettingsSchema` (422 `Invalid settings` + details), then it
  *    is stored and returned in full. Nothing is written on any failure.
  */
-import { SettingsSchema, type Settings } from '@portly/shared';
+import { SettingsSchema, upgradeLegacyThemeDefaults, type Settings } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { applyMergePatch } from '../lib/mergePatch.ts';
 import { assertSafeJson, isPlainObject } from '../lib/safeJson.ts';
 import { validate } from '../lib/validate.ts';
 import { json, StaticApiError } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';
-import { SLICE, getSettings, setSettings } from '../slices.ts';
+import { SLICE, getSettings, getUpgrades, setSettings } from '../slices.ts';
 import { firstProfileId, profileExists } from './profiles.ts';
 
 /** The body as the server's `parseBody(c, z.unknown())` reads it: empty → `{}`, malformed → 400. */
@@ -49,6 +49,24 @@ export async function patchSettings(ctx: StaticContext, patch: unknown): Promise
   setSettings(ctx, next);
   await ctx.state.commit(SLICE.settings);
   return next;
+}
+
+/** Marker in the upgrades slice for the Beacon appearance defaults (server: 004_beacon_defaults.sql). */
+export const BEACON_DEFAULTS_UPGRADE = 'beacon-defaults';
+
+/**
+ * Moves an appearance that still holds the pre-Beacon defaults to the new ones, once per browser:
+ * the marker is committed with the settings, so someone who later picks the old look keeps it.
+ */
+export async function ready(ctx: StaticContext): Promise<void> {
+  const upgrades = getUpgrades(ctx);
+  if (upgrades.includes(BEACON_DEFAULTS_UPGRADE)) return;
+  const current = getSettings(ctx);
+  const appearance = upgradeLegacyThemeDefaults(current.appearance);
+  upgrades.push(BEACON_DEFAULTS_UPGRADE);
+  if (appearance === current.appearance) return ctx.state.commit(SLICE.upgrades);
+  setSettings(ctx, { ...current, appearance });
+  await ctx.state.commit(SLICE.settings, SLICE.upgrades);
 }
 
 export function register(router: StaticRouter): void {

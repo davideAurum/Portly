@@ -22,6 +22,7 @@ import { ShortcutList } from '../../app/ShortcutsDialog.tsx';
 import { useStaticStorageKind, type StaticStorageKind } from '../../app/staticStatus.ts';
 import { getCapabilities, type Capabilities } from '../../capabilities.ts';
 import { Badge } from '../../ui/Badge.tsx';
+import { BrandMark } from '../../ui/BrandMark.tsx';
 import { CopyField } from '../../ui/CopyField.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { FactList, SettingsCard } from '../../ui/Section.tsx';
@@ -119,7 +120,7 @@ export default function AboutSettings() {
   const storageKind = useStaticStorageKind();
   return (
     <div className={styles.stack}>
-      <SettingsCard title="Portly" description={description(caps)}>
+      <SettingsCard title="Portly" description={description(caps)} actions={<BrandMark size={48} />}>
         {about.data === undefined ? (
           about.isError ? (
             <ErrorState error={about.error} onRetry={() => void about.refetch()} compact />

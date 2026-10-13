@@ -32,6 +32,7 @@ const MIN_STOPS = 2;
 
 /** Quick gradient starting points. */
 export const GRADIENT_PRESETS: readonly { name: string; angle: number; stops: GradientStop[] }[] = [
+  { name: 'Harbor', angle: 160, stops: [{ color: '#0b4f63', at: 0 }, { color: '#072f3b', at: 100 }] },
   { name: 'Dusk', angle: 160, stops: [{ color: '#1e3a8a', at: 0 }, { color: '#6d28d9', at: 100 }] },
   { name: 'Sea', angle: 135, stops: [{ color: '#0f766e', at: 0 }, { color: '#0e7490', at: 50 }, { color: '#1d4ed8', at: 100 }] },
   { name: 'Ember', angle: 145, stops: [{ color: '#7c2d12', at: 0 }, { color: '#be123c', at: 100 }] },
@@ -110,7 +111,7 @@ function AppearanceForm({ theme }: { theme: Theme }) {
                 setImageTab(true);
               } else if (type === 'color') {
                 const first = theme.background.type === 'gradient' ? theme.background.stops[0]?.color : undefined;
-                setBackground({ type: 'color', color: first ?? '#1e293b' });
+                setBackground({ type: 'color', color: first ?? '#0b4f63' });
               } else {
                 setBackground(defaultThemeBackground());
               }

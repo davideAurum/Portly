@@ -11,7 +11,8 @@
  *
  * Export (`GET /api/export`) reads settings, profiles, bookmarks, uploads and icons. The Todoist
  * token, the pre-import backups, accounts and their tokens, the OAuth client, pending sign-ins and
- * the calendar cache are never exported (and an import never touches them).
+ * the calendar cache are never exported (and an import never touches them), and neither is the
+ * list of one-time data upgrades already applied.
  */
 import {
   ACCOUNT_STATUSES,
@@ -44,6 +45,7 @@ export const SLICE = Object.freeze({
   calendars: 'calendars',
   calendarEvents: 'calendar-events',
   calendarSync: 'calendar-sync',
+  upgrades: 'upgrades',
 });
 
 // ---------------------------------------------------------------------------
@@ -128,6 +130,14 @@ export function getSettings(ctx: StaticContext): Settings {
 
 export function setSettings(ctx: StaticContext, settings: Settings): Settings {
   return ctx.state.set(SLICE.settings, settings);
+}
+
+/**
+ * Names of the one-time data upgrades already applied in this browser (the static counterpart of
+ * the server's `schema_migrations`), so an upgrade never runs twice. Never exported.
+ */
+export function getUpgrades(ctx: StaticContext): string[] {
+  return rowsSlice<string>(ctx, SLICE.upgrades, (name) => typeof name === 'string');
 }
 
 // ---------------------------------------------------------------------------

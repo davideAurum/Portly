@@ -3,7 +3,8 @@
  * settings.test.ts on the server side) over the settings slice.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defaultSettings, type Settings } from '@portly/shared';
+import { DEFAULT_ACCENT, defaultSettings, defaultThemeBackground, type Settings } from '@portly/shared';
+import { MemoryStorage } from '../storage/memory.ts';
 import { createTestBackend, type TestBackend } from '../test/harness.ts';
 import * as profiles from './profiles.ts';
 import * as settings from './settings.ts';
@@ -172,5 +173,46 @@ describe('static core: settings', () => {
     expect((await t.call('PATCH', '/api/settings', { general: { timeFormat: 'bad' } })).status).toBe(422);
     expect(await current()).toEqual(before);
     expect(await t.storage.getJson('slice:settings')).toEqual(before);
+  });
+});
+
+describe('static core: Beacon defaults upgrade (ready)', () => {
+  const legacyAppearance = {
+    ...defaultSettings().appearance,
+    mode: 'dark' as const,
+    accent: '#2563EB',
+    background: { type: 'gradient' as const, angle: 160, stops: [{ color: '#1e3a8a', at: 0 }, { color: '#6D28D9', at: 100 }] },
+  };
+
+  it('moves stored legacy defaults to the Beacon ones once and keeps everything else', async () => {
+    const storage = new MemoryStorage();
+    await storage.setJson('slice:settings', { ...defaultSettings(), appearance: legacyAppearance, general: { ...defaultSettings().general, userName: 'Dana' } });
+    const t = await createTestBackend(MODULES, { storage });
+    const body = (await t.json<Settings>('GET', '/api/settings')).body;
+    expect(body.appearance).toEqual({ ...legacyAppearance, accent: DEFAULT_ACCENT, background: defaultThemeBackground() });
+    expect(body.general.userName).toBe('Dana');
+    expect(await storage.getJson('slice:settings')).toEqual(body);
+    expect(await storage.getJson('slice:upgrades')).toEqual([settings.BEACON_DEFAULTS_UPGRADE]);
+
+    // Picking the old look again afterwards is a real choice: a restart keeps it.
+    await t.json('PATCH', '/api/settings', { appearance: { accent: '#2563eb', background: legacyAppearance.background } });
+    t.close();
+    const again = await createTestBackend(MODULES, { storage });
+    expect((await again.json<Settings>('GET', '/api/settings')).body.appearance.accent).toBe('#2563eb');
+    again.close();
+  });
+
+  it('leaves chosen colors alone and does not write settings on a fresh install', async () => {
+    const fresh = await createTestBackend(MODULES);
+    expect(await fresh.storage.getJson('slice:settings')).toBeUndefined();
+    expect(await fresh.storage.getJson('slice:upgrades')).toEqual([settings.BEACON_DEFAULTS_UPGRADE]);
+    fresh.close();
+
+    const storage = new MemoryStorage();
+    const chosen = { ...legacyAppearance, accent: '#e11d48', background: { ...legacyAppearance.background, angle: 135 } };
+    await storage.setJson('slice:settings', { ...defaultSettings(), appearance: chosen });
+    const t = await createTestBackend(MODULES, { storage });
+    expect((await t.json<Settings>('GET', '/api/settings')).body.appearance).toEqual(chosen);
+    t.close();
   });
 });

@@ -149,3 +149,31 @@
   font-size: var(--hb-text-sm);
   color: var(--hb-text-muted);
 }
+
+/* Home link: the Beacon lighthouse tile (the mark carries its own Harbor background). */
+.brandHome {
+  display: inline-flex;
+  flex: none;
+  border-radius: 10px;
+  /* A faint edge: the tile is Harbor, the same color as the default backdrop. */
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.22), 0 1px 2px rgb(0 0 0 / 0.12);
+  transition: transform var(--hb-duration) var(--hb-ease), box-shadow var(--hb-duration) var(--hb-ease);
+}
+
+.brandHome:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.3), 0 3px 8px rgb(0 0 0 / 0.2);
+}
+
+/* On the dashboard: a thin Sky ring says "you are here" (the focus ring still shows over it). */
+.brandHome[aria-current='page'] {
+  box-shadow: 0 0 0 2px rgb(166 222 219 / 0.6), 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brandHome,
+  .brandHome:hover {
+    transition: none;
+    transform: none;
+  }
+}
