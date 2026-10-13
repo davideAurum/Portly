@@ -20,6 +20,11 @@ export interface StaticContext {
    * redirect URI of the browser sign-in. Injectable for tests.
    */
   appUrl: string;
+  /**
+   * Tells this page's app that background work changed these slices (a calendar sync that
+   * outlived the requests waiting for it), the way another tab's change is told. Absent in tests.
+   */
+  notify?: (keys: readonly string[]) => void;
 }
 
 /** The running page's app address (origin + Vite base path), or a localhost placeholder outside a page. */

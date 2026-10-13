@@ -34,10 +34,9 @@ export const NEW_WIDGET_HIGHLIGHT_MS = 1600;
 const NEW_WIDGET_SCROLL_DELAY_MS = 150;
 
 const GRID_CONFIG = { cols: 12, rowHeight: ROW_HEIGHT, margin: [GRID_GAP, GRID_GAP] as const };
-/** Empty-profile hint: names only widgets this page load can add (no calendar/mail on the in-browser backend). */
+/** Empty-profile hint: names only widgets this page load can add (no mail on the in-browser backend). */
 function emptyProfileBody(): string {
-  const caps = getCapabilities();
-  return caps.calendar && caps.mail ? 'Add a search box, bookmarks, your calendar, mail and more.' : 'Add a search box, bookmarks, weather, tasks and more.';
+  return getCapabilities().mail ? 'Add a search box, bookmarks, your calendar, mail and more.' : 'Add a search box, bookmarks, your calendar, weather and more.';
 }
 const DRAG_CANCEL = 'input,textarea,select,button,a,[data-no-grid-drag]';
 /** Resize from every corner and edge, not just the bottom-right corner. */

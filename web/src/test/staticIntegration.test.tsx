@@ -400,19 +400,18 @@ describe('static build: export and import', () => {
 // ---------------------------------------------------------------------------
 
 describe('static build: server-only features', () => {
-  it('shows the notice when #/settings/calendars is opened and keeps the section out of the nav', async () => {
+  it('opens Calendars for Outlook.com alone: no ICS subscriptions, no server notice', async () => {
     const { requestsTo } = await renderWithStaticBackend(<Shell />, { route: '#/settings/calendars' });
-    expect(await screen.findByText('Calendars needs the Portly server')).toBeInTheDocument();
-    expect(screen.getByText('Not available in the browser-only build.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Calendars' })).toBeInTheDocument();
+    expect(await screen.findByText('No calendar accounts')).toBeInTheDocument();
+    expect(screen.getByText('Connect Outlook.com to see its calendars here.')).toBeInTheDocument();
+    expect(screen.getByText(/Outlook\.com calendars sync on this interval while Portly is open in this browser\./)).toBeInTheDocument();
+    expect(screen.queryByText('Subscriptions (ICS)')).not.toBeInTheDocument();
+    expect(screen.queryByText(/needs the Portly server/)).not.toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Settings sections' });
-    expect(within(nav).queryByRole('link', { name: 'Calendars' })).not.toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: 'Calendars' })).toHaveAttribute('href', '#/settings/calendars');
     expect(within(nav).getByRole('link', { name: 'Accounts' })).toHaveAttribute('href', '#/settings/accounts');
-    expect(within(nav).getByRole('link', { name: 'Profiles' })).toHaveAttribute('href', '#/settings/profiles');
-    // The shell's own requests reach the backend; nothing asks for calendars.
-    await waitFor(() => expect(requestsTo('GET /api/health')).toEqual([{ method: 'GET', path: '/api/health', search: '', status: 200 }]));
-    await settle();
-    expect(requestsTo('GET /api/calendar/calendars')).toHaveLength(0);
+    // Answered by the in-browser backend: no account, so nothing to sync and nothing to ask Graph.
+    await waitFor(() => expect(requestsTo('GET /api/calendar/calendars')).toEqual([{ method: 'GET', path: '/api/calendar/calendars', search: '', status: 200 }]));
     expect(screen.queryByText("Can't reach the Portly server")).not.toBeInTheDocument();
   });
 
@@ -430,13 +429,13 @@ describe('static build: server-only features', () => {
     expect(screen.getByRole('button', { name: 'Connect Outlook.com' })).toBeDisabled();
   });
 
-  it('renders the notice frame for a calendar instance in a persisted layout, next to a working widget', async () => {
+  it('renders the notice frame for a mail instance in a persisted layout, next to working widgets', async () => {
     const storage = new MemoryStorage();
     const row: StoredProfile = {
       id: 'p1',
       name: 'Home',
       sort: 0,
-      layout: { version: 1, items: [widget('w1', 'calendar', 0, 0, 4, 8), widget('w2', 'clock', 4, 0, 4, 3)] },
+      layout: { version: 1, items: [widget('w1', 'mail', 0, 0, 4, 8), widget('w2', 'clock', 4, 0, 4, 3), widget('w3', 'calendar', 8, 0, 4, 8)] },
       createdAt: 1,
       updatedAt: 1,
     };
@@ -444,13 +443,15 @@ describe('static build: server-only features', () => {
     await storage.setJson('slice:settings', { ...defaultSettings(), activeProfileId: 'p1' });
 
     const { requestsTo } = await renderWithStaticBackend(<Dashboard />, { storage });
-    expect(await screen.findByText('Calendar needs the Portly server')).toBeInTheDocument();
+    expect(await screen.findByText('Mail needs the Portly server')).toBeInTheDocument();
     expect(screen.getByText(/Not available in the browser-only build\. Remove it in edit mode\./)).toBeInTheDocument();
     expect(screen.getByText(stubWidgetText('clock'))).toBeInTheDocument();
-    expect(screen.queryByText(stubWidgetText('calendar'))).not.toBeInTheDocument();
+    // The calendar runs here (Outlook.com from the browser).
+    expect(screen.getByText(stubWidgetText('calendar'))).toBeInTheDocument();
+    expect(screen.queryByText(stubWidgetText('mail'))).not.toBeInTheDocument();
     // The frame keeps the widget's title but offers no settings for it.
-    expect(screen.getByRole('region', { name: 'Calendar' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Calendar settings' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Mail' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mail settings' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clock settings' })).toBeInTheDocument();
     await settle();
     expect(requestsTo('POST /api/profiles')).toHaveLength(0);

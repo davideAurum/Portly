@@ -10,6 +10,7 @@ import type { StaticContext } from '../context.ts';
 import type { StaticRouter } from '../router.ts';
 import * as accounts from './accounts.ts';
 import * as bookmarks from './bookmarks.ts';
+import * as calendar from './calendar.ts';
 import * as core from './core.ts';
 import * as profiles from './profiles.ts';
 import * as search from './search.ts';
@@ -40,6 +41,7 @@ export const MODULES: readonly HandlerModule[] = Object.freeze([
   sports,
   todoist,
   accounts,
+  calendar,
   unavailable,
 ]);
 
@@ -56,6 +58,7 @@ const MODULE_NAMES: ReadonlyMap<HandlerModule, string> = new Map<HandlerModule, 
   [sports, 'sports'],
   [todoist, 'todoist'],
   [accounts, 'accounts'],
+  [calendar, 'calendar'],
   [unavailable, 'unavailable'],
 ]);
 

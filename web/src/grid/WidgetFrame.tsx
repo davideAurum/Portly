@@ -4,7 +4,7 @@
  * `container-type: inline-size` on the body. Config is parsed with the widget's schema on every
  * read; `setConfig` merges a patch into the latest cached config, validates it and PATCHes the
  * instance (never the whole layout). Unknown widget types render a placeholder; a type this page
- * load cannot run (calendar, mail, feeds on the in-browser backend) renders `ServerOnlyNotice`.
+ * load cannot run (mail and feeds on the in-browser backend) renders `ServerOnlyNotice`.
  */
 import { Suspense, useCallback, useId, useMemo, useState, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -42,7 +42,7 @@ export function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onR
   const [actionsTarget, setActionsTarget] = useState<HTMLElement | null>(null);
   const moveHelpId = useId();
 
-  // Known to this version but not runnable on this page load (in-browser backend: calendar, mail, feeds).
+  // Known to this version but not runnable on this page load (in-browser backend: mail, feeds).
   const available = isWidgetTypeAvailable(instance.type);
   const title = definition ? (instance.frame.title ?? definition.title) : 'Unknown widget';
   const Icon = definition?.icon ?? CircleAlert;

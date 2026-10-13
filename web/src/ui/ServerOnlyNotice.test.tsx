@@ -12,7 +12,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { WidgetFrame } from '../grid/WidgetFrame.tsx';
 import { setLocalServerController } from '../localServer/store.ts';
-import { SettingsShell } from '../settings/SettingsShell.tsx';
 import { fakeLocalServer } from '../test/hybrid.ts';
 import { renderWithProviders } from '../test/render.tsx';
 import { NEEDS_LOCAL_SERVER_NOTICE, ServerOnlyNotice } from './ServerOnlyNotice.tsx';
@@ -96,14 +95,5 @@ describe('ServerOnlyNotice (hybrid mode, in-browser backend)', () => {
     expect(within(frame).queryByRole('button', { name: 'Mail settings' })).not.toBeInTheDocument();
     await userEvent.setup().click(within(frame).getByRole('button', { name: 'Check again' }));
     expect(fake.actions.checkNow).toHaveBeenCalledTimes(1);
-  });
-
-  it('answers a hidden settings section opened by URL', async () => {
-    const fake = plug({ status: 'idle' });
-    renderWithProviders(<SettingsShell section="calendars" />);
-    expect(await screen.findByText('Calendars needs Portly running on this PC')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Calendars' })).toBeInTheDocument();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Look for it' }));
-    expect(fake.actions.lookForServer).toHaveBeenCalledTimes(1);
   });
 });

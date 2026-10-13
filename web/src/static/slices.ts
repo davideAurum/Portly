@@ -10,11 +10,12 @@
  * handler or keep the backend from starting.
  *
  * Export (`GET /api/export`) reads settings, profiles, bookmarks, uploads and icons. The Todoist
- * token, the pre-import backups, accounts and their tokens, the OAuth client and pending sign-ins
- * are never exported (and an import never touches them).
+ * token, the pre-import backups, accounts and their tokens, the OAuth client, pending sign-ins and
+ * the calendar cache are never exported (and an import never touches them).
  */
 import {
   ACCOUNT_STATUSES,
+  CALENDAR_SOURCES,
   CAPABILITIES,
   SETTINGS_NAMESPACES,
   SettingsSchema,
@@ -26,6 +27,7 @@ import {
   type Settings,
 } from '@portly/shared';
 import type { StaticContext } from './context.ts';
+import type { CalendarRow, EventRow } from './lib/calendarRecords.ts';
 
 export const SLICE = Object.freeze({
   settings: 'settings',
@@ -39,6 +41,9 @@ export const SLICE = Object.freeze({
   accountTokens: 'account-tokens',
   oauthClients: 'oauth-clients',
   oauthStates: 'oauth-states',
+  calendars: 'calendars',
+  calendarEvents: 'calendar-events',
+  calendarSync: 'calendar-sync',
 });
 
 // ---------------------------------------------------------------------------
@@ -427,4 +432,117 @@ function isOAuthStateRow(row: unknown): boolean {
 
 export function getOAuthStates(ctx: StaticContext): StoredOAuthState[] {
   return rowsSlice<StoredOAuthState>(ctx, SLICE.oauthStates, isOAuthStateRow);
+}
+
+// ---------------------------------------------------------------------------
+// Calendar cache (Outlook.com calendars synced from Graph; never exported)
+// ---------------------------------------------------------------------------
+
+function isNullableString(value: unknown): boolean {
+  return value === null || typeof value === 'string';
+}
+
+function isFlag(value: unknown): boolean {
+  return value === 0 || value === 1;
+}
+
+function isCalendarRow(row: unknown): boolean {
+  return (
+    hasId(row) &&
+    typeof row.account_id === 'string' &&
+    (CALENDAR_SOURCES as readonly unknown[]).includes(row.source) &&
+    typeof row.remote_id === 'string' &&
+    typeof row.name === 'string' &&
+    isNullableString(row.color) &&
+    isNullableString(row.color_override) &&
+    isFlag(row.provider_writable) &&
+    isFlag(row.user_read_only) &&
+    isFlag(row.visible) &&
+    isFlag(row.is_primary) &&
+    Number.isFinite(row.sort) &&
+    (row.last_synced_at === null || Number.isFinite(row.last_synced_at)) &&
+    isNullableString(row.last_error)
+  );
+}
+
+/** Calendars of the Outlook.com accounts (the server's `calendars` rows; no ICS feeds here). */
+export function getCalendars(ctx: StaticContext): CalendarRow[] {
+  return rowsSlice<CalendarRow>(ctx, SLICE.calendars, isCalendarRow);
+}
+
+function isEventRow(row: unknown): boolean {
+  return (
+    hasId(row) &&
+    typeof row.calendar_id === 'string' &&
+    typeof row.remote_id === 'string' &&
+    typeof row.title === 'string' &&
+    typeof row.start === 'string' &&
+    typeof row.end === 'string' &&
+    isFlag(row.all_day) &&
+    isFlag(row.editable) &&
+    Number.isFinite(row.updated_at)
+  );
+}
+
+/** Cached events by calendar id (the server's `events` rows of each calendar's sync window). */
+export type CalendarEventsSlice = Record<string, EventRow[]>;
+
+export function getCalendarEvents(ctx: StaticContext): CalendarEventsSlice {
+  const isList = (value: unknown) => Array.isArray(value) && value.every(isEventRow);
+  return checkedSlice<CalendarEventsSlice>(
+    ctx,
+    SLICE.calendarEvents,
+    () => ({}),
+    (value) => isRow(value) && Object.values(value).every(isList),
+    (value) =>
+      isRow(value)
+        ? (Object.fromEntries(Object.entries(value).map(([id, rows]) => [id, Array.isArray(rows) ? rows.filter(isEventRow) : []])) as CalendarEventsSlice)
+        : {},
+  );
+}
+
+/** A failing sync subject (an account's calendar list, or one calendar) and how long it waits. */
+export interface SyncFailureState {
+  /** Scheduled syncs skip the subject until then (0: no backoff, the next interval tries again). */
+  retryAt: number;
+  /** Consecutive failures with {@link signature}. */
+  failures: number;
+  /** Code and message of the failure: the same one again is a repeat. */
+  signature: string;
+}
+
+/** When an account's calendars were last synced (tried), and what is failing. */
+export interface CalendarSyncState {
+  /** Last sync attempt (success or failure), epoch ms. */
+  attemptedAt: number;
+  /** The calendar list failed, or the provider rate-limited the account; null after a good listing. */
+  failure: SyncFailureState | null;
+  /** Calendars whose last listing failed, by calendar id. */
+  calendars: Record<string, SyncFailureState>;
+}
+
+export type CalendarSyncSlice = Record<string, CalendarSyncState>;
+
+function isFailureState(value: unknown): boolean {
+  return isRow(value) && Number.isFinite(value.retryAt) && Number.isFinite(value.failures) && typeof value.signature === 'string';
+}
+
+function isSyncState(value: unknown): boolean {
+  return (
+    isRow(value) &&
+    Number.isFinite(value.attemptedAt) &&
+    (value.failure === null || isFailureState(value.failure)) &&
+    isRow(value.calendars) &&
+    Object.values(value.calendars).every(isFailureState)
+  );
+}
+
+export function getCalendarSync(ctx: StaticContext): CalendarSyncSlice {
+  return checkedSlice<CalendarSyncSlice>(
+    ctx,
+    SLICE.calendarSync,
+    () => ({}),
+    (value) => isRow(value) && Object.values(value).every(isSyncState),
+    (value) => (isRow(value) ? (Object.fromEntries(Object.entries(value).filter(([, v]) => isSyncState(v))) as CalendarSyncSlice) : {}),
+  );
 }

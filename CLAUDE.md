@@ -116,9 +116,9 @@ extension, the native host and the docs.
 - The developer's machine may already run an installed Portly or Homebase on port 5757. For
   manual runs set `PORTLY_PORT`, `PORTLY_VITE_PORT` and `PORTLY_DATA_DIR=<scratch>\data`, never
   the defaults, and stop whatever you start.
-- A server started with the default data folder also performs the one-time copy of an existing
-  Homebase install (section 19). Doing that by accident freezes an early snapshot and the real
-  switch-over later copies nothing, so a scratch `PORTLY_DATA_DIR` is not optional.
+- A scratch `PORTLY_DATA_DIR` is not optional: the default folder is the user's real data. It is
+  also where the switch-over leaves its `copy-from-homebase.json` request (section 19), and any
+  server started there would carry out that copy.
 - Do not run `install-autostart.ps1`, `uninstall-autostart.ps1`, `setup.ps1`, `install.ps1`,
   `update.ps1`, `install-cli.ps1` or `try-branch.ps1` for real unless asked. They change the
   scheduled task, registry, PATH and user environment, and remove an existing Homebase install.

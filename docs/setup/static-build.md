@@ -6,10 +6,11 @@ to keep running: you open a URL, and everything you set up is kept in that brows
 It is made for hosting on GitHub Pages (any static web host works the same way).
 
 It is not a replacement for the full Portly. The server build keeps your credentials in an
-encrypted vault, syncs calendars, reads mail and fetches pages on your behalf; the browser cannot
-do any of that on its own, so those parts are simply not there — unless Portly also runs on the
-PC you are using: a browser you have paired with it uses Portly's own data and features while it
-runs ([hybrid mode](#hybrid-mode-portly-on-this-pc)).
+encrypted vault, syncs calendars in the background, reads mail and fetches pages on your behalf;
+the browser can do only some of that on its own (your Outlook.com calendar, while the page is
+open), so the rest is simply not there — unless Portly also runs on the PC you are using: a
+browser you have paired with it uses Portly's own data and features while it runs
+([hybrid mode](#hybrid-mode-portly-on-this-pc)).
 
 ## What works, what doesn't
 
@@ -19,29 +20,42 @@ runs ([hybrid mode](#hybrid-mode-portly-on-this-pc)).
 | **Launch pad** — bookmark groups, drag-and-drop ordering, import from an HTML bookmarks file, custom icons; site icons come from DuckDuckGo's icon service | Import straight from the Chrome/Edge profile files; fetching a page's title and icon |
 | **Clock**, **Weather** (Open-Meteo, no key) | — |
 | **Todoist** — tasks, quick add, complete with undo (token stored in the browser, see below) | — |
+| **Calendar** — your **Outlook.com** calendars, read and written straight from the browser through Microsoft Graph (an app registration you own, see [Outlook.com](microsoft.md#browser-only-build-github-pages)); they sync while the page is open | Google, Yahoo and CalDAV calendars, ICS / webcal subscriptions |
 | **Themes**, background image upload, **profiles**, **export / import** | — |
-| — | **Calendar** and **Mail** widgets, **Accounts** (Google, Microsoft, Yahoo, CalDAV, IMAP), OAuth sign-in, the credential vault, ICS / webcal subscriptions |
+| — | **Mail** and **RSS feeds** widgets, Google, Yahoo, CalDAV and IMAP accounts, the credential vault |
 
-The hidden parts are gone from **Add widget** and from Settings. If you import an export made on
-the server build and its layout still has a calendar or mail widget, that widget shows
-*Calendar needs the Portly server* (or *Mail needs the Portly server*) with *Not available in
-the browser-only build*; remove it in edit mode. In a site built with hybrid mode (the default) the
-notice reads *Calendar needs Portly running on this PC* instead, with a button that looks for it
-(or pairs this browser with it).
+The parts that are not available are gone from **Add widget** and from Settings. If you import an
+export made on the server build and its layout still has a mail widget, that widget shows *Mail
+needs the Portly server* with *Not available in the browser-only build*; remove it in edit mode.
+In a site built with hybrid mode (the default) the notice reads *Mail needs Portly running on this
+PC* instead, with a button that looks for it (or pairs this browser with it). The calendar widget is
+not in the first-run layout (it needs the Outlook.com setup first): add it from **Add widget**.
 
 ## Where your data lives
 
-- **In this browser, on this device.** Settings, layouts, bookmarks, uploaded images and the
-  Todoist token are stored in the browser's IndexedDB for the site's address. Nothing is sent to
+- **In this browser, on this device.** Settings, layouts, bookmarks, uploaded images, the
+  Todoist token, the Outlook.com sign-in and a copy of your Outlook.com calendars (30 days back, a
+  year ahead) are stored in the browser's IndexedDB for the site's address. Nothing is sent to
   GitHub or to any Portly server (there is none). Another browser, another device, another
   browser profile — or the same site at a different address — starts empty.
+- **A quick-start copy, too.** So the page can show itself at once, it also keeps a snapshot of
+  what it last showed, including the calendar events on screen (titles, places, notes), in the
+  browser's local storage for the site. The snapshot is dropped after 24 hours or when Portly is
+  updated; clearing the site data removes it right away.
 - **Move it with export / import.** **Settings → Import & export** writes a `.json` file with your
   settings, layouts, bookmarks, background image and custom icons; import it on the other
-  computer. The file never contains the Todoist token — paste it again there.
-- **The Todoist token is not encrypted.** The server build keeps it in a vault protected by
-  Windows; here it sits in the browser's site storage, readable by anyone who can use this
-  browser profile (and by browser extensions with site-data access). On a shared PC, remove the
-  token in **Settings → Todoist** when you are done, or don't connect Todoist at all.
+  computer. The file never contains the Todoist token or the Outlook.com sign-in — set them up
+  again there.
+- **The Todoist token and the Outlook.com sign-in are not encrypted.** The server build keeps
+  them in a vault protected by Windows; here they sit in the browser's site storage, readable by
+  anyone who can use this browser profile (and by browser extensions with site-data access). On a
+  shared PC, remove them in **Settings → Todoist** and **Settings → Accounts** when you are done,
+  or don't connect them at all. A Microsoft sign-in from a web page lasts 24 hours; Portly renews
+  it by itself when you open the page while you are still signed in to Microsoft, else the account
+  shows *Reconnect*.
+- **Calendars sync while the page is open.** There is no background job: a calendar on screen
+  checks Outlook.com every sync interval (**Settings → Calendars**, 5 minutes by default) and
+  right away when you open the page after a while. Several tabs share one sync.
 - **Safari forgets.** Safari deletes a site's script-written storage after seven days without a
   visit (interaction), unless the site is added to the Dock / Home Screen. Export before a long
   break, or keep using it.
@@ -227,6 +241,7 @@ what keep the data private.
 | DuckDuckGo icon service (`icons.duckduckgo.com`) | Showing a bookmark whose icon is set to *Automatic* | The bookmark's **host name** (not the full URL). Hosts that look private — IP addresses, single-word names, `.local` — are never looked up. Pick a custom icon or the letter tile for a bookmark you want to keep to yourself. |
 | Open-Meteo (`api.open-meteo.com`, `geocoding-api.open-meteo.com`) | Weather widget | The location you chose, and the text you type when searching for a place. Free for non-commercial use, no key; the data is [CC BY 4.0](https://open-meteo.com/en/license) and the widget shows the required attribution. |
 | Todoist (`api.todoist.com`) | Todoist widget | Your personal token with every request, straight from the browser — the same as the Todoist apps do. |
+| Microsoft (`login.microsoftonline.com`, `graph.microsoft.com`) | Outlook.com account and the Calendar widget | The sign-in (your app registration's client id, the one-time code, then token refreshes), and the calendar requests with the account's access token: which calendars you have, the events of the synced window, and the events you create, change or delete. |
 | Wikipedia (`en.wikipedia.org`) | Search suggestions, when the Wikipedia provider is on | What you have typed so far. |
 | ESPN (`site.api.espn.com`, logos from `a.espncdn.com`) | Sports scores widget | Which leagues and teams you follow (as ESPN team ids). No key or account. With the Portly server (hybrid mode) the server reads the scores instead, but team logos still load from `a.espncdn.com`. |
 | Portly on this PC (`http://127.0.0.1:5757`, hybrid mode) | In a paired browser, on every page load and then regularly while the page is open. In an unpaired one, on every page load and when the page gets focus, becomes visible or the network comes back — once the browser has granted the site local network access, or right away when the browser has no such permission; otherwise only when you click **Look for Portly on this PC** | Nothing leaves the PC. Before pairing only a health check; once paired, every request of the page, with the pairing token. |

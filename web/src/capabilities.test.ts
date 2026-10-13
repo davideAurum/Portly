@@ -18,7 +18,7 @@ import {
   type Capabilities,
 } from './capabilities.ts';
 
-const SERVER_FEATURES = ['accounts', 'googleAccounts', 'appPasswordAccounts', 'calendar', 'mail', 'feeds', 'vault', 'browserBookmarkImport', 'siteMetaFetch', 'serverSearchSuggestions'] as const;
+const SERVER_FEATURES = ['accounts', 'googleAccounts', 'appPasswordAccounts', 'calendar', 'icsSubscriptions', 'mail', 'feeds', 'vault', 'browserBookmarkImport', 'siteMetaFetch', 'serverSearchSuggestions'] as const;
 
 function featureFlags(caps: Capabilities): Record<string, boolean> {
   return Object.fromEntries(SERVER_FEATURES.map((name) => [name, caps[name]]));
@@ -34,6 +34,7 @@ describe('capabilitiesFor', () => {
       googleAccounts: true,
       appPasswordAccounts: true,
       calendar: true,
+      icsSubscriptions: true,
       mail: true,
       feeds: true,
       vault: true,
@@ -45,7 +46,7 @@ describe('capabilitiesFor', () => {
     });
   });
 
-  it('Pages build on the browser backend: no server feature, in-browser backups, Outlook.com accounts set up here', () => {
+  it('Pages build on the browser backend: no server feature, in-browser backups, Outlook.com accounts and calendars here', () => {
     expect(capabilitiesFor(true, 'browser')).toEqual({
       pagesBuild: true,
       backend: 'browser',
@@ -53,7 +54,8 @@ describe('capabilitiesFor', () => {
       accounts: true,
       googleAccounts: false,
       appPasswordAccounts: false,
-      calendar: false,
+      calendar: true,
+      icsSubscriptions: false,
       mail: false,
       feeds: false,
       vault: false,
@@ -105,13 +107,14 @@ describe('getCapabilities (server build)', () => {
 });
 
 describe('widget availability', () => {
-  it('a browser backend cannot run calendar, mail or feeds; a server backend runs everything', () => {
-    expect([...unavailableWidgetTypes(capabilitiesFor(true, 'browser'))]).toEqual(['calendar', 'mail', 'feeds']);
+  it('a browser backend cannot run mail or feeds (the calendar reads Outlook.com); a server backend runs everything', () => {
+    expect([...unavailableWidgetTypes(capabilitiesFor(true, 'browser'))]).toEqual(['mail', 'feeds']);
     expect(unavailableWidgetTypes(capabilitiesFor(true, 'server')).size).toBe(0);
     expect(unavailableWidgetTypes(capabilitiesFor(false, 'server')).size).toBe(0);
-    expect(isWidgetTypeAvailable('calendar', capabilitiesFor(true, 'browser'))).toBe(false);
+    expect(isWidgetTypeAvailable('mail', capabilitiesFor(true, 'browser'))).toBe(false);
+    expect(isWidgetTypeAvailable('calendar', capabilitiesFor(true, 'browser'))).toBe(true);
     expect(isWidgetTypeAvailable('clock', capabilitiesFor(true, 'browser'))).toBe(true);
-    expect(isWidgetTypeAvailable('calendar', capabilitiesFor(true, 'server'))).toBe(true);
+    expect(isWidgetTypeAvailable('mail', capabilitiesFor(true, 'server'))).toBe(true);
   });
 
   it('defaults to this page load’s capabilities', () => {
@@ -130,7 +133,7 @@ describe('widget availability', () => {
   });
 
   it('BROWSER_UNAVAILABLE_WIDGET_TYPES is the browser backend’s set whatever the page load', () => {
-    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['calendar', 'mail', 'feeds']);
+    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['mail', 'feeds']);
     expect(BROWSER_UNAVAILABLE_WIDGET_TYPES).toBe(unavailableWidgetTypes(capabilitiesFor(true, 'browser')));
   });
 });

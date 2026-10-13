@@ -20,7 +20,8 @@ describe('Pages build capabilities', () => {
   it('uses the browser backend until the page load picks one', () => {
     expect(STATIC_BUILD).toBe(true);
     expect(getCapabilities()).toBe(capabilitiesFor(true, 'browser'));
-    expect(isWidgetTypeAvailable('calendar')).toBe(false);
+    expect(isWidgetTypeAvailable('calendar')).toBe(true);
+    expect(isWidgetTypeAvailable('mail')).toBe(false);
   });
 
   it('follows setPageBackend, and the test reset goes back to the browser backend', () => {
@@ -39,9 +40,9 @@ describe('Pages build capabilities', () => {
     expect(getCapabilities().pagesBuild).toBe(false);
   });
 
-  it('the static handlers refuse calendar, mail and feeds whatever the page backend', () => {
+  it('the static handlers refuse mail and feeds whatever the page backend', () => {
     setPageBackend('server');
-    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['calendar', 'mail', 'feeds']);
+    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['mail', 'feeds']);
   });
 
   it('turns hybrid mode off without a local server origin', () => {

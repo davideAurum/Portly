@@ -239,20 +239,21 @@ describe('static core: profiles', () => {
       expect((await t.call('POST', '/api/profiles/missing/widgets', { type: 'clock' })).status).toBe(404);
     });
 
-    it('refuses the widget types the browser-only build cannot run', async () => {
-      for (const type of ['calendar', 'mail', 'feeds']) {
+    it('refuses the widget types the browser-only build cannot run (mail, feeds; the calendar reads Outlook.com)', async () => {
+      for (const type of ['mail', 'feeds']) {
         const res = await add({ type });
         expect(res.status, type).toBe(422);
         expect(res.body.error).toEqual({ code: 'validation_failed', message: `Widget type "${type}" is not available in the browser-only build` });
       }
       expect((await layout()).items).toHaveLength(3);
+      expect((await add({ type: 'calendar' })).status).toBe(201);
     });
 
     it('refuses them whatever the page load uses: the in-browser dataset never gets a server-only widget', async () => {
       setCapabilitiesForTests(capabilitiesFor(true, 'server'));
-      expect((await add({ type: 'calendar' })).status).toBe(422);
+      expect((await add({ type: 'mail' })).status).toBe(422);
       expect((await add({ type: 'clock' })).status).toBe(201);
-      expect((await layout()).items.map((i) => i.type)).not.toContain('calendar');
+      expect((await layout()).items.map((i) => i.type)).not.toContain('mail');
     });
 
     it('rejects forbidden keys and oversized configs', async () => {
@@ -263,6 +264,7 @@ describe('static core: profiles', () => {
       expect(big.status).toBe(422);
       expect(big.body.error.code).toBe('validation_failed');
       expect((await layout()).items).toHaveLength(3);
+      expect((await add({ type: 'calendar' })).status).toBe(201);
     });
 
     it(`caps widgets at ${MAX_WIDGETS_PER_PROFILE} per profile`, async () => {

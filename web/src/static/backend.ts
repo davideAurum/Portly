@@ -43,7 +43,8 @@ export interface StaticBackend {
   fetch(path: string, init?: RequestInit): Promise<Response>;
   /**
    * Called with the slice names another tab changed, after they were reloaded here and the
-   * images they name were registered (so a refetch already resolves their URLs).
+   * images they name were registered (so a refetch already resolves their URLs), and with those
+   * this tab's background work changed (`ctx.notify`: a calendar sync that outlived its requests).
    */
   onExternalChange(listener: ExternalChangeListener): () => void;
   close(): void;
@@ -166,8 +167,18 @@ export async function createStaticBackend(options: CreateStaticBackendOptions): 
 
   // Another tab changed data: register its new images first, then tell the app (which refetches
   // and renders the new URLs). Serialized, so changes are handled in the order they arrived.
+  // Background work of this tab (`ctx.notify`) is told the same way.
   const listeners = new Set<ExternalChangeListener>();
   let changes: Promise<void> = Promise.resolve();
+  const tell = (keys: readonly string[]): void => {
+    for (const listener of listeners) {
+      try {
+        listener(keys);
+      } catch (err) {
+        console.error('[Portly] A cross-tab change listener failed', err);
+      }
+    }
+  };
   const stopWatching = state.onExternalChange((keys) => {
     changes = changes.then(async () => {
       try {
@@ -175,15 +186,12 @@ export async function createStaticBackend(options: CreateStaticBackendOptions): 
       } catch (err) {
         console.error('[Portly] Could not load images another tab added', err);
       }
-      for (const listener of listeners) {
-        try {
-          listener(keys);
-        } catch (err) {
-          console.error('[Portly] A cross-tab change listener failed', err);
-        }
-      }
+      tell(keys);
     });
   });
+  ctx.notify = (keys) => {
+    changes = changes.then(() => tell(keys));
+  };
 
   return {
     ctx,

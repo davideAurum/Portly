@@ -1,8 +1,8 @@
 /**
  * Settings › Calendars (§10.8): calendars grouped by account with visibility, color override,
  * "read-only in Portly", last sync and last error per calendar; ICS subscriptions (add / edit /
- * remove — the feed URL is write-only, only its host is shown); sync interval, default calendar
- * for new events and "Sync now".
+ * remove — the feed URL is write-only, only its host is shown; not on the in-browser backend, which
+ * has no server to fetch feeds); sync interval, default calendar for new events and "Sync now".
  */
 import { useRef, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { CircleAlert, Pencil, Plus, RefreshCw, RotateCcw, Rss, Trash, TriangleAlert, UserRoundPlus } from 'lucide-react';
@@ -19,6 +19,7 @@ import {
   useUpdateIcs,
 } from '../../api/calendar.ts';
 import { isApiError } from '../../api/client.ts';
+import { getCapabilities } from '../../capabilities.ts';
 import { useSettings, useUpdateSettings } from '../../api/settings.ts';
 import { ACCOUNT_KIND_LABELS } from '../../ui/accounts/accountKinds.ts';
 import { accountColor } from '../../ui/accounts/AccountBadge.tsx';
@@ -83,6 +84,8 @@ export default function CalendarsSettings() {
 
   const calendarAccounts = accounts.data.filter((a) => a.capabilities.includes('calendar'));
   const ics = calendars.data.filter((c) => c.source === 'ics');
+  // The in-browser backend has Outlook.com calendars only (no server to fetch ICS feeds).
+  const icsSubscriptions = getCapabilities().icsSubscriptions;
 
   return (
     <div className={shared.stack}>
@@ -92,7 +95,11 @@ export default function CalendarsSettings() {
           <EmptyState
             icon={UserRoundPlus}
             title="No calendar accounts"
-            body="Connect Google, Outlook.com, Yahoo or a CalDAV server to see their calendars here."
+            body={
+              icsSubscriptions
+                ? 'Connect Google, Outlook.com, Yahoo or a CalDAV server to see their calendars here.'
+                : 'Connect Outlook.com to see its calendars here.'
+            }
             action={
               <a className={styles.link} href={safeHref(ACCOUNTS_ROUTE)}>
                 <UserRoundPlus aria-hidden="true" />
@@ -106,7 +113,7 @@ export default function CalendarsSettings() {
           <AccountCalendars key={account.id} account={account} calendars={calendars.data.filter((c) => c.accountId === account.id)} />
         ))
       )}
-      <IcsCard calendars={ics} />
+      {icsSubscriptions ? <IcsCard calendars={ics} /> : null}
     </div>
   );
 }
@@ -139,7 +146,11 @@ function SyncCard({ calendars, hasAccounts }: { calendars: Calendar[]; hasAccoun
   return (
     <SettingsCard
       title="Sync"
-      description="Account calendars sync on this interval; ICS subscriptions every 30 minutes. Portly keeps 30 days back and a year ahead."
+      description={
+        getCapabilities().icsSubscriptions
+          ? 'Account calendars sync on this interval; ICS subscriptions every 30 minutes. Portly keeps 30 days back and a year ahead.'
+          : 'Outlook.com calendars sync on this interval while Portly is open in this browser. Portly keeps 30 days back and a year ahead.'
+      }
       actions={
         <Button icon={RefreshCw} loading={sync.isPending} onClick={() => void runSync()} disabled={calendars.length === 0 && !hasAccounts}>
           Sync now

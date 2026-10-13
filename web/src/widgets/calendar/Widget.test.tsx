@@ -3,6 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Calendar, CalendarEvent, EventsResponse } from '@portly/shared';
+import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
 import { WidgetFrameContext, type WidgetFrameContextValue } from '../../grid/WidgetContext.tsx';
 import { account, settings } from '../../test/fixtures.ts';
 import { mockResponse, renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';
@@ -165,6 +166,19 @@ describe('CalendarWidget — agenda', () => {
     expect(await screen.findByText('No calendars yet')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Connect an account/ })).toHaveAttribute('href', '#/settings/accounts');
     expect(screen.getByRole('link', { name: /Add an ICS feed/ })).toHaveAttribute('href', '#/settings/calendars?focus=ics');
+  });
+
+  it('offers only Outlook.com in the not-configured state of the browser-only build (no ICS feeds there)', async () => {
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    try {
+      renderCalendar({ calendars: [], accounts: [], mocks: { 'GET /api/calendar/events': mockResponse(409, { error: { code: 'not_configured', message: 'No calendars yet.' } }) } });
+      expect(await screen.findByText('No calendars yet')).toBeInTheDocument();
+      expect(screen.getByText('Connect Outlook.com to see its calendars here.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Connect Outlook\.com/ })).toHaveAttribute('href', '#/settings/accounts');
+      expect(screen.queryByRole('link', { name: /Add an ICS feed/ })).not.toBeInTheDocument();
+    } finally {
+      setCapabilitiesForTests(null);
+    }
   });
 
   it('waits for a connected account’s first sync, then shows its events as soon as its calendars arrive', async () => {

@@ -119,7 +119,7 @@ describe('LocalServerPanel', () => {
     expect(card).toHaveTextContent("This page's dataSaved in this browser");
     // What the server adds, and that the two datasets stay apart.
     const adds = within(card).getByText('What Portly on this PC adds').parentElement!;
-    expect(within(adds).getAllByRole('listitem').map((item) => item.textContent)).toContain('Calendar, mail and RSS feed widgets');
+    expect(within(adds).getAllByRole('listitem').map((item) => item.textContent)).toContain('Mail and RSS feed widgets, and ICS calendar subscriptions');
     expect(adds).toHaveTextContent('The copy saved in this browser stays as it is');
     expect(within(card).queryByRole('link')).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: /Disconnect/ })).not.toBeInTheDocument();

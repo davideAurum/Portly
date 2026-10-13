@@ -34,6 +34,7 @@ import {
 import { ApiError, isApiError } from '../../api/client.ts';
 import { qk } from '../../api/keys.ts';
 import { useSettings } from '../../api/settings.ts';
+import { getCapabilities } from '../../capabilities.ts';
 import { WidgetActions } from '../../grid/WidgetContext.tsx';
 import { useFormatters } from '../../lib/format.ts';
 import { safeHref } from '../../lib/openUrl.ts';
@@ -88,22 +89,26 @@ interface DialogState {
 }
 
 function NotConfigured({ compact }: { compact: boolean }) {
+  // The in-browser backend reads Outlook.com calendars only (no server to fetch ICS feeds).
+  const ics = getCapabilities().icsSubscriptions;
   return (
     <EmptyState
       icon={CalendarPlus}
       compact={compact}
       title="No calendars yet"
-      body="Connect Google, Outlook.com, Yahoo or a CalDAV server, or subscribe to an ICS link."
+      body={ics ? 'Connect Google, Outlook.com, Yahoo or a CalDAV server, or subscribe to an ICS link.' : 'Connect Outlook.com to see its calendars here.'}
       action={
         <div className={styles.setupLinks}>
           <a className={styles.setupLink} href={safeHref(ACCOUNTS_ROUTE)}>
             <UserRoundPlus aria-hidden="true" />
-            Connect an account
+            {ics ? 'Connect an account' : 'Connect Outlook.com'}
           </a>
-          <a className={styles.setupLink} href={safeHref(`${CALENDARS_ROUTE}?focus=ics`)}>
-            <Rss aria-hidden="true" />
-            Add an ICS feed
-          </a>
+          {ics ? (
+            <a className={styles.setupLink} href={safeHref(`${CALENDARS_ROUTE}?focus=ics`)}>
+              <Rss aria-hidden="true" />
+              Add an ICS feed
+            </a>
+          ) : null}
         </div>
       }
     />

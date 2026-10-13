@@ -1,24 +1,26 @@
 /**
  * Server-only routes in the static build. App-password accounts (Yahoo, CalDAV, IMAP), the
- * credential vault, calendars, mail and the server's diagnostics need the Portly server
- * (secrets, provider APIs, sync, its logs), and their UI is hidden behind `src/capabilities.ts`
- * (Settings → Diagnostics shows this browser's events and the hybrid state instead). (Outlook.com accounts and their sign-in
- * are handled in the browser by handlers/accounts.ts.) Every route the web app's API modules know is still
- * registered here so a stray call — a stale persisted layout, a hand-typed hash route, a cached
- * query — answers the server's own "not set up" error, `409 not_configured`, which the query
- * client never retries and ErrorState renders as "Not set up yet", instead of a `404` that would
- * read like a broken client. Nothing here touches state.
+ * credential vault, ICS subscriptions, mail and the server's diagnostics need the Portly server
+ * (secrets, cross-origin feeds, provider APIs, its logs), and their UI is hidden behind
+ * `src/capabilities.ts` (Settings → Diagnostics shows this browser's events and the hybrid state
+ * instead). (Outlook.com accounts, their sign-in and their calendars are handled in the browser by
+ * handlers/accounts.ts and handlers/calendar.ts.) Every route the web app's API modules know is
+ * still registered here so a stray call — a stale persisted layout, a hand-typed hash route, a
+ * cached query — answers the server's own "not set up" error, `409 not_configured`, which the
+ * query client never retries and ErrorState renders as "Not set up yet", instead of a `404` that
+ * would read like a broken client. Nothing here touches state.
  *
  * Keep {@link UNAVAILABLE_ROUTES} in step with the paths and methods used in
  * web/src/api/accounts.ts, calendar.ts, mail.ts, feeds.ts, vault.ts and diagnostics.ts that
- * handlers/accounts.ts does not answer (the test pins the table). The OAuth callback is the site's own address on the
- * in-browser backend, never an API call, so it is not listed.
+ * handlers/accounts.ts and handlers/calendar.ts do not answer (the test pins the table). The OAuth
+ * callback is the site's own address on the in-browser backend, never an API call, so it is not
+ * listed.
  */
 import { unavailable } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';
 
 /** The feature name in the error message: "<feature> is not available in the browser-only build." */
-export type UnavailableFeature = 'Accounts' | 'The credential vault' | 'Calendars' | 'Mail' | 'Feeds' | 'Diagnostics';
+export type UnavailableFeature = 'Accounts' | 'The credential vault' | 'Subscribing to ICS feeds' | 'Mail' | 'Feeds' | 'Diagnostics';
 
 export interface UnavailableRoute {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -36,17 +38,10 @@ export const UNAVAILABLE_ROUTES: readonly UnavailableRoute[] = Object.freeze([
   route('POST', '/api/accounts/:kind', 'Accounts'),
   // web/src/api/vault.ts (§4.6)
   route('POST', '/api/vault/reset', 'The credential vault'),
-  // web/src/api/calendar.ts (§7 Calendar)
-  route('GET', '/api/calendar/calendars', 'Calendars'),
-  route('PATCH', '/api/calendar/calendars/:id', 'Calendars'),
-  route('DELETE', '/api/calendar/calendars/:id', 'Calendars'),
-  route('POST', '/api/calendar/ics', 'Calendars'),
-  route('PATCH', '/api/calendar/ics/:id', 'Calendars'),
-  route('GET', '/api/calendar/events', 'Calendars'),
-  route('POST', '/api/calendar/events', 'Calendars'),
-  route('PATCH', '/api/calendar/events/:id', 'Calendars'),
-  route('DELETE', '/api/calendar/events/:id', 'Calendars'),
-  route('POST', '/api/calendar/sync', 'Calendars'),
+  // web/src/api/calendar.ts (§7 Calendar): ICS feeds are cross-origin documents, only the server
+  // can fetch them (account calendars are handlers/calendar.ts)
+  route('POST', '/api/calendar/ics', 'Subscribing to ICS feeds'),
+  route('PATCH', '/api/calendar/ics/:id', 'Subscribing to ICS feeds'),
   // web/src/api/mail.ts (§7 Mail)
   route('GET', '/api/mail/summary', 'Mail'),
   route('POST', '/api/mail/:accountId/messages/:id/read', 'Mail'),

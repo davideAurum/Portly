@@ -1199,11 +1199,14 @@ and never reloads for this.
    restore the snapshot; render; start probing.
 
 **Capabilities (`web/src/capabilities.ts`)** — `getCapabilities()` returns frozen per-load flags: `pagesBuild`,
-`backend`, `remoteServer` (Pages + server), `accounts|calendar|mail|feeds|vault|browserBookmarkImport|siteMetaFetch|
-serverSearchSuggestions` (server backend), `browserBackups` (browser backend), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives
-in this browser" is `backend === 'browser'`, not the build flag. Server-only widgets on a browser-backend page show
-`ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this browser / Switch now / Check again).
-Account setup works the same on the server backend from either build (one page).
+`backend`, `remoteServer` (Pages + server), `accounts` and `calendar` (every backend: on the browser backend
+Outlook.com signs in and its calendars sync from Microsoft Graph in the page, `web/src/static/handlers/accounts.ts`,
+`calendar.ts`), `googleAccounts|appPasswordAccounts|icsSubscriptions|mail|feeds|vault|browserBookmarkImport|
+siteMetaFetch|serverSearchSuggestions` (server backend), `browserBackups` (browser backend), `iconPolling` (server
+backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
+`backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
+feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
+browser / Switch now / Check again). Account setup works the same on the server backend from either build (one page).
 
 **Controller (`localServer/controller.ts`, every side effect injected, unit-tested under fake timers).** State
 `{backend, status, server: {version, instanceId, appUrl, apiVersion, vault}|null, paired, checkedAt, pendingSwitch,

@@ -582,3 +582,23 @@ describe('cross-tab images', () => {
     tabB.close();
   });
 });
+
+describe("this tab's background changes", () => {
+  it('tells the app the slices ctx.notify names, in order with changes from other tabs', async () => {
+    const storage = new MemoryStorage();
+    const [a, b] = channelPair();
+    const tabA = await createStaticBackend({ storage, channel: a });
+    const tabB = await createStaticBackend({ storage, channel: b });
+    const seen: string[][] = [];
+    tabB.onExternalChange((keys) => seen.push([...keys]));
+
+    await call(tabA, 'PATCH', '/api/settings', { general: { userName: 'Dana' } });
+    await flush();
+    expect(tabB.ctx.notify).toBeTypeOf('function');
+    tabB.ctx.notify!([SLICE.calendars, SLICE.calendarEvents]);
+    await flush();
+    expect(seen).toEqual([[SLICE.settings], [SLICE.calendars, SLICE.calendarEvents]]);
+    tabA.close();
+    tabB.close();
+  });
+});

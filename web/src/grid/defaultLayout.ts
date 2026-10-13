@@ -2,7 +2,8 @@
  * Client-side default layout (§10.2): every widget type except feeds and sports, which are empty
  * until the user adds a feed or a team and so are left to "Add widget". Shown while there are no
  * profiles, and used to seed the first "Home" profile (see seed.ts). Built for this page load's
- * capabilities: the in-browser backend has no calendar or mail widgets.
+ * capabilities: the in-browser backend has no mail widget, and leaves the calendar (Outlook.com only,
+ * after a one-time app registration) to "Add widget".
  */
 import type { KnownWidgetType, Layout, WidgetFrame, WidgetInstance } from '@portly/shared';
 import { getCapabilities } from '../capabilities.ts';
@@ -36,7 +37,7 @@ function item(
 export function createDefaultLayout(makeId?: (type: KnownWidgetType) => string): Layout {
   const caps = getCapabilities();
   const items =
-    caps.calendar && caps.mail
+    caps.mail
       ? [
           item('search', 0, 0, 8, 2, { showHeader: false }),
           item('clock', 8, 0, 4, 3, { showHeader: false }),
@@ -46,7 +47,7 @@ export function createDefaultLayout(makeId?: (type: KnownWidgetType) => string):
           item('todoist', 4, 8, 4, 7),
           item('mail', 8, 8, 4, 7),
         ]
-      : // In-browser backend: no calendar or mail widgets.
+      : // In-browser backend: no mail widget; the calendar is added once Outlook.com is set up.
         [
           item('search', 0, 0, 8, 2, { showHeader: false }),
           item('clock', 8, 0, 4, 3, { showHeader: false }),

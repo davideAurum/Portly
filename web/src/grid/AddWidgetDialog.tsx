@@ -4,18 +4,13 @@
  */
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { getCapabilities } from '../capabilities.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { Spinner } from '../ui/Spinner.tsx';
 import { availableWidgetDefinitions } from '../widgets/registry.ts';
 import styles from './Grid.module.css';
 
-/** The example names a widget this page load offers (no calendar on the in-browser backend). */
-function description(): string {
-  return getCapabilities().calendar
-    ? 'Widgets can be added more than once — for example two calendars with different views.'
-    : 'Widgets can be added more than once — for example two clocks with different zones.';
-}
+/** The example names a widget every page load offers (the calendar runs on both backends). */
+const DESCRIPTION = 'Widgets can be added more than once — for example two calendars with different views.';
 
 export interface AddWidgetDialogProps {
   open: boolean;
@@ -44,7 +39,7 @@ export function AddWidgetDialog({ open, onOpenChange, onAdd }: AddWidgetDialogPr
       open={open}
       onOpenChange={onOpenChange}
       title="Add a widget"
-      description={description()}
+      description={DESCRIPTION}
       size="lg"
     >
       <ul className={styles.catalog}>

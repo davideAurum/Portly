@@ -80,13 +80,16 @@ describe('static build copy', () => {
 
   it('names only available widgets in the empty-profile hint and the Add-widget example', async () => {
     renderWithProviders(<Grid layout={{ version: 1, items: [] }} profileId="p1" />);
-    expect(screen.getByText('Add a search box, bookmarks, weather, tasks and more.')).toBeInTheDocument();
+    expect(screen.getByText('Add a search box, bookmarks, your calendar, weather and more.')).toBeInTheDocument();
 
     renderWithProviders(<AddWidgetDialog open onOpenChange={() => {}} onAdd={async () => {}} />);
     const dialog = await screen.findByRole('dialog', { name: 'Add a widget' });
-    expect(dialog).toHaveTextContent('Widgets can be added more than once — for example two clocks with different zones.');
+    // The calendar is offered (Outlook.com from the browser), mail and feeds are not.
+    expect(dialog).toHaveTextContent('Widgets can be added more than once — for example two calendars with different views.');
     // Buttons are named by their whole content (title, description, hidden "Add <title>").
-    expect(within(dialog).queryByRole('button', { name: /Add Calendar/ })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Add Calendar/ })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /Add Mail/ })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /Add RSS feeds/ })).not.toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: /Add Clock/ })).toBeInTheDocument();
   });
 });

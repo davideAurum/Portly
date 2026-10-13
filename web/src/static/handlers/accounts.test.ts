@@ -12,7 +12,7 @@ import { finishSignIn, planAutomaticSignIn } from '../oauthRedirect.ts';
 import { createFakeFetch, type FakeFetch, type FakeFetchRoute } from '../providers/__fixtures__/fakeFetch.ts';
 import { MICROSOFT_CLIENT_ID, OTHER_SUBJECT, formOf, microsoftIdToken, tokenError, tokenOk } from '../providers/__fixtures__/microsoft.ts';
 import { MICROSOFT_TOKEN_ENDPOINT, SPA_SESSION_MS, pkceChallenge } from '../providers/microsoftAuth.ts';
-import { SLICE, getAccountTokens, getAccounts, getOAuthStates } from '../slices.ts';
+import { SLICE, getAccountTokens, getAccounts, getCalendarSync, getOAuthStates } from '../slices.ts';
 import { createTestBackend, type TestBackend } from '../test/harness.ts';
 import * as accounts from './accounts.ts';
 import { MESSAGES, SILENT_RENEW_BEFORE_MS, SILENT_RETRY_MS, STATE_TTL_MS, getAccessToken } from './accounts.ts';
@@ -208,6 +208,21 @@ describe('accounts: sign-in', () => {
     expect(after).toHaveLength(1);
     expect(after[0]).toMatchObject({ id: account!.id, label: 'Mine', enabledCapabilities: [], status: 'ok' });
     expect(getAccountTokens(t.ctx)[account!.id]!.refreshToken).toBe('RT2');
+  });
+
+  it('lets a reconnected account sync its calendars right away, whatever its backoff said', async () => {
+    await setup();
+    await signIn(grant());
+    const [account] = await list();
+    const id = account!.id;
+    getCalendarSync(t.ctx)[id] = { attemptedAt: T0, failure: { retryAt: T0 + 6 * 60 * 60_000, failures: 4, signature: 'forbidden|x' }, calendars: {} };
+    await t.ctx.state.commit(SLICE.calendarSync);
+
+    fake.add(tokenRoute(grant({ access_token: 'AT2', refresh_token: 'RT2' }), 1));
+    const url = await start({ accountId: id, returnTo: '#/settings/accounts' });
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toContain('oauth=reconnected');
+    expect(getCalendarSync(t.ctx)[id]).toBeUndefined();
+    expect(await t.storage.getJson('slice:calendar-sync')).toEqual({});
   });
 
   it('adds a different person as a new account when reconnecting with another sign-in', async () => {

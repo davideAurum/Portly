@@ -34,14 +34,11 @@ saved so it can be brought over in phase 1.
      - `HOMEBASE_DATA_DIR` should be read as the source, not carried over;
      - the variable copy should happen only once;
      - a failed in-browser database copy is never retried.
-2. **Outlook.com calendars in the browser-only build.** Brought over from Homebase with the rename
-   applied, then the open items fixed:
-   - stale README and ARCHITECTURE text, and stale code comments;
-   - dead code in the settings navigation;
-   - missing tests (storage limits, reconnect, notifications, the widget's browser-only state);
-   - a possible retry loop when browser storage is full;
-   - a flaky diagnostics test;
-   - the privacy notes on cached events.
+2. **Outlook.com calendars in the browser-only build** (done). Brought over from Homebase with the
+   rename applied. Missing tests were added, a retry loop when browser storage is full was fixed,
+   dead settings code was removed, and stale text, comments and privacy notes were brought up to
+   date. Still to do: a test against a real Outlook.com account, which needs the Pages address
+   registered as a *Single-page application* redirect ([Outlook.com](setup/microsoft.md)).
 3. **Browser-only polish:**
    - hide "Open diagnostics on this PC" when no server answers, and give the browser-only
      Diagnostics page its own intro;

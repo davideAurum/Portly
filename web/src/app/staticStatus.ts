@@ -73,6 +73,10 @@ const SLICE_QUERY_KEYS: Readonly<Record<string, readonly (readonly string[])[]>>
   'account-tokens': [],
   'oauth-clients': [['oauth-clients']],
   'oauth-states': [],
+  calendars: [['calendar']],
+  'calendar-events': [['calendar', 'events']],
+  // When each account was last synced: nothing a query returns.
+  'calendar-sync': [],
 });
 
 /** The query-key prefixes for changed slices, or null when everything should be refetched. */

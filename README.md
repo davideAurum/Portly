@@ -103,9 +103,10 @@ and [connect your accounts](docs/SETUP.md#connect-your-accounts).
 ## Browser-only build
 
 Portly can also be built as plain files that run entirely in the browser — no server, hosted on
-GitHub Pages — with search, bookmarks, clock, weather, Todoist, themes, profiles and export/import.
-Calendar, mail and accounts need the server and are left out; your data lives in that browser's
-storage (IndexedDB), moved between computers with export/import.
+GitHub Pages — with search, bookmarks, clock, weather, Todoist, themes, profiles and export/import,
+and Outlook.com calendars (the browser signs in to Microsoft and syncs them itself). Mail, feeds,
+Google and app-password accounts, and ICS links need the server and are left out. Your data lives
+in that browser's storage (IndexedDB), moved between computers with export/import.
 
 ```powershell
 npm run build:static     # web\dist-static; set PORTLY_STATIC_BASE=/<repo>/ for a project site

@@ -113,9 +113,30 @@ You can connect several personal Microsoft accounts with the same registration.
 - **Mail archive** uses your mailbox's *Archive* folder; **delete** moves messages to
   *Deleted Items*.
 
+## Browser-only build (GitHub Pages)
+
+The [browser-only site](static-build.md) connects Outlook.com without the Portly server: the
+page itself signs in to Microsoft and reads and writes your calendar through Graph. Mail is not
+part of it. The steps above apply, with these differences:
+
+- **Redirect URI.** Add it under the **Single-page application** platform (not *Mobile and desktop
+  applications*), and enter the site's own address exactly as **Settings → Accounts** on the site
+  shows it, for example `https://<user>.github.io/portly-pages/`. A registration can hold both:
+  the localhost callback under *Mobile and desktop applications* for the server, the site's
+  address under *Single-page application* for the site.
+- **Permissions.** The site asks for **Calendars.ReadWrite** (plus the sign-in ones), not
+  **Mail.ReadWrite**.
+- **The sign-in lasts 24 hours.** Microsoft limits sign-ins made from a web page to a day. The
+  site renews it by itself when you open it while you are still signed in to Microsoft in that
+  browser; otherwise the account shows **Reconnect**.
+- **Calendars sync while the site is open**, every sync interval (**Settings → Calendars**), and
+  are kept in this browser (not encrypted) so the page shows them right away next time. Add the
+  **Calendar** widget from **Add widget**.
+
 ## Read-only alternative: publish your calendar as ICS
 
-No Azure account needed; you get the calendar read-only and no mail.
+No Azure account needed; you get the calendar read-only and no mail. (Portly server only: the
+browser-only site cannot fetch ICS feeds.)
 
 1. Open <https://outlook.live.com/calendar/> and click **Settings** (gear) → **Calendar** →
    **Shared calendars**.

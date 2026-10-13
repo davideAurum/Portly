@@ -67,8 +67,8 @@ export function useDisplayedLocalServerStatus(state: LocalServerState): LocalSer
 
 /** What the Portly server adds over the copy in this browser. */
 const SERVER_ADDS: readonly string[] = [
-  'Calendar, mail and RSS feed widgets',
-  'Google, Outlook.com, Yahoo, CalDAV and IMAP accounts',
+  'Mail and RSS feed widgets, and ICS calendar subscriptions',
+  'Google, Yahoo, CalDAV and IMAP accounts',
   'Bookmark titles and icons fetched for you, and bookmark import from Chrome or Edge',
   'Search suggestions from Google, DuckDuckGo and Bing',
 ];

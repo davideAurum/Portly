@@ -9,9 +9,10 @@
  *   URI is this site's own address; register it as a *Single-page application*)
  * - `PUT  /api/oauth-clients/microsoft {clientId}` (a secret is refused: public client)
  * - `POST /api/oauth/microsoft/start {accountId?, returnTo?}` → `{authorizeUrl}`
- * - `GET /api/accounts`, `PATCH /api/accounts/:id`, `DELETE /api/accounts/:id`,
- *   `POST /api/accounts/:id/test` (forces a token refresh)
- * Google answers `409 not_configured`; app-password accounts stay in handlers/unavailable.ts.
+ * - `GET /api/accounts`, `PATCH /api/accounts/:id`, `DELETE /api/accounts/:id` (its calendars and
+ *   their events go with it), `POST /api/accounts/:id/test` (forces a token refresh)
+ * Google answers `409 not_configured`; app-password accounts stay in handlers/unavailable.ts. The
+ * calendars themselves are handlers/calendar.ts, which borrows {@link getAccessToken}.
  *
  * Microsoft sends the browser back to the site itself (`<appUrl>?code&state`), not to an API
  * route: main.tsx hands that address to {@link completeAuthorization} before the app renders and
@@ -50,6 +51,7 @@ import {
 } from '@portly/shared';
 import { recordClientEvent } from '../../diagnostics/clientLog.ts';
 import type { StaticContext } from '../context.ts';
+import { removeAccountCalendars } from '../lib/calendarStore.ts';
 import { newToken } from '../lib/ids.ts';
 import { parseJsonBody } from '../lib/validate.ts';
 import {
@@ -76,6 +78,7 @@ import {
   SLICE,
   getAccountTokens,
   getAccounts,
+  getCalendarSync,
   getOAuthClients,
   getOAuthStates,
   type StoredAccount,
@@ -99,6 +102,7 @@ export const MESSAGES = Object.freeze({
   grantExpired: 'Access expired or was revoked; reconnect the account',
   sessionEnded: 'The Microsoft sign-in in this browser ended (it lasts 24 hours); reconnect the account',
   noCredentials: 'No stored credentials; reconnect the account',
+  tokenRejected: 'The provider rejected fresh access; reconnect the account',
 });
 
 const NOT_IN_STATIC = 'Google accounts are not available in the browser-only build.';
@@ -131,6 +135,11 @@ export function toAccount(row: StoredAccount): Account {
 
 function orderedAccounts(ctx: StaticContext): StoredAccount[] {
   return [...getAccounts(ctx)].sort((a, b) => a.sort - b.sort || a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/** Accounts whose calendars are synced: they offer the capability and the user switched it on (the server's `list({capability: 'calendar'})`). */
+export function calendarAccounts(ctx: StaticContext): StoredAccount[] {
+  return orderedAccounts(ctx).filter((a) => a.capabilities.includes('calendar') && a.enabledCapabilities.includes('calendar'));
 }
 
 function findAccount(ctx: StaticContext, id: string): StoredAccount | undefined {
@@ -378,7 +387,11 @@ async function connect(ctx: StaticContext, code: string, codeVerifier: string, r
     sessionExpiresAt: sessionEnd(now, tokens, now + SPA_SESSION_MS),
     silentAttemptAt: null,
   };
-  await ctx.state.commit(SLICE.accounts, SLICE.accountTokens);
+  // A reconnected account's calendars sync on the next request, whatever their backoff said.
+  const syncState = getCalendarSync(ctx);
+  const hadSyncState = accountId in syncState;
+  delete syncState[accountId];
+  await ctx.state.commit(SLICE.accounts, SLICE.accountTokens, ...(hadSyncState ? [SLICE.calendarSync] : []));
   return result;
 }
 
@@ -483,6 +496,16 @@ export async function getAccessToken(ctx: StaticContext, accountId: string, opti
     if (fresh !== null && !options.force && fresh !== options.rejected) return fresh;
     return refresh(ctx, current, record);
   });
+}
+
+/**
+ * Graph refused a token that was just refreshed (the server's `withToken` after its one retry): the
+ * account must be reconnected. Returns the `409 reauth_required` to throw.
+ */
+export async function rejectFreshToken(ctx: StaticContext, accountId: string): Promise<StaticApiError> {
+  const account = findAccount(ctx, accountId);
+  if (account && setStatus(account, 'reauth', MESSAGES.tokenRejected, ctx.now())) await ctx.state.commit(SLICE.accounts);
+  return reauthRequired(accountId, MESSAGES.tokenRejected);
 }
 
 async function refresh(ctx: StaticContext, account: StoredAccount, record: StoredAccountTokens, attempt = 0): Promise<string> {
@@ -635,9 +658,17 @@ export function register(router: StaticRouter): void {
       row.color = patch.color === null ? null : normalizeHexColor(patch.color);
       changed = true;
     }
+    let syncChanged = false;
     if (patch.enabledCapabilities !== undefined) {
+      const calendarWasOn = row.enabledCapabilities.includes('calendar');
       row.enabledCapabilities = orderCapabilities(patch.enabledCapabilities);
       changed = true;
+      // Calendar switched back on: its calendars sync on the next request.
+      const syncState = getCalendarSync(ctx);
+      if (!calendarWasOn && row.enabledCapabilities.includes('calendar') && id in syncState) {
+        delete syncState[id];
+        syncChanged = true;
+      }
     }
     if (patch.sort !== undefined) {
       row.sort = patch.sort;
@@ -645,7 +676,7 @@ export function register(router: StaticRouter): void {
     }
     if (changed) {
       row.updatedAt = ctx.now();
-      await ctx.state.commit(SLICE.accounts);
+      await ctx.state.commit(SLICE.accounts, ...(syncChanged ? [SLICE.calendarSync] : []));
     }
     return json(toAccount(row));
   });
@@ -658,7 +689,14 @@ export function register(router: StaticRouter): void {
     accounts.splice(index, 1);
     // Microsoft has no token revocation endpoint: the stored tokens are simply forgotten.
     delete getAccountTokens(ctx)[id];
-    await ctx.state.commit(SLICE.accounts, SLICE.accountTokens);
+    // Its calendars and their events go with it (the server's ON DELETE CASCADE).
+    const calendars = removeAccountCalendars(ctx, id);
+    await ctx.state.commit(
+      SLICE.accounts,
+      SLICE.accountTokens,
+      ...(calendars.removed ? [SLICE.calendars, SLICE.calendarEvents, SLICE.calendarSync] : []),
+      ...(calendars.settingsChanged ? [SLICE.settings] : []),
+    );
     return noContent();
   });
 

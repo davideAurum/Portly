@@ -1,8 +1,8 @@
 /**
  * Server-only routes in the static build answer `409 not_configured` ("Not set up yet"), with the
  * feature named in the message, for every method + path the web app's app-password account,
- * vault, calendar, mail, feeds and diagnostics API calls use; unknown routes still 404 and wrong methods still
- * 400. (Outlook.com accounts and OAuth are answered by handlers/accounts.ts.)
+ * vault, ICS subscription, mail, feeds and diagnostics API calls use; unknown routes still 404 and wrong methods still
+ * 400. (Outlook.com accounts and OAuth are answered by handlers/accounts.ts, their calendars by handlers/calendar.ts.)
  */
 import { ApiErrorBodySchema, ERROR_STATUS } from '@portly/shared';
 import { describe, expect, it } from 'vitest';
@@ -17,16 +17,8 @@ const CALLS: readonly [method: string, path: string, feature: UnavailableFeature
   ['POST', '/api/accounts/caldav', 'Accounts', {}],
   ['POST', '/api/accounts/imap', 'Accounts', {}],
   ['POST', '/api/vault/reset', 'The credential vault'],
-  ['GET', '/api/calendar/calendars', 'Calendars'],
-  ['PATCH', '/api/calendar/calendars/cal-1', 'Calendars', { visible: false }],
-  ['DELETE', '/api/calendar/calendars/cal-1', 'Calendars'],
-  ['POST', '/api/calendar/ics', 'Calendars', { url: 'https://example.com/a.ics', name: 'Holidays' }],
-  ['PATCH', '/api/calendar/ics/cal-1', 'Calendars', { name: 'Renamed' }],
-  ['GET', '/api/calendar/events?from=2026-10-05&to=2026-10-12&tz=Europe%2FLondon&calendarIds=a%2Cb', 'Calendars'],
-  ['POST', '/api/calendar/events', 'Calendars', { calendarId: 'cal-1', title: 'x' }],
-  ['PATCH', '/api/calendar/events/ev-1', 'Calendars', { title: 'y' }],
-  ['DELETE', '/api/calendar/events/ev-1', 'Calendars'],
-  ['POST', '/api/calendar/sync', 'Calendars'],
+  ['POST', '/api/calendar/ics', 'Subscribing to ICS feeds', { url: 'https://example.com/a.ics', name: 'Holidays' }],
+  ['PATCH', '/api/calendar/ics/cal-1', 'Subscribing to ICS feeds', { name: 'Renamed' }],
   ['GET', '/api/mail/summary?maxMessages=10&unreadOnly=false&accountIds=acc-1%2Cacc-2', 'Mail'],
   ['POST', '/api/mail/acc-1/messages/msg%2F1/read', 'Mail', { read: true }],
   ['POST', '/api/mail/acc-1/messages/msg-1/archive', 'Mail'],
@@ -48,16 +40,8 @@ describe('unavailable routes', () => {
     expect(backend.router.list()).toEqual([
       'POST /api/accounts/:kind',
       'POST /api/vault/reset',
-      'GET /api/calendar/calendars',
-      'PATCH /api/calendar/calendars/:id',
-      'DELETE /api/calendar/calendars/:id',
       'POST /api/calendar/ics',
       'PATCH /api/calendar/ics/:id',
-      'GET /api/calendar/events',
-      'POST /api/calendar/events',
-      'PATCH /api/calendar/events/:id',
-      'DELETE /api/calendar/events/:id',
-      'POST /api/calendar/sync',
       'GET /api/mail/summary',
       'POST /api/mail/:accountId/messages/:id/read',
       'POST /api/mail/:accountId/messages/:id/archive',
@@ -116,7 +100,7 @@ describe('unavailable routes', () => {
 
   it('treats HEAD like GET and keeps the 404 / wrong-method behaviour for everything else', async () => {
     const backend = await createTestBackend([unavailable]);
-    expect((await backend.fetch('/api/calendar/calendars', { method: 'HEAD' })).status).toBe(409);
+    expect((await backend.fetch('/api/feeds', { method: 'HEAD' })).status).toBe(409);
 
     const unknown = await backend.json<{ error: { code: string } }>('GET', '/api/accounts/acc-1/nothing');
     expect(unknown.status).toBe(404);
@@ -127,14 +111,14 @@ describe('unavailable routes', () => {
     const wrongMethod = await backend.json<{ error: { code: string } }>('GET', '/api/vault/reset');
     expect(wrongMethod.status).toBe(400);
     expect(wrongMethod.body.error.code).toBe('bad_request');
-    expect((await backend.json('DELETE', '/api/calendar/sync')).status).toBe(400);
+    expect((await backend.json('DELETE', '/api/calendar/ics')).status).toBe(400);
     backend.close();
   });
 
   it('collapses a trailing slash (same path, so a wrong method is 400) and never matches a missing segment (404)', async () => {
     const backend = await createTestBackend([unavailable]);
-    expect((await backend.json('GET', '/api/calendar/calendars/')).status).toBe(409);
-    expect((await backend.json('PATCH', '/api/calendar/calendars/')).status).toBe(400);
+    expect((await backend.json('GET', '/api/feeds/')).status).toBe(409);
+    expect((await backend.json('PATCH', '/api/feeds/')).status).toBe(400);
     expect((await backend.json('POST', '/api/mail//messages/m1/read')).status).toBe(404);
     backend.close();
   });
@@ -148,11 +132,11 @@ describe('unavailable routes', () => {
     backend.close();
   });
 
-  it('coexists with the core module (health stays 200, calendars stay 409)', async () => {
+  it('coexists with the core module (health stays 200, ICS subscriptions stay 409)', async () => {
     const backend = await createTestBackend([core, unavailable]);
     expect((await backend.fetch('/api/health')).status).toBe(200);
     expect((await backend.fetch('/api/about')).status).toBe(200);
-    expect((await backend.fetch('/api/calendar/calendars')).status).toBe(409);
+    expect((await backend.json('POST', '/api/calendar/ics', {})).status).toBe(409);
     backend.close();
   });
 });

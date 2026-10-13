@@ -3,9 +3,8 @@
  * Foundation implements General, Appearance, Accounts, Profiles, Import/Export and About;
  * features own Search, Bookmarks, Calendars and Todoist, and diagnostics owns Diagnostics (§17),
  * which every backend shows (the in-browser one: the hybrid state and this browser's events).
- * Which sections a page load shows depends on its capabilities, read when asked
- * (`settingsSections()`, `isSettingsSectionAvailable()`); the ids themselves are fixed, so the
- * router can parse any of them.
+ * Every backend shows every section: the in-browser one has Accounts and Calendars too
+ * (Outlook.com signs in and syncs from the browser); a section adapts to what its page load can do.
  */
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import {
@@ -22,7 +21,6 @@ import {
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
-import { getCapabilities, type Capabilities } from '../capabilities.ts';
 
 export const SETTINGS_SECTION_IDS = [
   'general',
@@ -53,7 +51,7 @@ export interface SettingsSection {
   Component: LazyExoticComponent<ComponentType>;
 }
 
-/** Every section this version has, including ones a page load hides (see `settingsSections()`). */
+/** Every section, in navigation order. */
 export const ALL_SETTINGS_SECTIONS: readonly SettingsSection[] = Object.freeze([
   { id: 'general', label: 'General', icon: SlidersHorizontal, Component: lazy(() => import('./sections/General.tsx')) },
   { id: 'appearance', label: 'Appearance', icon: Palette, Component: lazy(() => import('./sections/Appearance.tsx')) },
@@ -72,28 +70,6 @@ export const ALL_SETTINGS_SECTIONS: readonly SettingsSection[] = Object.freeze([
   { id: 'diagnostics', label: 'Diagnostics', icon: Activity, Component: lazy(() => import('./sections/Diagnostics.tsx')) },
   { id: 'about', label: 'About', icon: Info, Component: lazy(() => import('./sections/About.tsx')) },
 ]);
-
-/** Sections that need the server (hidden on the in-browser backend, see `capabilities.ts`). */
-function hiddenSections(caps: Capabilities): ReadonlySet<SettingsSectionId> {
-  return new Set<SettingsSectionId>([...(caps.accounts ? [] : (['accounts'] as const)), ...(caps.calendar ? [] : (['calendars'] as const))]);
-}
-
-const sectionsCache = new WeakMap<Capabilities, readonly SettingsSection[]>();
-
-/** The sections this page load shows, in navigation order (the same array for the same capabilities). */
-export function settingsSections(caps: Capabilities = getCapabilities()): readonly SettingsSection[] {
-  const cached = sectionsCache.get(caps);
-  if (cached !== undefined) return cached;
-  const hidden = hiddenSections(caps);
-  const sections = Object.freeze(ALL_SETTINGS_SECTIONS.filter((s) => !hidden.has(s.id)));
-  sectionsCache.set(caps, sections);
-  return sections;
-}
-
-/** True when this page load shows the section (an unavailable one answers with a notice). */
-export function isSettingsSectionAvailable(id: SettingsSectionId, caps: Capabilities = getCapabilities()): boolean {
-  return settingsSections(caps).some((s) => s.id === id);
-}
 
 export function getSettingsSection(id: SettingsSectionId): SettingsSection {
   const section = ALL_SETTINGS_SECTIONS.find((s) => s.id === id);

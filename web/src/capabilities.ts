@@ -11,9 +11,10 @@
  *
  * A Pages page load on the `server` backend (hybrid mode: paired with the Portly server on this
  * PC) has every server feature, account setup included. A `browser` backend has no server, so anything
- * that needs one — Google and app-password accounts, mail, calendars, feeds, the credential vault,
- * fetching third-party pages — is off. Outlook.com accounts work there too: the browser signs in to
- * Microsoft itself (`src/static/handlers/accounts.ts`), so accounts are set up on that page.
+ * that needs one — Google and app-password accounts, mail, ICS subscriptions, feeds, the credential
+ * vault, fetching third-party pages — is off. Outlook.com accounts and their calendars work there
+ * too: the browser signs in to Microsoft and reads the calendars from Graph itself
+ * (`src/static/handlers/accounts.ts`, `calendar.ts`), so the Calendar widget is there as well.
  *
  * UI code reads {@link getCapabilities} at render or call time, never at module top level, and
  * "the data lives in this browser" means `backend === 'browser'`, not `STATIC_BUILD`. Tests drive
@@ -39,8 +40,10 @@ export interface Capabilities {
   googleAccounts: boolean;
   /** Yahoo, CalDAV and IMAP accounts (passwords in the server's vault). */
   appPasswordAccounts: boolean;
-  /** Calendar widget, calendar sync, ICS subscriptions. */
+  /** Calendar widget and calendar sync: every account kind on the server, Outlook.com on the `browser` backend. */
   calendar: boolean;
+  /** ICS / webcal subscriptions (feeds are cross-origin: the server fetches them). */
+  icsSubscriptions: boolean;
   /** Mail widget. */
   mail: boolean;
   /** RSS / Atom feeds widget (feeds are cross-origin: the server fetches them). */
@@ -75,7 +78,8 @@ export function capabilitiesFor(pagesBuild: boolean, backend: Backend): Capabili
     accounts: true,
     googleAccounts: server,
     appPasswordAccounts: server,
-    calendar: server,
+    calendar: true,
+    icsSubscriptions: server,
     mail: server,
     feeds: server,
     vault: server,
@@ -115,7 +119,7 @@ export function setCapabilitiesForTests(caps: Capabilities | null): void {
   if (caps === null) pageBackend = 'browser';
 }
 
-/** Widget types that need the server; each one needs the capability of the same name. */
+/** Widget types that may need the server; each one needs the capability of the same name. */
 const SERVER_WIDGET_TYPES = ['calendar', 'mail', 'feeds'] as const;
 
 const unavailableCache = new WeakMap<Capabilities, ReadonlySet<string>>();
@@ -134,6 +138,6 @@ export function isWidgetTypeAvailable(type: string, caps: Capabilities = getCapa
   return !unavailableWidgetTypes(caps).has(type);
 }
 
-/** Widget types the in-browser backend cannot serve (`calendar`, `mail`, `feeds`), for the static handlers. */
+/** Widget types the in-browser backend cannot serve (`mail`, `feeds`), for the static handlers. */
 export const BROWSER_UNAVAILABLE_WIDGET_TYPES: ReadonlySet<string> = unavailableWidgetTypes(capabilitiesFor(true, 'browser'));
 
