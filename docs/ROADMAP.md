@@ -86,7 +86,8 @@ build. Finally, archive the old Homebase repository (it stays private) and its l
 - A first-run checklist in the app.
 - An "add another PC" kit.
 - One server reachable from several PCs, with a login. Until that login exists, the server stays
-  on loopback only (ARCHITECTURE section 4).
+  on loopback only (ARCHITECTURE section 4). Proposed design:
+  [design/multi-pc.md](design/multi-pc.md).
 
 The plan for the alpha: each PC runs its own server for now, with a shared server later. The
 Pages site works for anyone with a server on their own PC, and new tabs follow the local server.
