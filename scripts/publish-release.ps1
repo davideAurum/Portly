@@ -1,16 +1,17 @@
 <#
 .SYNOPSIS
     Publishes a package built by scripts\build-release.ps1 as a GitHub release of the public
-    releases repository, where install.ps1 and homebase --update find it (docs\setup\releases.md).
+    Homebase repository, where install.ps1 and homebase --update find it (docs\setup\releases.md).
 
 .DESCRIPTION
     1. Reads <OutDir>\homebase-release.json and checks the package next to it: its SHA-256 and size
        match, and release.json inside it is not a test build (-NodeExe or uncommitted changes).
     2. Checks with the GitHub CLI (gh, signed in) that -ReleaseRepo exists and is public (testers
        download without signing in) and has no release v<version> yet.
-    3. gh release create v<version> with the package and homebase-release.json, marked as the
-       latest release (install.ps1 asks for releases/latest; a GitHub pre-release is never
-       "latest", so alpha versions are published as normal releases).
+    3. gh release create v<version> with the package and homebase-release.json, tagging the commit
+       the package was built from (it must be on GitHub), marked as the latest release
+       (install.ps1 asks for releases/latest; a GitHub pre-release is never "latest", so alpha
+       versions are published as normal releases).
 
     Publishing is public: everyone who can see the repository can download the package.
 
@@ -101,14 +102,18 @@ function Invoke-PublishRelease {
     $existing = Invoke-PublishGh -Arguments @('release', 'view', "v$version", '--repo', $ReleaseRepo, '--json', 'tagName')
     if ($existing.ExitCode -eq 0) { throw "$ReleaseRepo already has a release v$version. Bump the version in package.json first." }
 
-    if ([string]::IsNullOrWhiteSpace($Notes)) { $Notes = "Homebase $version for Windows x64 (commit $($inside.commit), Node.js $($inside.node))." }
-    $arguments = @('release', 'create', "v$version", $zip, $manifestPath, '--repo', $ReleaseRepo, '--title', "Homebase $version",
-        '--notes', $Notes, '--latest')
+    $commit = "$($inside.commit)"
+    if ($commit -notmatch '^[0-9a-f]{40}$') { throw 'release.json in the package names no full commit: build it again from a Git checkout.' }
+    if ([string]::IsNullOrWhiteSpace($Notes)) { $Notes = "Homebase $version for Windows x64 (commit $($commit.Substring(0, 12)), Node.js $($inside.node))." }
+    $arguments = @('release', 'create', "v$version", $zip, $manifestPath, '--repo', $ReleaseRepo, '--target', $commit,
+        '--title', "Homebase $version", '--notes', $Notes, '--latest')
     Write-HbStep "$(if ($DryRun) { '[dry run] ' } else { '' })Publishing Homebase $version to https://github.com/$ReleaseRepo/releases"
     Write-HbInfo "gh $(($arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' ')"
     if ($DryRun) { Write-HbOk 'Dry run finished; nothing was published.'; return 0 }
     $created = Invoke-PublishGh -Arguments $arguments
-    if ($created.ExitCode -ne 0) { throw "gh release create failed: $($created.Text.Trim())" }
+    if ($created.ExitCode -ne 0) {
+        throw "gh release create failed (is commit $($commit.Substring(0, 12)) pushed to $ReleaseRepo?): $($created.Text.Trim())"
+    }
     Write-HbOk "Published: $($created.Text.Trim())"
     Write-HbInfo "Install: irm https://<your Pages site>/install.ps1 | iex   (or homebase --update on installed PCs)"
     return 0

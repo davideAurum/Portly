@@ -3,8 +3,8 @@
  * before it is saved; removable with confirmation), where to find the token, and the default
  * filter used by Todoist widgets without their own filter. The full guide is docs/setup/todoist.md;
  * without a vault (the in-browser backend) the page links Todoist's own help article instead (the
- * Homebase repository is private, so a link to the guide there would 404 for everyone but its
- * owner). A locked vault is reset in Settings → Accounts — on Homebase's own page when this page
+ * site cannot open a guide that lives in the Homebase folder on a PC). A locked vault is reset in
+ * Settings → Accounts — on Homebase's own page when this page
  * is the Pages site using Homebase on this PC.
  */
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';

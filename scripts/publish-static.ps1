@@ -27,8 +27,8 @@
     A publish into the wrong repository can be undone there: `git revert <publish commit>`, then
     `git push` (the old files are still in its history).
 
-    GitHub Free serves Pages only from public repositories, so the private Homebase repository
-    cannot host the site itself. See docs\setup\static-build.md.
+    Every publish replaces the whole content of the repository it is given, so the site gets a
+    public repository of its own, never the Homebase repository. See docs\setup\static-build.md.
 
 .PARAMETER PublicRepoPath
     Local clone of the public repository that serves the site. Its checked-out branch is the one

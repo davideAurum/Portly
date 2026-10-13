@@ -112,9 +112,8 @@ npm run build:static     # web\dist-static; set HOMEBASE_STATIC_BASE=/<repo>/ fo
 npm run preview:static   # http://localhost:5173 (localhost only)
 ```
 
-Publishing goes through a separate **public** repository (GitHub Free serves Pages only from
-public repositories), a new, empty one made for the site, since every publish replaces its whole
-content: `scripts\publish-static.ps1`, or the manual GitHub Actions workflow
+Publishing goes to a separate **public** repository made for the site (a new, empty one, or your
+`<user>.github.io` user site), since every publish replaces its whole content: `scripts\publish-static.ps1`, or the manual GitHub Actions workflow
 `.github\workflows\static-pages.yml`. What is and isn't available, where the data lives and the
 privacy notes are in [docs/setup/static-build.md](docs/setup/static-build.md).
 
@@ -167,7 +166,7 @@ Run PowerShell scripts as `powershell -NoProfile -ExecutionPolicy Bypass -File .
 | `scripts\install.ps1` | Installs a release package, or updates an installed one (what `irm <site>/install.ps1 \| iex` and `homebase --update` run): `-Version`, `-ZipPath`, `-PagesUrl`, `-Force`, `-DryRun`. See [releases.md](docs/setup/releases.md). |
 | `scripts\build-release.ps1` | Builds `dist-release\homebase-<version>-win-x64.zip` and `homebase-release.json` (production dependencies, the pinned Node.js runtime). `-NodeExe` and `-AllowDirty` for test builds. |
 | `scripts\check-release.ps1` | Builds (or takes `-ZipPath`) a package and checks install, start, update and refusals in a temporary folder. |
-| `scripts\publish-release.ps1` | Publishes the built package to the public releases repository with `gh` (`-DryRun`). |
+| `scripts\publish-release.ps1` | Publishes the built package as a release of this repository with `gh` (`-DryRun`). |
 | `scripts\check-scripts.ps1` | Self-checks for the PowerShell scripts (parse in 5.1 and 7, unit checks, dry runs). |
 | `node scripts/check-extension.mjs` | The extension's tests (manifest, pages, icons, new-tab and options logic). |
 | `node scripts/check-native-host.mjs` | The native host's tests (`native-host/launcher.mjs`: framing, origin and request checks, health check, schtasks mapping, end-to-end through `launcher.cmd`). |
@@ -203,3 +202,7 @@ Build-time, for `npm run build:static` only: `HOMEBASE_STATIC_BASE` (URL prefix,
 - [Browser-only build on GitHub Pages](docs/setup/static-build.md) ·
   [Pages site with Homebase on this PC](docs/setup/pages-local-server.md)
 - [Architecture](docs/ARCHITECTURE.md)
+
+## License
+
+MIT — see [LICENSE](LICENSE).

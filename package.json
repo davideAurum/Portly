@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Single-user, customizable browser home page served from a local Node server.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "workspaces": [
     "shared",

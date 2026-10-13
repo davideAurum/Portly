@@ -28,7 +28,7 @@
 
 .PARAMETER ReleaseRepo
     The public GitHub repository installed copies update from, as owner/name (default
-    davideAurum/homebase-releases). Written into release.json.
+    davideAurum/Homebase). Written into release.json.
 
 .PARAMETER SkipBuild
     Use the existing web\dist instead of building it.
@@ -44,7 +44,7 @@
 param(
     [string]$OutDir,
     [string]$NodeExe,
-    [string]$ReleaseRepo = 'davideAurum/homebase-releases',
+    [string]$ReleaseRepo = 'davideAurum/Homebase',
     [switch]$SkipBuild,
     [switch]$AllowDirty
 )
@@ -166,7 +166,7 @@ function Invoke-BuildRelease {
     $dirty = $false
     $git = Get-Command -Name 'git.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -ne $git) {
-        $commit = "$(& $git.Source -C $repoRoot rev-parse --short=12 HEAD 2>$null)".Trim()
+        $commit = "$(& $git.Source -C $repoRoot rev-parse HEAD 2>$null)".Trim()
         $dirty = "$(& $git.Source -C $repoRoot status --porcelain 2>$null)".Trim() -ne ''
     }
     if ($dirty -and -not $AllowDirty) {
@@ -284,7 +284,7 @@ function Invoke-BuildRelease {
     Write-HbField 'SHA-256' $sha256
     Write-HbField 'Manifest' (Join-Path $out $ReleaseManifestName)
     Write-HbField 'Node.js' "$nodeVersion ($nodeSource)"
-    Write-HbField 'Commit' $(if ($commit) { "$commit$(if ($dirty) { ' + uncommitted changes' } else { '' })" } else { 'unknown (no git)' })
+    Write-HbField 'Commit' $(if ($commit) { "$($commit.Substring(0, [Math]::Min(12, $commit.Length)))$(if ($dirty) { ' + uncommitted changes' } else { '' })" } else { 'unknown (no git)' })
     Write-HbInfo 'Try it: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release.ps1 -ZipPath <the zip>'
     return 0
 }

@@ -32,7 +32,7 @@
 
 .PARAMETER ReleaseRepo
     The public GitHub repository the releases are published in, as owner/name
-    (default davideAurum/homebase-releases).
+    (default davideAurum/Homebase).
 
 .PARAMETER Version
     Install this published version (for example 0.2.0-alpha.1) instead of the latest one.
@@ -81,7 +81,7 @@
 [CmdletBinding()]
 param(
     [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'Programs\Homebase'),
-    [string]$ReleaseRepo = 'davideAurum/homebase-releases',
+    [string]$ReleaseRepo = 'davideAurum/Homebase',
     [string]$Version,
     [string]$ZipPath,
     [string]$Sha256,

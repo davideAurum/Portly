@@ -3,7 +3,7 @@
  * (`setCapabilitiesForTests(capabilitiesFor(true, 'browser'))`): suggestions are described as
  * going straight to Wikipedia with the other providers labelled unavailable (the stored enum is
  * unchanged), the Todoist token is described as living in this browser, Todoist's own token help is
- * linked (the Homebase repository is private) and the vault-locked banner never shows. On the
+ * linked (the guide in the Homebase folder is out of the site's reach) and the vault-locked banner never shows. On the
  * Homebase server on this PC (hybrid mode) the server's copy applies, and a locked vault links to
  * this page's own Accounts settings, where it is reset.
  */

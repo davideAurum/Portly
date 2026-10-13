@@ -1,8 +1,8 @@
 # Publishes the browser-only build (web/dist-static) to a PUBLIC repository's gh-pages branch.
 #
-# Manual only: Actions -> "Publish static site" -> Run workflow. It is NOT triggered by pushes. The
-# Homebase repository is private and GitHub Free serves Pages only from public repositories, so the
-# built files go to a second, public repository that you create first (docs/setup/static-build.md).
+# Manual only: Actions -> "Publish static site" -> Run workflow. It is NOT triggered by pushes. Every
+# run replaces the whole site, so the built files go to a second, public repository made for it that
+# you create first (docs/setup/static-build.md), never this one.
 # Until that repository and the ACTIONS_DEPLOY_KEY secret exist, a run stops at its first step with
 # a message saying so: nothing is published by accident, and the workflow is otherwise inert.
 #

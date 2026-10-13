@@ -99,8 +99,8 @@ function staticHtml(localServer: string): Plugin {
 
 /**
  * Ships scripts/install.ps1 (install or update from a release package) and scripts/setup.ps1 (a
- * Git checkout, for development) at the site root, so a new PC can run `irm <site>/install.ps1 | iex`
- * (the repository itself is private). Copied byte for byte: the scripts are ASCII with CRLF endings.
+ * Git checkout, for development) at the site root, so a new PC can run `irm <site>/install.ps1 | iex`.
+ * Copied byte for byte: the scripts are ASCII with CRLF endings.
  */
 function staticSetupScript(): Plugin {
   return {

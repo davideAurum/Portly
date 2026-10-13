@@ -108,10 +108,9 @@ published site.
 
 ## Publish to GitHub Pages
 
-**You need a second, public repository.** GitHub's free plan serves Pages only from public
-repositories, and the Homebase repository is private; Pages sites are public to the whole internet
-anyway. The public repository holds nothing but the built files — no source code, and never your
-data, which stays in your browser.
+**You need a second, public repository.** Every publish replaces the whole site, so it gets a
+repository of its own (Pages sites are public to the whole internet anyway). It holds nothing but
+the built files — no source code, and never your data, which stays in your browser.
 
 **Create a NEW, EMPTY public repository just for this site** (`homebase-pages` in the examples).
 Publishing deletes every tracked file of the repository it is given — only `CNAME` and

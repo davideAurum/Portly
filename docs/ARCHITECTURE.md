@@ -1573,7 +1573,7 @@ path; a **release install** runs the same server code from a zip that needs no G
   (waits for `/api/health`); on failure `app` → `app.failed`, `app.previous` → `app`, and the old version's
   `install-autostart.ps1`. A task that runs another copy (a checkout) is left alone with a warning. The data folder is
   never moved or deleted.
-- **Trust:** the SHA-256 comes from the same releases repository as the package, so it detects corruption, not a
+- **Trust:** the SHA-256 comes from the same release as the package, so it detects corruption, not a
   compromised repository; packages are not code-signed (alpha).
 - **Checks:** `scripts/check-release.ps1` (install, the installed CLI and autostart dry run, a server started from the
   package on a free port with a temporary data folder, re-install, `-Force` update with backup and `app.previous`,

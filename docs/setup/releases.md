@@ -10,7 +10,7 @@ keeps working as before; it is for developing Homebase.
 
 | Path | What |
 | --- | --- |
-| `release.json` | Name, version, platform, Node.js version, extension version, commit, build time, and the releases repository it updates from |
+| `release.json` | Name, version, platform, Node.js version, extension version, commit, build time, and the repository it updates from |
 | `runtime\node.exe`, `runtime\LICENSE` | The Node.js runtime pinned in `scripts\release\node-runtime.json` (downloaded from nodejs.org and checked against its SHA-256) |
 | `server\`, `shared\` | The server's TypeScript sources, without tests, fixtures and test helpers (Node runs them directly, as in a checkout) |
 | `node_modules\` | The production dependencies of the server only (`npm ci --omit=dev` for the server and shared workspaces): no web, build or test packages |
@@ -75,7 +75,8 @@ in `%LOCALAPPDATA%\Homebase` and is never moved or deleted.
    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release.ps1 -ZipPath .\dist-release\homebase-0.2.0-alpha.1-win-x64.zip
    ```
 
-4. **Publish** (public: anyone who can see the releases repository can download it):
+4. **Publish** (public: anyone can download it). Push the release commit first — the release tags
+   exactly the commit the package was built from:
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -DryRun
@@ -83,7 +84,8 @@ in `%LOCALAPPDATA%\Homebase` and is never moved or deleted.
    ```
 
    It refuses a test build (`-AllowDirty` or `-NodeExe`), a private repository and a version that
-   is already published, and publishes the zip and `homebase-release.json` as release `v<version>`,
+   is already published, and publishes the zip and `homebase-release.json` as release `v<version>`
+   of `davideAurum/Homebase` (the `releaseRepo` in the package),
    marked **latest** (GitHub never marks a pre-release as latest, so alpha versions go out as normal
    releases with a pre-release version number).
 
@@ -91,21 +93,18 @@ in `%LOCALAPPDATA%\Homebase` and is never moved or deleted.
    current one.
 
 Or let GitHub Actions do 2–4: **Actions → Release → Run workflow** builds, checks and keeps the
-package as an artifact; tick **publish** to publish it too (needs the `RELEASES_TOKEN` secret below).
+package as an artifact; tick **publish** and a second job publishes it with the workflow's own token
+(the only step that can write to the repository).
 CI (`ci.yml`) also builds and checks a test package on every push to `main` and every pull request.
 
 ### One-time setup
 
-- **The releases repository.** The Homebase repository is private, so releases go to a separate
-  **public** repository that holds nothing else, `davideAurum/homebase-releases` by default (the
-  `-ReleaseRepo` of `build-release.ps1` writes another one into each package). Create it on GitHub
-  (public; a README is enough).
+- **Where releases live:** the releases of this public repository, `davideAurum/Homebase` (a fork
+  builds with `build-release.ps1 -ReleaseRepo <owner>/<name>`, which goes into each package's
+  `release.json` and so into its updates).
 - **For `publish-release.ps1` on your PC:** the GitHub CLI (`winget install GitHub.cli`), signed in
   with `gh auth login`.
-- **For the Release workflow:** a fine-grained personal access token with access to the releases
-  repository only and **Contents: Read and write**, saved in this repository as the Actions secret
-  `RELEASES_TOKEN` (`GITHUB_TOKEN` cannot write to another repository). Give it an expiry date and
-  renew it when it runs out.
+- **For the Release workflow:** nothing to set up.
 
 ### Moving to another Node.js version
 
@@ -117,7 +116,7 @@ line that `npm test` runs on (CI uses Node 24).
 ## Limits of the alpha packages
 
 - The packages are not code-signed, and the SHA-256 only proves the download matches what was
-  published in the releases repository: whoever can publish there is trusted.
+  published in the repository: whoever can publish releases there is trusted.
 - The new-tab extension is still loaded unpacked (Developer mode on), and Reloaded by hand after an
   update that changes it.
 - Google and Outlook.com accounts still need your own OAuth client registrations

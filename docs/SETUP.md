@@ -57,7 +57,7 @@ irm https://davideaurum.github.io/setup.ps1 | iex
 ```
 
 The Pages site carries a copy of the script (the static build adds it, so every publish updates
-it); the repository itself is private, so the clone asks you to sign in to GitHub. With options:
+it). With options:
 `& ([scriptblock]::Create((irm https://davideaurum.github.io/setup.ps1))) -InstallDir D:\Homebase -DryRun`.
 In a checkout you already have:
 

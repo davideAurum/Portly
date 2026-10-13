@@ -7,8 +7,8 @@
     1. Installs what is missing with winget: Git (only when the code must be cloned) and Node.js
        LTS (24 or newer). Upgrades npm when it is older than 11.10 (package.json requires it).
     2. Gets the code: when this script runs from a Homebase checkout it uses that checkout;
-       otherwise (for example `irm <url> | iex`) it clones -RepoUrl into -InstallDir (GitHub may
-       ask you to sign in) and runs that checkout's copy of this script, so the rest always
+       otherwise (for example `irm <url> | iex`) it clones -RepoUrl into -InstallDir and runs
+       that checkout's copy of this script, so the rest always
        matches the code being installed. An existing checkout in -InstallDir is reused as it is.
     3. With -PagesUrl: saves the Pages site's address as the user environment variable
        HOMEBASE_PAGES_URL (or removes it with -PagesUrl off) before Homebase is started.
@@ -277,7 +277,7 @@ function Invoke-SetupFromClone {
     } elseif ((Test-Path -LiteralPath $target) -and @(Get-ChildItem -LiteralPath $target -Force).Count -gt 0) {
         throw "$target exists and is not an empty folder or a Homebase checkout. Pass -InstallDir with another folder."
     } else {
-        Write-SetupStep "Cloning $RepoUrl ($Branch) into $target (GitHub may ask you to sign in)"
+        Write-SetupStep "Cloning $RepoUrl ($Branch) into $target"
         if ($DryRun) {
             Write-SetupInfo 'Dry run: the remaining steps come from the cloned checkout and are not shown.'
             return 0
