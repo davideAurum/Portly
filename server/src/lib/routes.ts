@@ -12,7 +12,7 @@
  *
  * Access from the Pages site (hybrid mode) is default-deny: only routes tagged {@link paired} may
  * be called by a paired browser on the configured Pages origin. Untagged routes (approving a new
- * pairing) stay with Homebase's own page on this PC.
+ * pairing) stay with Portly's own page on this PC.
  *
  * After all modules are registered, {@link RouteTable.collect} records `{method, pattern, ...meta}`
  * for every tagged handler into a Hono router instance; the gate matches requests against that
@@ -25,7 +25,7 @@ import { TrieRouter } from 'hono/router/trie-router';
 export type ExemptKind = 'health' | 'image' | 'oauth-callback';
 /** Body kinds: JSON (default, 1 MB), multipart upload (10 MB), multipart import (25 MB). */
 export type BodyKind = 'json' | 'upload' | 'import';
-/** Who may call a route besides Homebase's own page: `paired` = the paired Pages site too. */
+/** Who may call a route besides Portly's own page: `paired` = the paired Pages site too. */
 export type RouteAccess = 'paired';
 
 export interface RouteMeta {
@@ -45,7 +45,7 @@ export const BODY_LIMITS: Readonly<Record<BodyKind, number>> = Object.freeze({
   import: 25 * 1024 * 1024,
 });
 
-const META_KEY = Symbol.for('homebase.routeMeta');
+const META_KEY = Symbol.for('portly.routeMeta');
 // Hono wraps sub-app handlers that have a custom error handler and keeps the original here.
 const COMPOSED_HANDLER_KEY = '__COMPOSED_HANDLER';
 

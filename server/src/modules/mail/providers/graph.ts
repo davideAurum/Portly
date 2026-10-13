@@ -6,7 +6,7 @@
  * Outbound purposes: `graph.mail.folder`, `graph.mail.list`, `graph.mail.update`, `graph.mail.move`.
  */
 import { z } from 'zod';
-import type { Account, MailMessage } from '@homebase/shared';
+import type { Account, MailMessage } from '@portly/shared';
 import { HttpError } from '../../../lib/errors.ts';
 import { cleanPreview, cleanSubject, mailAddress, toIsoDate } from '../text.ts';
 import { allowlistedWebUrl } from '../weburl.ts';

@@ -3,12 +3,12 @@
  * (`backend === 'browser'`): a calendar, mail or feeds widget still in a layout, or the Accounts /
  * Calendars settings section opened by URL.
  *
- * With hybrid mode on, the feature works once this browser uses the Homebase server on this PC,
- * so the notice says "needs Homebase running on this PC" and offers the one step that gets closer,
+ * With hybrid mode on, the feature works once this browser uses the Portly server on this PC,
+ * so the notice says "needs Portly running on this PC" and offers the one step that gets closer,
  * through the local server store's actions: **Look for it** before the first check (a user
  * gesture, which may bring up the browser's local network permission prompt), **Pair this
- * browser** when Homebase answers but this browser is not paired with it (or no longer, or with a
- * different Homebase: the local server panel's pairable statuses), **Switch now** when the switch
+ * browser** when Portly answers but this browser is not paired with it (or no longer, or with a
+ * different Portly: the local server panel's pairable statuses), **Switch now** when the switch
  * only waits for the page to be idle, and **Check again** otherwise. Without
  * hybrid mode (or inside a frame, which never uses the local server) there is no server to find:
  * the plain notice.
@@ -20,11 +20,11 @@ import type { LocalServerState, LocalServerStatus } from '../localServer/types.t
 import { Button } from './Button.tsx';
 import { EmptyState } from './EmptyState.tsx';
 
-/** Body of the notice when there is no Homebase server to use (no hybrid mode, or a framed page). */
+/** Body of the notice when there is no Portly server to use (no hybrid mode, or a framed page). */
 export const NO_SERVER_NOTICE = 'Not available in the browser-only build.';
 
 /** Body of the notice in hybrid mode. */
-export const NEEDS_LOCAL_SERVER_NOTICE = 'It works while this browser is connected to Homebase on this PC.';
+export const NEEDS_LOCAL_SERVER_NOTICE = 'It works while this browser is connected to Portly on this PC.';
 
 export interface ServerOnlyNoticeProps {
   /** What needs the server, as the title names it ("Calendar", "Accounts"). */
@@ -43,12 +43,12 @@ interface NoticeAction {
 }
 
 /**
- * Homebase answers but will not serve this browser until it pairs (again). Checking again cannot
- * help: a different Homebase (e.g. after a reinstall) stays different.
+ * Portly answers but will not serve this browser until it pairs (again). Checking again cannot
+ * help: a different Portly (e.g. after a reinstall) stays different.
  */
 const PAIRABLE: ReadonlySet<LocalServerStatus> = new Set(['unpaired', 'revoked', 'other-server']);
 
-/** The step that gets this browser closer to using Homebase on this PC. */
+/** The step that gets this browser closer to using Portly on this PC. */
 function nextStep(state: LocalServerState): NoticeAction {
   if (state.pendingSwitch?.target === 'server') return { label: 'Switch now', icon: ArrowRightLeft, run: localServerActions.switchNow };
   if (state.status === 'idle') return { label: 'Look for it', icon: Search, run: localServerActions.lookForServer };
@@ -61,14 +61,14 @@ export function ServerOnlyNotice({ feature, hint, compact = false, icon = Circle
   const suffix = hint ? ` ${hint}` : '';
   const hybrid = HYBRID_ENABLED && state.status !== 'disabled' && state.status !== 'framed';
   if (!hybrid) {
-    return <EmptyState icon={icon} title={`${feature} needs the Homebase server`} body={`${NO_SERVER_NOTICE}${suffix}`} compact={compact} />;
+    return <EmptyState icon={icon} title={`${feature} needs the Portly server`} body={`${NO_SERVER_NOTICE}${suffix}`} compact={compact} />;
   }
   const step = nextStep(state);
   const checking = state.status === 'checking' || state.status === 'waiting-permission';
   return (
     <EmptyState
       icon={icon}
-      title={`${feature} needs Homebase running on this PC`}
+      title={`${feature} needs Portly running on this PC`}
       body={`${NEEDS_LOCAL_SERVER_NOTICE}${suffix}`}
       compact={compact}
       action={

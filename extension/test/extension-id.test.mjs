@@ -46,7 +46,8 @@ describe('extension ID algorithm', () => {
 
   it('reproduces the ID Chrome derives from an unpacked folder path', () => {
     // Unpacked without a "key", Chrome on Windows hashes the folder path as UTF-16LE. For
-    // example it gives daklamd… for C:\Users\you\Coding\Homebase\extension — same hash, same mapping.
+    // example it gives daklamd… for C:\Users\you\Coding\Homebase\extension (the folder's name before
+    // the rename to Portly) — same hash, same mapping.
     const der = Buffer.from('C:\\Users\\you\\Coding\\Homebase\\extension', 'utf16le');
     assert.equal(extensionIdFromDer(der), OLD_PATH_EXTENSION_ID);
   });
@@ -74,9 +75,9 @@ describe('extension ID algorithm', () => {
   });
 
   it('agrees for arbitrary bytes too (the algorithm hashes the DER, whatever it holds)', async () => {
-    const key = Buffer.from('Homebase new tab').toString('base64');
+    const key = Buffer.from('Portly new tab').toString('base64');
     assert.equal(extensionIdFromKey(key), await referenceId(key));
-    assert.equal(extensionIdFromDer(Buffer.from('Homebase new tab')), await referenceId(key));
+    assert.equal(extensionIdFromDer(Buffer.from('Portly new tab')), await referenceId(key));
   });
 
   it('tolerates whitespace and PEM armour like Chrome, and rejects non-base64', () => {

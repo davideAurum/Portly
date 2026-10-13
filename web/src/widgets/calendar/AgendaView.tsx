@@ -3,7 +3,7 @@
  * multi-day spans on every day they cover, and a "now" marker in today's list.
  */
 import { CalendarCheck, MapPin, Video } from 'lucide-react';
-import type { CalendarEvent } from '@homebase/shared';
+import type { CalendarEvent } from '@portly/shared';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { useCalendarWidget } from './context.tsx';
 import { EventTrigger } from './EventPopover.tsx';

@@ -14,7 +14,7 @@ export function readExtensionFile(relativePath) {
 
 /** jsdom window for newtab.html / options.html (no script execution, no network). */
 export function loadPage(file) {
-  const dom = new JSDOM(readExtensionFile(file), { url: `chrome-extension://homebase-test/${file}` });
+  const dom = new JSDOM(readExtensionFile(file), { url: `chrome-extension://portly-test/${file}` });
   return dom.window;
 }
 

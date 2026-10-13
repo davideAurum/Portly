@@ -1,8 +1,8 @@
 /**
  * Toasts (§10.4): sonner, with helpers for the two patterns every feature needs — reporting a
  * failed request with the server's message, and an optimistic action with Undo. What an
- * unreachable backend (`network_error`) means depends on this page load's backend: the Homebase
- * server (server build), Homebase on this PC (Pages build, hybrid mode; or the page is switching
+ * unreachable backend (`network_error`) means depends on this page load's backend: the Portly
+ * server (server build), Portly on this PC (Pages build, hybrid mode; or the page is switching
  * away from it) or the copy in this browser ({@link unreachableCopy}, shared with `ErrorState`).
  */
 import { useSyncExternalStore } from 'react';
@@ -66,7 +66,7 @@ export interface UnreachableCopy {
 
 /**
  * What `network_error` means on this page load's backend (read at call time; `ErrorState` passes
- * the local server state it subscribes to). On Homebase on this PC, a switch to the copy in this
+ * the local server state it subscribes to). On Portly on this PC, a switch to the copy in this
  * browser that waits for the page to be idle ends server mode: every request fails until the
  * reload, although the server may well be running, so the copy says the page is switching.
  */
@@ -75,9 +75,9 @@ export function unreachableCopy(localServer: LocalServerState = getLocalServerSt
   if (caps.backend === 'browser') {
     // The in-browser backend could not answer (its storage failed to open, or it is reloading).
     return {
-      title: "Homebase couldn't load its data",
+      title: "Portly couldn't load its data",
       hint: 'Reload the page to try again.',
-      message: "Homebase couldn't load its data. Reload the page to try again.",
+      message: "Portly couldn't load its data. Reload the page to try again.",
       retry: true,
     };
   }
@@ -91,16 +91,16 @@ export function unreachableCopy(localServer: LocalServerState = getLocalServerSt
   }
   if (caps.remoteServer) {
     return {
-      title: "Homebase on this PC isn't reachable",
-      hint: 'Check that Homebase is running on this PC. This page reconnects when it is back.',
-      message: "Homebase on this PC isn't reachable. Is it running?",
+      title: "Portly on this PC isn't reachable",
+      hint: 'Check that Portly is running on this PC. This page reconnects when it is back.',
+      message: "Portly on this PC isn't reachable. Is it running?",
       retry: true,
     };
   }
   return {
-    title: 'Homebase is not reachable',
-    hint: 'Check that the Homebase server is running.',
-    message: 'Homebase is not reachable. Is the server running?',
+    title: 'Portly is not reachable',
+    hint: 'Check that the Portly server is running.',
+    message: 'Portly is not reachable. Is the server running?',
     retry: true,
   };
 }

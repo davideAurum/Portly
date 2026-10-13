@@ -3,7 +3,7 @@
  * One query per feed URL, so widgets sharing a feed share its cache entry.
  */
 import { queryOptions, useQueries } from '@tanstack/react-query';
-import type { Feed } from '@homebase/shared';
+import type { Feed } from '@portly/shared';
 import { apiGet } from './client.ts';
 import { qk } from './keys.ts';
 

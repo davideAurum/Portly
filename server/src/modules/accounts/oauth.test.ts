@@ -1,4 +1,4 @@
-import type { Account, OAuthClientInfo, OAuthStartResponse } from '@homebase/shared';
+import type { Account, OAuthClientInfo, OAuthStartResponse } from '@portly/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createMemoryLogger } from '../../lib/logger.ts';
 import { testRequest } from '../../testing/test-request.ts';
@@ -53,7 +53,7 @@ async function start(provider: string, body: Record<string, unknown> = {}): Prom
 /** Simulates the provider redirecting the browser back (a cross-site top-level navigation). */
 function callback(provider: string, query: string): Promise<Response> {
   return testRequest(h.app, 'GET', `/api/oauth/${provider}/callback?${query}`, {
-    headers: { 'X-Homebase': null, 'Sec-Fetch-Site': 'cross-site' },
+    headers: { 'X-Portly': null, 'Sec-Fetch-Site': 'cross-site' },
   });
 }
 
@@ -129,8 +129,8 @@ describe('OAuth clients', () => {
     expect((await testRequest(h.app, 'PUT', '/api/oauth-clients/google', { body: { clientId: GOOGLE_CLIENT_ID, extra: 1 } })).status).toBe(422);
   });
 
-  it('is behind the gate (no X-Homebase → 403)', async () => {
-    const res = await testRequest(h.app, 'GET', '/api/oauth-clients/google', { headers: { 'X-Homebase': null } });
+  it('is behind the gate (no X-Portly → 403)', async () => {
+    const res = await testRequest(h.app, 'GET', '/api/oauth-clients/google', { headers: { 'X-Portly': null } });
     expect(res.status).toBe(403);
   });
 });
@@ -385,7 +385,7 @@ describe('GET /api/oauth/:provider/callback', () => {
     );
     const res = await testRequest(h2.app, 'POST', '/api/oauth/google/start', { body: {} });
     const s2 = new URL((await json<OAuthStartResponse>(res)).authorizeUrl).searchParams.get('state') ?? '';
-    const denied = await testRequest(h2.app, 'GET', `/api/oauth/google/callback?code=c2&state=${s2}`, { headers: { 'X-Homebase': null } });
+    const denied = await testRequest(h2.app, 'GET', `/api/oauth/google/callback?code=c2&state=${s2}`, { headers: { 'X-Portly': null } });
     expect(denied.headers.get('location')).toBe(`${APP}/?oauth=denied#/settings/accounts`);
     expect(h2.service.list()).toHaveLength(0);
     expect(h2.ctx.vault.list('account:')).toEqual([]);

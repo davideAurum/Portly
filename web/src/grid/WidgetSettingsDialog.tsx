@@ -5,7 +5,7 @@
  * `PATCH /widgets/:instanceId {config, frame}`, Cancel discards the preview.
  */
 import { Suspense, useEffect, useId, useState } from 'react';
-import { GRID_COLUMNS, type WidgetFrame, type WidgetInstance } from '@homebase/shared';
+import { GRID_COLUMNS, type WidgetFrame, type WidgetInstance } from '@portly/shared';
 import { Button } from '../ui/Button.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';

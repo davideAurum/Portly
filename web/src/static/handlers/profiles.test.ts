@@ -3,7 +3,7 @@
  * over the profiles slice, plus the browser-only refusal of calendar/mail/feeds widgets.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { MAX_PROFILES, MAX_WIDGETS_PER_PROFILE, type Profile, type Settings, type WidgetInstance } from '@homebase/shared';
+import { MAX_PROFILES, MAX_WIDGETS_PER_PROFILE, type Profile, type Settings, type WidgetInstance } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
 import { isUuidV4 } from '../lib/ids.ts';
 import { getProfiles } from '../slices.ts';

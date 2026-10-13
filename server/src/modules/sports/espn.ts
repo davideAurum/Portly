@@ -30,7 +30,7 @@ import {
   type SportsLeagueInfo,
   type SportsTeam,
   type SportsTeamGames,
-} from '@homebase/shared';
+} from '@portly/shared';
 
 export const ESPN_API_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 /** The only host logos are taken from (allowed by the page's `img-src`). */

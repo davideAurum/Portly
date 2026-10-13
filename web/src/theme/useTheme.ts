@@ -2,10 +2,10 @@
  * Theme hooks: keep the document in sync with `settings.appearance` (every cache update, including
  * optimistic ones from the Appearance page, previews instantly) and expose the effective scheme.
  * An image background is applied again when its image URL resolves differently (a Pages page load
- * on the Homebase server on this PC loads it after the first paint).
+ * on the Portly server on this PC loads it after the first paint).
  */
 import { useEffect, useMemo } from 'react';
-import { ThemeSchema, type Theme } from '@homebase/shared';
+import { ThemeSchema, type Theme } from '@portly/shared';
 import { useSettings } from '../api/settings.ts';
 import { useMediaQuery } from '../lib/useMediaQuery.ts';
 import { useAssetUrl } from '../static/assets.ts';

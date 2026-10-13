@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { BookmarkGroup, BookmarkImportSource } from '@homebase/shared';
+import type { BookmarkGroup, BookmarkImportSource } from '@portly/shared';
 import { saveBlob } from '../../lib/download.ts';
 import BookmarksSettings from '../../settings/sections/Bookmarks.tsx';
 import { createFakeServer } from '../../test/fakeServer.ts';
@@ -96,7 +96,7 @@ describe('Settings → Bookmarks', () => {
     await user.click(button);
     expect(saveBlob).toHaveBeenCalledTimes(1);
     const [blob, filename] = vi.mocked(saveBlob).mock.calls[0]!;
-    expect(filename).toMatch(/^homebase-bookmarks-\d{4}-\d{2}-\d{2}\.html$/);
+    expect(filename).toMatch(/^portly-bookmarks-\d{4}-\d{2}-\d{2}\.html$/);
     const html = await blob.text();
     expect(html).toContain('>Work</H3>');
     expect(html).toContain('<A HREF="https://docs.example/"');

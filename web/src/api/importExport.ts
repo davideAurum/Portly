@@ -3,15 +3,15 @@
  * import is two-step — `POST /api/import/preview` (multipart, ≤ 25 MB) returns a summary the
  * user reviews, then `POST /api/import/commit {previewId}` applies it (the server backs up first).
  */
-import { MAX_IMPORT_BYTES, type ImportPreviewResponse } from '@homebase/shared';
+import { MAX_IMPORT_BYTES, type ImportPreviewResponse } from '@portly/shared';
 import { saveBlob } from '../lib/download.ts';
 import { apiGet, apiPost } from './client.ts';
 import { UPLOAD_FIELD } from './uploads.ts';
 
-/** `homebase-export-2026-09-25.json` */
+/** `portly-export-2026-09-25.json` */
 export function exportFilename(date: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `homebase-export-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`;
+  return `portly-export-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`;
 }
 
 /** Fetches the export and saves it as a JSON file. */
@@ -25,7 +25,7 @@ export async function downloadExport(): Promise<void> {
 export function checkImportFile(file: File): string | null {
   if (file.size === 0) return 'The file is empty.';
   if (file.size > MAX_IMPORT_BYTES) return 'Export files must be 25 MB or smaller.';
-  if (!/\.json$/i.test(file.name) && file.type !== 'application/json') return 'Choose a Homebase export file (.json).';
+  if (!/\.json$/i.test(file.name) && file.type !== 'application/json') return 'Choose a Portly export file (.json).';
   return null;
 }
 

@@ -29,7 +29,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import type { VaultState } from '@homebase/shared';
+import type { VaultState } from '@portly/shared';
 import type { ConfigPaths } from '../config.ts';
 import type { Db } from '../db/open.ts';
 import { fileTimestamp } from '../lib/backups.ts';
@@ -72,6 +72,7 @@ export const KEY_FILE_VERSION = 1;
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
+// Named before the app was renamed Portly; kept, since every existing vault holds it encrypted.
 const CANARY_VALUE = 'homebase-vault-canary-v1';
 const MAX_KEY_FILE_BYTES = 64 * 1024;
 const MAX_SECRET_BYTES = 1024 * 1024;
@@ -572,7 +573,7 @@ export async function openVault(options: OpenVaultOptions): Promise<Vault> {
 }
 
 /** Fixed key of the in-memory test vault (never used for real data). */
-const TEST_VAULT_KEY = createHash('sha256').update('homebase test vault key').digest();
+const TEST_VAULT_KEY = createHash('sha256').update('portly test vault key').digest();
 
 /**
  * In-memory vault for tests: the same AES-256-GCM engine over a Map, keyed with a fixed test key

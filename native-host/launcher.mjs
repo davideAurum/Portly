@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Homebase native messaging host "com.homebase.launcher" (docs/setup/autostart.md).
+ * Portly native messaging host "com.portly.launcher" (docs/setup/autostart.md).
  *
- * Chrome/Edge start it (through launcher.cmd) when the Homebase new-tab extension calls
- * chrome.runtime.sendNativeMessage('com.homebase.launcher', request). It handles exactly one
+ * Chrome/Edge start it (through launcher.cmd) when the Portly new-tab extension calls
+ * chrome.runtime.sendNativeMessage('com.portly.launcher', request). It handles exactly one
  * request and exits:
  *
  *   {"action":"ping"}               -> {"ok":true,"state":"pong","version":1}
@@ -17,7 +17,7 @@
  * Requests over 64 KB are refused without reading them.
  *
  * The server is never started here. The only thing this host runs is
- * %SystemRoot%\System32\schtasks.exe /run /tn "\Homebase Server" (absolute path, no shell, fixed
+ * %SystemRoot%\System32\schtasks.exe /run /tn "\Portly Server" (absolute path, no shell, fixed
  * arguments - nothing from the message reaches a command line), so the Task Scheduler service
  * creates the server process. Anything started as a child of this host would die with it:
  * Chrome's isolated-browser mode runs native hosts in a kill-on-close job object, and libuv puts
@@ -36,10 +36,10 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const HOST_NAME = 'com.homebase.launcher';
+export const HOST_NAME = 'com.portly.launcher';
 export const PROTOCOL_VERSION = 1;
 /** Task Scheduler path of the task registered by scripts\install-autostart.ps1. */
-export const TASK_PATH = '\\Homebase Server';
+export const TASK_PATH = '\\Portly Server';
 export const MAX_MESSAGE_BYTES = 64 * 1024;
 export const READ_TIMEOUT_MS = 5_000;
 export const HEALTH_TIMEOUT_MS = 700;
@@ -54,7 +54,7 @@ const TASK_MISSING_PATTERN = /cannot find the file specified|0x80070002/i;
 /**
  * schtasks' text for SCHED_E_ALREADY_RUNNING (English Windows) or the HRESULT itself. With
  * "MultipleInstances IgnoreNew" a run request for a running task is normally accepted and ignored;
- * should schtasks report it as an error instead, the task is running, so Homebase is on its way.
+ * should schtasks report it as an error instead, the task is running, so Portly is on its way.
  */
 const ALREADY_RUNNING_PATTERN = /already running|0x8004131F/i;
 const INSTALL_HINT = 'run scripts\\install-autostart.ps1';
@@ -249,7 +249,7 @@ export function probeHealth(host, port, { timeoutMs = HEALTH_TIMEOUT_MS, get = h
   });
 }
 
-/** Probes 127.0.0.1 and localhost in parallel; true as soon as either answers as Homebase. */
+/** Probes 127.0.0.1 and localhost in parallel; true as soon as either answers as Portly. */
 export function checkHealth(port, { timeoutMs = HEALTH_TIMEOUT_MS, hosts = ['127.0.0.1', 'localhost'], probe = probeHealth } = {}) {
   return new Promise((resolve) => {
     let pending = hosts.length;
@@ -270,7 +270,7 @@ export function checkHealth(port, { timeoutMs = HEALTH_TIMEOUT_MS, hosts = ['127
 }
 
 // ---------------------------------------------------------------------------------------------
-// schtasks.exe /run /tn "\Homebase Server"
+// schtasks.exe /run /tn "\Portly Server"
 // ---------------------------------------------------------------------------------------------
 
 /** %SystemRoot%\System32\schtasks.exe (only a drive-rooted SystemRoot/windir is accepted). */
@@ -309,7 +309,7 @@ export function classifyTaskRun({ error, stdout = '', stderr = '' }) {
   if (error.killed || error.signal) return errorResponse('schtasks_failed', 'schtasks.exe did not finish in time');
   if (ALREADY_RUNNING_PATTERN.test(output)) return { ok: true, state: 'starting' };
   if (TASK_MISSING_PATTERN.test(output)) {
-    return errorResponse('task_missing', `The "Homebase Server" scheduled task is not installed - ${INSTALL_HINT}`);
+    return errorResponse('task_missing', `The "Portly Server" scheduled task is not installed - ${INSTALL_HINT}`);
   }
   const firstLine = output
     .split(/\r?\n/)
@@ -334,7 +334,7 @@ export async function handleRequest({ origin, config, readMessage, checkHealth: 
     return errorResponse('bad_origin', `the launcher configuration is missing or invalid - ${INSTALL_HINT}`);
   }
   if (typeof origin !== 'string' || !config.allowedOrigins.includes(origin)) {
-    return errorResponse('bad_origin', `the caller is not the Homebase extension this launcher was installed for - ${INSTALL_HINT}`);
+    return errorResponse('bad_origin', `the caller is not the Portly extension this launcher was installed for - ${INSTALL_HINT}`);
   }
   const frame = await readMessage();
   if (!frame.ok) return errorResponse('bad_request', frame.detail);

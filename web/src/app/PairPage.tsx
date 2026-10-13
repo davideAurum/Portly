@@ -1,5 +1,5 @@
 /**
- * `#/pair?nonce=…` (hybrid mode). On Homebase's own page this is where a browser is paired
+ * `#/pair?nonce=…` (hybrid mode). On Portly's own page this is where a browser is paired
  * with the Pages site: the Pages site sends the tab here with a one-time nonce, the user approves,
  * the server creates the pairing, and the tab goes back to the configured Pages address with the
  * token in the fragment (`api/pairing.ts`). Before that, the page names the *origin* it is about to
@@ -8,7 +8,7 @@
  * Approve is armed only after the page has been visible and focused for a second in a row, and
  * disarmed whenever the window loses focus or is hidden, so a click or key press aimed at whatever
  * was in front a moment ago cannot approve. In the Pages build the route only says that pairing
- * happens on Homebase's own page, with a link to it.
+ * happens on Portly's own page, with a link to it.
  */
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { ArrowLeft, Ban, Check, CircleCheck, Link2, Settings2, TriangleAlert, type LucideIcon } from 'lucide-react';
@@ -77,7 +77,7 @@ export function PairPage({ nonce }: PairPageProps) {
 }
 
 /**
- * How to turn pairing on: the server reads `HOMEBASE_PAGES_URL` at start-up. Shared with the
+ * How to turn pairing on: the server reads `PORTLY_PAGES_URL` at start-up. Shared with the
  * Paired browsers card in Settings → About.
  */
 export function PairingSetupSteps() {
@@ -85,20 +85,20 @@ export function PairingSetupSteps() {
     <>
       <ol className={styles.steps}>
         <li>
-          Set the Windows user environment variable <code className={styles.code}>HOMEBASE_PAGES_URL</code> to your Pages site’s address,
+          Set the Windows user environment variable <code className={styles.code}>PORTLY_PAGES_URL</code> to your Pages site’s address,
           for example <code className={styles.code}>https://&lt;user&gt;.github.io/</code>.
         </li>
         <li>
-          Re-run <code className={styles.code}>scripts/install-autostart.ps1</code> from your Homebase folder (add{' '}
+          Re-run <code className={styles.code}>scripts/install-autostart.ps1</code> from your Portly folder (add{' '}
           <code className={styles.code}>-Trigger Logon</code> if you use Logon mode: the installer replaces the task, and its default is Browser
-          mode), or sign out of Windows and back in, so Homebase starts with it.
+          mode), or sign out of Windows and back in, so Portly starts with it.
         </li>
         <li>
           Open your Pages site and choose <strong>Pair this browser</strong>.
         </li>
       </ol>
       <p className={styles.text}>
-        The step-by-step guide is <code className={styles.code}>docs/setup/pages-local-server.md</code> in the Homebase folder.
+        The step-by-step guide is <code className={styles.code}>docs/setup/pages-local-server.md</code> in the Portly folder.
       </p>
     </>
   );
@@ -140,10 +140,10 @@ function BackToDashboard() {
 
 function PagesBuildNote() {
   return (
-    <PairPanel icon={Link2} title="Pairing happens on Homebase’s own page">
+    <PairPanel icon={Link2} title="Pairing happens on Portly’s own page">
       <p className={styles.text}>
-        This site pairs with Homebase on this PC through Homebase’s own page, which asks you to approve. To start, choose{' '}
-        <strong>Pair this browser</strong> in the Homebase status at the bottom of the dashboard.
+        This site pairs with Portly on this PC through Portly’s own page, which asks you to approve. To start, choose{' '}
+        <strong>Pair this browser</strong> in the Portly status at the bottom of the dashboard.
       </p>
       <div className={styles.actions}>
         <BackToDashboard />
@@ -157,7 +157,7 @@ function PairRequest({ nonce }: PairPageProps) {
 
   if (pairings.data === undefined) {
     return (
-      <PairPanel icon={Link2} title="Pair a browser with Homebase">
+      <PairPanel icon={Link2} title="Pair a browser with Portly">
         {pairings.isError ? <ErrorState error={pairings.error} onRetry={() => void pairings.refetch()} /> : <SkeletonLines lines={4} />}
         <div className={styles.actions}>
           <BackToDashboard />
@@ -171,7 +171,7 @@ function PairRequest({ nonce }: PairPageProps) {
     return (
       <PairPanel icon={Settings2} title="Pairing is turned off">
         <p className={styles.text}>
-          Homebase on this PC doesn’t know your Pages site’s address yet, so no browser can be paired with it.
+          Portly on this PC doesn’t know your Pages site’s address yet, so no browser can be paired with it.
         </p>
         <PairingSetupSteps />
         <div className={styles.actions}>
@@ -186,7 +186,7 @@ function PairRequest({ nonce }: PairPageProps) {
       <PairPanel icon={TriangleAlert} tone="warning" title="This pairing link doesn’t work">
         <p className={styles.text}>
           The link is incomplete or was changed, so nothing was paired. Start again from your Pages site: choose{' '}
-          <strong>Pair this browser</strong> in the Homebase status at the bottom of the dashboard.
+          <strong>Pair this browser</strong> in the Portly status at the bottom of the dashboard.
         </p>
         <div className={styles.actions}>
           <BackToDashboard />
@@ -208,7 +208,7 @@ const CANNOT: readonly string[] = [
   'Connect accounts or set up OAuth clients',
   'Reset the credential vault',
   'Pair or unpair browsers',
-  'See where Homebase keeps its files on this PC',
+  'See where Portly keeps its files on this PC',
 ];
 
 function PairApproval({ nonce, pagesUrl }: { nonce: string; pagesUrl: string }) {
@@ -219,7 +219,7 @@ function PairApproval({ nonce, pagesUrl }: { nonce: string; pagesUrl: string }) 
   const busy = approve.isPending || approve.isSuccess;
 
   return (
-    <PairPanel icon={Link2} title="Allow this site to use Homebase on this PC?">
+    <PairPanel icon={Link2} title="Allow this site to use Portly on this PC?">
       <p className={styles.origin}>{origin}</p>
       <p className={styles.text}>
         A page asked to pair this browser with your Pages site at <strong>{pagesUrl}</strong>. Approve only if you just chose{' '}
@@ -255,7 +255,7 @@ function PairApproval({ nonce, pagesUrl }: { nonce: string; pagesUrl: string }) 
       </div>
       {approve.isError ? (
         <Banner tone="danger" title="This browser was not paired">
-          {approve.error instanceof PairingRedirectError ? approve.error.message : errorMessage(approve.error, 'Homebase could not pair this browser.')}
+          {approve.error instanceof PairingRedirectError ? approve.error.message : errorMessage(approve.error, 'Portly could not pair this browser.')}
         </Banner>
       ) : null}
       <div className={styles.actions}>

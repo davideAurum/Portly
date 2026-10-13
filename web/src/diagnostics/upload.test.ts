@@ -7,7 +7,7 @@
  * events another version refuses dropped, and retried after the others.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ClientEventsRequestSchema, type ClientEventsRequest, type ClientEventsResponse } from '@homebase/shared';
+import { ClientEventsRequestSchema, type ClientEventsRequest, type ClientEventsResponse } from '@portly/shared';
 import { ApiError } from '../api/client.ts';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { getClientEvents, recordClientEvent } from './clientLog.ts';
@@ -144,7 +144,7 @@ describe('client event upload', () => {
     record(1);
     let fail = true;
     const { post, upload: handle } = start(async (body) => {
-      if (fail) throw new ApiError(0, 'network_error', 'Homebase is not reachable');
+      if (fail) throw new ApiError(0, 'network_error', 'Portly is not reachable');
       return { accepted: body.events.length, dropped: 0, acceptDebug: false };
     });
     await handle.flush();

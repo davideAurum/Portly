@@ -6,7 +6,7 @@
  * Suggestions are never persisted to localStorage.
  */
 import { useQuery } from '@tanstack/react-query';
-import type { SuggestProvider } from '@homebase/shared';
+import type { SuggestProvider } from '@portly/shared';
 import { apiGet } from './client.ts';
 import { qk } from './keys.ts';
 

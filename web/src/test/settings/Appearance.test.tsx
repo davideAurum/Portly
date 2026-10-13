@@ -1,7 +1,7 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { uploadUrl } from '@homebase/shared';
+import { uploadUrl } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
 import { setServerAssetSource } from '../../static/assets.ts';
 import { useApplyTheme } from '../../theme/useTheme.ts';
@@ -96,7 +96,7 @@ describe('Appearance settings', () => {
   });
 });
 
-describe('Appearance on the Homebase server on this PC (Pages build, hybrid mode)', () => {
+describe('Appearance on the Portly server on this PC (Pages build, hybrid mode)', () => {
   afterEach(() => setServerAssetSource(null));
 
   it('shows the background image (page backdrop and preview) once the server has delivered it, never the raw /api URL', async () => {

@@ -31,7 +31,7 @@ import {
   type LogLevelState,
   type OutcomeRow,
   type VaultState,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext } from '../../context.ts';
 import { isInactiveSubject, type HealthState, type OutcomeRowState } from '../../lib/health.ts';
 import { scrubText, type LogLevelInfo } from '../../lib/logger.ts';

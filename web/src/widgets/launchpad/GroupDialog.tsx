@@ -3,7 +3,7 @@
  * by the launch pad (edit mode) and Settings → Bookmarks.
  */
 import { useEffect, useState, type FormEvent } from 'react';
-import { BookmarkGroupNameSchema, type BookmarkGroup } from '@homebase/shared';
+import { BookmarkGroupNameSchema, type BookmarkGroup } from '@portly/shared';
 import { useCreateGroup, useDeleteGroup, useUpdateGroup } from '../../api/bookmarks.ts';
 import { Button, ColorPicker, ConfirmDialog, Dialog, Field, Input, toastError } from '../../ui/index.ts';
 import styles from './Launchpad.module.css';

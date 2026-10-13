@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { MailAccountSummary } from '@homebase/shared';
+import type { MailAccountSummary } from '@portly/shared';
 import { createApp } from '../../app.ts';
 import { HttpError } from '../../lib/errors.ts';
 import type { LogRecordOut } from '../../lib/logger.ts';
@@ -179,7 +179,7 @@ describe('GET /api/mail/summary', () => {
 
   it('is gated like every /api route', async () => {
     t = testbed([GMAIL]);
-    expect((await t.req('GET', '/api/mail/summary', { headers: { 'X-Homebase': null } })).status).toBe(403);
+    expect((await t.req('GET', '/api/mail/summary', { headers: { 'X-Portly': null } })).status).toBe(403);
   });
 });
 

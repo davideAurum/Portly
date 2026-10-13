@@ -14,7 +14,7 @@ import {
   type Capability,
   type ProbeResult,
   type ValidationIssue,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { SqlValue } from '../../db/open.ts';
 import { HttpError } from '../../lib/errors.ts';
 import type { DetailValue } from '../../lib/health.ts';

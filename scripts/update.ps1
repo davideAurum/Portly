@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Updates every copy of Homebase from this checkout in one go: the local server's page, the
+    Updates every copy of Portly from this checkout in one go: the local server's page, the
     server itself and the GitHub Pages site.
 
 .DESCRIPTION
@@ -10,14 +10,14 @@
     2. Installs dependencies (npm ci) when package-lock.json is newer than node_modules. The
        server is stopped first, since it runs from node_modules.
     3. Builds web\dist (npm run build), the page served at http://localhost:<port>.
-    4. Restarts the Homebase Server scheduled task when it was running, so server code changes
+    4. Restarts the Portly Server scheduled task when it was running, so server code changes
        take effect, and waits for /api/health. Skipped when the task runs another folder.
     5. Publishes the browser-only build to the GitHub Pages repository with
        scripts\publish-static.ps1 (which builds web\dist-static itself).
 
 .PARAMETER PublicRepoPath
     Local clone of the public GitHub Pages repository, passed to publish-static.ps1. Defaults to
-    the HOMEBASE_PAGES_REPO environment variable. Without either, the publish step is skipped.
+    the PORTLY_PAGES_REPO environment variable. Without either, the publish step is skipped.
 
 .PARAMETER SkipPublish
     Do not publish the GitHub Pages site.
@@ -103,7 +103,7 @@ function Stop-UpdateServer {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $task = Get-HbTask
     if ($null -ne $task -and "$($task.State)" -eq 'Running') {
-        Stop-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+        Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
     }
     $stopped = @(Stop-HbSupervisorProcesses -RepoRoot $RepoRoot)
     if ($stopped.Count -gt 0) {
@@ -114,7 +114,7 @@ function Stop-UpdateServer {
 
 function Start-UpdateServer {
     param([Parameter(Mandatory)][int]$Port)
-    Start-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+    Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
     Write-HbInfo "Waiting up to $TimeoutSeconds s for http://localhost:$Port/api/health ..."
     $health = Wait-HbHealth -Port $Port -TimeoutSeconds $TimeoutSeconds
     if (-not $health.Ok) { throw "The server did not come back: $(Format-HbHealth $health). Run scripts\status.ps1 -LogLines 30." }
@@ -131,7 +131,7 @@ function Invoke-Update {
 
     $branch = Invoke-UpdateGit -RepoRoot $repoRoot -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')
     $commit = Invoke-UpdateGit -RepoRoot $repoRoot -Arguments @('log', '-1', '--format=%h %s')
-    if ($null -ne $commit) { Write-HbStep "${prefix}Updating Homebase from $($branch -join '') at $($commit -join '')" }
+    if ($null -ne $commit) { Write-HbStep "${prefix}Updating Portly from $($branch -join '') at $($commit -join '')" }
     if ($null -ne $branch -and ($branch -join '') -ne 'main') {
         Write-Warning "The checked-out branch is '$($branch -join '')', not main."
     }
@@ -148,7 +148,7 @@ function Invoke-Update {
     if (-not $SkipServer -and $null -ne $task) {
         if (-not (Test-UpdateTaskRunsHere -Task $task -RepoRoot $repoRoot)) {
             $taskElsewhere = $true
-            Write-Warning "The '$HomebaseTaskName' task runs another folder, so the server is not restarted. Re-run install-autostart.ps1 from $repoRoot to fix that."
+            Write-Warning "The '$PortlyTaskName' task runs another folder, so the server is not restarted. Re-run install-autostart.ps1 from $repoRoot to fix that."
         } else {
             $restart = "$($task.State)" -eq 'Running' -or @(Get-HbSupervisorProcesses -RepoRoot $repoRoot).Count -gt 0
         }
@@ -174,7 +174,7 @@ function Invoke-Update {
     }
 
     if ($restart) {
-        Write-HbStep "${prefix}Restarting the server (task '$HomebaseTaskName', port $port)"
+        Write-HbStep "${prefix}Restarting the server (task '$PortlyTaskName', port $port)"
         if (-not $DryRun) {
             if (-not $stopped) { Stop-UpdateServer -RepoRoot $repoRoot }
             Start-UpdateServer -Port $port
@@ -185,10 +185,10 @@ function Invoke-Update {
 
     if ($SkipPublish) { return 0 }
     if ([string]::IsNullOrWhiteSpace($PublicRepoPath)) {
-        $PublicRepoPath = Get-HbEnvValue -Name 'HOMEBASE_PAGES_REPO' -Scope Task
+        $PublicRepoPath = Get-HbEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task
     }
     if ([string]::IsNullOrWhiteSpace($PublicRepoPath)) {
-        Write-Warning 'GitHub Pages not published: pass -PublicRepoPath or set the HOMEBASE_PAGES_REPO user environment variable.'
+        Write-Warning 'GitHub Pages not published: pass -PublicRepoPath or set the PORTLY_PAGES_REPO user environment variable.'
         return 0
     }
     Write-HbStep "${prefix}Publishing the GitHub Pages site from $PublicRepoPath"
@@ -196,7 +196,7 @@ function Invoke-Update {
     if ($DryRun) { $publishArgs.DryRun = $true }
     & (Join-Path $PSScriptRoot 'publish-static.ps1') @publishArgs
     if ($LASTEXITCODE -ne 0) { throw "publish-static.ps1 failed (exit code $LASTEXITCODE)." }
-    if (-not $DryRun) { Write-HbOk 'Everything is updated. Reload open Homebase tabs with Ctrl+F5.' }
+    if (-not $DryRun) { Write-HbOk 'Everything is updated. Reload open Portly tabs with Ctrl+F5.' }
     return 0
 }
 

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ImportPreviewResponse } from '@homebase/shared';
+import type { ImportPreviewResponse } from '@portly/shared';
 import { expectNewIcons } from '../../api/bookmarks.ts';
 import ImportExportSettings from '../../settings/sections/ImportExport.tsx';
 import { mockError, mockResponse, renderWithProviders, type ApiMock } from '../render.tsx';
@@ -24,7 +24,7 @@ const PREVIEW: ImportPreviewResponse = {
   },
 };
 
-function exportFile(name = 'homebase-export-2026-09-20.json', content = '{"format":"homebase-export"}') {
+function exportFile(name = 'portly-export-2026-09-20.json', content = '{"format":"portly-export"}') {
   return new File([content], name, { type: 'application/json' });
 }
 
@@ -37,7 +37,7 @@ function renderImportExport(mocks: Record<string, ApiMock> = {}) {
 
 function fileInput(): HTMLInputElement {
   // Labelled for assistive tech, but not a second tab stop next to the "Choose" button.
-  const input = screen.getByLabelText<HTMLInputElement>('Homebase export file');
+  const input = screen.getByLabelText<HTMLInputElement>('Portly export file');
   expect(input).toHaveAttribute('type', 'file');
   expect(input).toHaveAttribute('tabindex', '-1');
   return input;
@@ -54,7 +54,7 @@ describe('Import & export', () => {
     await waitFor(() => expect(requestsTo('POST /api/import/preview')).toHaveLength(1));
     const body = requestsTo('POST /api/import/preview')[0]!.body;
     expect(body).toBeInstanceOf(FormData);
-    expect(((body as FormData).get('file') as File).name).toBe('homebase-export-2026-09-20.json');
+    expect(((body as FormData).get('file') as File).name).toBe('portly-export-2026-09-20.json');
 
     const preview = await screen.findByRole('region', { name: 'Import preview' });
     const counts = within(preview).getAllByRole('definition').map((d) => d.textContent);
@@ -93,7 +93,7 @@ describe('Import & export', () => {
     // Bypass the picker's accept filter, as drag-and-drop or 'All files' would.
     const user = userEvent.setup({ applyAccept: false });
     await user.upload(fileInput(), new File(['x'], 'photo.png', { type: 'image/png' }));
-    expect(await screen.findByText('Choose a Homebase export file (.json).')).toBeInTheDocument();
+    expect(await screen.findByText('Choose a Portly export file (.json).')).toBeInTheDocument();
     const huge = exportFile();
     Object.defineProperty(huge, 'size', { value: 26 * 1024 * 1024 });
     await user.upload(fileInput(), huge);
@@ -102,9 +102,9 @@ describe('Import & export', () => {
   });
 
   it('shows the server validation error for an invalid export', async () => {
-    const { user } = renderImportExport({ 'POST /api/import/preview': mockError(422, 'validation_failed', 'This is not a Homebase export (version 7).') });
+    const { user } = renderImportExport({ 'POST /api/import/preview': mockError(422, 'validation_failed', 'This is not a Portly export (version 7).') });
     await user.upload(fileInput(), exportFile());
-    expect(await screen.findByText('This is not a Homebase export (version 7).')).toBeInTheDocument();
+    expect(await screen.findByText('This is not a Portly export (version 7).')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Import preview' })).not.toBeInTheDocument();
   });
 
@@ -128,13 +128,13 @@ describe('Import & export', () => {
     URL.revokeObjectURL = vi.fn();
     try {
       const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-      const { user, requestsTo } = renderImportExport({ 'GET /api/export': { format: 'homebase-export', version: 1 } });
+      const { user, requestsTo } = renderImportExport({ 'GET /api/export': { format: 'portly-export', version: 1 } });
       await user.click(screen.getByRole('button', { name: 'Download export' }));
       await waitFor(() => expect(click).toHaveBeenCalledOnce());
-      expect(requestsTo('GET /api/export')[0]!.headers.get('X-Homebase')).toBe('1');
+      expect(requestsTo('GET /api/export')[0]!.headers.get('X-Portly')).toBe('1');
       const blob = createObjectURL.mock.calls[0]![0];
-      expect(JSON.parse(await blob.text())).toEqual({ format: 'homebase-export', version: 1 });
-      expect((click.mock.instances[0] as unknown as HTMLAnchorElement).download).toMatch(/^homebase-export-\d{4}-\d{2}-\d{2}\.json$/);
+      expect(JSON.parse(await blob.text())).toEqual({ format: 'portly-export', version: 1 });
+      expect((click.mock.instances[0] as unknown as HTMLAnchorElement).download).toMatch(/^portly-export-\d{4}-\d{2}-\d{2}\.json$/);
     } finally {
       URL.createObjectURL = saved.create;
       URL.revokeObjectURL = saved.revoke;

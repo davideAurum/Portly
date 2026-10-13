@@ -6,7 +6,7 @@
  */
 import { useState, type ReactNode } from 'react';
 import { Globe, LocateFixed, MapPin, Search, Star, X } from 'lucide-react';
-import type { GeoPlace } from '@homebase/shared';
+import type { GeoPlace } from '@portly/shared';
 import { useSettings } from '../../api/settings.ts';
 import { GEOCODE_MAX_CHARS, GEOCODE_MIN_CHARS, normalizeGeocodeQuery, useGeocode, useSetDefaultLocation } from '../../api/weather.ts';
 import { useDebouncedCallback } from '../../lib/useDebouncedCallback.ts';

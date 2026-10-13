@@ -4,7 +4,7 @@
  * vault, calendar, mail, feeds and diagnostics API calls use; unknown routes still 404 and wrong methods still
  * 400. (Outlook.com accounts and OAuth are answered by handlers/accounts.ts.)
  */
-import { ApiErrorBodySchema, ERROR_STATUS } from '@homebase/shared';
+import { ApiErrorBodySchema, ERROR_STATUS } from '@portly/shared';
 import { describe, expect, it } from 'vitest';
 import { createTestBackend } from '../test/harness.ts';
 import * as core from './core.ts';
@@ -92,7 +92,7 @@ describe('unavailable routes', () => {
     const backend = await createTestBackend([unavailable]);
     const hit = new Set<string>();
     for (const [method, path] of CALLS) {
-      const pathname = new URL(path, 'http://homebase.static').pathname;
+      const pathname = new URL(path, 'http://portly.static').pathname;
       const match = backend.router.match(method, pathname);
       expect(match, `${method} ${path}`).toBeDefined();
       hit.add(`${method} ${match?.pattern}`);

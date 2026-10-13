@@ -7,7 +7,7 @@
  * that never ran yet shows too. Also: which job "Run now" starts for a subject, and the log filter
  * of "Show related log lines".
  */
-import type { DiagnosticsSummary, HealthEntry, HealthStatus, JobInfo } from '@homebase/shared';
+import type { DiagnosticsSummary, HealthEntry, HealthStatus, JobInfo } from '@portly/shared';
 
 export interface HealthItem {
   key: string;

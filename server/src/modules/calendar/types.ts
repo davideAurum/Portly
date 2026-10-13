@@ -2,7 +2,7 @@
  * Internal records of the calendar module: what providers (Google, Graph, CalDAV, ICS) produce
  * before sanitization and storage.
  */
-import type { CalendarSource, EventStatus } from '@homebase/shared';
+import type { CalendarSource, EventStatus } from '@portly/shared';
 
 /** One event instance as produced by a provider (unsanitized: see `sanitizeEvent`). */
 export interface EventRecord {

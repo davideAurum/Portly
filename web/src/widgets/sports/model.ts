@@ -3,7 +3,7 @@
  * games, de-duplicates games between two favorites, and orders the sections (Live, Upcoming,
  * Final). Also maps broadcasters to where the game can be watched.
  */
-import type { SportsBroadcast, SportsGame, SportsTeamGames } from '@homebase/shared';
+import type { SportsBroadcast, SportsGame, SportsTeamGames } from '@portly/shared';
 import type { FavoriteTeam, SportsConfig } from './index.ts';
 
 export interface GameRow {

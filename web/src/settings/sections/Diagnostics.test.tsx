@@ -1,10 +1,10 @@
 /**
- * Settings → Diagnostics per build and backend: the server build and the Pages site on Homebase
+ * Settings → Diagnostics per build and backend: the server build and the Pages site on Portly
  * on this PC show every panel (the Pages site adds "This site" and the link to the diagnostics
  * page on this PC, and never shows the server's paths); a server older than diagnostics (summary
  * `403 local_only` / `404`) and the in-browser backend show the overview and This browser only,
  * with a notice instead of a broken page; This browser then keeps every event here. Each tab panel
- * is named by its tab. Banners: version skew, a foreign site, and Homebase answering on this PC but
+ * is named by its tab. Banners: version skew, a foreign site, and Portly answering on this PC but
  * not to this site (with this site's full address). "Show related log lines" switches to the
  * Server log, filtered to that subject around its last failure.
  */
@@ -50,14 +50,14 @@ describe('Diagnostics settings', () => {
     // Radix labels each panel by its tab.
     expect(screen.getByRole('tabpanel', { name: 'Overview' })).toBeInTheDocument();
     expect(await screen.findByText('pid 4242 · Node v24.21.0 · win32 · 120 MB memory')).toBeInTheDocument();
-    const card = screen.getByRole('region', { name: 'Homebase server' });
+    const card = screen.getByRole('region', { name: 'Portly server' });
     expect(within(card).getByText(/Supervised · restarted 2 times/)).toBeInTheDocument();
     expect(within(card).getByText('exit code 1, start-up failed (db): Error: database is locked')).toBeInTheDocument();
     expect(within(card).getByText('mail is down')).toBeInTheDocument();
     expect(within(card).getByText('Server: 3 warnings, 1 error · Browsers: 0 warnings, 0 errors')).toBeInTheDocument();
     expect(within(card).getByText('1 request (oldest 5 s): GET /api/mail/summary · outbound: graph.microsoft.com (mail.list) 3 s')).toBeInTheDocument();
     expect(within(card).getByText('Normal (info)')).toBeInTheDocument();
-    expect(within(card).getByDisplayValue('C:\\Users\\~\\AppData\\Local\\Homebase\\logs')).toBeInTheDocument();
+    expect(within(card).getByDisplayValue('C:\\Users\\~\\AppData\\Local\\Portly\\logs')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'This site' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Open diagnostics on this PC/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -70,11 +70,11 @@ describe('Diagnostics settings', () => {
       hybrid: { pagesOrigin: null, pairings: 0, lastPairedRequestAt: null, foreignOrigins: [{ origin: 'https://dana.github.io', firstAt: '2026-10-11T10:00:00.000Z', lastAt: '2026-10-11T11:00:00.000Z', count: 4 }], foreignOriginRequests: 0 },
     });
     renderWithProviders(<DiagnosticsSettings />, { apiMocks: { 'GET /api/diagnostics/summary': summary, ...BASE } });
-    expect(await screen.findByText('This page is version 0.0.0-test; Homebase is 0.2.0')).toBeInTheDocument();
-    expect(screen.getByText('A page at https://dana.github.io tried to use this server, but HOMEBASE_PAGES_URL is not set')).toBeInTheDocument();
+    expect(await screen.findByText('This page is version 0.0.0-test; Portly is 0.2.0')).toBeInTheDocument();
+    expect(screen.getByText('A page at https://dana.github.io tried to use this server, but PORTLY_PAGES_URL is not set')).toBeInTheDocument();
     // The server knows the origin only: the setting is the site's full address, which may have a path.
-    expect(screen.getByText(/to its full address \(it starts with/)).toHaveTextContent('set HOMEBASE_PAGES_URL to its full address (it starts with https://dana.github.io/; a project site adds its path).');
-    // A plain restart keeps the old environment: how to make Homebase read the new value.
+    expect(screen.getByText(/to its full address \(it starts with/)).toHaveTextContent('set PORTLY_PAGES_URL to its full address (it starts with https://dana.github.io/; a project site adds its path).');
+    // A plain restart keeps the old environment: how to make Portly read the new value.
     expect(screen.getByText(/a plain restart keeps the old value/)).toHaveTextContent(/re-run scripts\/install-autostart\.ps1 .*-Trigger Logon.*sign out of Windows and back in/);
     expect(screen.getByText('This page: 0.0.0-test')).toBeInTheDocument();
   });
@@ -84,20 +84,20 @@ describe('Diagnostics settings', () => {
       hybrid: { pagesOrigin: 'https://me.github.io', pairings: 1, lastPairedRequestAt: null, foreignOrigins: [{ origin: 'https://dana.github.io', firstAt: '2026-10-11T10:00:00.000Z', lastAt: '2026-10-11T11:00:00.000Z', count: 1 }], foreignOriginRequests: 2 },
     });
     renderWithProviders(<DiagnosticsSettings />, { apiMocks: { 'GET /api/diagnostics/summary': summary, ...BASE } });
-    expect(await screen.findByText('A page at https://dana.github.io tried to use this server, but HOMEBASE_PAGES_URL is set to https://me.github.io')).toBeInTheDocument();
+    expect(await screen.findByText('A page at https://dana.github.io tried to use this server, but PORTLY_PAGES_URL is set to https://me.github.io')).toBeInTheDocument();
   });
 
-  it('Pages site on Homebase on this PC: every panel, this site’s card and the link to diagnostics on this PC, no paths', async () => {
+  it('Pages site on Portly on this PC: every panel, this site’s card and the link to diagnostics on this PC, no paths', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     setLocalServerController(fakeLocalServer({ backend: 'server', status: 'connected', paired: true, permission: 'granted', server: { version: '0.0.0-test', instanceId: 'i1', appUrl: 'http://127.0.0.1:5757/', apiVersion: 1, vault: 'ready' } }).controller);
     const summary = diagnosticsSummary({ server: { ...diagnosticsSummary().server, pid: null, memory: null, dataDir: '', logDir: '' } });
     renderWithProviders(<DiagnosticsSettings />, { apiMocks: { 'GET /api/diagnostics/summary': summary, ...BASE } });
     expect(tabNames()).toEqual(TABS);
     expect(await screen.findByText('Node v24.21.0 · win32')).toBeInTheDocument();
-    const server = screen.getByRole('region', { name: 'Homebase on this PC' });
+    const server = screen.getByRole('region', { name: 'Portly on this PC' });
     expect(within(server).queryByText('Log folder')).not.toBeInTheDocument();
     const site = screen.getByRole('region', { name: 'This site' });
-    expect(within(site).getByText('From Homebase on this PC')).toBeInTheDocument();
+    expect(within(site).getByText('From Portly on this PC')).toBeInTheDocument();
     expect(within(site).getByText('Connected · v0.0.0-test')).toBeInTheDocument();
     expect(within(site).getByText('Allowed')).toBeInTheDocument();
     const link = within(site).getByRole('link', { name: /Open diagnostics on this PC/ });
@@ -106,12 +106,12 @@ describe('Diagnostics settings', () => {
   });
 
   it.each([
-    ['the Pages site (403 local_only)', true, mockError(403, 'local_only', 'This request is only allowed from Homebase itself')],
+    ['the Pages site (403 local_only)', true, mockError(403, 'local_only', 'This request is only allowed from Portly itself')],
     ['its own page (404)', false, mockError(404, 'not_found', 'Not found')],
   ])('a server without diagnostics answering %s: the update notice, the overview and This browser only', async (_label, pages, answer) => {
     if (pages) setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     renderWithProviders(<DiagnosticsSettings />, { apiMocks: { 'GET /api/diagnostics/summary': answer, ...BASE } });
-    expect(await screen.findByText('Update Homebase on this PC to see its diagnostics')).toBeInTheDocument();
+    expect(await screen.findByText('Update Portly on this PC to see its diagnostics')).toBeInTheDocument();
     expect(tabNames()).toEqual(['Overview', 'This browser']);
     if (pages) expect(screen.getByRole('link', { name: /Open diagnostics on this PC/ })).toBeInTheDocument();
     recordClientEvent('warn', 'app', 'uncaught error', { errName: 'TypeError' });
@@ -153,16 +153,16 @@ describe('Diagnostics settings', () => {
     await waitFor(() => expect(requests.filter((r) => r.path.startsWith('/api/diagnostics'))).toEqual([]));
   });
 
-  it('explains HOMEBASE_PAGES_URL when Homebase answers on this PC but not to this site', async () => {
+  it('explains PORTLY_PAGES_URL when Portly answers on this PC but not to this site', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
     setLocalServerController(fakeLocalServer({ status: 'absent', permission: 'granted', checkedAt: Date.now(), unreachableReason: 'answers-without-cors' }).controller);
     renderWithProviders(<DiagnosticsSettings />, { apiMocks: BASE });
-    expect(screen.getByText('Homebase runs on this PC but does not accept this site')).toBeInTheDocument();
+    expect(screen.getByText('Portly runs on this PC but does not accept this site')).toBeInTheDocument();
     // The site's address with its base path, not just its origin.
-    expect(screen.getByText(`HOMEBASE_PAGES_URL=${new URL(import.meta.env.BASE_URL, window.location.origin).href}`)).toBeInTheDocument();
+    expect(screen.getByText(`PORTLY_PAGES_URL=${new URL(import.meta.env.BASE_URL, window.location.origin).href}`)).toBeInTheDocument();
     expect(screen.getByText(/a plain restart keeps the old value/)).toHaveTextContent(/install-autostart\.ps1/);
-    // The answer may also come from a Homebase older than this site.
-    expect(screen.getByText(/If it already is this address/)).toHaveTextContent(/a Homebase older than this site .*scripts\/update\.ps1/);
+    // The answer may also come from a Portly older than this site.
+    expect(screen.getByText(/If it already is this address/)).toHaveTextContent(/a Portly older than this site .*scripts\/update\.ps1/);
   });
 
   it('"Show related log lines" switches to the Server log, filtered to the subject around its last failure', async () => {

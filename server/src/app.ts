@@ -16,7 +16,7 @@ import path from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { routePath } from 'hono/route';
-import { REQUEST_ID_HEADER, type LogLevel } from '@homebase/shared';
+import { REQUEST_ID_HEADER, type LogLevel } from '@portly/shared';
 import type { AppContext, AppEnv } from './context.ts';
 import { createErrorHandler, errorResponse } from './lib/errors.ts';
 import { newRequestId, outsideLogContext, withLogContext, type LogContext } from './lib/log-context.ts';
@@ -47,7 +47,7 @@ export interface RequestCounts {
   s5xx: number;
 }
 
-export interface HomebaseApp {
+export interface PortlyApp {
   app: Hono<AppEnv>;
   routes: RouteTable;
   modules: ModuleStatus[];
@@ -207,7 +207,7 @@ function mountStatic(app: Hono<AppEnv>, webDist: string): void {
   });
 }
 
-export function createApp(ctx: AppContext, options: CreateAppOptions = {}): HomebaseApp {
+export function createApp(ctx: AppContext, options: CreateAppOptions = {}): PortlyApp {
   const app = new Hono<AppEnv>();
   const routes = new RouteTable();
   const entries = options.modules ?? MODULES;
@@ -235,7 +235,7 @@ export function createApp(ctx: AppContext, options: CreateAppOptions = {}): Home
     mountStatic(app, webDist);
   } else if (webDist !== null) {
     const hint = ctx.config.dev
-      ? `Homebase API server (dev). Open ${ctx.config.appOrigin} for the app.`
+      ? `Portly API server (dev). Open ${ctx.config.appOrigin} for the app.`
       : 'web/dist is missing. Run `npm run build` first.';
     app.get('*', (c) => (isApiPath(c.req.path) ? errorResponse(c, 'not_found') : c.text(hint, 404)));
   }

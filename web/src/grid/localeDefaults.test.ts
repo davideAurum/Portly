@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings } from '@homebase/shared';
+import { defaultSettings } from '@portly/shared';
 import { firstRunGeneralPatch, localeDefaults } from './localeDefaults.ts';
 
 describe('locale defaults on first run (UX-2)', () => {

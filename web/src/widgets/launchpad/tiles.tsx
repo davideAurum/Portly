@@ -4,7 +4,7 @@
  */
 import { useId, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { ChevronRight } from 'lucide-react';
-import type { Bookmark, BookmarkGroup } from '@homebase/shared';
+import type { Bookmark, BookmarkGroup } from '@portly/shared';
 import { safeColor } from '../../lib/color.ts';
 import type { LaunchpadConfig } from './index.ts';
 import { SiteIcon } from './SiteIcon.tsx';

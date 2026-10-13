@@ -1,7 +1,7 @@
 /**
  * favicon.ts: which bookmark hosts get a synthetic `fav:<host>` id, and the DuckDuckGo icon URL an
  * id resolves to (directly and through `resolveAssetUrl`, which the static project runs with
- * `__HOMEBASE_STATIC__` on). The host rules mirror the server's `isLocalLookingHost` (§4.8):
+ * `__PORTLY_STATIC__` on). The host rules mirror the server's `isLocalLookingHost` (§4.8):
  * nothing that looks like a home-network name may ever reach the third-party service.
  */
 import { describe, expect, it } from 'vitest';

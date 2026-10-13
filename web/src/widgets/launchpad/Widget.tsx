@@ -12,7 +12,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ellipsis, FolderInput, Import, LayoutGrid, Pencil, Plus, Trash } from 'lucide-react';
-import type { Bookmark, BookmarkGroup } from '@homebase/shared';
+import type { Bookmark, BookmarkGroup } from '@portly/shared';
 import { restoreBookmark, useBookmarks, useDeleteBookmark, useMoveBookmark, useUpdateGroup } from '../../api/bookmarks.ts';
 import { useSettings } from '../../api/settings.ts';
 import { getCapabilities } from '../../capabilities.ts';

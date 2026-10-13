@@ -5,7 +5,7 @@
  * on, a changed duration or area choice is applied with "Apply"; the switch applies at once.
  */
 import { useState } from 'react';
-import { DIAGNOSTIC_AREAS, type DiagnosticArea, type LogLevelState, type SetLogLevelInput } from '@homebase/shared';
+import { DIAGNOSTIC_AREAS, type DiagnosticArea, type LogLevelState, type SetLogLevelInput } from '@portly/shared';
 import { useSetLogLevel } from '../../api/diagnostics.ts';
 import { useFormatters } from '../../lib/format.ts';
 import { Button } from '../../ui/Button.tsx';
@@ -35,7 +35,7 @@ function statusText(state: LogLevelState, time: (iso: string) => string): string
   if (!state.verbose) return `Normal: state changes, failures and recoveries (level ${state.level}).`;
   const areas = state.areas === null ? '' : ` for ${state.areas.map(areaLabel).join(', ')}`;
   return state.until === null
-    ? `Verbose${areas} until turned off. Ends at the next restart of Homebase.`
+    ? `Verbose${areas} until turned off. Ends at the next restart of Portly.`
     : `Verbose${areas} until ${time(state.until)}${state.persisted ? ', also after a restart' : ''}.`;
 }
 
@@ -69,7 +69,7 @@ export function LogLevelPanel({ state }: { state: LogLevelState }) {
         disabled={setLevel.isPending}
         onCheckedChange={(on) => (on ? turnOn() : send({ verbose: false }))}
       />
-      <Field label="For" help="“Until turned off” ends at the next restart of Homebase.">
+      <Field label="For" help="“Until turned off” ends at the next restart of Portly.">
         <SegmentedControl
           value={duration}
           options={VERBOSE_DURATIONS.map(({ value, label }) => ({ value, label }))}
@@ -105,7 +105,7 @@ export function LogLevelPanel({ state }: { state: LogLevelState }) {
       ) : null}
       {state.bootLevel !== 'info' ? (
         <p className={styles.text}>
-          Homebase starts at level <strong>{state.bootLevel}</strong> (HOMEBASE_LOG_LEVEL); Normal means that level.
+          Portly starts at level <strong>{state.bootLevel}</strong> (PORTLY_LOG_LEVEL); Normal means that level.
         </p>
       ) : null}
     </SettingsCard>

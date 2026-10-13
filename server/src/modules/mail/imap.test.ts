@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Account, AccountDraft } from '@homebase/shared';
+import type { Account, AccountDraft } from '@portly/shared';
 import { HttpError } from '../../lib/errors.ts';
 import type { FakeAccountService } from '../../testing/fake-accounts.ts';
 import { createTestContext, type TestContext } from '../../testing/test-context.ts';
@@ -516,7 +516,7 @@ describe('diagnostics: phases, causes and health hints', () => {
 
     const op = new ImapOpError(409, 'conflict', 'The mailbox changed', { reason: 'stale_message' });
     expect(mapImapError(op, 'h', 'y1', false).cause).toBe(op);
-    // A worker failure is Homebase's, not the server's.
+    // A worker failure is Portly's, not the server's.
     const worker = mapImapError(new ImapWorkerError('error', 'The IMAP worker failed'), 'imap.example.net', 'y1', false);
     expect(worker).toMatchObject({ code: 'provider_error', message: expect.stringContaining('stopped unexpectedly') });
     expect(worker.message).not.toContain('returned an error');

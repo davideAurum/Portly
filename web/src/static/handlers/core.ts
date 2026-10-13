@@ -2,7 +2,7 @@
  * Core routes of the static backend: health and about. (Settings, profiles, uploads and
  * export/import are added by the core-data handlers.)
  */
-import type { AboutResponse, HealthResponse } from '@homebase/shared';
+import type { AboutResponse, HealthResponse } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { json } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';

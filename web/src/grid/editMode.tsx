@@ -3,7 +3,7 @@
  * is on, whether it is available (a saved profile, a wide enough screen) and the Add Widget
  * dialog. Edit mode is never persisted — every new tab starts in view mode.
  *
- * While edit mode is on, `<html data-homebase-editing="true">` says so to code outside React: the
+ * While edit mode is on, `<html data-portly-editing="true">` says so to code outside React: the
  * local server controller (hybrid mode) does not reload the page for a backend switch while the
  * user is editing the layout.
  */
@@ -47,9 +47,9 @@ export function EditModeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!editMode) return;
     const root = document.documentElement;
-    root.dataset.homebaseEditing = 'true';
+    root.dataset.portlyEditing = 'true';
     return () => {
-      delete root.dataset.homebaseEditing;
+      delete root.dataset.portlyEditing;
     };
   }, [editMode]);
 

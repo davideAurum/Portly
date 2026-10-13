@@ -1,17 +1,17 @@
 /**
- * One page: Homebase's own page on this PC forwards to the Pages site when one is configured
- * (`HOMEBASE_PAGES_URL`), keeping the address's query and hash route (e.g. the `?oauth=` result of
+ * One page: Portly's own page on this PC forwards to the Pages site when one is configured
+ * (`PORTLY_PAGES_URL`), keeping the address's query and hash route (e.g. the `?oauth=` result of
  * a sign-in, whose callback lands here). Server build only, before the first render.
  *
  * It stays here:
  * - on `#/pair`, where a browser on the Pages site is approved (the trust starts on this page);
- * - on `#/settings/diagnostics`, so that Homebase's full diagnostics on this PC can always be
+ * - on `#/settings/diagnostics`, so that Portly's full diagnostics on this PC can always be
  *   opened here (the Pages site links to it), even when the Pages site or its connection to this
  *   server is what is broken;
  * - in a frame, or when no Pages site is configured or its address is unusable;
  * - when the Pages site can't be reached (offline): this page is the fallback, and says so.
  */
-import { isSafeHttpUrl } from '@homebase/shared';
+import { isSafeHttpUrl } from '@portly/shared';
 import { fetchPairings } from '../api/pairing.ts';
 import { parseHash } from './router.ts';
 

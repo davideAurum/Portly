@@ -22,8 +22,8 @@ export function useStaticBackendStatus(): StaticBackendStatus | null {
   const [status, setStatus] = useState<StaticBackendStatus | null>(null);
   useEffect(() => {
     // The literal keeps the static backend out of the server build's bundle.
-    if (!__HOMEBASE_STATIC__) return undefined;
-    // This page load's data lives on the Homebase server: never open (or start) the browser copy.
+    if (!__PORTLY_STATIC__) return undefined;
+    // This page load's data lives on the Portly server: never open (or start) the browser copy.
     if (getCapabilities().backend !== 'browser') return undefined;
     let live = true;
     let unsubscribe: (() => void) | undefined;

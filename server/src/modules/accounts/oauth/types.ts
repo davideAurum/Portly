@@ -3,7 +3,7 @@
  * scopes, client type, id_token rules and scope → capability mapping; the flow code in
  * flow.ts / token-endpoint.ts is shared.
  */
-import type { Capability, OAuthProvider } from '@homebase/shared';
+import type { Capability, OAuthProvider } from '@portly/shared';
 
 /** A configured OAuth client. `clientSecret` is null for public clients (Microsoft). */
 export interface OAuthClient {

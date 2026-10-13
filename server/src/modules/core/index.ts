@@ -3,7 +3,7 @@
  * reset, about, and the daily database backup job.
  *
  * Routes and responses:
- * - `GET /api/health` (exempt) → `{ok, version, vault, app: 'homebase', apiVersion, instanceId, appUrl}`
+ * - `GET /api/health` (exempt) → `{ok, version, vault, app: 'portly', apiVersion, instanceId, appUrl}`
  * - `GET /api/settings` → `Settings` · `PATCH /api/settings` (RFC 7396 merge patch) → `Settings`
  * - `GET /api/profiles` → `Profile[]` (`[]` on first run; the web seeds the first profile)
  * - `POST /api/profiles {name, copyFromId?, layout?}` → 201 `Profile`
@@ -30,7 +30,7 @@
 import type { Hono } from 'hono';
 import { z } from 'zod';
 import {
-  HOMEBASE_API_VERSION,
+  PORTLY_API_VERSION,
   ImportCommitSchema,
   PositionsUpdateSchema,
   ProfileCreateSchema,
@@ -41,7 +41,7 @@ import {
   type HealthResponse,
   type ImportPreviewResponse,
   type Profile,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import { localDateStamp, runDailyBackup, runPreImportBackup } from '../../lib/backups.ts';
 import { HttpError } from '../../lib/errors.ts';
@@ -99,8 +99,8 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
       ok: true,
       version: ctx.config.version,
       vault: ctx.vault.state,
-      app: 'homebase',
-      apiVersion: HOMEBASE_API_VERSION,
+      app: 'portly',
+      apiVersion: PORTLY_API_VERSION,
       instanceId: ctx.pairing.instanceId(),
       appUrl: `${ctx.config.appOrigin}/`,
       pagesUrl: ctx.config.pagesUrl,
@@ -203,7 +203,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   app.get('/api/export', paired(), (c) => {
     const now = new Date();
     const file = buildExport({ db: ctx.db, log, settings: ctx.settings.getAll(), profiles: profiles.list(), now: () => now });
-    c.header('Content-Disposition', `attachment; filename="homebase-export-${localDateStamp(now)}.json"`);
+    c.header('Content-Disposition', `attachment; filename="portly-export-${localDateStamp(now)}.json"`);
     return c.json(file);
   });
 

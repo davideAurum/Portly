@@ -1,6 +1,6 @@
 /**
  * `testRequest(app, method, path, {body?, headers?})` (§13): sends a request through the full app
- * (gate included) the way the SPA would — `Host: localhost:5757`, `X-Homebase: 1`,
+ * (gate included) the way the SPA would — `Host: localhost:5757`, `X-Portly: 1`,
  * `Sec-Fetch-Site: same-origin` and, for bodies, `Content-Type: application/json`.
  *
  * - `headers` override the defaults; a `null` value removes a default header.
@@ -10,7 +10,7 @@
  * - `pagesHeaders(token)` turns a request into one from the paired Pages site (hybrid mode; the
  *   context needs `env: TEST_PAGES_ENV`).
  */
-import { PAIRING_TOKEN_HEADER } from '@homebase/shared';
+import { PAIRING_TOKEN_HEADER } from '@portly/shared';
 import { TEST_PORT } from './test-context.ts';
 
 /** Any Hono app (whatever its Env type). */
@@ -27,15 +27,15 @@ export interface TestRequestOptions {
 
 export const DEFAULT_TEST_HEADERS: Readonly<Record<string, string>> = Object.freeze({
   Host: `localhost:${TEST_PORT}`,
-  'X-Homebase': '1',
+  'X-Portly': '1',
   'Sec-Fetch-Site': 'same-origin',
 });
 
 /** Pages site of the hybrid-mode tests. */
-export const TEST_PAGES_URL = 'https://pages.example/homebase/';
+export const TEST_PAGES_URL = 'https://pages.example/portly/';
 export const TEST_PAGES_ORIGIN = 'https://pages.example';
 /** Environment that configures {@link TEST_PAGES_URL} (pass as `createTestContext({env})`). */
-export const TEST_PAGES_ENV: Readonly<Record<string, string>> = Object.freeze({ HOMEBASE_PAGES_URL: TEST_PAGES_URL });
+export const TEST_PAGES_ENV: Readonly<Record<string, string>> = Object.freeze({ PORTLY_PAGES_URL: TEST_PAGES_URL });
 
 /**
  * Headers of a request from the Pages site the way its fetches look: its Origin, cross-site and,

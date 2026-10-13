@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Project, Settings, Task } from '@homebase/shared';
+import type { Project, Settings, Task } from '@portly/shared';
 import { WidgetFrameContext, type WidgetFrameContextValue } from '../../grid/WidgetContext.tsx';
 import { settings } from '../../test/fixtures.ts';
 import type { QueryClient } from '@tanstack/react-query';

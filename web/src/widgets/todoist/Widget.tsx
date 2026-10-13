@@ -26,7 +26,7 @@ import {
   Settings2,
   Tag,
 } from 'lucide-react';
-import { DEFAULT_TODOIST_FILTER, type Project, type Task } from '@homebase/shared';
+import { DEFAULT_TODOIST_FILTER, type Project, type Task } from '@portly/shared';
 import { ApiError, isApiError } from '../../api/client.ts';
 import { qk } from '../../api/keys.ts';
 import { useSettings } from '../../api/settings.ts';
@@ -237,7 +237,7 @@ function TasksError({ error, onRetry, compact, ownFilter }: TasksErrorProps) {
           icon={KeyRound}
           compact={compact}
           title="Saved credentials are locked"
-          body="Homebase can't unlock its stored credentials. Reset them in Settings → Accounts, then add your Todoist token again."
+          body="Portly can't unlock its stored credentials. Reset them in Settings → Accounts, then add your Todoist token again."
           action={
             href ? (
               <a className={styles.cta} href={href}>

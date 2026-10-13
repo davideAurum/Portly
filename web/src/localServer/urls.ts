@@ -1,10 +1,10 @@
 /**
- * URLs of the Homebase server's own page (hybrid mode). The server reports its page as `appUrl`
+ * URLs of the Portly server's own page (hybrid mode). The server reports its page as `appUrl`
  * in `GET /api/health`, but whatever answers on the port is untrusted input: `validateAppUrl`
  * accepts only the root page of an http(s) loopback origin (pairing falls back to the build's
  * `LOCAL_SERVER_ORIGIN` otherwise).
  */
-import { isSafeHttpUrl } from '@homebase/shared';
+import { isSafeHttpUrl } from '@portly/shared';
 import { isLoopbackHost } from './origin.ts';
 
 /**

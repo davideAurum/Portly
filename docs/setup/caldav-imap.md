@@ -10,8 +10,8 @@ own domain, and so on. Google, Outlook.com and Yahoo have their own guides:
 | IMAP | mail | Unread count, recent messages (no preview text), mark read/unread, trash, archive (when the server has an Archive folder) |
 | ICS / webcal subscription | a calendar feed URL | **Read-only**, refreshed every 30 minutes |
 
-All three are added in Homebase under **Settings → Accounts** (CalDAV, IMAP) or
-**Settings → Calendars** (ICS). Passwords and feed URLs are stored encrypted in Homebase's vault
+All three are added in Portly under **Settings → Accounts** (CalDAV, IMAP) or
+**Settings → Calendars** (ICS). Passwords and feed URLs are stored encrypted in Portly's vault
 and are never shown again.
 
 ## Always use an app password
@@ -26,7 +26,7 @@ access.
 
 1. Sign in at <https://account.apple.com/>.
 2. Open **Sign-In and Security → App-Specific Passwords**.
-3. Choose **Generate an app-specific password**, name it `Homebase`, and copy the password.
+3. Choose **Generate an app-specific password**, name it `Portly`, and copy the password.
 
 **CalDAV account** (Settings → Accounts → *Other accounts* → **CalDAV calendar** tab):
 
@@ -54,7 +54,7 @@ App passwords (and IMAP/CalDAV access) need a Standard or Professional plan.
 
 1. In Fastmail open **Settings → Privacy & Security** and find the app-password section
    (**Integrations → New app password**; the wording varies slightly between versions).
-2. Name it `Homebase`, choose access to **Mail, Contacts & Calendars** (or a narrower option that
+2. Name it `Portly`, choose access to **Mail, Contacts & Calendars** (or a narrower option that
    covers IMAP and CalDAV), and copy the password.
 
 | CalDAV field | Value |
@@ -83,7 +83,7 @@ provider's groupware.
   private address such as `192.168.x.x`, and you must tick
   **Allow http for a server on my local network** when adding the account. Anyone on that network
   could read the traffic, including the password.
-- Enter the server's base URL or the CalDAV root. Homebase follows the standard
+- Enter the server's base URL or the CalDAV root. Portly follows the standard
   `/.well-known/caldav` discovery, but only to addresses on the **same site** (same registrable
   domain) — your password is never sent anywhere else, even if the server redirects there.
 - Calendars are read-only in v1; you can still hide them, recolor them or pick which ones a
@@ -99,7 +99,7 @@ provider's groupware.
 | User name / Password | usually the full email address and an app password |
 | Webmail address (optional) | where "open in webmail" links go, e.g. `https://mail.example.com/` |
 
-Homebase moves trashed messages to the server's Trash folder (the special-use `\Trash` folder, or
+Portly moves trashed messages to the server's Trash folder (the special-use `\Trash` folder, or
 one named *Trash*, *Deleted Items*, *Deleted Messages* or *Bin*). **Archive** only appears when the
 server advertises an Archive folder. Messages are never permanently deleted.
 
@@ -112,14 +112,14 @@ Any calendar you can subscribe to by URL works read-only: public holiday calenda
 schedules, Proton Calendar share links, Outlook.com and Yahoo published calendars, iCloud public
 calendars, and so on.
 
-1. Copy the calendar's subscription link (`https://...` or `webcal://...`; Homebase converts
+1. Copy the calendar's subscription link (`https://...` or `webcal://...`; Portly converts
    `webcal://` to `https://`).
-2. In Homebase open **Settings → Calendars**, add an ICS calendar, paste the link and give it a
+2. In Portly open **Settings → Calendars**, add an ICS calendar, paste the link and give it a
    name and color.
 
-Many share links contain a secret token — treat them like passwords. Homebase keeps the full URL
+Many share links contain a secret token — treat them like passwords. Portly keeps the full URL
 encrypted and only shows the host name. Feeds are refreshed every 30 minutes (**Sync now** forces a
 refresh), and very large or endlessly repeating feeds are cut off at safe limits instead of slowing
-Homebase down.
+Portly down.
 
 Problems? See [troubleshooting](troubleshooting.md#yahoo-caldav-and-imap).

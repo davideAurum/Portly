@@ -1,7 +1,7 @@
 /**
  * Web origins that called the API but are not the configured Pages site (§17). The gate notes
  * them; the diagnostics summary shows the named ones, which is how a missing or wrong
- * `HOMEBASE_PAGES_URL` becomes visible ("a page at <origin> tried to use this server").
+ * `PORTLY_PAGES_URL` becomes visible ("a page at <origin> tried to use this server").
  *
  * Only origins worth naming are kept ({@link isNamedForeignOrigin}: `*.github.io`, loopback, or
  * the Pages site's own registrable domain, which on a shared host such as `pages.dev` or under a

@@ -14,7 +14,7 @@
  * The slice is replaced in one step, so a failure half-way leaves the state untouched (the
  * server's transaction).
  */
-import { MAX_BOOKMARKS, MAX_BOOKMARK_GROUPS, toSafeHttpUrl, urlHost, type BookmarkImportReport } from '@homebase/shared';
+import { MAX_BOOKMARKS, MAX_BOOKMARK_GROUPS, toSafeHttpUrl, urlHost, type BookmarkImportReport } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { faviconIdFor } from '../favicon.ts';
 import { cleanTitle } from '../lib/cleanTitle.ts';

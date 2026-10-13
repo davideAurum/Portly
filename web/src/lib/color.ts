@@ -2,7 +2,7 @@
  * Color helpers (§10.4, §4.5). User/provider colors are only ever used after passing the shared
  * hex regex; text drawn on top of them uses {@link readableTextColor}.
  */
-import { HEX_COLOR_REGEX } from '@homebase/shared';
+import { HEX_COLOR_REGEX } from '@portly/shared';
 
 export interface Rgb {
   r: number;

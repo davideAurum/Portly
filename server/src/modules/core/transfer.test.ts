@@ -8,7 +8,7 @@ import {
   type ImportSummary,
   type Profile,
   type Settings,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { IMAGE_SAMPLES } from '../../lib/__fixtures__/images.ts';
 import { newId } from '../../lib/ids.ts';
 import { coreTestbed, fileForm, type CoreTestbed } from './__fixtures__/setup.ts';
@@ -95,7 +95,7 @@ async function seed(t: CoreTestbed): Promise<Seeded> {
 
 function baseFile(): Record<string, unknown> & { data: Record<string, unknown[] | unknown> } {
   return {
-    format: 'homebase-export',
+    format: 'portly-export',
     version: 1,
     exportedAt: '2026-09-25T12:00:00.000Z',
     data: { settings: {}, profiles: [], bookmarkGroups: [], bookmarks: [], uploads: [], customIcons: [] },
@@ -113,7 +113,7 @@ describe('core: export', () => {
     const seeded = await seed(t);
     const res = await t.req('GET', '/api/export');
     expect(res.status).toBe(200);
-    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="homebase-export-\d{4}-\d{2}-\d{2}\.json"$/);
+    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="portly-export-\d{4}-\d{2}-\d{2}\.json"$/);
     expect(res.headers.get('cache-control')).toBe('no-store');
     const text = await res.text();
     const file = JSON.parse(text) as ExportFile;
@@ -160,7 +160,7 @@ describe('core: import', () => {
 
   const preview = (content: string | Uint8Array) =>
     t.json<ImportPreviewResponse & { error?: { code: string; details?: { path: string }[] } }>('POST', '/api/import/preview', {
-      body: fileForm(content, 'homebase-export.json', 'application/json'),
+      body: fileForm(content, 'portly-export.json', 'application/json'),
     });
   const previewFile = (file: unknown) => preview(JSON.stringify(file));
 

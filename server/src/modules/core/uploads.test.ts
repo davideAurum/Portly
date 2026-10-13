@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { UploadResponse } from '@homebase/shared';
+import type { UploadResponse } from '@portly/shared';
 import { IMAGE_SAMPLES } from '../../lib/__fixtures__/images.ts';
 import { isUuidV4, newId } from '../../lib/ids.ts';
 import { IMAGE_CACHE_CONTROL, IMAGE_CSP } from '../../security/headers.ts';
@@ -31,8 +31,8 @@ describe('core: uploads', () => {
     expect(isUuidV4(res.body.id)).toBe(true);
     expect(res.body.url).toBe(`/api/uploads/${res.body.id}`);
 
-    // Loaded by <img> / CSS: no X-Homebase header, Sec-Fetch-Site same-origin.
-    const got = await t.req('GET', res.body.url, { headers: { 'X-Homebase': null } });
+    // Loaded by <img> / CSS: no X-Portly header, Sec-Fetch-Site same-origin.
+    const got = await t.req('GET', res.body.url, { headers: { 'X-Portly': null } });
     expect(got.status).toBe(200);
     expect(got.headers.get('content-type')).toBe(type);
     expect(got.headers.get('content-security-policy')).toBe(IMAGE_CSP);
@@ -75,7 +75,7 @@ describe('core: uploads', () => {
 
   it('enforces the 10 MB limit (413) and the multipart content type (400)', async () => {
     // Raw multipart bytes (a FormData body stream cancelled mid-way trips an internal Node quirk).
-    const boundary = 'homebase-test-boundary';
+    const boundary = 'portly-test-boundary';
     const head = Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="big.png"\r\nContent-Type: image/png\r\n\r\n`);
     const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
     const file = Buffer.alloc(MAX_UPLOAD_BYTES + 1);
@@ -93,7 +93,7 @@ describe('core: uploads', () => {
     expect((await t.req('GET', '/api/uploads/00000000-0000-4000-8000-000000000000')).status).toBe(404);
     expect((await t.req('GET', '/api/uploads/not-a-uuid')).status).toBe(404);
     expect((await t.req('GET', body.url, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status).toBe(403);
-    expect((await t.req('GET', body.url, { headers: { 'Sec-Fetch-Site': 'none', 'X-Homebase': null } })).status).toBe(200);
+    expect((await t.req('GET', body.url, { headers: { 'Sec-Fetch-Site': 'none', 'X-Portly': null } })).status).toBe(200);
   });
 
   it('never serves a stored row whose bytes do not match its recorded type', async () => {

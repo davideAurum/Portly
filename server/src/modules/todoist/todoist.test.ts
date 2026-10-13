@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Project, Task } from '@homebase/shared';
+import type { Project, Task } from '@portly/shared';
 import { createTestLogger } from '../../lib/logger.ts';
 import { createSafeFetch, SafeFetchError, type SafeFetch } from '../../security/safe-fetch.ts';
 import type { FakeRequest } from '../../testing/fake-fetch.ts';
@@ -100,9 +100,9 @@ describe('todoist: token', () => {
     expect((await t.json('GET', '/api/todoist/token')).body).toEqual({ configured: false });
   });
 
-  it('requires the X-Homebase header (gate)', async () => {
+  it('requires the X-Portly header (gate)', async () => {
     t = todoistTestbed();
-    expect((await t.req('GET', '/api/todoist/token', { headers: { 'X-Homebase': null } })).status).toBe(403);
+    expect((await t.req('GET', '/api/todoist/token', { headers: { 'X-Portly': null } })).status).toBe(403);
   });
 });
 

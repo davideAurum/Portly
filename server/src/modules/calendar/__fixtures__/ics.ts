@@ -35,7 +35,7 @@ const VTIMEZONE_NEW_YORK = [
 export const RECURRING_FEED = ics([
   'BEGIN:VCALENDAR',
   'VERSION:2.0',
-  'PRODID:-//Homebase tests//EN',
+  'PRODID:-//Portly tests//EN',
   'X-WR-CALNAME:Team',
   'X-APPLE-CALENDAR-COLOR:#FF2968',
   ...VTIMEZONE_NEW_YORK,

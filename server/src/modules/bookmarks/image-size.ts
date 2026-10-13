@@ -3,7 +3,7 @@
  * best favicon (§8: "prefer largest ≥ 32 px raster or SVG") and stored in `icons.width`.
  * Returns the larger of width and height, or null when unknown (SVG, AVIF, truncated data).
  */
-import type { ImageContentType } from '@homebase/shared';
+import type { ImageContentType } from '@portly/shared';
 
 function u16be(b: Uint8Array, o: number): number {
   return ((b[o] ?? 0) << 8) | (b[o + 1] ?? 0);

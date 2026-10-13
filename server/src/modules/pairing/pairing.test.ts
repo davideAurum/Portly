@@ -7,7 +7,7 @@ import {
   parsePairingReturn,
   type PairingCreateResponse,
   type PairingsResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { createApp } from '../../app.ts';
 import type { AppEnv } from '../../context.ts';
 import { newToken } from '../../lib/ids.ts';
@@ -71,7 +71,7 @@ describe('pairing routes', () => {
       expect(PairingsResponseSchema.parse(res.body)).toEqual(res.body);
     });
 
-    it('reports pagesUrl null and refuses to pair (409) without HOMEBASE_PAGES_URL', async () => {
+    it('reports pagesUrl null and refuses to pair (409) without PORTLY_PAGES_URL', async () => {
       setup({});
       expect((await json<PairingsResponse>('GET', '/api/pairings')).body.pagesUrl).toBeNull();
       const res = await json<{ error: { code: string } }>('POST', '/api/pairings', { body: { nonce: newToken(32) } });
@@ -183,7 +183,7 @@ describe('pairing routes', () => {
       const own = await json<{ error: { code: string } }>('GET', '/api/pairing');
       expect(own.status).toBe(409);
       expect(own.body.error.code).toBe('not_configured');
-      const ownUnknown = await json<{ error: { code: string } }>('GET', '/api/pairing', { headers: { 'X-Homebase-Token': newToken(32) } });
+      const ownUnknown = await json<{ error: { code: string } }>('GET', '/api/pairing', { headers: { 'X-Portly-Token': newToken(32) } });
       expect(ownUnknown.status).toBe(401);
     });
 

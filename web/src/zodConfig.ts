@@ -1,6 +1,6 @@
 /**
  * Global zod configuration for the browser. Must be the FIRST import of `main.tsx` so it runs
- * before any `@homebase/shared` contract or widget `configSchema` is constructed.
+ * before any `@portly/shared` contract or widget `configSchema` is constructed.
  *
  * §4.3: the page CSP has no 'unsafe-eval'. zod 4 otherwise probes `new Function('')` when the
  * first `z.object()` is built; the throw is caught, but the browser still reports a CSP violation.

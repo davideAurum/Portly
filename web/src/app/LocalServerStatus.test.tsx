@@ -87,13 +87,13 @@ describe('LocalServerStatus', () => {
     expect(framed.container).toBeEmptyDOMElement();
   });
 
-  it('shows a dot and the label on a button named for Homebase on this PC', () => {
+  it('shows a dot and the label on a button named for Portly on this PC', () => {
     const { controller } = renderStatus({ backend: 'server', status: 'connected', server: SERVER, paired: true });
-    const button = screen.getByRole('button', { name: 'Homebase on this PC: Connected · v0.1.0' });
+    const button = screen.getByRole('button', { name: 'Portly on this PC: Connected · v0.1.0' });
     expect(button).toHaveAttribute('data-tone', 'success');
     expect(button).toHaveAttribute('aria-haspopup', 'dialog');
     controller.set({ status: 'reconnecting' });
-    expect(button).toHaveAccessibleName('Homebase on this PC: Reconnecting…');
+    expect(button).toHaveAccessibleName('Portly on this PC: Reconnecting…');
     expect(button).toHaveAttribute('data-tone', 'warning');
   });
 
@@ -103,38 +103,38 @@ describe('LocalServerStatus', () => {
     expect(liveRegion()).toBeEmptyDOMElement();
 
     controller.set({ status: 'checking', manual: false });
-    expect(screen.getByRole('button', { name: 'Homebase on this PC: Not detected' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Portly on this PC: Not detected' })).toBeInTheDocument();
     expect(liveRegion()).toBeEmptyDOMElement();
     controller.set({ status: 'absent', checkedAt: 1_700_000_030_000 });
     expect(liveRegion()).toBeEmptyDOMElement();
 
     controller.set({ status: 'unpaired', server: SERVER });
-    expect(liveRegion()).toHaveTextContent('Homebase on this PC: Found, not paired');
+    expect(liveRegion()).toHaveTextContent('Portly on this PC: Found, not paired');
 
     // A check the user started is shown (and announced).
     controller.set({ status: 'checking', manual: true });
-    expect(screen.getByRole('button', { name: 'Homebase on this PC: Checking…' })).toBeInTheDocument();
-    expect(liveRegion()).toHaveTextContent('Homebase on this PC: Checking…');
+    expect(screen.getByRole('button', { name: 'Portly on this PC: Checking…' })).toBeInTheDocument();
+    expect(liveRegion()).toHaveTextContent('Portly on this PC: Checking…');
   });
 
   it("stays silent while the page's first background check settles, then announces changes", () => {
     const { controller } = renderStatus({ backend: 'server', status: 'checking', paired: true, checkedAt: null });
-    expect(screen.getByRole('button', { name: 'Homebase on this PC: Checking…' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Portly on this PC: Checking…' })).toBeInTheDocument();
     controller.set({ status: 'connected', server: SERVER, checkedAt: 1_700_000_000_000 });
-    expect(screen.getByRole('button', { name: 'Homebase on this PC: Connected · v0.1.0' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Portly on this PC: Connected · v0.1.0' })).toBeInTheDocument();
     expect(liveRegion()).toBeEmptyDOMElement();
 
     controller.set({ status: 'reconnecting' });
-    expect(liveRegion()).toHaveTextContent('Homebase on this PC: Reconnecting…');
+    expect(liveRegion()).toHaveTextContent('Portly on this PC: Reconnecting…');
   });
 
   it('opens the panel in a popover from the keyboard and closes it with Esc, returning focus', async () => {
     const user = userEvent.setup();
     renderStatus({ status: 'unpaired', server: SERVER });
-    const button = screen.getByRole('button', { name: 'Homebase on this PC: Found, not paired' });
+    const button = screen.getByRole('button', { name: 'Portly on this PC: Found, not paired' });
     button.focus();
     await user.keyboard('{Enter}');
-    const popover = await screen.findByRole('dialog', { name: 'Homebase on this PC' });
+    const popover = await screen.findByRole('dialog', { name: 'Portly on this PC' });
     expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(within(popover).getByText(/this browser isn't paired with it yet/)).toBeInTheDocument();
     expect(within(popover).getByRole('button', { name: 'Pair this browser' })).toBeInTheDocument();
@@ -147,20 +147,20 @@ describe('LocalServerStatus', () => {
     const user = userEvent.setup();
     const { controller } = renderStatus({ status: 'absent' });
     controller.set({ status: 'checking', manual: false });
-    await user.click(screen.getByRole('button', { name: /Homebase on this PC/ }));
-    const popover = await screen.findByRole('dialog', { name: 'Homebase on this PC' });
+    await user.click(screen.getByRole('button', { name: /Portly on this PC/ }));
+    const popover = await screen.findByRole('dialog', { name: 'Portly on this PC' });
     expect(within(popover).getByText('Not detected')).toBeInTheDocument();
-    expect(within(popover).queryByText('Looking for Homebase on this PC…')).not.toBeInTheDocument();
+    expect(within(popover).queryByText('Looking for Portly on this PC…')).not.toBeInTheDocument();
   });
 
   it('Disconnect this browser closes the popover and confirms before disconnecting', async () => {
     const user = userEvent.setup();
     const { controller } = renderStatus({ backend: 'server', status: 'connected', server: SERVER, paired: true });
-    await user.click(screen.getByRole('button', { name: /Homebase on this PC/ }));
-    const popover = await screen.findByRole('dialog', { name: 'Homebase on this PC' });
+    await user.click(screen.getByRole('button', { name: /Portly on this PC/ }));
+    const popover = await screen.findByRole('dialog', { name: 'Portly on this PC' });
     await user.click(within(popover).getByRole('button', { name: 'Disconnect this browser' }));
     const confirm = await screen.findByRole('dialog', { name: 'Disconnect this browser?' });
-    expect(screen.queryByRole('dialog', { name: 'Homebase on this PC' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Portly on this PC' })).not.toBeInTheDocument();
     await user.click(within(confirm).getByRole('button', { name: 'Disconnect' }));
     expect(controller.actions.disconnect).toHaveBeenCalledOnce();
   });

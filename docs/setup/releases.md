@@ -1,10 +1,10 @@
 # Releases: install packages and updates
 
-A **release package** is one zip, `homebase-<version>-win-x64.zip`, that installs and runs Homebase
+A **release package** is one zip, `portly-<version>-win-x64.zip`, that installs and runs Portly
 on Windows without Git, Node.js, npm or administrator rights. People install it with
 `scripts\install.ps1` (served from the Pages site, so `irm <site>/install.ps1 | iex` works on a new
-PC) and update it with `homebase --update`. A Git checkout ([SETUP.md](../SETUP.md#from-the-source-code))
-keeps working as before; it is for developing Homebase.
+PC) and update it with `portly --update`. A Git checkout ([SETUP.md](../SETUP.md#from-the-source-code))
+keeps working as before; it is for developing Portly.
 
 ## What the package holds
 
@@ -16,39 +16,39 @@ keeps working as before; it is for developing Homebase.
 | `node_modules\` | The production dependencies of the server only (`npm ci --omit=dev` for the server and shared workspaces): no web, build or test packages |
 | `web\dist\` | The built web app the server serves |
 | `extension\` | The new-tab extension (without its tests and tools), loaded unpacked from the install folder |
-| `native-host\` | The launcher the extension uses to start Homebase |
-| `scripts\` | `install.ps1`, `install-autostart.ps1`, `uninstall-autostart.ps1`, `install-cli.ps1`, `homebase.ps1`, `start.ps1`, `status.ps1` and `lib\Common.ps1` |
+| `native-host\` | The launcher the extension uses to start Portly |
+| `scripts\` | `install.ps1`, `install-autostart.ps1`, `uninstall-autostart.ps1`, `install-cli.ps1`, `portly.ps1`, `start.ps1`, `status.ps1` and `lib\Common.ps1` |
 | `docs\` | These guides (the app's help links point here) |
 
-A zip cannot hold the junction npm makes for the `@homebase/shared` workspace, so the installer
-creates `node_modules\@homebase\shared` → `shared\` once the package is in its final folder
+A zip cannot hold the junction npm makes for the `@portly/shared` workspace, so the installer
+creates `node_modules\@portly\shared` → `shared\` once the package is in its final folder
 (`install-autostart.ps1` and `start.ps1` recreate it if it goes missing).
 
 ## Install and update (what install.ps1 does)
 
-Everything goes into `%LOCALAPPDATA%\Programs\Homebase` (`-InstallDir` to change it); your data stays
-in `%LOCALAPPDATA%\Homebase` and is never moved or deleted.
+Everything goes into `%LOCALAPPDATA%\Programs\Portly` (`-InstallDir` to change it); your data stays
+in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
 
-- **Find the release:** `https://github.com/<releases repo>/releases/latest/download/homebase-release.json`
+- **Find the release:** `https://github.com/<releases repo>/releases/latest/download/portly-release.json`
   (or `/releases/download/v<version>/…` with `-Version`), which names the package and its SHA-256.
   `-ZipPath` installs a package that is already on the PC.
 - **Download and check:** the package is refused when its SHA-256 differs from the published one.
 - **New install:** unpack to `app.new`, check it (release.json, platform, runtime and every part),
-  move it to `app`, link `@homebase/shared`, run `app\scripts\install-autostart.ps1` with
+  move it to `app`, link `@portly/shared`, run `app\scripts\install-autostart.ps1` with
   `app\runtime\node.exe` and `app\scripts\install-cli.ps1`, and open the browser's extensions page
   for **Load unpacked** → `app\extension`.
-- **Update** (`homebase --update`, which runs a temporary copy of the installed `install.ps1`; or
+- **Update** (`portly --update`, which runs a temporary copy of the installed `install.ps1`; or
   running `install.ps1` again): the same version is skipped unless `-Force`. Otherwise it stops the
   scheduled task (when it runs this install) and every process whose program lives in `app\`,
-  copies `homebase.db` to `<data folder>\backups\homebase-before-<old version>-<time>.db` (the
+  copies `portly.db` to `<data folder>\backups\portly-before-<old version>-<time>.db` (the
   newest three are kept), moves `app` to `app.previous` (replacing the one before) and `app.new` to
-  `app`, then runs the new `install-autostart.ps1`, which starts Homebase and waits for it. If it
+  `app`, then runs the new `install-autostart.ps1`, which starts Portly and waits for it. If it
   doesn't come up, the new version is moved to `app.failed`, the previous one back to `app`, and
   that one is started again. The autostart mode (Browser or Logon) is kept. When the extension's
   version changed, it says to click **Reload** on it.
-- **Already a Git checkout on this PC?** One Homebase per Windows user: installing a release
+- **Already a Git checkout on this PC?** One Portly per Windows user: installing a release
   replaces the scheduled task and launcher of the checkout with the release's. Stop using the
-  checkout's `homebase` command (the release installs its own).
+  checkout's `portly` command (the release installs its own).
 
 ## Cutting a release
 
@@ -72,7 +72,7 @@ in `%LOCALAPPDATA%\Homebase` and is never moved or deleted.
    (never the real task, PATH, data or install folder):
 
    ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release.ps1 -ZipPath .\dist-release\homebase-0.2.0-alpha.1-win-x64.zip
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release.ps1 -ZipPath .\dist-release\portly-0.2.0-alpha.1-win-x64.zip
    ```
 
 4. **Publish** (public: anyone can download it). Push the release commit first — the release tags
@@ -84,8 +84,8 @@ in `%LOCALAPPDATA%\Homebase` and is never moved or deleted.
    ```
 
    It refuses a test build (`-AllowDirty` or `-NodeExe`), a private repository and a version that
-   is already published, and publishes the zip and `homebase-release.json` as release `v<version>`
-   of `davideAurum/Homebase` (the `releaseRepo` in the package),
+   is already published, and publishes the zip and `portly-release.json` as release `v<version>`
+   of `davideAurum/Portly` (the `releaseRepo` in the package),
    marked **latest** (GitHub never marks a pre-release as latest, so alpha versions go out as normal
    releases with a pre-release version number).
 
@@ -99,7 +99,7 @@ CI (`ci.yml`) also builds and checks a test package on every push to `main` and 
 
 ### One-time setup
 
-- **Where releases live:** the releases of this public repository, `davideAurum/Homebase` (a fork
+- **Where releases live:** the releases of this public repository, `davideAurum/Portly` (a fork
   builds with `build-release.ps1 -ReleaseRepo <owner>/<name>`, which goes into each package's
   `release.json` and so into its updates).
 - **For `publish-release.ps1` on your PC:** the GitHub CLI (`winget install GitHub.cli`), signed in

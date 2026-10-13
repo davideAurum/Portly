@@ -6,7 +6,7 @@
  * cooldown read from the body's `error_extra.retry_after` when the header is not exposed.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Project, Task } from '@homebase/shared';
+import type { Project, Task } from '@portly/shared';
 import { createFakeFetch, failingFetch, hangingFetch, type FakeFetchRoute, type FakeRequest } from '../providers/__fixtures__/fakeFetch.ts';
 import { API, OTHER_TOKEN, TOKEN, page, upstreamDue, upstreamProject, upstreamTask } from '../providers/__fixtures__/todoist.ts';
 import { DEFAULT_RETRY_AFTER_S, MAX_RETRY_AFTER_S, REQUEST_TIMEOUT_MS, parseRetryAfter } from '../providers/todoistClient.ts';

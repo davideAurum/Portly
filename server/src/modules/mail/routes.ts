@@ -10,7 +10,7 @@
  */
 import type { Context, Hono } from 'hono';
 import { z } from 'zod';
-import { EntityId, MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES, MailReadSchema } from '@homebase/shared';
+import { EntityId, MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES, MailReadSchema } from '@portly/shared';
 import type { AppEnv } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { paired } from '../../lib/routes.ts';

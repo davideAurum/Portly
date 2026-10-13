@@ -26,7 +26,7 @@ import {
   ok,
 } from './helpers.mjs';
 
-/** chrome.storage.local with the "Homebase on this PC" target (plus `items`). */
+/** chrome.storage.local with the "Portly on this PC" target (plus `items`). */
 function localTarget(items = {}, options = {}) {
   return createStorage({ target: 'local', ...items }, options);
 }
@@ -34,7 +34,7 @@ function localTarget(items = {}, options = {}) {
 /**
  * Builds the controller against newtab.html in jsdom with fakes for every browser API. Pass
  * `runtime` (createNativeRuntime) to give the page a launcher; without one it never tries to
- * start Homebase. The storage defaults to the local target; `sendMessage` stands in for
+ * start Portly. The storage defaults to the local target; `sendMessage` stands in for
  * chrome.runtime.sendMessage (the Pages target's warm-up request).
  */
 function setup({
@@ -84,7 +84,7 @@ function submitSearch(t) {
   return event;
 }
 
-describe('new tab: Homebase running', () => {
+describe('new tab: Portly running', () => {
   it('redirects to http://localhost:5757/?src=newtab by default (local target)', async () => {
     const t = setup();
     assert.equal(t.state(), 'checking', 'starts in the checking state');
@@ -120,7 +120,7 @@ describe('new tab: Homebase running', () => {
     assert.deepEqual([...storage.calls.get[0]].sort(), ['pagesUrl', 'port', 'serverSite', 'target']);
   });
 
-  it('still redirects when the vault is locked (Homebase shows its own banner)', async () => {
+  it('still redirects when the vault is locked (Portly shows its own banner)', async () => {
     const t = setup({ fetch: createFetch(() => jsonResponse({ ok: true, version: '0.1.0', vault: 'locked' })) });
     await t.page.start();
     assert.equal(t.location.replaced.length, 1);
@@ -146,21 +146,21 @@ function createSendMessage(mode = 'ack') {
   return send;
 }
 
-const WARM_UP = { type: 'homebase:warm-up' };
+const WARM_UP = { type: 'portly:warm-up' };
 
-/** The Pages site Homebase on this PC reports in these tests (HOMEBASE_PAGES_URL). */
+/** The Pages site Portly on this PC reports in these tests (PORTLY_PAGES_URL). */
 const SITE = 'https://me.github.io/';
 
-/** chrome.storage.local where Homebase on port 5757 has already named SITE (plus `items`). */
+/** chrome.storage.local where Portly on port 5757 has already named SITE (plus `items`). */
 function siteKnown(items = {}, options = {}) {
   return createStorage({ serverSite: { port: 5757, pagesUrl: SITE }, ...items }, options);
 }
 
-/** A health answer from a Homebase that names `pagesUrl` (null: hybrid mode off). */
+/** A health answer from a Portly that names `pagesUrl` (null: hybrid mode off). */
 const healthNaming = (pagesUrl) => () => jsonResponse({ ...HEALTHY, pagesUrl });
 
 describe('new tab: the Pages site', () => {
-  it('auto (the default): asks the service worker for a warm-up, then opens the site Homebase reported', async () => {
+  it('auto (the default): asks the service worker for a warm-up, then opens the site Portly reported', async () => {
     const sendMessage = createSendMessage('ack');
     const runtime = createNativeRuntime({ response: { ok: true, state: 'starting' } });
     const t = setup({ storage: siteKnown(), fetch: createFetch(down), runtime, sendMessage });
@@ -172,14 +172,14 @@ describe('new tab: the Pages site', () => {
     assert.deepEqual(t.location.replaced, [SITE]);
     assert.deepEqual(t.location.assigned, []);
     assert.equal(t.state(), 'redirecting');
-    assert.equal(t.fetch.calls.length, 0, 'the tab itself never contacts Homebase on this PC');
+    assert.equal(t.fetch.calls.length, 0, 'the tab itself never contacts Portly on this PC');
     assert.equal(t.runtime.calls.length, 0, 'nor the launcher (the service worker does)');
     assert.equal(t.timers.pending, 0, 'the acknowledgement timer is cleared');
   });
 
   it('opens the stored Pages site address (pages target)', async () => {
     for (const [stored, expected] of [
-      ['https://me.github.io/homebase-pages/', 'https://me.github.io/homebase-pages/'],
+      ['https://me.github.io/portly-pages/', 'https://me.github.io/portly-pages/'],
       ['http://localhost:4173/', 'http://localhost:4173/'],
       ['https://home.example.org', 'https://home.example.org/'],
     ]) {
@@ -189,13 +189,13 @@ describe('new tab: the Pages site', () => {
     }
   });
 
-  it('pages target without a stored address: the site Homebase reported', async () => {
+  it('pages target without a stored address: the site Portly reported', async () => {
     const t = setup({ storage: siteKnown({ target: 'pages' }), sendMessage: createSendMessage() });
     await t.page.start();
     assert.deepEqual(t.location.replaced, [SITE]);
   });
 
-  it('ignores an invalid stored address or target (auto follows Homebase)', async () => {
+  it('ignores an invalid stored address or target (auto follows Portly)', async () => {
     for (const storage of [
       siteKnown({ pagesUrl: 'http://example.com/' }),
       siteKnown({ pagesUrl: 'javascript:alert(1)' }),
@@ -277,7 +277,7 @@ describe('new tab: the Pages site', () => {
     assert.deepEqual(t.location.replaced, []);
   });
 
-  it('the local target never sends the warm-up message (it checks and starts Homebase itself)', async () => {
+  it('the local target never sends the warm-up message (it checks and starts Portly itself)', async () => {
     const sendMessage = createSendMessage();
     const t = setup({ storage: localTarget({ serverSite: { port: 5757, pagesUrl: SITE } }), sendMessage });
     await t.page.start();
@@ -288,8 +288,8 @@ describe('new tab: the Pages site', () => {
   });
 });
 
-describe('new tab: following what Homebase on this PC says', () => {
-  it('auto, nothing known yet: checks Homebase, records its Pages site and opens it', async () => {
+describe('new tab: following what Portly on this PC says', () => {
+  it('auto, nothing known yet: checks Portly, records its Pages site and opens it', async () => {
     const sendMessage = createSendMessage();
     const storage = createStorage();
     const t = setup({ storage, fetch: createFetch(healthNaming(SITE)), sendMessage });
@@ -299,10 +299,10 @@ describe('new tab: following what Homebase on this PC says', () => {
     assert.deepEqual(t.location.replaced, [SITE]);
     assert.equal(t.page.opens, 'pages');
     assert.deepEqual(storage.data, { serverSite: { port: 5757, pagesUrl: SITE } });
-    assert.deepEqual(sendMessage.calls, [], 'Homebase already answers: no warm-up needed');
+    assert.deepEqual(sendMessage.calls, [], 'Portly already answers: no warm-up needed');
   });
 
-  it('auto: a Homebase without a Pages site opens itself, and that is recorded too', async () => {
+  it('auto: a Portly without a Pages site opens itself, and that is recorded too', async () => {
     const storage = siteKnown();
     storage.data.serverSite = { port: 5757, pagesUrl: null };
     const t = setup({ storage, fetch: createFetch(healthNaming(null)) });
@@ -311,7 +311,7 @@ describe('new tab: following what Homebase on this PC says', () => {
     assert.deepEqual(storage.calls.set, [], 'nothing changed, nothing written');
   });
 
-  it('auto: an older Homebase that says nothing opens itself and records nothing', async () => {
+  it('auto: an older Portly that says nothing opens itself and records nothing', async () => {
     const storage = createStorage();
     const t = setup({ storage });
     await t.page.start();
@@ -319,13 +319,13 @@ describe('new tab: following what Homebase on this PC says', () => {
     assert.deepEqual(storage.data, {});
   });
 
-  it('pages target without any address: checks Homebase and opens the site it names', async () => {
+  it('pages target without any address: checks Portly and opens the site it names', async () => {
     const t = setup({ storage: createStorage({ target: 'pages' }), fetch: createFetch(healthNaming(SITE)) });
     await t.page.start();
     assert.deepEqual(t.location.replaced, [SITE]);
   });
 
-  it('local target: records what Homebase says but still opens Homebase itself', async () => {
+  it('local target: records what Portly says but still opens Portly itself', async () => {
     const storage = localTarget();
     const t = setup({ storage, fetch: createFetch(healthNaming(SITE)) });
     await t.page.start();
@@ -333,7 +333,7 @@ describe('new tab: following what Homebase on this PC says', () => {
     assert.deepEqual(storage.data.serverSite, { port: 5757, pagesUrl: SITE });
   });
 
-  it('auto, Homebase not running: starts it and then opens the Pages site it names', async () => {
+  it('auto, Portly not running: starts it and then opens the Pages site it names', async () => {
     const storage = createStorage();
     const t = setup({ storage, fetch: createFetch(down, healthNaming(SITE)), runtime: createNativeRuntime(STARTING) });
     await t.page.start();
@@ -344,7 +344,7 @@ describe('new tab: following what Homebase on this PC says', () => {
     assert.deepEqual(storage.data, { serverSite: { port: 5757, pagesUrl: SITE } });
   });
 
-  it('an "Add this page" request goes along to the site Homebase names', async () => {
+  it('an "Add this page" request goes along to the site Portly names', async () => {
     const hash = `#/add-bookmark?${new URLSearchParams({ url: 'https://example.com/' }).toString()}`;
     const t = setup({ storage: createStorage(), fetch: createFetch(healthNaming(SITE)), hash });
     await t.page.start();
@@ -358,19 +358,19 @@ describe('new tab: following what Homebase on this PC says', () => {
   });
 });
 
-describe('new tab: Homebase not running', () => {
+describe('new tab: Portly not running', () => {
   it('shows the fallback with the reason, port and auto-retry note', async () => {
     const t = setup({ storage: localTarget({ port: 6001 }), fetch: createFetch(down) });
     const result = await t.page.start();
     assert.deepEqual(result, { ok: false, reason: 'unreachable' });
     assert.equal(t.state(), 'offline');
     assert.deepEqual(t.location.replaced, []);
-    assert.equal(t.$('status-title').textContent, "Homebase isn't running");
+    assert.equal(t.$('status-title').textContent, "Portly isn't running");
     assert.equal(t.$('status-detail').textContent, 'Nothing is answering on http://localhost:6001.');
-    for (const node of t.document.querySelectorAll('[data-homebase-url]')) {
+    for (const node of t.document.querySelectorAll('[data-portly-url]')) {
       assert.equal(node.textContent, 'http://localhost:6001');
     }
-    assert.equal(t.document.title, "Homebase isn't running");
+    assert.equal(t.document.title, "Portly isn't running");
     assert.match(t.$('retry-note').textContent, /automatically every 5 seconds/);
     assert.equal(t.$('retry').disabled, false);
     assert.equal(t.$('retry').textContent, 'Retry');
@@ -391,11 +391,11 @@ describe('new tab: Homebase not running', () => {
       await t.page.start();
       assert.equal(t.state(), 'offline');
       assert.deepEqual(t.location.replaced, []);
-      assert.match(t.$('status-detail').textContent, /isn't Homebase|doesn't look like Homebase/);
+      assert.match(t.$('status-detail').textContent, /isn't Portly|doesn't look like Portly/);
     }
   });
 
-  it('Retry checks again and redirects once Homebase is up', async () => {
+  it('Retry checks again and redirects once Portly is up', async () => {
     const t = setup({ fetch: createFetch(down, ok) });
     await t.page.start();
     t.$('retry').click();
@@ -557,7 +557,7 @@ describe('new tab: lifecycle', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Starting Homebase through the launcher (native messaging).
+// Starting Portly through the launcher (native messaging).
 // ---------------------------------------------------------------------------------------------
 
 const STARTING = { response: { ok: true, state: 'starting' } };
@@ -581,22 +581,22 @@ function switchableFetch(initial = 'down') {
   return fetch;
 }
 
-describe('new tab: starting Homebase', () => {
-  it('does not call the launcher when Homebase already answers', async () => {
+describe('new tab: starting Portly', () => {
+  it('does not call the launcher when Portly already answers', async () => {
     const t = setup({ runtime: createNativeRuntime(STARTING) });
     await t.page.start();
     assert.deepEqual(t.location.replaced, ['http://localhost:5757/?src=newtab']);
     assert.equal(t.runtime.calls.length, 0);
   });
 
-  it('asks the launcher once, shows "Starting Homebase…", polls every 400 ms and redirects', async () => {
+  it('asks the launcher once, shows "Starting Portly…", polls every 400 ms and redirects', async () => {
     const t = setup({ fetch: createFetch(down, down, ok), runtime: createNativeRuntime(STARTING) });
     const result = await t.page.start();
     assert.deepEqual(result, { ok: false, reason: 'unreachable' });
     assert.equal(t.state(), 'starting');
-    assert.equal(t.document.title, 'Starting Homebase…');
+    assert.equal(t.document.title, 'Starting Portly…');
     assert.equal(t.$('starting-detail').textContent, STARTING_TEXT);
-    assert.deepEqual(t.runtime.calls, [{ host: 'com.homebase.launcher', message: { action: 'start', port: 5757 } }]);
+    assert.deepEqual(t.runtime.calls, [{ host: 'com.portly.launcher', message: { action: 'start', port: 5757 } }]);
 
     await flush(); // the launcher answers "starting"
     assert.equal(t.state(), 'starting');
@@ -632,10 +632,10 @@ describe('new tab: starting Homebase', () => {
     await t.page.start();
     await flush();
     assert.equal(t.state(), 'offline');
-    assert.equal(t.document.title, "Homebase isn't running");
+    assert.equal(t.document.title, "Portly isn't running");
     assert.equal(t.$('status-detail').textContent, 'Nothing is answering on http://localhost:5757.');
     assert.equal(t.$('launch-status').hidden, false);
-    assert.equal(t.$('launch-status').textContent, "New tabs can't start Homebase yet: the Homebase launcher isn't installed.");
+    assert.equal(t.$('launch-status').textContent, "New tabs can't start Portly yet: the Portly launcher isn't installed.");
     assert.deepEqual(t.visibleHelp(), [HELP.install]);
     const help = t.document.querySelector('[data-help="install"]').textContent;
     assert.match(help, /powershell -NoProfile -ExecutionPolicy Bypass -File \.\\scripts\\install-autostart\.ps1/);
@@ -674,7 +674,7 @@ describe('new tab: starting Homebase', () => {
     await t.page.start();
     await flush();
     assert.equal(t.state(), 'offline');
-    assert.match(t.$('launch-status').textContent, /Homebase Server scheduled task isn't registered/);
+    assert.match(t.$('launch-status').textContent, /Portly Server scheduled task isn't registered/);
     assert.deepEqual(t.visibleHelp(), [HELP.install]);
   });
 
@@ -684,7 +684,7 @@ describe('new tab: starting Homebase', () => {
     await t.page.start();
     await flush();
     assert.equal(t.state(), 'offline');
-    assert.equal(t.$('launch-status').textContent, "Windows couldn't start the Homebase Server task: ERROR: Access is denied.");
+    assert.equal(t.$('launch-status').textContent, "Windows couldn't start the Portly Server task: ERROR: Access is denied.");
     assert.deepEqual(t.visibleHelp(), [HELP.manual]);
   });
 
@@ -729,7 +729,7 @@ describe('new tab: starting Homebase', () => {
     await t.timers.advance(1);
 
     assert.equal(t.state(), 'offline');
-    assert.equal(t.$('launch-status').textContent, "Homebase didn't answer within 30 seconds of being started.");
+    assert.equal(t.$('launch-status').textContent, "Portly didn't answer within 30 seconds of being started.");
     assert.deepEqual(t.visibleHelp(), [HELP.manual]);
     assert.equal(t.$('launch').hidden, false);
     assert.equal(t.$('retry').classList.contains('primary'), false, 'Try starting again is the main action');
@@ -759,7 +759,7 @@ describe('new tab: starting Homebase', () => {
     assert.equal(t.state(), 'offline');
     assert.equal(
       t.$('launch-status').textContent,
-      "Homebase didn't answer within 30 seconds of being started. The launcher reported: Native host has exited.",
+      "Portly didn't answer within 30 seconds of being started. The launcher reported: Native host has exited.",
     );
   });
 
@@ -827,7 +827,7 @@ describe('new tab: starting Homebase', () => {
 
   it('a health check that succeeds just after the attempt ended still redirects', async () => {
     // The launcher says "not installed" while a poll is in flight, and the user had meanwhile
-    // started Homebase by hand: the successful answer must not be thrown away.
+    // started Portly by hand: the successful answer must not be thrown away.
     const fetch = switchableFetch('down');
     const runtime = createNativeRuntime('hang');
     const t = setup({ fetch, runtime });
@@ -950,16 +950,16 @@ describe('describeLaunchEnd', () => {
   it('words each outcome and picks the help section', () => {
     const outcome = (kind, code = null, detail = '') => ({ kind, code, detail });
     assert.deepEqual(describeLaunchEnd({ reason: 'timeout', outcome: outcome('starting') }), {
-      message: "Homebase didn't answer within 30 seconds of being started.",
+      message: "Portly didn't answer within 30 seconds of being started.",
       help: HELP.manual,
     });
     assert.equal(
       describeLaunchEnd({ reason: 'timeout', outcome: null }, 15000).message,
-      "Homebase didn't answer within 15 seconds of being started.",
+      "Portly didn't answer within 15 seconds of being started.",
     );
     assert.equal(
       describeLaunchEnd({ reason: 'timeout', outcome: outcome('running') }).message,
-      "The launcher says Homebase is running, but this page couldn't reach it within 30 seconds.",
+      "The launcher says Portly is running, but this page couldn't reach it within 30 seconds.",
     );
     assert.equal(describeLaunchEnd({ reason: 'launcher', outcome: outcome('not_installed') }).help, HELP.install);
     assert.equal(describeLaunchEnd({ reason: 'launcher', outcome: outcome('task_missing') }).help, HELP.install);
@@ -970,7 +970,7 @@ describe('describeLaunchEnd', () => {
     });
     assert.equal(
       describeLaunchEnd({ reason: 'launcher', outcome: outcome('failed', 'weird', '') }).message,
-      "The launcher couldn't start Homebase.",
+      "The launcher couldn't start Portly.",
     );
   });
 });
@@ -984,7 +984,7 @@ describe('new tab: "Add this page" requests (the toolbar button)', () => {
     assert.deepEqual(t.location.replaced, [`${SITE}${REQUEST}`]);
   });
 
-  it('passes the request on to Homebase on this PC', async () => {
+  it('passes the request on to Portly on this PC', async () => {
     const t = setup({ hash: REQUEST });
     await t.page.start();
     assert.deepEqual(t.location.replaced, [`http://localhost:5757/?src=newtab${REQUEST}`]);

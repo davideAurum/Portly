@@ -1,17 +1,17 @@
-# Homebase launcher (native messaging host)
+# Portly launcher (native messaging host)
 
-`com.homebase.launcher` lets the new-tab extension start Homebase when Chrome or Edge opens and
+`com.portly.launcher` lets the new-tab extension start Portly when Chrome or Edge opens and
 when a new tab finds it not running. It is installed per user by `scripts\install-autostart.ps1`
 (user guide: [docs/setup/autostart.md](../docs/setup/autostart.md)).
 
 | File | Purpose |
 | --- | --- |
-| `launcher.mjs` | The host (Node.js, no dependencies). Copied to `%LOCALAPPDATA%\Homebase\native-host\` by the installer. |
+| `launcher.mjs` | The host (Node.js, no dependencies). Copied to `%LOCALAPPDATA%\Portly\native-host\` by the installer. |
 | `launcher.cmd` | Template: the installer replaces `{{NODE_EXE}}` with the absolute `node.exe` path and writes the result next to the copy of `launcher.mjs`. |
 
-The installer also writes `com.homebase.launcher.json` (the host manifest) and `config.json` (the
+The installer also writes `com.portly.launcher.json` (the host manifest) and `config.json` (the
 allowed extension origin) to that folder and points
-`HKCU\Software\{Google\Chrome,Microsoft\Edge}\NativeMessagingHosts\com.homebase.launcher` at the
+`HKCU\Software\{Google\Chrome,Microsoft\Edge}\NativeMessagingHosts\com.portly.launcher` at the
 manifest. Tests: `npm run test:native-host` / `node scripts/check-native-host.mjs` (part of
 `npm test`, also run by `scripts\check-scripts.ps1`). The end-to-end tests run the generated
 `launcher.cmd` exactly as Chrome does, with `scripts\tests\schtasks-stub.mjs` standing in for
@@ -40,12 +40,12 @@ with code 0.
 | --- | --- |
 | `bad_origin` | The caller's origin is not in `config.json` (or `config.json` is missing or invalid). Checked before the request is read. |
 | `bad_request` | Not a valid request: empty, oversized, truncated or late (5 s) frame, invalid UTF-8/JSON, unknown action, bad port. |
-| `task_missing` | `schtasks` reports that the `\Homebase Server` task does not exist. |
+| `task_missing` | `schtasks` reports that the `\Portly Server` task does not exist. |
 | `schtasks_failed` | Any other `schtasks` failure (detail: its first output line), `schtasks.exe` not found, or a 10 s timeout. |
 
 ## What it runs
 
-Only `%SystemRoot%\System32\schtasks.exe /run /tn "\Homebase Server"`: absolute path, fixed
+Only `%SystemRoot%\System32\schtasks.exe /run /tn "\Portly Server"`: absolute path, fixed
 arguments, `execFile` without a shell, hidden window. Nothing from the request reaches a command
 line (the port is only used for the health check). The server is never started as a child of the
 host — browsers can kill a native host's whole process tree (Chrome's isolated-browser mode puts

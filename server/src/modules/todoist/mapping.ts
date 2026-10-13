@@ -1,5 +1,5 @@
 /**
- * Todoist unified API v1 → Homebase contracts (§7a todoist.ts, §8 Todoist).
+ * Todoist unified API v1 → Portly contracts (§7a todoist.ts, §8 Todoist).
  *
  * Upstream objects are parsed leniently (unknown fields ignored) and mapped one by one: a
  * malformed task or project is skipped rather than failing the whole list. Strings are capped at
@@ -13,7 +13,7 @@
  * A separate `due.datetime` (REST-style) is honoured when present.
  */
 import { z } from 'zod';
-import { todoistColorToHex, type Project, type Task, type TaskDue, type TodoistPriority } from '@homebase/shared';
+import { todoistColorToHex, type Project, type Task, type TaskDue, type TodoistPriority } from '@portly/shared';
 
 /** Task/project ids we accept in paths and return to the client (Todoist ids are opaque alphanumeric strings). */
 export const TASK_ID_REGEX = /^[A-Za-z0-9_-]{1,64}$/;

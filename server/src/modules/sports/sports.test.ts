@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it } from 'vitest';
-import { sportsLeague, type SportsTeam, type SportsTeamGames } from '@homebase/shared';
+import { sportsLeague, type SportsTeam, type SportsTeamGames } from '@portly/shared';
 import type { AppEnv } from '../../context.ts';
 import { createErrorHandler } from '../../lib/errors.ts';
 import { RouteTable } from '../../lib/routes.ts';

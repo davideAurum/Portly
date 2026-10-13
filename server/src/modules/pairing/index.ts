@@ -1,10 +1,10 @@
 /**
  * Pairing module (hybrid mode, shared/src/pairing.ts): pairs browsers on the configured Pages site
- * (`HOMEBASE_PAGES_URL`) with this server, and lets either side remove a pairing.
+ * (`PORTLY_PAGES_URL`) with this server, and lets either side remove a pairing.
  *
  * Routes and responses:
  * - `GET /api/pairing` [paired] → `PairingStatusResponse` for the token the request presents
- *   (`X-Homebase-Token`; none → 409 `not_configured`, unknown → 401 `pairing_required`)
+ *   (`X-Portly-Token`; none → 409 `not_configured`, unknown → 401 `pairing_required`)
  * - `DELETE /api/pairing` [paired] → 204 (the presenting browser unpairs itself)
  * - `GET /api/pairings` [paired] → `PairingsResponse`
  * - `POST /api/pairings {nonce}` → 201 `{redirectUrl}` (own page only; 409 `not_configured` without
@@ -28,7 +28,7 @@ import {
   type PairingStatusResponse,
   type PairingSummary,
   type PairingsResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import { msToIso, msToIsoStrict } from '../../db/helpers.ts';
 import { HttpError } from '../../lib/errors.ts';
@@ -111,7 +111,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
 
   // ---- managing paired browsers ---------------------------------------------
   // Listing and revoking are open to the paired Pages site too; approving a new pairing
-  // (POST) stays with Homebase's own page, where the trust starts.
+  // (POST) stays with Portly's own page, where the trust starts.
 
   app.get('/api/pairings', paired(), (c) => {
     const body: PairingsResponse = {
@@ -125,7 +125,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   app.post('/api/pairings', async (c) => {
     const { pagesUrl, pagesOrigin } = config;
     if (pagesUrl === null || pagesOrigin === null) {
-      throw HttpError.of('not_configured', 'Set HOMEBASE_PAGES_URL to the Pages site address first');
+      throw HttpError.of('not_configured', 'Set PORTLY_PAGES_URL to the Pages site address first');
     }
     const { nonce } = await parseBody(c, PairingCreateSchema);
     const { token, record } = pairing.create({ label: pairingLabel(c.req.header('user-agent')), origin: pagesOrigin });

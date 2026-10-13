@@ -20,7 +20,7 @@ export const ERROR_CODES = [
   'internal',
   /** A request from the Pages site without a valid pairing token (hybrid mode). */
   'pairing_required',
-  /** A route the Pages site may not call: only Homebase's own page on this PC can. */
+  /** A route the Pages site may not call: only Portly's own page on this PC can. */
   'local_only',
 ] as const;
 

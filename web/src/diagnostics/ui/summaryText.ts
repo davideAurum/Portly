@@ -8,7 +8,7 @@
  * the last browser warnings and errors. The Report panel redacts it with `redactForSharing` when
  * "Hide hosts, emails and names" is ticked.
  */
-import type { ClientEvent, DiagnosticsSummary, LogRecord } from '@homebase/shared';
+import type { ClientEvent, DiagnosticsSummary, LogRecord } from '@portly/shared';
 import type { LocalServerStatus, LoopbackPermission } from '../../localServer/types.ts';
 import type { ClientLogEntry } from '../clientLog.ts';
 import { describeLastExit, formatDuration, localTimeWithOffset, logTime } from './format.ts';
@@ -63,7 +63,7 @@ function serverLine(summary: DiagnosticsSummary): string {
 
 function pageLine(input: SummaryTextInput): string {
   const { page, hybrid, summary } = input;
-  const parts = [`Page: ${page.build === 'pages' ? 'Pages site' : "Homebase's own page"} ${page.version}`, page.backend === 'server' ? 'data from Homebase on this PC' : 'data in this browser'];
+  const parts = [`Page: ${page.build === 'pages' ? 'Pages site' : "Portly's own page"} ${page.version}`, page.backend === 'server' ? 'data from Portly on this PC' : 'data in this browser'];
   if (hybrid !== null) parts.push(`hybrid: ${hybrid.status}${hybrid.permission === null ? '' : ` (permission: ${hybrid.permission})`}`);
   if (summary !== null && summary.server.version !== page.version) parts.push(`version differs from the server (${summary.server.version})`);
   return parts.join(' · ');
@@ -204,7 +204,7 @@ function browserLines(entries: readonly ClientLogEntry[]): string[] {
 /** The Copy summary text (≤ {@link SUMMARY_MAX_LINES} lines; subjects beyond the budget are counted). */
 export function buildSummaryText(input: SummaryTextInput): string {
   const { summary } = input;
-  const head: string[] = [`Homebase diagnostics, ${localTimeWithOffset(input.now)}`];
+  const head: string[] = [`Portly diagnostics, ${localTimeWithOffset(input.now)}`];
   let health: { counts: string; entries: string[] } | null = null;
   if (summary === null) {
     head.push(`Server: ${input.summaryProblem ?? 'not available on this page'}`);

@@ -6,7 +6,7 @@
  * Otherwise the widget shows its not-configured state ("Set location").
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GeoPlace } from '@homebase/shared';
+import type { GeoPlace } from '@portly/shared';
 
 export type DeviceLocationState =
   | { status: 'idle' }
@@ -76,7 +76,7 @@ export function samePlace(a: GeoPlace | null | undefined, b: GeoPlace | null | u
 // Device location
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = 'homebase:weather:device-location';
+const STORAGE_KEY = 'portly:weather:device-location';
 /** A remembered position is shown immediately (then refreshed) when younger than this. */
 const REMEMBER_MS = 6 * 60 * 60 * 1000;
 /** The browser may answer from its own cache for this long. */

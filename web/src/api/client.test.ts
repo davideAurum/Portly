@@ -29,13 +29,13 @@ function stubFetch(response: Response | (() => Promise<Response>)) {
 describe('api client', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('sends X-Homebase and Accept on every request and parses JSON', async () => {
+  it('sends X-Portly and Accept on every request and parses JSON', async () => {
     const fetchMock = stubFetch(new Response('{"ok":true}', { headers: { 'Content-Type': 'application/json' } }));
     expect(await apiGet('/api/health')).toEqual({ ok: true });
     const [url, init] = fetchMock.mock.calls[0] as FetchArgs;
     expect(url).toBe('/api/health');
     const headers = new Headers(init?.headers);
-    expect(headers.get('X-Homebase')).toBe('1');
+    expect(headers.get('X-Portly')).toBe('1');
     expect(headers.get('Accept')).toBe('application/json');
     expect(init?.method).toBe('GET');
     expect(init?.credentials).toBe('same-origin');
@@ -125,7 +125,7 @@ describe('request ids', () => {
     const [url, init] = fetchMock.mock.calls[0] as FetchArgs;
     expect(url).toBe('/api/report?x=1');
     expect(init).toMatchObject({ method: 'GET', credentials: 'same-origin', cache: 'no-store' });
-    expect(new Headers(init?.headers).get('X-Homebase')).toBe('1');
+    expect(new Headers(init?.headers).get('X-Portly')).toBe('1');
     expect(new Headers(init?.headers).get('Accept')).toBe('application/octet-stream');
     stubFetch(async () => {
       throw new TypeError('Failed to fetch');

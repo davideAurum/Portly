@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { MAX_PROFILES, MAX_WIDGETS_PER_PROFILE, type Profile, type Settings, type WidgetInstance } from '@homebase/shared';
+import { MAX_PROFILES, MAX_WIDGETS_PER_PROFILE, type Profile, type Settings, type WidgetInstance } from '@portly/shared';
 import { isUuidV4 } from '../../lib/ids.ts';
 import { createMemoryLogger } from '../../lib/logger.ts';
 import { coreTestbed, type CoreTestbed } from './__fixtures__/setup.ts';

@@ -1,6 +1,6 @@
 /**
  * The in-browser backend of the static build. `staticFetch(path, init)` is what
- * `web/src/api/client.ts` calls instead of `fetch` when `__HOMEBASE_STATIC__` is true: it builds a
+ * `web/src/api/client.ts` calls instead of `fetch` when `__PORTLY_STATIC__` is true: it builds a
  * Request, dispatches it to the handler registered for `METHOD /api/path` and returns the
  * handler's Response, so the client's error mapping and JSON handling are shared with the server
  * build. The first call opens storage (IndexedDB, or memory when that fails), loads the persisted
@@ -32,7 +32,7 @@ import { MemoryStorage } from './storage/memory.ts';
 import { blobOf, isQuotaExceeded, type StaticStorage } from './storage/types.ts';
 
 /** Placeholder origin: the static backend only looks at the path and query. */
-const PLACEHOLDER_ORIGIN = 'http://homebase.static';
+const PLACEHOLDER_ORIGIN = 'http://portly.static';
 
 /** The 500 message when the browser refuses a write because its storage is full. */
 export const STORAGE_FULL_MESSAGE = 'Browser storage is full. Free up space on this device or export your data, then try again.';
@@ -173,13 +173,13 @@ export async function createStaticBackend(options: CreateStaticBackendOptions): 
       try {
         await syncExternalAssets(ctx, keys);
       } catch (err) {
-        console.error('[Homebase] Could not load images another tab added', err);
+        console.error('[Portly] Could not load images another tab added', err);
       }
       for (const listener of listeners) {
         try {
           listener(keys);
         } catch (err) {
-          console.error('[Homebase] A cross-tab change listener failed', err);
+          console.error('[Portly] A cross-tab change listener failed', err);
         }
       }
     });
@@ -296,7 +296,7 @@ export function ensureStaticBackend(): Promise<StaticBackend> {
       const retryAt = config.now() + Math.min(START_RETRY_BASE_MS * 2 ** (count - 1), START_RETRY_MAX_MS);
       failure = { error: err, count, retryAt };
       activeBackend = null;
-      console.error('[Homebase] The in-browser backend could not start', err);
+      console.error('[Portly] The in-browser backend could not start', err);
       recordClientEvent('error', 'backend', 'in-browser backend could not start', { errName: errorName(err), attempt: count, op: 'start' });
       setStatus({ state: 'failed', message: describe(err), retryAt });
       throw err;

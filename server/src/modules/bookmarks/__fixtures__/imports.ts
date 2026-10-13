@@ -48,7 +48,7 @@ export function localState(names: Record<string, string>) {
 
 /** Creates a fake `%LOCALAPPDATA%` with Chrome (Default + Profile 2) and Edge (Default) profiles. */
 export function makeLocalAppData(): { root: string; cleanup(): void } {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-lad-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-lad-'));
   const chrome = path.join(root, 'Google', 'Chrome', 'User Data');
   const edge = path.join(root, 'Microsoft', 'Edge', 'User Data');
   for (const dir of [path.join(chrome, 'Default'), path.join(chrome, 'Profile 2'), path.join(chrome, 'System Profile'), path.join(edge, 'Default')]) {

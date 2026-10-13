@@ -2,13 +2,13 @@
  * This browser's diagnostic events (ARCHITECTURE §17; Settings → Diagnostics, "This browser"):
  * API failures, hybrid-mode transitions, in-browser backend and provider failures, widget errors
  * and uncaught app errors, recorded with {@link recordClientEvent} next to the console lines they
- * explain. When this page load's backend is the Homebase server, `upload.ts` sends them there
+ * explain. When this page load's backend is the Portly server, `upload.ts` sends them there
  * ({@link pendingUpload} → `POST /api/diagnostics/client-events` → {@link markUploaded}, inside
  * {@link withUploadLock} so that two tabs never send the same stored events); the diagnostic
  * report adds them either way.
  *
- * - **Ring**: the last 300 events, mirrored to localStorage under `homebase:diagnostics:events`
- *   (in the Pages build `homebase:diagnostics:events:<base>`: every project site of a
+ * - **Ring**: the last 300 events, mirrored to localStorage under `portly:diagnostics:events`
+ *   (in the Pages build `portly:diagnostics:events:<base>`: every project site of a
  *   `<user>.github.io` origin shares that storage), so the events that explain a reload or a lost
  *   connection survive it. The mirror is this browser's: every write merges into what is stored
  *   (another tab's events are kept), it stays under 256 KB, and entries older than 7 days are
@@ -37,7 +37,7 @@ import {
   type ClientEvent,
   type ClientEventCategory,
   type LogLevel,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { STATIC_BUILD, getCapabilities } from '../capabilities.ts';
 
 /** One recorded event. */
@@ -64,7 +64,7 @@ export const CLIENT_EVENT_UPLOAD_BATCH = 100;
 
 /** localStorage key of this build's mirror (Pages build: under its base path). */
 export function clientEventsStorageKey(pagesBuild: boolean = STATIC_BUILD, base: string = import.meta.env.BASE_URL): string {
-  return pagesBuild ? `homebase:diagnostics:events:${base}` : 'homebase:diagnostics:events';
+  return pagesBuild ? `portly:diagnostics:events:${base}` : 'portly:diagnostics:events';
 }
 
 /**

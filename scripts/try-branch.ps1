@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    Try this checkout's Homebase live, on a copy of your data, before committing it.
+    Try this checkout's Portly live, on a copy of your data, before committing it.
 
 .DESCRIPTION
     Run it from the checkout (main folder or a .claude\worktrees\<name> worktree) whose code you
     want to try. It:
 
     1. builds this checkout's page and its Pages (static) build;
-    2. pauses your normal Homebase: stops its server and disables the 'Homebase Server' task, so
+    2. pauses your normal Portly: stops its server and disables the 'Portly Server' task, so
        the extension cannot start it again meanwhile (port 5757 must be free: Google only accepts
        sign-ins that come back to localhost:5757);
     3. copies your data folder (without backups and logs) to a temporary folder;
@@ -15,7 +15,7 @@
        build at http://localhost:<PagesPort> as a stand-in for the published site (nothing is
        published);
     5. waits until you press Enter, then stops both, deletes the copy (unless -KeepData), turns the
-       task back on and starts your normal Homebase again - also after Ctrl+C or an error.
+       task back on and starts your normal Portly again - also after Ctrl+C or an error.
 
     Your real data folder is only read. Anything you change during the test (accounts added,
     pairings, settings) happens in the copy and is gone afterwards.
@@ -44,17 +44,17 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $checkout = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
-# The normal Homebase runs from the main folder: for a worktree that is three levels up.
+# The normal Portly runs from the main folder: for a worktree that is three levels up.
 $mainRoot = $checkout
 if (Test-HbWorktreePath $checkout) {
     $mainRoot = [System.IO.Path]::GetFullPath((Join-Path $checkout '..\..\..'))
 }
 $port = (Get-HbPortSetting -Scope Task).Port
-if ($port -ne $HomebaseDefaultPort) {
-    Write-HbInfo "Your Homebase uses port $port; the test server takes it over the same way."
+if ($port -ne $PortlyDefaultPort) {
+    Write-HbInfo "Your Portly uses port $port; the test server takes it over the same way."
 }
 $realData = Get-HbDataDir -Scope Task -RepoRoot $mainRoot
-$testData = Join-Path ([System.IO.Path]::GetTempPath()) ("homebase-try-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$testData = Join-Path ([System.IO.Path]::GetTempPath()) ("portly-try-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 $pagesUrl = "http://localhost:$PagesPort/"
 $node = (Resolve-HbNode).Path
 $vite = Join-Path $checkout 'node_modules\vite\bin\vite.js'
@@ -87,13 +87,13 @@ try {
         Write-HbStep 'Building the page and the Pages build'
         & npm run build
         if ($LASTEXITCODE -ne 0) { throw 'npm run build failed.' }
-        $previousStatic = $env:HOMEBASE_STATIC_SERVER
-        $env:HOMEBASE_STATIC_SERVER = "http://127.0.0.1:$port"
+        $previousStatic = $env:PORTLY_STATIC_SERVER
+        $env:PORTLY_STATIC_SERVER = "http://127.0.0.1:$port"
         try {
             & npm run build:static
             if ($LASTEXITCODE -ne 0) { throw 'npm run build:static failed.' }
         } finally {
-            $env:HOMEBASE_STATIC_SERVER = $previousStatic
+            $env:PORTLY_STATIC_SERVER = $previousStatic
         }
     }
 } finally {
@@ -106,15 +106,15 @@ $server = $null
 $pages = $null
 $savedEnv = @{}
 try {
-    # --- 2. Pause the normal Homebase ----------------------------------------------------------
-    Write-HbStep 'Pausing your normal Homebase'
+    # --- 2. Pause the normal Portly ----------------------------------------------------------
+    Write-HbStep 'Pausing your normal Portly'
     if ($null -ne $task -and $task.State -ne 'Disabled') {
         try {
-            Disable-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath | Out-Null
+            Disable-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath | Out-Null
             $taskWasEnabled = $true
-            Write-HbOk "Task '$HomebaseTaskName' disabled for the test."
+            Write-HbOk "Task '$PortlyTaskName' disabled for the test."
         } catch {
-            Write-HbInfo "Could not disable the '$HomebaseTaskName' task ($($_.Exception.Message)). If the extension starts it during the test, it finds the port taken and stops."
+            Write-HbInfo "Could not disable the '$PortlyTaskName' task ($($_.Exception.Message)). If the extension starts it during the test, it finds the port taken and stops."
         }
     }
     $stopped = @(Stop-HbSupervisorProcesses -RepoRoot $mainRoot)
@@ -138,13 +138,13 @@ try {
     # --- 4. Start the test server and the stand-in Pages site ----------------------------------
     Write-HbStep 'Starting the test server and the stand-in Pages site'
     $testEnv = @{
-        HOMEBASE_PORT      = "$port"
-        HOMEBASE_DATA_DIR  = $testData
-        HOMEBASE_PAGES_URL = $pagesUrl
-        HOMEBASE_DEV       = $null
-        HOMEBASE_ORIGIN    = $null
-        HOMEBASE_BIND      = $null
-        HOMEBASE_VITE_PORT = "$PagesPort"
+        PORTLY_PORT      = "$port"
+        PORTLY_DATA_DIR  = $testData
+        PORTLY_PAGES_URL = $pagesUrl
+        PORTLY_DEV       = $null
+        PORTLY_ORIGIN    = $null
+        PORTLY_BIND      = $null
+        PORTLY_VITE_PORT = "$PagesPort"
     }
     foreach ($name in $testEnv.Keys) {
         $savedEnv[$name] = [System.Environment]::GetEnvironmentVariable($name, 'Process')
@@ -175,16 +175,16 @@ try {
 
     Write-Host ''
     Write-Host 'Ready. Try it in your browser:' -ForegroundColor Green
-    Write-Host "  1. Open $pagesUrl and choose 'Pair this browser' in the Homebase status at the bottom"
+    Write-Host "  1. Open $pagesUrl and choose 'Pair this browser' in the Portly status at the bottom"
     Write-Host '     (approve on the page that opens; it brings you back).'
     Write-Host '  2. Settings -> Accounts: add or reconnect an account right there.'
     Write-Host "  3. Open http://localhost:$port - it should forward to $pagesUrl."
     Write-Host '  Changes go to the test copy only.'
     Write-Host ''
-    [void](Read-Host 'Press Enter to stop the test and restart your normal Homebase')
+    [void](Read-Host 'Press Enter to stop the test and restart your normal Portly')
 } finally {
     # --- 5. Clean up and restore ---------------------------------------------------------------
-    Write-HbStep 'Stopping the test and restoring your normal Homebase'
+    Write-HbStep 'Stopping the test and restoring your normal Portly'
     foreach ($process in @($server, $pages)) {
         if ($null -ne $process -and -not $process.HasExited) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
@@ -204,15 +204,15 @@ try {
         }
     }
     if ($taskWasEnabled) {
-        Enable-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath | Out-Null
-        Write-HbOk "Task '$HomebaseTaskName' enabled again."
+        Enable-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath | Out-Null
+        Write-HbOk "Task '$PortlyTaskName' enabled again."
     }
     if ($null -ne $task) {
-        Start-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+        Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
         $back = Wait-HbHealth -Port $port -TimeoutSeconds 60
-        if ($back.Ok) { Write-HbOk "Your Homebase is $(Format-HbHealth $back)" }
-        else { Write-HbFailure "Your Homebase did not come back: $(Format-HbHealth $back). Try: homebase --start" }
+        if ($back.Ok) { Write-HbOk "Your Portly is $(Format-HbHealth $back)" }
+        else { Write-HbFailure "Your Portly did not come back: $(Format-HbHealth $back). Try: portly --start" }
     } else {
-        Write-HbInfo "No '$HomebaseTaskName' task is installed: start your Homebase the way you usually do."
+        Write-HbInfo "No '$PortlyTaskName' task is installed: start your Portly the way you usually do."
     }
 }

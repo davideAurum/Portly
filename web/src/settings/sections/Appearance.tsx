@@ -14,7 +14,7 @@ import {
   type ThemeBackground,
   type ThemeInput,
   type SettingsPatch,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { useSettings, useSettingsAutosave } from '../../api/settings.ts';
 import { backdropValue } from '../../theme/applyTheme.ts';
 import { Button, IconButton } from '../../ui/Button.tsx';

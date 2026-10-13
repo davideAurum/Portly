@@ -58,7 +58,7 @@ function deliver(chrome, message, sender = { id: chrome.runtime.id, url: `chrome
   return { responses, returned };
 }
 
-const WARM_UP = { type: 'homebase:warm-up' };
+const WARM_UP = { type: 'portly:warm-up' };
 
 /** A clock the test moves by hand. */
 function createClock(start = 1_000_000) {
@@ -71,7 +71,7 @@ function createClock(start = 1_000_000) {
 }
 
 describe('warmUp', () => {
-  it('does nothing more when Homebase already answers', async () => {
+  it('does nothing more when Portly already answers', async () => {
     const runtime = createNativeRuntime(STARTING);
     const fetch = createFetch(ok);
     const log = createLog();
@@ -83,16 +83,16 @@ describe('warmUp', () => {
     assert.equal(log.entries[0].level, 'info');
   });
 
-  it('records what a healthy Homebase says about its Pages site (the "auto" new tab follows it)', async () => {
+  it('records what a healthy Portly says about its Pages site (the "auto" new tab follows it)', async () => {
     const storage = createStorage({ port: 6001, serverSite: { port: 6001, pagesUrl: null } });
-    const fetch = createFetch(() => jsonResponse({ ...HEALTHY, pagesUrl: 'https://me.github.io/homebase' }));
+    const fetch = createFetch(() => jsonResponse({ ...HEALTHY, pagesUrl: 'https://me.github.io/portly' }));
     await warmUp({ storage, fetch, launcher: null });
-    assert.deepEqual(storage.data.serverSite, { port: 6001, pagesUrl: 'https://me.github.io/homebase/' });
+    assert.deepEqual(storage.data.serverSite, { port: 6001, pagesUrl: 'https://me.github.io/portly/' });
     await warmUp({ storage, fetch, launcher: null });
     assert.equal(storage.calls.set.length, 1, 'an unchanged answer writes nothing');
   });
 
-  it('records nothing when Homebase is down or says nothing about a Pages site', async () => {
+  it('records nothing when Portly is down or says nothing about a Pages site', async () => {
     for (const fetch of [createFetch(down), createFetch(ok)]) {
       const storage = createStorage();
       await warmUp({ storage, fetch, launcher: null });
@@ -100,7 +100,7 @@ describe('warmUp', () => {
     }
   });
 
-  it('asks the launcher to start Homebase on the stored port, once, without polling', async () => {
+  it('asks the launcher to start Portly on the stored port, once, without polling', async () => {
     const runtime = createNativeRuntime(STARTING);
     const fetch = createFetch(down);
     const timers = createTimers();
@@ -111,7 +111,7 @@ describe('warmUp', () => {
       ...timers,
     });
     assert.deepEqual(result, { port: 6001, action: 'requested-start', outcome: { kind: 'starting', code: null, detail: '' } });
-    assert.deepEqual(runtime.calls, [{ host: 'com.homebase.launcher', message: { action: 'start', port: 6001 } }]);
+    assert.deepEqual(runtime.calls, [{ host: 'com.portly.launcher', message: { action: 'start', port: 6001 } }]);
     assert.equal(fetch.calls.length, 1, 'one health check only');
     assert.equal(timers.pending, 0, 'nothing scheduled afterwards');
   });
@@ -181,7 +181,7 @@ describe('registerWarmUp', () => {
     assert.equal(chrome.runtime.onInstalled.listeners.length, 1);
   });
 
-  it('browser start: checks health and starts Homebase when it is down', async () => {
+  it('browser start: checks health and starts Portly when it is down', async () => {
     const chrome = createChrome({ storage: createStorage({ port: 5800 }) });
     const fetch = createFetch(down);
     registerWarmUp(chrome, { fetch, log: createLog() });
@@ -230,7 +230,7 @@ describe('registerWarmUp: warm-up requests from new tabs', () => {
     assert.equal(chrome.runtime.onMessage.listeners.length, 1);
   });
 
-  it('acknowledges at once, then checks health and starts Homebase on the stored port', async () => {
+  it('acknowledges at once, then checks health and starts Portly on the stored port', async () => {
     const chrome = createChrome({ storage: createStorage({ port: 5800 }) });
     const fetch = createFetch(down);
     const log = createLog();
@@ -245,7 +245,7 @@ describe('registerWarmUp: warm-up requests from new tabs', () => {
     assert.match(log.entries.at(-1).message, /\(new tab\)/);
   });
 
-  it('does nothing more when Homebase already answers', async () => {
+  it('does nothing more when Portly already answers', async () => {
     const chrome = createChrome();
     const fetch = createFetch(ok);
     registerWarmUp(chrome, { fetch, log: createLog() });
@@ -264,8 +264,8 @@ describe('registerWarmUp: warm-up requests from new tabs', () => {
       [WARM_UP, { url: 'https://davideaurum.github.io/' }],
       [WARM_UP, {}],
       [WARM_UP, null],
-      [{ type: 'homebase:start' }, { id: PINNED_EXTENSION_ID }],
-      ['homebase:warm-up', { id: PINNED_EXTENSION_ID }],
+      [{ type: 'portly:start' }, { id: PINNED_EXTENSION_ID }],
+      ['portly:warm-up', { id: PINNED_EXTENSION_ID }],
       [null, { id: PINNED_EXTENSION_ID }],
     ]) {
       const { responses, returned } = deliver(chrome, message, sender);
@@ -467,7 +467,7 @@ describe('background.js', () => {
       assert.equal(fetch.calls[0].url, 'http://localhost:6100/api/health');
       assert.deepEqual(chrome.runtime.calls.map((c) => c.message), [{ action: 'start', port: 6100 }]);
       assert.deepEqual(logged.at(-1).slice(0, 1), ['info']);
-      assert.match(logged.at(-1)[1], /^\[Homebase\] Asked the launcher to start Homebase on port 6100/);
+      assert.match(logged.at(-1)[1], /^\[Portly\] Asked the launcher to start Portly on port 6100/);
     } finally {
       globalThis.chrome = original.chrome;
       globalThis.fetch = original.fetch;
@@ -505,7 +505,7 @@ describe('background.js', () => {
         queue.push(resolved);
       }
     }
-    assert.deepEqual([...seen].sort(), ['background.js', 'lib/add-page.js', 'lib/homebase.js', 'lib/launcher.js', 'lib/warm-up.js']);
+    assert.deepEqual([...seen].sort(), ['background.js', 'lib/add-page.js', 'lib/launcher.js', 'lib/portly.js', 'lib/warm-up.js']);
   });
 });
 

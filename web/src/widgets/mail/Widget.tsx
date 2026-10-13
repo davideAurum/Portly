@@ -22,7 +22,7 @@ import {
   Trash2,
   Unplug,
 } from 'lucide-react';
-import type { MailAccountSummary } from '@homebase/shared';
+import type { MailAccountSummary } from '@portly/shared';
 import { isApiError } from '../../api/client.ts';
 import { useAccounts } from '../../api/accounts.ts';
 import { useMailActions, useMailSummary, type MailActionInput, type MailSummaryParams } from '../../api/mail.ts';

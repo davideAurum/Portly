@@ -4,7 +4,7 @@
  * schema first.
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { GeneralSettingsSchema, LocaleSchema, type GeneralSettings, type SettingsPatch } from '@homebase/shared';
+import { GeneralSettingsSchema, LocaleSchema, type GeneralSettings, type SettingsPatch } from '@portly/shared';
 import { useSettings, useSettingsAutosave } from '../../api/settings.ts';
 import { createFormatters } from '../../lib/format.ts';
 import { useNow } from '../../lib/useNow.ts';

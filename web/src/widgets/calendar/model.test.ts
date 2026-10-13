@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Calendar, CalendarEvent } from '@homebase/shared';
+import type { Calendar, CalendarEvent } from '@portly/shared';
 import {
   addDaysKey,
   dateKey,

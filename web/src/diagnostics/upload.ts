@@ -1,6 +1,6 @@
 /**
- * Sends this browser's diagnostic events (`clientLog.ts`) to the Homebase server when this page
- * load's backend is the server — Homebase's own page, or the Pages site in hybrid mode — so its
+ * Sends this browser's diagnostic events (`clientLog.ts`) to the Portly server when this page
+ * load's backend is the server — Portly's own page, or the Pages site in hybrid mode — so its
  * log shows them next to the requests and jobs they explain (ARCHITECTURE §17;
  * `POST /api/diagnostics/client-events`). `main.tsx` starts it once the page is up.
  *
@@ -16,7 +16,7 @@
  *   server drops it when it does not want it, and it stays unsent: This browser never shows it as
  *   in the server's log).
  * - The server takes at most 120 events and 64 KB of their fields a minute from a caller (this
- *   site's pairing, or Homebase's own page) and drops the rest, so a backlog (after an outage)
+ *   site's pairing, or Portly's own page) and drops the rest, so a backlog (after an outage)
  *   goes out in batches that stay under that — paced by every tab of this site together: the
  *   uploads of the last minute are recorded beside the stored events ({@link uploadPacingKey},
  *   read and written under the upload lock; this page load's own record where storage fails).
@@ -30,7 +30,7 @@
  *   later upload until it ages out); the others go at the next tick. No answer, 5xx and 429 are
  *   tried again at the next tick.
  */
-import type { ClientEventsRequest, ClientEventsResponse } from '@homebase/shared';
+import type { ClientEventsRequest, ClientEventsResponse } from '@portly/shared';
 import { ApiError } from '../api/client.ts';
 import { postClientEvents } from '../api/diagnostics.ts';
 import { getCapabilities } from '../capabilities.ts';

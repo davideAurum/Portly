@@ -1,15 +1,15 @@
 /**
  * What this page load can do. Two things decide it:
  *
- * - the **build**: the server build (served by Homebase itself) or the Pages build
+ * - the **build**: the server build (served by Portly itself) or the Pages build
  *   (`vite build --mode static`, the browser-only site, `STATIC_BUILD`);
- * - the **backend** of this page load: `server` (the Homebase server answers `/api/*`) or
+ * - the **backend** of this page load: `server` (the Portly server answers `/api/*`) or
  *   `browser` (the in-browser backend in `src/static/` answers them, over IndexedDB). The server
  *   build is always `server`. A Pages page load picks one before the first render
  *   (`setPageBackend`, from `main.tsx`) and keeps it: when the right backend changes, the page
  *   reloads instead of switching in place, so capabilities are constants for the page load.
  *
- * A Pages page load on the `server` backend (hybrid mode: paired with the Homebase server on this
+ * A Pages page load on the `server` backend (hybrid mode: paired with the Portly server on this
  * PC) has every server feature, account setup included. A `browser` backend has no server, so anything
  * that needs one — Google and app-password accounts, mail, calendars, feeds, the credential vault,
  * fetching third-party pages — is off. Outlook.com accounts work there too: the browser signs in to
@@ -21,7 +21,7 @@
  */
 
 /** True in the Pages (browser-only) build, whatever its backend. Build-level only. */
-export const STATIC_BUILD: boolean = __HOMEBASE_STATIC__;
+export const STATIC_BUILD: boolean = __PORTLY_STATIC__;
 
 /** Where this page load's data lives. */
 export type Backend = 'server' | 'browser';
@@ -31,7 +31,7 @@ export interface Capabilities {
   pagesBuild: boolean;
   /** Where this page load's data lives (fixed for the page load). */
   backend: Backend;
-  /** The Pages build talking to the Homebase server on this PC (`pagesBuild && backend === 'server'`). */
+  /** The Pages build talking to the Portly server on this PC (`pagesBuild && backend === 'server'`). */
   remoteServer: boolean;
   /** The Accounts section: every kind on the server, Outlook.com alone on the `browser` backend. */
   accounts: boolean;

@@ -31,8 +31,8 @@ function port(name: string, fallback: number): number {
   return value;
 }
 
-const apiPort = port('HOMEBASE_PORT', 5757);
-const vitePort = port('HOMEBASE_VITE_PORT', 5173);
+const apiPort = port('PORTLY_PORT', 5757);
+const vitePort = port('PORTLY_VITE_PORT', 5173);
 
 /** Mode `static` (`vite build --mode static`): the browser-only build served as plain files. */
 export const STATIC_MODE = 'static';
@@ -43,7 +43,7 @@ export const STATIC_MODE = 'static';
  * directly: Open-Meteo (weather, geocoding), Todoist, Wikipedia (suggestions), ESPN (sports),
  * Microsoft's token endpoint and Graph (Outlook.com sign-in and calendar on the in-browser
  * backend), and DuckDuckGo's favicon service used as `<img src>`. In hybrid mode `connect-src` also
- * allows the Homebase server on this PC (`localServer`); its images reach the page as
+ * allows the Portly server on this PC (`localServer`); its images reach the page as
  * `blob:`/`data:` URLs, which `img-src` already allows. `frame-ancestors` cannot be expressed in a
  * meta tag.
  */
@@ -75,15 +75,15 @@ export function staticCsp(localServer: string): string {
 
 /** Base path for a GitHub Pages project site (`/<repo>/`); must start and end with `/`. */
 function staticBase(env: Record<string, string>): string {
-  const raw = env.HOMEBASE_STATIC_BASE?.trim();
+  const raw = env.PORTLY_STATIC_BASE?.trim();
   if (raw === undefined || raw === '') return '/';
-  if (!raw.startsWith('/') || !raw.endsWith('/')) throw new Error(`HOMEBASE_STATIC_BASE must start and end with "/" (got "${raw}")`);
+  if (!raw.startsWith('/') || !raw.endsWith('/')) throw new Error(`PORTLY_STATIC_BASE must start and end with "/" (got "${raw}")`);
   return raw;
 }
 
 function staticHtml(localServer: string): Plugin {
   return {
-    name: 'homebase-static-html',
+    name: 'portly-static-html',
     // Build only: the dev server needs plugin-react's inline preamble and the HMR socket, which
     // this CSP would block.
     apply: 'build',
@@ -91,7 +91,7 @@ function staticHtml(localServer: string): Plugin {
       order: 'pre',
       handler: () => [
         { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: staticCsp(localServer) }, injectTo: 'head-prepend' },
-        { tag: 'meta', attrs: { name: 'homebase-build', content: 'static' }, injectTo: 'head' },
+        { tag: 'meta', attrs: { name: 'portly-build', content: 'static' }, injectTo: 'head' },
       ],
     },
   };
@@ -104,7 +104,7 @@ function staticHtml(localServer: string): Plugin {
  */
 function staticSetupScript(): Plugin {
   return {
-    name: 'homebase-static-setup-script',
+    name: 'portly-static-setup-script',
     apply: 'build',
     generateBundle() {
       for (const fileName of ['install.ps1', 'setup.ps1']) {
@@ -115,15 +115,15 @@ function staticSetupScript(): Plugin {
   };
 }
 
-// §10.1: /api is proxied to the Homebase server with changeOrigin: false (the Host header stays
+// §10.1: /api is proxied to the Portly server with changeOrigin: false (the Host header stays
 // `localhost:<vite port>`, which the server allowlists in dev). Never set server.host or cors.
 export default defineConfig(({ mode }) => {
   const isStatic = mode === STATIC_MODE;
-  const env = loadEnv(mode, webDir, 'HOMEBASE_');
-  // Hybrid mode: the Homebase server on this PC the Pages build may use (`HOMEBASE_STATIC_SERVER`,
+  const env = loadEnv(mode, webDir, 'PORTLY_');
+  // Hybrid mode: the Portly server on this PC the Pages build may use (`PORTLY_STATIC_SERVER`,
   // default http://127.0.0.1:5757, `off` disables it; loopback origins only, see
   // src/localServer/origin.ts). The server build never looks for another server: it is the server.
-  const localServer = isStatic ? parseLocalServerOrigin(env.HOMEBASE_STATIC_SERVER) : '';
+  const localServer = isStatic ? parseLocalServerOrigin(env.PORTLY_STATIC_SERVER) : '';
   return {
     root: webDir,
     base: isStatic ? staticBase(env) : '/',
@@ -131,9 +131,9 @@ export default defineConfig(({ mode }) => {
     define: {
       __APP_VERSION__: JSON.stringify(rootPackage.version),
       __APP_UPDATED__: JSON.stringify(lastUpdated()),
-      __HOMEBASE_STATIC__: JSON.stringify(isStatic),
-      // Origin of the Homebase server on this PC the Pages build may use (hybrid mode); '' = off.
-      __HOMEBASE_LOCAL_SERVER__: JSON.stringify(localServer),
+      __PORTLY_STATIC__: JSON.stringify(isStatic),
+      // Origin of the Portly server on this PC the Pages build may use (hybrid mode); '' = off.
+      __PORTLY_LOCAL_SERVER__: JSON.stringify(localServer),
     },
     server: {
       port: vitePort,

@@ -4,7 +4,7 @@
  * fallback of the favicon chain).
  *
  * The image URL comes from `useAssetUrl` (static/assets.ts): on a Pages page load backed by the
- * Homebase server on this PC the icon is loaded from that server first, and the letter tile shows
+ * Portly server on this PC the icon is loaded from that server first, and the letter tile shows
  * until it is there (or when the server has no such icon). A failed image falls back to the letter
  * tile until the URL changes (another icon, or the same icon resolved anew).
  *
@@ -19,7 +19,7 @@
  * plate.
  */
 import { useState } from 'react';
-import { iconUrl } from '@homebase/shared';
+import { iconUrl } from '@portly/shared';
 import { useAssetUrl } from '../../static/assets.ts';
 import { useColorScheme } from '../../theme/useTheme.ts';
 import { LetterTile } from '../../ui/Badge.tsx';

@@ -1,10 +1,10 @@
 /**
  * Small pure helpers of Settings → Diagnostics (ARCHITECTURE §17): durations, sizes, the local
  * time with its UTC offset, the supervisor's last exit, area names, when the server has no
- * diagnostics, the link to the diagnostics page on this PC, the hybrid hint "Homebase answers,
+ * diagnostics, the link to the diagnostics page on this PC, the hybrid hint "Portly answers,
  * but not to this site" with this site's address, and whether the server takes debug events.
  */
-import type { DiagnosticArea, LogLevelState } from '@homebase/shared';
+import type { DiagnosticArea, LogLevelState } from '@portly/shared';
 import { isApiError } from '../../api/client.ts';
 import { LOCAL_SERVER_ORIGIN } from '../../localServer/config.ts';
 import { DEFAULT_LOCAL_SERVER_ORIGIN } from '../../localServer/origin.ts';
@@ -115,15 +115,15 @@ export function diagnosticsUnavailable(error: unknown): boolean {
   return isApiError(error) && (error.code === 'local_only' || error.status === 404);
 }
 
-/** The diagnostics page of Homebase on this PC, which always stays there (see `app/pagesForward.ts`). */
+/** The diagnostics page of Portly on this PC, which always stays there (see `app/pagesForward.ts`). */
 export function localDiagnosticsUrl(origin: string = LOCAL_SERVER_ORIGIN): string {
   return `${origin === '' ? DEFAULT_LOCAL_SERVER_ORIGIN : origin.replace(/\/+$/, '')}/#/settings/diagnostics`;
 }
 
 /**
  * True when the last probe found something answering on the local server's port, but not to this
- * site's CORS requests (`unreachableReason`, set by the local server controller): Homebase on this
- * PC runs, but its `HOMEBASE_PAGES_URL` is not this site (or it is too old for hybrid mode).
+ * site's CORS requests (`unreachableReason`, set by the local server controller): Portly on this
+ * PC runs, but its `PORTLY_PAGES_URL` is not this site (or it is too old for hybrid mode).
  */
 export function answersWithoutCors(state: Pick<LocalServerState, 'status' | 'unreachableReason'>): boolean {
   return state.unreachableReason === 'answers-without-cors' && state.status !== 'connected';
@@ -131,7 +131,7 @@ export function answersWithoutCors(state: Pick<LocalServerState, 'status' | 'unr
 
 /**
  * This site's address, origin plus base path (`https://<user>.github.io/<repo>/`): the value
- * `HOMEBASE_PAGES_URL` must have for Homebase on this PC to answer it (its origin alone names
+ * `PORTLY_PAGES_URL` must have for Portly on this PC to answer it (its origin alone names
  * another site when the site has a path).
  */
 export function thisSiteAddress(origin: string = window.location.origin, base: string = import.meta.env.BASE_URL): string {
@@ -157,7 +157,7 @@ function text(value: unknown, max = 120): string | null {
 }
 
 /**
- * The supervisor's last exit of the server (`HOMEBASE_SUPERVISOR_LAST_EXIT`: JSON `{code, signal,
+ * The supervisor's last exit of the server (`PORTLY_SUPERVISOR_LAST_EXIT`: JSON `{code, signal,
  * failure?}`, `failure` being the server's `startup-failed` message), as one line: `exit code 1,
  * start-up failed (db): SqliteError [SQLITE_BUSY]: database is locked`. Text that is not that
  * JSON is shown as it is (shortened).

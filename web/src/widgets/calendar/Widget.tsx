@@ -20,7 +20,7 @@ import {
   Unplug,
   UserRoundPlus,
 } from 'lucide-react';
-import type { Account, CalendarEvent, EventInput, EventUpdate } from '@homebase/shared';
+import type { Account, CalendarEvent, EventInput, EventUpdate } from '@portly/shared';
 import { useAccounts } from '../../api/accounts.ts';
 import {
   calendarSyncFailed,
@@ -140,7 +140,7 @@ function NoCalendars({ accounts, compact }: { accounts: readonly Account[]; comp
       icon={RefreshCw}
       compact={compact}
       title="Waiting for your calendars"
-      body={`Homebase is syncing ${accounts.length === 1 ? accounts[0]!.label : 'your accounts'}. If nothing appears, check Settings › Calendars.`}
+      body={`Portly is syncing ${accounts.length === 1 ? accounts[0]!.label : 'your accounts'}. If nothing appears, check Settings › Calendars.`}
       action={link}
     />
   );

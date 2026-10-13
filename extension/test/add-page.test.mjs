@@ -1,5 +1,5 @@
 /**
- * "Add this page to Homebase" (lib/add-page.js): the request hash, the pass-through filter and
+ * "Add this page to Portly" (lib/add-page.js): the request hash, the pass-through filter and
  * the toolbar button's click handler with fake chrome.action / chrome.tabs.
  */
 import assert from 'node:assert/strict';
@@ -95,7 +95,7 @@ describe('forwardedHash', () => {
 });
 
 describe('toolbar button', () => {
-  it('opens Homebase next to the current tab with the page to add', async () => {
+  it('opens Portly next to the current tab with the page to add', async () => {
     const chrome = createChrome();
     const result = await addPage(chrome, { id: 7, index: 3, windowId: 2, url: 'https://example.com/post', title: 'A post' });
     assert.equal(result, 'opened');

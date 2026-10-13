@@ -1,5 +1,5 @@
 {
-  "name": "homebase",
+  "name": "portly",
   "version": "0.1.0",
   "private": true,
   "description": "Single-user, customizable browser home page served from a local Node server.",
@@ -17,11 +17,11 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "node --watch --env-file=server/dev.env server/src/index.ts",
-    "dev:web": "npm run dev --workspace @homebase/web",
-    "build": "npm run build --workspace @homebase/web",
-    "build:static": "npm run build:static --workspace @homebase/web",
+    "dev:web": "npm run dev --workspace @portly/web",
+    "build": "npm run build --workspace @portly/web",
+    "build:static": "npm run build:static --workspace @portly/web",
     "start": "node server/src/index.ts",
-    "preview:static": "npm run preview:static --workspace @homebase/web",
+    "preview:static": "npm run preview:static --workspace @portly/web",
     "typecheck": "tsc --noEmit -p shared && tsc --noEmit -p server && tsc --noEmit -p web && tsc --noEmit -p web/tsconfig.node.json",
     "test": "vitest run && npm run test:extension && npm run test:native-host && npm audit --omit=dev --audit-level=high",
     "test:extension": "node scripts/check-extension.mjs",

@@ -26,7 +26,7 @@ import {
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FolderPlus, Pencil, Plus, Trash } from 'lucide-react';
-import type { Bookmark, BookmarkGroup } from '@homebase/shared';
+import type { Bookmark, BookmarkGroup } from '@portly/shared';
 import { useMoveBookmark, useUpdateGroup } from '../../api/bookmarks.ts';
 import { Button, IconButton } from '../../ui/index.ts';
 import type { LaunchpadConfig } from './index.ts';

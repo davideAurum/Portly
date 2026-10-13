@@ -4,7 +4,7 @@
  * group is created the first time a bookmark is filed under "No group".
  */
 import type { QueryClient } from '@tanstack/react-query';
-import type { BookmarkGroup } from '@homebase/shared';
+import type { BookmarkGroup } from '@portly/shared';
 import { createGroup } from '../../api/bookmarks.ts';
 import { qk } from '../../api/keys.ts';
 import { patchSettings, useSettings } from '../../api/settings.ts';

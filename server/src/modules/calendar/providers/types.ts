@@ -2,7 +2,7 @@
  * Provider interfaces: every account kind lists calendars and events; Google and Microsoft can
  * also write single events (CalDAV and ICS are read-only in v1) and report what they sent.
  */
-import type { Account, CalendarSource, EventInput, EventUpdate } from '@homebase/shared';
+import type { Account, CalendarSource, EventInput, EventUpdate } from '@portly/shared';
 import type { SyncWindow } from '../time.ts';
 import type { CalendarRow, EventRecord, EventRow, RemoteCalendar } from '../types.ts';
 

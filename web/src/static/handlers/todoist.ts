@@ -32,7 +32,7 @@ import {
   type Task,
   type TaskUpdate,
   type TodoistTokenStatus,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { createMemoryCache, type MemoryCache } from '../lib/cache.ts';
 import { parseJsonBody, validate } from '../lib/validate.ts';

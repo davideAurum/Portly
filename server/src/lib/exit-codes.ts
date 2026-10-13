@@ -5,7 +5,7 @@
  *
  * - {@link StartupFailure}: what a supervised server reports over IPC (`{type: 'startup-failed'}`)
  *   right before it exits because start-up failed; the supervisor logs it as `lastFailure` and
- *   hands it to the next attempt in `HOMEBASE_SUPERVISOR_LAST_EXIT`.
+ *   hands it to the next attempt in `PORTLY_SUPERVISOR_LAST_EXIT`.
  * - {@link writeBootstrapFailure}: a failure before any logger exists (invalid configuration) is
  *   appended to the log file as one JSON line in the logger's format, best effort.
  * - {@link fatalText}: the stderr text of a fatal error (frame-only stack, scrubbed): a supervised
@@ -13,14 +13,14 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { scrubFields } from '@homebase/shared';
+import { scrubFields } from '@portly/shared';
 import { errorFields, scrubText } from './logger.ts';
 
 /** Clean shutdown. */
 export const EXIT_OK = 0;
 /** Startup failure (bad config, listener error, uncaught exception). */
 export const EXIT_STARTUP_FAILURE = 1;
-/** A port is already in use — another Homebase is running; the supervisor stops restarting. */
+/** A port is already in use — another Portly is running; the supervisor stops restarting. */
 export const EXIT_ALREADY_RUNNING = 3;
 /**
  * Start-up cannot succeed until the user acts (`web/dist` is missing): the supervisor stops after

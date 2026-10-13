@@ -3,7 +3,7 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BookmarkImportReport, BookmarkImportSource, BookmarksResponse } from '@homebase/shared';
+import type { BookmarkImportReport, BookmarkImportSource, BookmarksResponse } from '@portly/shared';
 import { bookmarksTestbed, fileForm, type BookmarksTestbed } from './__fixtures__/setup.ts';
 import { NETSCAPE_HTML, chromeBookmarksFile, makeLocalAppData } from './__fixtures__/imports.ts';
 import { countImportableLinks, parseBrowserBookmarks, sourceId } from './import-browser.ts';
@@ -135,7 +135,7 @@ describe('bookmarks import: browser profiles', () => {
   });
 
   it('answers [] when no browser data exists', async () => {
-    const empty = bookmarksTestbed({ localAppData: path.join(os.tmpdir(), 'homebase-no-such-dir') });
+    const empty = bookmarksTestbed({ localAppData: path.join(os.tmpdir(), 'portly-no-such-dir') });
     expect((await empty.json('GET', '/api/bookmarks/import/sources')).body).toEqual([]);
     empty.close();
   });
@@ -234,7 +234,7 @@ describe('bookmarks import: browser profiles', () => {
   });
 
   it('never follows junctioned profile directories or symlinked files out of the browser data directory', async () => {
-    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-outside-'));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-outside-'));
     fs.writeFileSync(path.join(outside, 'Bookmarks'), JSON.stringify(chromeBookmarksFile()));
     const userData = path.join(lad.root, 'Google', 'Chrome', 'User Data');
     const created: string[] = [];

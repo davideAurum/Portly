@@ -16,7 +16,7 @@
  */
 import type { Hono } from 'hono';
 import { z } from 'zod';
-import { SuggestProviderSchema, type SuggestProvider, type SuggestResponse } from '@homebase/shared';
+import { SuggestProviderSchema, type SuggestProvider, type SuggestResponse } from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import { outcomeFromError, type HealthSubject, type Outcome } from '../../lib/health.ts';
 import { withLogContext } from '../../lib/log-context.ts';

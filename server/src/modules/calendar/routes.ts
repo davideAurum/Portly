@@ -28,7 +28,7 @@ import {
   IcsUpdateSchema,
   type CalendarEvent,
   type EventsResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { paired } from '../../lib/routes.ts';

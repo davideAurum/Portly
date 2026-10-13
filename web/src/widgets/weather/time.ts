@@ -9,7 +9,7 @@
  *   in the place's IANA zone. Without both a zone and an offset, a label's wall-clock time is
  *   shown as is (never shifted into the viewer's zone).
  */
-import type { WeatherDay, WeatherHour, WeatherReport } from '@homebase/shared';
+import type { WeatherDay, WeatherHour, WeatherReport } from '@portly/shared';
 
 const partsFormatters = new Map<string, Intl.DateTimeFormat>();
 

@@ -6,21 +6,21 @@
  * 2. 403 unless the Host header is in the allowlist derived from config.
  * 3. `/api/*` routes are non-exempt unless declared with `exempt(kind)` (lib/routes.ts); the
  *    declaration is matched with a Hono router instance.
- *    Pages site (hybrid mode, only with `HOMEBASE_PAGES_URL` and a pairing store): an `/api`
+ *    Pages site (hybrid mode, only with `PORTLY_PAGES_URL` and a pairing store): an `/api`
  *    request whose `Origin` is exactly the configured Pages origin takes its own branch instead
  *    of step 4. Preflights are answered here (never passed on); every other request needs a
- *    route declared `paired()` (else 403 `local_only`), `X-Homebase: 1`, a cross-site/same-site/
+ *    route declared `paired()` (else 403 `local_only`), `X-Portly: 1`, a cross-site/same-site/
  *    absent `Sec-Fetch-Site`, a pairing token made for that origin (else 401 `pairing_required`)
  *    and the Content-Type of step 4. Health passes as for anyone. These responses carry CORS
  *    headers for that origin only (security/headers.ts), refusals included.
- * 4. Non-exempt `/api` requests need `X-Homebase: 1`, an absent-or-allowed `Origin`, an
+ * 4. Non-exempt `/api` requests need `X-Portly: 1`, an absent-or-allowed `Origin`, an
  *    absent-or-`same-origin` `Sec-Fetch-Site`, and for bodies `Content-Type: application/json`
  *    (`multipart/form-data` for routes declared with `multipart(kind)`). `image` routes accept
  *    `Sec-Fetch-Site` same-origin/none/absent; `health` and `oauth-callback` skip step 4.
  * 5. Body limits on streamed bytes (chunked included): JSON 1 MB, uploads 10 MB, imports 25 MB.
  *
  * Apart from the Pages site, the server never sends CORS headers and never answers preflights
- * (an OPTIONS request to the API has no `X-Homebase` header and is refused).
+ * (an OPTIONS request to the API has no `X-Portly` header and is refused).
  *
  * Diagnostics (§17): every refusal logs `info 'request refused by gate' {method, path, status,
  * reason, origin?, secFetchSite?}` with a machine `reason` (repeat-collapsed per reason and origin);
@@ -28,12 +28,12 @@
  * `token_revoked {pairingId, removedBy}`, `token_origin_mismatch {pairingId}`), never the token.
  * `/api` requests (health included) from a web origin that is neither allowed nor the configured
  * Pages origin are noted in `foreignOrigins`: named and warned about when worth naming (GitHub
- * Pages, loopback, the Pages site's domain: a missing or wrong `HOMEBASE_PAGES_URL`), else only
+ * Pages, loopback, the Pages site's domain: a missing or wrong `PORTLY_PAGES_URL`), else only
  * counted. Origins are logged only when they are ours, the Pages site's or such named ones; a
  * browser extension's origin is logged as its scheme only (`chrome-extension:`), never its id.
  */
 import type { Context, MiddlewareHandler } from 'hono';
-import { ERROR_STATUS, PAIRING_TOKEN_HEADER, type ErrorCode } from '@homebase/shared';
+import { ERROR_STATUS, PAIRING_TOKEN_HEADER, type ErrorCode } from '@portly/shared';
 import type { Config } from '../config.ts';
 import type { AppEnv, PagesPreflight } from '../context.ts';
 import { PayloadTooLargeError, errorResponse } from '../lib/errors.ts';
@@ -63,7 +63,7 @@ export type GateRefusal =
   | 'host_not_allowed'
   | 'preflight_refused'
   | 'local_only'
-  | 'x_homebase_missing'
+  | 'x_portly_missing'
   | 'cross_site'
   | 'token_missing'
   | 'token_malformed'
@@ -78,7 +78,7 @@ export type GateRefusal =
 /** Methods a Pages preflight may ask for. */
 export const PAGES_ALLOWED_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']);
 /** Request headers a Pages preflight may ask for (lower-case). */
-export const PAGES_ALLOWED_HEADERS: ReadonlySet<string> = new Set(['content-type', 'x-homebase', PAIRING_TOKEN_HEADER.toLowerCase()]);
+export const PAGES_ALLOWED_HEADERS: ReadonlySet<string> = new Set(['content-type', 'x-portly', PAIRING_TOKEN_HEADER.toLowerCase()]);
 /** `Sec-Fetch-Site` values a Pages request may carry (absent is fine too). Loopback dev origins are same-site. */
 const PAGES_FETCH_SITES: ReadonlySet<string> = new Set(['cross-site', 'same-site']);
 
@@ -305,14 +305,14 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
     }
     if (meta.exempt === 'health') return null;
 
-    if (meta.access !== 'paired') return refuse(c, 'local_only', "Only Homebase's own page on this PC can use this", 'local_only');
-    if (c.req.header('x-homebase') !== '1') return refuse(c, 'forbidden', 'Missing X-Homebase header', 'x_homebase_missing');
+    if (meta.access !== 'paired') return refuse(c, 'local_only', "Only Portly's own page on this PC can use this", 'local_only');
+    if (c.req.header('x-portly') !== '1') return refuse(c, 'forbidden', 'Missing X-Portly header', 'x_portly_missing');
     const site = c.req.header('sec-fetch-site')?.trim().toLowerCase();
     if (site !== undefined && !PAGES_FETCH_SITES.has(site)) return refuse(c, 'forbidden', 'Unexpected Sec-Fetch-Site', 'cross_site');
 
     const verdict = checkToken(c.req.header(PAIRING_TOKEN_HEADER));
     if (!('record' in verdict)) {
-      return refuse(c, 'pairing_required', 'This browser is not paired with Homebase on this PC', verdict.reason, verdict.fields);
+      return refuse(c, 'pairing_required', 'This browser is not paired with Portly on this PC', verdict.reason, verdict.fields);
     }
     const { record } = verdict;
 
@@ -339,7 +339,7 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
     const meta: RouteMeta = api ? routes.match(method, path) : {};
     const origin = c.req.header('origin');
 
-    // A web page elsewhere calling the API: how a missing or wrong HOMEBASE_PAGES_URL shows up.
+    // A web page elsewhere calling the API: how a missing or wrong PORTLY_PAGES_URL shows up.
     if (api && origin !== undefined && origin !== configuredPages && !config.allowedOrigins.has(origin)) {
       noteForeignOrigin(c, origin, meta);
     }
@@ -359,7 +359,7 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
           return refuse(c, 'forbidden', 'Cross-site request refused', 'cross_site');
         }
       } else {
-        if (c.req.header('x-homebase') !== '1') return refuse(c, 'forbidden', 'Missing X-Homebase header', 'x_homebase_missing');
+        if (c.req.header('x-portly') !== '1') return refuse(c, 'forbidden', 'Missing X-Portly header', 'x_portly_missing');
         if (site !== undefined && site !== 'same-origin') return refuse(c, 'forbidden', 'Cross-site request refused', 'cross_site');
         const typeProblem = contentTypeProblem(c, method, meta);
         if (typeProblem) return refuse(c, 'bad_request', typeProblem, 'content_type');

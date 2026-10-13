@@ -1,6 +1,6 @@
 /**
  * Images of a server-backend page (hybrid mode): bookmark icons (`/api/icons/<id>`) and uploads
- * (`/api/uploads/<id>`) live on the Homebase server on this PC, but an `<img src>` or CSS `url()`
+ * (`/api/uploads/<id>`) live on the Portly server on this PC, but an `<img src>` or CSS `url()`
  * cannot carry the pairing token, and the raw `/api/…` path would ask the Pages host for it. So
  * the page fetches each image through the server transport (with the browser's HTTP cache: the
  * server sends `private, max-age=86400`) and hands out a URL of its own:

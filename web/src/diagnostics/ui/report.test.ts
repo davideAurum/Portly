@@ -5,7 +5,7 @@
  * report (redact=0|1) plus the browser section, saved under the server's file name.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { redactForSharing } from '@homebase/shared';
+import { redactForSharing } from '@portly/shared';
 import { capabilitiesFor } from '../../capabilities.ts';
 import type { LocalServerState } from '../../localServer/types.ts';
 import { getClientEvents, recordClientEvent } from '../clientLog.ts';
@@ -130,7 +130,7 @@ describe('sharing', () => {
 });
 
 describe('saveDiagnosticReport', () => {
-  function stubReport(body: string, disposition = 'attachment; filename="homebase-diagnostics-20261011-1432.json"') {
+  function stubReport(body: string, disposition = 'attachment; filename="portly-diagnostics-20261011-1432.json"') {
     const fetchMock = vi.fn(async () => new Response(body, { status: 200, headers: { 'Content-Type': 'application/json', 'Content-Disposition': disposition } }));
     vi.stubGlobal('fetch', fetchMock);
     return fetchMock;
@@ -139,10 +139,10 @@ describe('saveDiagnosticReport', () => {
   it('adds the browser section to the server’s report and saves it under the server’s file name', async () => {
     const fetchMock = stubReport(JSON.stringify({ generatedAt: 'x', summary: { server: {} } }));
     const browser = section();
-    expect(await saveDiagnosticReport({ redact: false, browser, dict: {} })).toBe('homebase-diagnostics-20261011-1432.json');
+    expect(await saveDiagnosticReport({ redact: false, browser, dict: {} })).toBe('portly-diagnostics-20261011-1432.json');
     expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toBe('/api/diagnostics/report?redact=0');
     expect(saved.files).toHaveLength(1);
-    expect(saved.files[0]!.name).toBe('homebase-diagnostics-20261011-1432.json');
+    expect(saved.files[0]!.name).toBe('portly-diagnostics-20261011-1432.json');
     const report = JSON.parse(await saved.files[0]!.blob.text());
     expect(report.generatedAt).toBe('x');
     expect(report.browser).toEqual(JSON.parse(JSON.stringify(browser)));
@@ -162,7 +162,7 @@ describe('saveDiagnosticReport', () => {
   it('saves a report that is not a JSON object as it came', async () => {
     stubReport('not json', 'attachment');
     await saveDiagnosticReport({ redact: false, browser: section(), dict: {} });
-    expect(saved.files[0]!.name).toBe('homebase-diagnostics.json');
+    expect(saved.files[0]!.name).toBe('portly-diagnostics.json');
     expect(await saved.files[0]!.blob.text()).toBe('not json');
   });
 });

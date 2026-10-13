@@ -7,7 +7,7 @@ import { browserPageSignals, isFramed, isPageBusy } from './page.ts';
 
 afterEach(() => {
   document.body.innerHTML = '';
-  delete document.documentElement.dataset.homebaseEditing;
+  delete document.documentElement.dataset.portlyEditing;
 });
 
 describe('isPageBusy', () => {
@@ -25,9 +25,9 @@ describe('isPageBusy', () => {
   });
 
   it('is busy in edit mode', () => {
-    document.documentElement.dataset.homebaseEditing = 'true';
+    document.documentElement.dataset.portlyEditing = 'true';
     expect(isPageBusy()).toBe(true);
-    document.documentElement.dataset.homebaseEditing = 'false';
+    document.documentElement.dataset.portlyEditing = 'false';
     expect(isPageBusy()).toBe(false);
   });
 

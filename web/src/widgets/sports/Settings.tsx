@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Check, Plus, Search, X } from 'lucide-react';
-import { SPORTS_LEAGUES, sportsLeague, type SportsTeam } from '@homebase/shared';
+import { SPORTS_LEAGUES, sportsLeague, type SportsTeam } from '@portly/shared';
 import { useSportsTeams } from '../../api/sports.ts';
 import { IconButton } from '../../ui/Button.tsx';
 import { Field } from '../../ui/Field.tsx';

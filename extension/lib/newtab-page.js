@@ -1,24 +1,24 @@
 // @ts-check
 /**
  * New-tab page controller (ARCHITECTURE §11). Reads the settings and works out where to go
- * (resolveNewTab: the "auto" default follows what Homebase on this PC last said about its Pages
+ * (resolveNewTab: the "auto" default follows what Portly on this PC last said about its Pages
  * site), then:
  *
- * Pages site: asks the service worker to warm up Homebase on this PC ({type: 'homebase:warm-up'};
- * it starts Homebase through the launcher when it isn't running and records what it says about
+ * Pages site: asks the service worker to warm up Portly on this PC ({type: 'portly:warm-up'};
+ * it starts Portly through the launcher when it isn't running and records what it says about
  * its Pages site), waits at most WARM_UP_ACK_TIMEOUT_MS for the acknowledgement and opens the
- * Pages site. The site itself finds Homebase on this PC; this page never contacts it.
+ * Pages site. The site itself finds Portly on this PC; this page never contacts it.
  *
- * Homebase on this PC (the local target, and auto/pages while no Pages site is known): checks
+ * Portly on this PC (the local target, and auto/pages while no Pages site is known): checks
  * /api/health on the configured port:
  *
- * - Homebase answers → record what it says about its Pages site, then redirect to that site when
- *   it names one and the target isn't local, else to Homebase itself.
- * - It doesn't, and the Homebase launcher (native messaging) is available → ask the launcher to
- *   start it once, show "Starting Homebase…" and poll /api/health every 400 ms for up to 30 s,
+ * - Portly answers → record what it says about its Pages site, then redirect to that site when
+ *   it names one and the target isn't local, else to Portly itself.
+ * - It doesn't, and the Portly launcher (native messaging) is available → ask the launcher to
+ *   start it once, show "Starting Portly…" and poll /api/health every 400 ms for up to 30 s,
  *   then redirect. If the launcher can't help (not installed, ID mismatch, task missing, task
- *   failed to start) or Homebase doesn't answer in time, show the fallback with what to do.
- * - Otherwise → the "Homebase isn't running" fallback with a Google search box, Retry and a
+ *   failed to start) or Portly doesn't answer in time, show the fallback with what to do.
+ * - Otherwise → the "Portly isn't running" fallback with a Google search box, Retry and a
  *   short automatic re-check.
  *
  * All DOM output uses textContent/attributes — never HTML strings. Dependencies are injected so
@@ -31,12 +31,12 @@ import {
   checkHealth,
   describeFailure,
   googleSearchUrl,
-  homebaseOrigin,
+  portlyOrigin,
   newTabUrl,
   readSettings,
   rememberServerSite,
   resolveNewTab,
-} from './homebase.js';
+} from './portly.js';
 import { forwardedHash } from './add-page.js';
 import { PINNED_EXTENSION_ID, START_KIND, START_KINDS_THAT_STOP, isStaleExtensionId } from './launcher.js';
 
@@ -50,10 +50,10 @@ export const WARM_UP_ACK_TIMEOUT_MS = 300;
 export const AUTO_RETRY_INTERVAL_MS = 5000;
 export const AUTO_RETRY_MAX_ATTEMPTS = 12;
 
-/** While the launcher starts Homebase: poll every 400 ms, give up after 30 s. */
+/** While the launcher starts Portly: poll every 400 ms, give up after 30 s. */
 export const LAUNCH_POLL_INTERVAL_MS = 400;
 export const LAUNCH_TIMEOUT_MS = 30000;
-/** When the "Starting Homebase…" text admits it is taking a while. */
+/** When the "Starting Portly…" text admits it is taking a while. */
 export const LAUNCH_SLOW_AFTER_MS = 10000;
 
 export const STATE = Object.freeze({
@@ -63,7 +63,7 @@ export const STATE = Object.freeze({
   redirecting: 'redirecting',
 });
 
-/** Which "how to start Homebase" section the fallback shows (newtab.html `data-help`). */
+/** Which "how to start Portly" section the fallback shows (newtab.html `data-help`). */
 export const HELP = Object.freeze({
   manual: 'manual',
   install: 'install',
@@ -72,14 +72,14 @@ export const HELP = Object.freeze({
   reload: 'reload',
 });
 
-export const STARTING_TEXT = 'This usually takes a few seconds. This tab opens Homebase as soon as it answers.';
+export const STARTING_TEXT = 'This usually takes a few seconds. This tab opens Portly as soon as it answers.';
 export const STARTING_SLOW_TEXT = 'Still starting… This can take a little longer right after Windows starts.';
 
 /**
  * @typedef {import('./launcher.js').StartOutcome} StartOutcome
- * @typedef {import('./homebase.js').HealthFailure} HealthFailure
+ * @typedef {import('./portly.js').HealthFailure} HealthFailure
  *
- * @typedef {object} LaunchEnd why a start attempt ended without Homebase answering
+ * @typedef {object} LaunchEnd why a start attempt ended without Portly answering
  * @property {'timeout' | 'launcher'} reason
  * @property {StartOutcome | null} outcome the launcher's answer, if it gave one
  */
@@ -91,7 +91,7 @@ function sentence(prefix, detail) {
 }
 
 /**
- * The fallback's message and help section after a start attempt that did not bring Homebase up.
+ * The fallback's message and help section after a start attempt that did not bring Portly up.
  * @param {LaunchEnd} end
  * @param {number} [timeoutMs]
  * @param {string | null} [extensionId] chrome.runtime.id, to spot an extension still running
@@ -107,7 +107,7 @@ export function describeLaunchEnd(end, timeoutMs = LAUNCH_TIMEOUT_MS, extensionI
   ) {
     return {
       message:
-        "New tabs can't start Homebase: the browser still runs this extension under its old ID, and the launcher only answers the extension's fixed ID.",
+        "New tabs can't start Portly: the browser still runs this extension under its old ID, and the launcher only answers the extension's fixed ID.",
       help: HELP.reload,
     };
   }
@@ -115,11 +115,11 @@ export function describeLaunchEnd(end, timeoutMs = LAUNCH_TIMEOUT_MS, extensionI
     const seconds = Math.round(timeoutMs / 1000);
     if (outcome && outcome.kind === START_KIND.running) {
       return {
-        message: `The launcher says Homebase is running, but this page couldn't reach it within ${seconds} seconds.`,
+        message: `The launcher says Portly is running, but this page couldn't reach it within ${seconds} seconds.`,
         help: HELP.manual,
       };
     }
-    let message = `Homebase didn't answer within ${seconds} seconds of being started.`;
+    let message = `Portly didn't answer within ${seconds} seconds of being started.`;
     if (outcome && outcome.kind === START_KIND.maybe && outcome.detail) {
       message += ` ${sentence('The launcher reported', outcome.detail)}`;
     }
@@ -127,24 +127,24 @@ export function describeLaunchEnd(end, timeoutMs = LAUNCH_TIMEOUT_MS, extensionI
   }
   switch (outcome?.kind) {
     case START_KIND.notInstalled:
-      return { message: "New tabs can't start Homebase yet: the Homebase launcher isn't installed.", help: HELP.install };
+      return { message: "New tabs can't start Portly yet: the Portly launcher isn't installed.", help: HELP.install };
     case START_KIND.mismatch:
       return {
-        message: "New tabs can't start Homebase: the launcher is installed but doesn't accept this extension's ID.",
+        message: "New tabs can't start Portly: the launcher is installed but doesn't accept this extension's ID.",
         help: HELP.reinstall,
       };
     case START_KIND.taskMissing:
       return {
-        message: "New tabs can't start Homebase: the Homebase Server scheduled task isn't registered.",
+        message: "New tabs can't start Portly: the Portly Server scheduled task isn't registered.",
         help: HELP.install,
       };
     default: {
       const prefix =
         outcome?.code === 'schtasks_failed'
-          ? "Windows couldn't start the Homebase Server task"
+          ? "Windows couldn't start the Portly Server task"
           : outcome?.code === 'bad_request'
             ? 'The launcher rejected the start request'
-            : "The launcher couldn't start Homebase";
+            : "The launcher couldn't start Portly";
       return { message: sentence(prefix, outcome?.detail), help: HELP.manual };
     }
   }
@@ -154,14 +154,14 @@ export function describeLaunchEnd(end, timeoutMs = LAUNCH_TIMEOUT_MS, extensionI
  * @typedef {object} NewTabEnv
  * @property {Document} document
  * @property {{ replace(url: string): void, assign(url: string): void }} location
- * @property {import('./homebase.js').StorageAreaLike | null | undefined} storage
+ * @property {import('./portly.js').StorageAreaLike | null | undefined} storage
  * @property {typeof fetch} fetch
- * @property {import('./launcher.js').Launcher | null} [launcher] null/absent: never try to start Homebase
+ * @property {import('./launcher.js').Launcher | null} [launcher] null/absent: never try to start Portly
  * @property {((message: object) => unknown) | null} [sendMessage] chrome.runtime.sendMessage (the
  *   promise form), to ask the service worker for a warm-up; null/absent: open the Pages site at once
  * @property {string | null} [extensionId] chrome.runtime.id, shown in the ID-mismatch help
  * @property {string} [hash] this page's location.hash: an add-bookmark request (the toolbar
- *   button, lib/add-page.js) is passed on to Homebase; anything else is dropped
+ *   button, lib/add-page.js) is passed on to Portly; anything else is dropped
  * @property {(fn: () => void, ms: number) => unknown} [setTimeout]
  * @property {(handle: any) => void} [clearTimeout]
  * @property {number} [autoRetryIntervalMs]
@@ -212,7 +212,7 @@ export function createNewTabPage(env) {
   let target = null;
   /** @type {'pages' | 'local' | null} where this tab went or is checking, once decided */
   let opens = null;
-  /** @type {import('./homebase.js').ServerSite | null} the stored record of the server's Pages site */
+  /** @type {import('./portly.js').ServerSite | null} the stored record of the server's Pages site */
   let knownSite = null;
   let checking = false;
   let redirected = false;
@@ -246,8 +246,8 @@ export function createNewTabPage(env) {
   }
 
   function renderPort() {
-    const origin = homebaseOrigin(port);
-    for (const node of doc.querySelectorAll('[data-homebase-url]')) node.textContent = origin;
+    const origin = portlyOrigin(port);
+    for (const node of doc.querySelectorAll('[data-portly-url]')) node.textContent = origin;
   }
 
   function renderExtensionId() {
@@ -303,7 +303,7 @@ export function createNewTabPage(env) {
   function scheduleAutoRetry() {
     cancelAutoRetry();
     if (autoAttempts >= retryMaxAttempts) {
-      els.retryNote.textContent = 'Stopped checking automatically. Press Retry once Homebase is running.';
+      els.retryNote.textContent = 'Stopped checking automatically. Press Retry once Portly is running.';
       return;
     }
     els.retryNote.textContent = `Checking again automatically every ${retryIntervalMs / 1000} seconds…`;
@@ -322,9 +322,9 @@ export function createNewTabPage(env) {
   }
 
   /**
-   * Homebase answered: records what it said about its Pages site, then opens that site (unless the
-   * target is local) or Homebase itself.
-   * @param {import('./homebase.js').HealthOk} health
+   * Portly answered: records what it said about its Pages site, then opens that site (unless the
+   * target is local) or Portly itself.
+   * @param {import('./portly.js').HealthOk} health
    * @returns {Promise<void>}
    */
   async function redirect(health) {
@@ -340,11 +340,11 @@ export function createNewTabPage(env) {
     env.location.replace(pagesUrl !== null ? `${pagesUrl}${passOn}` : `${newTabUrl(port)}${passOn}`);
   }
 
-  /** Shows the "Homebase isn't running" card (with the last start attempt's outcome, if any). */
+  /** Shows the "Portly isn't running" card (with the last start attempt's outcome, if any). */
   function showOffline() {
     setBusy(false);
     if (lastFailure) els.detail.textContent = describeFailure(lastFailure, port);
-    doc.title = "Homebase isn't running";
+    doc.title = "Portly isn't running";
     renderLaunchEnd();
     els.launch.hidden = launcher === null;
     els.retry.classList.toggle('primary', launcher === null);
@@ -353,10 +353,10 @@ export function createNewTabPage(env) {
   }
 
   /**
-   * One health check; redirects on success. On failure it either starts Homebase (first check
+   * One health check; redirects on success. On failure it either starts Portly (first check
    * of the page, launcher available) or shows the fallback.
    * @param {{manual?: boolean, launch?: boolean}} [options]
-   * @returns {Promise<import('./homebase.js').HealthResult | null>} null when skipped
+   * @returns {Promise<import('./portly.js').HealthResult | null>} null when skipped
    */
   async function check(options = {}) {
     if (redirected || destroyed) return null;
@@ -403,7 +403,7 @@ export function createNewTabPage(env) {
   }
 
   /**
-   * Ends the current start attempt without Homebase answering and shows the fallback.
+   * Ends the current start attempt without Portly answering and shows the fallback.
    * @param {LaunchEnd['reason']} reason
    */
   function endLaunch(reason) {
@@ -433,9 +433,9 @@ export function createNewTabPage(env) {
       if (pollInFlightFor === seq) pollInFlightFor = 0;
     }
     if (redirected || destroyed) return;
-    // Homebase answering is all that matters, even if this attempt has ended meanwhile (the
+    // Portly answering is all that matters, even if this attempt has ended meanwhile (the
     // launcher said "not installed" while this check was in flight, and the user had started
-    // Homebase by hand).
+    // Portly by hand).
     if (result.ok) {
       await redirect(result);
       return;
@@ -465,7 +465,7 @@ export function createNewTabPage(env) {
   }
 
   /**
-   * Asks the launcher to start Homebase (one request) and polls /api/health until it answers,
+   * Asks the launcher to start Portly (one request) and polls /api/health until it answers,
    * the launcher says it can't help, or the time is up. Ignored while an attempt is running.
    * @returns {Promise<StartOutcome | null>} the launcher's answer; null when skipped
    */
@@ -480,7 +480,7 @@ export function createNewTabPage(env) {
     cancelAutoRetry();
     clearLaunchTimers();
     els.startingDetail.textContent = STARTING_TEXT;
-    doc.title = 'Starting Homebase…';
+    doc.title = 'Starting Portly…';
     setState(STATE.starting);
     deadlineTimer = setTimer(() => onDeadline(seq), launchTimeoutMs);
     slowTimer = setTimer(() => onSlow(seq), slowAfterMs);
@@ -539,7 +539,7 @@ export function createNewTabPage(env) {
   }
 
   /**
-   * Asks the service worker to warm up Homebase on this PC. Resolves when it acknowledges, when
+   * Asks the service worker to warm up Portly on this PC. Resolves when it acknowledges, when
    * the request fails (no worker listening, extension reloaded) or after ackTimeoutMs, whichever
    * comes first. Never rejects.
    * @returns {Promise<void>}
@@ -578,9 +578,9 @@ export function createNewTabPage(env) {
   }
 
   /**
-   * Reads the settings, then opens the Pages site or (Homebase on this PC) runs the first check,
-   * which may start Homebase.
-   * @returns {Promise<import('./homebase.js').HealthResult | null>} the first health check's
+   * Reads the settings, then opens the Pages site or (Portly on this PC) runs the first check,
+   * which may start Portly.
+   * @returns {Promise<import('./portly.js').HealthResult | null>} the first health check's
    *   result; null when it opens the Pages site (this page checks nothing there)
    */
   async function start() {
@@ -614,7 +614,7 @@ export function createNewTabPage(env) {
     get target() {
       return target;
     },
-    /** Where this tab goes: 'pages' or 'local' (Homebase on this PC), null before start(). */
+    /** Where this tab goes: 'pages' or 'local' (Portly on this PC), null before start(). */
     get opens() {
       return opens;
     },

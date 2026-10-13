@@ -18,7 +18,7 @@ import {
   type CalendarEvent,
   type CalendarSource,
   type EventStatus,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { addDays, isIsoDate, isKnownTimeZone, isoUtc, normalizeInstant } from './calendarTime.ts';
 import { descriptionText, singleLine } from './calendarText.ts';
 

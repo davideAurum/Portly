@@ -5,7 +5,7 @@
  */
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { AlignLeft, CalendarDays, ExternalLink as ExternalLinkIcon, MapPin, Pencil, Repeat, Trash, Video } from 'lucide-react';
-import type { CalendarEvent } from '@homebase/shared';
+import type { CalendarEvent } from '@portly/shared';
 import { linkProps, openUrl } from '../../lib/openUrl.ts';
 import { Badge } from '../../ui/Badge.tsx';
 import { Button, IconButton } from '../../ui/Button.tsx';

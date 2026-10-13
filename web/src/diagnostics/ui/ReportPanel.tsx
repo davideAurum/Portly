@@ -7,7 +7,7 @@
  */
 import { useState } from 'react';
 import { Copy, Download } from 'lucide-react';
-import { redactForSharing, type DiagnosticsSummary, type LogRecord } from '@homebase/shared';
+import { redactForSharing, type DiagnosticsSummary, type LogRecord } from '@portly/shared';
 import { getDiagnosticsLogs } from '../../api/diagnostics.ts';
 import { getCapabilities } from '../../capabilities.ts';
 import { copyText } from '../../lib/clipboard.ts';

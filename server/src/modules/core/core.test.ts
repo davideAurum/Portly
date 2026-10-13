@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HOMEBASE_API_VERSION, HealthResponseSchema, defaultSettings, type AboutResponse, type Settings } from '@homebase/shared';
+import { PORTLY_API_VERSION, HealthResponseSchema, defaultSettings, type AboutResponse, type Settings } from '@portly/shared';
 import { TEST_PAGES_ENV, TEST_PAGES_ORIGIN, pagesHeaders } from '../../testing/test-request.ts';
 import { coreTestbed, type CoreTestbed } from './__fixtures__/setup.ts';
 import { BACKUP_CHECK_INTERVAL_MS, BACKUP_INITIAL_DELAY_MS } from './index.ts';
@@ -13,14 +13,14 @@ describe('core: health and about', () => {
   afterEach(() => t.close());
 
   it('GET /api/health is exempt and reports the vault state', async () => {
-    const res = await t.json('GET', '/api/health', { headers: { 'X-Homebase': null, 'Sec-Fetch-Site': null } });
+    const res = await t.json('GET', '/api/health', { headers: { 'X-Portly': null, 'Sec-Fetch-Site': null } });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       ok: true,
       version: t.ctx.config.version,
       vault: 'ready',
-      app: 'homebase',
-      apiVersion: HOMEBASE_API_VERSION,
+      app: 'portly',
+      apiVersion: PORTLY_API_VERSION,
       instanceId: t.ctx.pairing.instanceId(),
       appUrl: 'http://localhost:5757/',
       pagesUrl: null,
@@ -35,32 +35,32 @@ describe('core: health and about', () => {
     expect(first).toMatch(/^[A-Za-z0-9_-]{22}$/);
     expect((await t.json<{ instanceId: string }>('GET', '/api/health')).body.instanceId).toBe(first);
     t.close();
-    t = coreTestbed({ env: { HOMEBASE_DEV: '1', HOMEBASE_VITE_PORT: '5173' } });
+    t = coreTestbed({ env: { PORTLY_DEV: '1', PORTLY_VITE_PORT: '5173' } });
     expect((await t.json<{ appUrl: string }>('GET', '/api/health')).body.appUrl).toBe('http://localhost:5173/');
   });
 
-  it('GET /api/health names the Pages site (HOMEBASE_PAGES_URL), which the new-tab extension follows', async () => {
+  it('GET /api/health names the Pages site (PORTLY_PAGES_URL), which the new-tab extension follows', async () => {
     t.close();
-    t = coreTestbed({ env: { HOMEBASE_PAGES_URL: 'https://me.github.io/homebase' } });
+    t = coreTestbed({ env: { PORTLY_PAGES_URL: 'https://me.github.io/portly' } });
     const res = await t.json<{ pagesUrl: string | null }>('GET', '/api/health', {
-      headers: { 'X-Homebase': null, 'Sec-Fetch-Site': null },
+      headers: { 'X-Portly': null, 'Sec-Fetch-Site': null },
     });
     expect(res.status).toBe(200);
-    expect(res.body.pagesUrl).toBe('https://me.github.io/homebase/');
+    expect(res.body.pagesUrl).toBe('https://me.github.io/portly/');
     expect(HealthResponseSchema.parse(res.body)).toEqual(res.body);
   });
 
   it('GET /api/health answers the Pages site without a token, with CORS for it', async () => {
     t.close();
     t = coreTestbed({ env: { ...TEST_PAGES_ENV } });
-    const res = await t.json('GET', '/api/health', { headers: pagesHeaders(null, { 'X-Homebase': null }) });
+    const res = await t.json('GET', '/api/health', { headers: pagesHeaders(null, { 'X-Portly': null }) });
     expect(res.status).toBe(200);
     expect(res.res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
-    expect(res.body).toMatchObject({ app: 'homebase', instanceId: t.ctx.pairing.instanceId() });
+    expect(res.body).toMatchObject({ app: 'portly', instanceId: t.ctx.pairing.instanceId() });
   });
 
   it('GET /api/about returns version, data dir, log path and vault state (gated)', async () => {
-    expect((await t.req('GET', '/api/about', { headers: { 'X-Homebase': null } })).status).toBe(403);
+    expect((await t.req('GET', '/api/about', { headers: { 'X-Portly': null } })).status).toBe(403);
     const res = await t.json<AboutResponse>('GET', '/api/about');
     expect(res.body).toEqual({
       version: t.ctx.config.version,
@@ -79,7 +79,7 @@ describe('core: health and about', () => {
     expect(pages.status).toBe(200);
     expect(pages.body).toEqual({ version: t.ctx.config.version, dataDir: '', logPath: '', vault: 'ready' });
     expect(pages.res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
-    // Homebase's own page still sees them.
+    // Portly's own page still sees them.
     const own = await t.json<AboutResponse>('GET', '/api/about');
     expect(own.body.dataDir).toBe(t.ctx.config.dataDir);
     expect(own.body.logPath).toBe(t.ctx.config.paths.logFile);
@@ -209,8 +209,8 @@ describe('core: vault reset', () => {
     expect(runs).toEqual(['ics']);
   });
 
-  it('is a gated POST (no X-Homebase → 403, nothing deleted)', async () => {
-    expect((await t.req('POST', '/api/vault/reset', { headers: { 'X-Homebase': null } })).status).toBe(403);
+  it('is a gated POST (no X-Portly → 403, nothing deleted)', async () => {
+    expect((await t.req('POST', '/api/vault/reset', { headers: { 'X-Portly': null } })).status).toBe(403);
     expect(t.ctx.vault.list()).toEqual(['account:g1', 'todoist:token']);
   });
 });
@@ -228,7 +228,7 @@ describe('core: backup job', () => {
     await t.ctx.scheduler.advance(BACKUP_INITIAL_DELAY_MS);
     const files = fs.readdirSync(t.ctx.config.paths.backupsDir);
     expect(files).toHaveLength(1);
-    expect(files[0]).toMatch(/^homebase-\d{4}-\d{2}-\d{2}\.db$/);
+    expect(files[0]).toMatch(/^portly-\d{4}-\d{2}-\d{2}\.db$/);
     await t.ctx.scheduler.advance(BACKUP_CHECK_INTERVAL_MS);
     expect(fs.readdirSync(t.ctx.config.paths.backupsDir)).toHaveLength(1);
   });

@@ -9,7 +9,7 @@
  * same `redactForSharing` and the names this page knows; its placeholders are renamed `host#b1`,
  * `email#b1`, … so that they never read as the server's `host#1` (each part numbers its own).
  */
-import { redactForSharing, type ClientEvent, type DiagnosticsSummary, type RedactionDictionary } from '@homebase/shared';
+import { redactForSharing, type ClientEvent, type DiagnosticsSummary, type RedactionDictionary } from '@portly/shared';
 import { downloadReport } from '../../api/diagnostics.ts';
 import type { Capabilities } from '../../capabilities.ts';
 import { saveBlob } from '../../lib/download.ts';
@@ -21,7 +21,7 @@ export interface BrowserReportSection {
   build: 'server' | 'pages';
   version: string;
   backend: 'server' | 'browser';
-  /** This site's origin (the Pages build; the server build's page is Homebase on this PC). */
+  /** This site's origin (the Pages build; the server build's page is Portly on this PC). */
   pagesOrigin: string | null;
   userAgent: string;
   session: string;

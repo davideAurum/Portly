@@ -1,6 +1,6 @@
 import { waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { SearchEngine, SearchSettings, Settings } from '@homebase/shared';
+import type { SearchEngine, SearchSettings, Settings } from '@portly/shared';
 import { qk } from '../../api/keys.ts';
 import { createTestQueryClient, renderWithProviders, type MockRequest } from '../../test/render.tsx';
 import { settings as makeSettings } from '../../test/fixtures.ts';

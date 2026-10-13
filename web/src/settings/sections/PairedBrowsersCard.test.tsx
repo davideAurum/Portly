@@ -6,12 +6,12 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { PairingSummary, PairingsResponse } from '@homebase/shared';
+import type { PairingSummary, PairingsResponse } from '@portly/shared';
 import { settings } from '../../test/fixtures.ts';
 import { mockError, mockResponse, renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';
 import PairedBrowsersCardDefault, { PairedBrowsersCard } from './PairedBrowsersCard.tsx';
 
-const PAGES_URL = 'https://user.github.io/homebase/';
+const PAGES_URL = 'https://user.github.io/portly/';
 
 function pairing(overrides: Partial<PairingSummary> = {}): PairingSummary {
   return {
@@ -42,7 +42,7 @@ describe('PairedBrowsersCard', () => {
   it('explains how to turn pairing on while no Pages address is configured', async () => {
     renderCard({ 'GET /api/pairings': response({ pagesUrl: null }) });
     const card = await screen.findByRole('region', { name: 'Paired browsers' });
-    expect(await within(card).findByText('HOMEBASE_PAGES_URL')).toBeInTheDocument();
+    expect(await within(card).findByText('PORTLY_PAGES_URL')).toBeInTheDocument();
     expect(within(card).getByText(/Pairing is off/)).toBeInTheDocument();
     expect(within(card).getByText('docs/setup/pages-local-server.md')).toBeInTheDocument();
     expect(within(card).queryByRole('list', { name: 'Paired browsers' })).not.toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('PairedBrowsersCard', () => {
 
   it('shows the Pages address and says when no browser is paired yet', async () => {
     renderCard({ 'GET /api/pairings': response() });
-    expect(await screen.findByRole('link', { name: /https:\/\/user\.github\.io\/homebase\// })).toHaveAttribute('href', PAGES_URL);
+    expect(await screen.findByRole('link', { name: /https:\/\/user\.github\.io\/portly\// })).toHaveAttribute('href', PAGES_URL);
     expect(screen.getByText(/No browser is paired yet/)).toBeInTheDocument();
   });
 

@@ -4,7 +4,7 @@
  * mapping, route validation and upstream error mapping.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { GeoPlace, WeatherReport } from '@homebase/shared';
+import type { GeoPlace, WeatherReport } from '@portly/shared';
 import { berlinForecast, springfieldGeocode } from '../providers/__fixtures__/openMeteo.ts';
 import { createFakeFetch, failingFetch, hangingFetch, type FakeFetchRoute, type FakeResponseSpec } from '../providers/__fixtures__/fakeFetch.ts';
 import {
@@ -60,7 +60,7 @@ describe('open-meteo: request parameters and cache keys', () => {
     expect(p.get('precipitation_unit')).toBe('mm');
   });
 
-  it('maps every Homebase unit to its Open-Meteo parameter', () => {
+  it('maps every Portly unit to its Open-Meteo parameter', () => {
     const p = paramsOf(forecastUrl(1, 2, IMPERIAL));
     expect(p.get('temperature_unit')).toBe('fahrenheit');
     expect(p.get('wind_speed_unit')).toBe('mph');

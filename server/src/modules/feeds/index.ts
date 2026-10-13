@@ -25,7 +25,7 @@
  */
 import { createHash } from 'node:crypto';
 import type { Hono } from 'hono';
-import { FeedQuerySchema, type ErrorCode, type Feed } from '@homebase/shared';
+import { FeedQuerySchema, type ErrorCode, type Feed } from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { outcomeFromError, type DetailValue, type HealthSubject, type Outcome } from '../../lib/health.ts';

@@ -10,7 +10,7 @@
  * which is also what the server answers on any upstream failure. The request stays "simple" (no
  * custom `Accept`) so there is no preflight.
  */
-import { MAX_SUGGESTIONS, type SuggestProvider } from '@homebase/shared';
+import { MAX_SUGGESTIONS, type SuggestProvider } from '@portly/shared';
 import { fetchTextCapped, type FetchLike } from '../lib/fetch.ts';
 import { errorName, hostOf, recordProviderFailure, statusFailureCode, stopwatch, transportFailureCode } from './diagnostics.ts';
 

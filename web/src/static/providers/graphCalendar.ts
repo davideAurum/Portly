@@ -7,7 +7,7 @@
  * `isAllDay`, the date parts of start/end are taken verbatim (end exclusive). `meeting_url` from
  * `onlineMeeting.joinUrl`; `canEdit` → writable.
  */
-import { EVENT_TEXT_LIMITS } from '@homebase/shared';
+import { EVENT_TEXT_LIMITS } from '@portly/shared';
 import type { EventRecord, RemoteCalendar } from '../lib/calendarRecords.ts';
 import { descriptionText } from '../lib/calendarText.ts';
 import { formatDate, isIsoDate, isoUtc, pad2, wallTimeAt, wallToUtcMs } from '../lib/calendarTime.ts';

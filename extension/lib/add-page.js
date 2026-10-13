@@ -1,27 +1,27 @@
 // @ts-check
 /**
- * "Add this page to Homebase" (the toolbar button). Clicking the extension's icon opens a new tab
+ * "Add this page to Portly" (the toolbar button). Clicking the extension's icon opens a new tab
  * next to the current one at this extension's own new tab page with
- * `#/add-bookmark?url=<page>&title=<page title>`. That page opens Homebase exactly as a new tab
- * does (the Pages site, or Homebase on this PC — started first when it isn't running) and passes
- * the hash on; Homebase then shows its Add bookmark dialog filled in with the page.
+ * `#/add-bookmark?url=<page>&title=<page title>`. That page opens Portly exactly as a new tab
+ * does (the Pages site, or Portly on this PC — started first when it isn't running) and passes
+ * the hash on; Portly then shows its Add bookmark dialog filled in with the page.
  *
- * The extension never writes the bookmark itself: the launch pad lives wherever the Homebase page
+ * The extension never writes the bookmark itself: the launch pad lives wherever the Portly page
  * keeps its data (the server on this PC when paired, else the Pages site's in-browser copy), and
  * the dialog lets you pick the group. The tab's address and title are readable on a click thanks
  * to `activeTab` (no "tabs" permission). Only http(s) pages can be added; on anything else the
  * button shows a "!" badge on that tab and says why in its tooltip.
  */
 
-/** The Homebase hash route that asks for the Add bookmark dialog (web: launchpad/addRequest.ts). */
+/** The Portly hash route that asks for the Add bookmark dialog (web: launchpad/addRequest.ts). */
 export const ADD_BOOKMARK_ROUTE = '#/add-bookmark';
 export const MAX_URL_LENGTH = 2048;
 export const MAX_TITLE_LENGTH = 300;
-export const ACTION_TITLE = 'Add this page to Homebase';
-export const UNSUPPORTED_TITLE = 'Only web pages (http or https) can be added to Homebase';
+export const ACTION_TITLE = 'Add this page to Portly';
+export const UNSUPPORTED_TITLE = 'Only web pages (http or https) can be added to Portly';
 
 /**
- * The hash that asks Homebase to add `url` (titled `title`), or null when the address can't be a
+ * The hash that asks Portly to add `url` (titled `title`), or null when the address can't be a
  * bookmark (not http(s), credentials in it, too long).
  * @param {unknown} url
  * @param {unknown} [title]
@@ -40,13 +40,13 @@ export function addBookmarkHash(url, title) {
   if (parsed.username !== '' || parsed.password !== '' || parsed.hostname === '') return null;
   const params = new URLSearchParams({ url: parsed.href });
   const cleanTitle = typeof title === 'string' ? title.replace(/\s+/g, ' ').trim().slice(0, MAX_TITLE_LENGTH) : '';
-  // A tab without a title of its own reports its address as the title: leave that to Homebase.
+  // A tab without a title of its own reports its address as the title: leave that to Portly.
   if (cleanTitle !== '' && cleanTitle !== url && cleanTitle !== parsed.href) params.set('title', cleanTitle);
   return `${ADD_BOOKMARK_ROUTE}?${params.toString()}`;
 }
 
 /**
- * The part of a hash a new tab passes on to Homebase: an add-bookmark request, rebuilt from its
+ * The part of a hash a new tab passes on to Portly: an add-bookmark request, rebuilt from its
  * validated parameters (so nothing else rides along), or '' for anything else.
  * @param {unknown} hash
  * @returns {string}
@@ -104,7 +104,7 @@ export async function addPage(chromeApi, tab, log = () => {}) {
     await chromeApi.tabs.create(props);
     return 'opened';
   } catch (err) {
-    log('warn', `Couldn't add the page to Homebase: ${err instanceof Error ? err.message : String(err)}`);
+    log('warn', `Couldn't add the page to Portly: ${err instanceof Error ? err.message : String(err)}`);
     return 'error';
   }
 }

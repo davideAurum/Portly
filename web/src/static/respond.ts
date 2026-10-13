@@ -3,7 +3,7 @@
  * errors.ts): JSON bodies, `204` for deletes, and `{error: {code, message, details?}}` with the
  * canonical status for every error code.
  */
-import { ERROR_STATUS, type ApiErrorBody, type ErrorCode, type ValidationIssue } from '@homebase/shared';
+import { ERROR_STATUS, type ApiErrorBody, type ErrorCode, type ValidationIssue } from '@portly/shared';
 import type { ZodError } from 'zod';
 
 const JSON_HEADERS = Object.freeze({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });

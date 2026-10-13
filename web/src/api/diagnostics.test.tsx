@@ -1,5 +1,5 @@
 /**
- * Diagnostics API helpers: requests (paths, query strings, encoded keys, `X-Homebase`), tolerant
+ * Diagnostics API helpers: requests (paths, query strings, encoded keys, `X-Portly`), tolerant
  * parsing with the shared contracts (a newer server's extra fields are dropped at any depth, a
  * malformed answer is refused), the report download (Blob + file name from `Content-Disposition`),
  * the event upload, and that nothing of the family is persisted.
@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ClientEventsRequestSchema, type DiagnosticsSummary } from '@homebase/shared';
+import { ClientEventsRequestSchema, type DiagnosticsSummary } from '@portly/shared';
 import { shouldPersistQuery } from '../app/providers.tsx';
 import { pendingUpload, recordClientEvent } from '../diagnostics/clientLog.ts';
 import { createTestQueryClient, mockError, mockResponse, stubApi } from '../test/render.tsx';
@@ -50,8 +50,8 @@ function summary(): DiagnosticsSummary {
       memory: { rssBytes: 1, heapUsedBytes: 2 },
       supervised: true,
       restart: { attempt: 1, lastExit: null },
-      dataDir: 'C:\\Users\\~\\AppData\\Local\\Homebase',
-      logDir: 'C:\\Users\\~\\AppData\\Local\\Homebase\\logs',
+      dataDir: 'C:\\Users\\~\\AppData\\Local\\Portly',
+      logDir: 'C:\\Users\\~\\AppData\\Local\\Portly\\logs',
     },
     logLevel: { ...LOG_LEVEL },
     modules: [{ name: 'calendar', ok: true }],
@@ -120,7 +120,7 @@ describe('readers', () => {
     extra.jobs[0]!.lastError.future = 2;
     const { requests } = stubApi({ 'GET /api/diagnostics/summary': extra });
     expect(await getDiagnosticsSummary()).toEqual(summary());
-    expect(requests[0]?.headers.get('X-Homebase')).toBe('1');
+    expect(requests[0]?.headers.get('X-Portly')).toBe('1');
   });
 
   it('refuses an answer that is not a summary', async () => {
@@ -188,15 +188,15 @@ describe('downloadReport', () => {
       () =>
         new Response('{"generatedAt":"x"}', {
           status: 200,
-          headers: { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="homebase-diagnostics-20261011-1432.json"' },
+          headers: { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="portly-diagnostics-20261011-1432.json"' },
         }),
     );
     const report = await downloadReport({ redact: true });
-    expect(report.filename).toBe('homebase-diagnostics-20261011-1432.json');
+    expect(report.filename).toBe('portly-diagnostics-20261011-1432.json');
     expect(await report.blob.text()).toBe('{"generatedAt":"x"}');
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/diagnostics/report?redact=1');
-    expect(new Headers(init?.headers).get('X-Homebase')).toBe('1');
+    expect(new Headers(init?.headers).get('X-Portly')).toBe('1');
     expect(init).toMatchObject({ method: 'GET', credentials: 'same-origin', cache: 'no-store' });
     await downloadReport({ redact: false });
     expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/diagnostics/report?redact=0');
@@ -206,8 +206,8 @@ describe('downloadReport', () => {
     stubReport(() => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }));
     expect((await downloadReport({ redact: false })).filename).toBe(DEFAULT_REPORT_FILENAME);
     expect(reportFilename(null)).toBe(DEFAULT_REPORT_FILENAME);
-    expect(reportFilename('attachment; filename=homebase-diagnostics-20261011-1432.json')).toBe('homebase-diagnostics-20261011-1432.json');
-    expect(reportFilename("attachment; filename=\"x.json\"; filename*=UTF-8''homebase-diagnostics-1.json")).toBe('homebase-diagnostics-1.json');
+    expect(reportFilename('attachment; filename=portly-diagnostics-20261011-1432.json')).toBe('portly-diagnostics-20261011-1432.json');
+    expect(reportFilename("attachment; filename=\"x.json\"; filename*=UTF-8''portly-diagnostics-1.json")).toBe('portly-diagnostics-1.json');
     for (const unsafe of ['attachment; filename="../../evil.json"', 'attachment; filename="report.exe"', 'attachment; filename=".json"', "attachment; filename*=UTF-8''%E0%A4%A.json", 'attachment']) {
       expect(reportFilename(unsafe), unsafe).toBe(DEFAULT_REPORT_FILENAME);
     }

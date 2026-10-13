@@ -3,7 +3,7 @@
  * project and due chips are shown. Every change previews live; the widget waits for the filter
  * to settle before fetching.
  */
-import { DEFAULT_TODOIST_FILTER } from '@homebase/shared';
+import { DEFAULT_TODOIST_FILTER } from '@portly/shared';
 import { useSettings } from '../../api/settings.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Field } from '../../ui/Field.tsx';

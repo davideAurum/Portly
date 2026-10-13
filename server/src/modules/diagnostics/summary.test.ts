@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HealthEntrySchema, JobInfoSchema, LogLevelStateSchema, OutcomeRowSchema, type Account } from '@homebase/shared';
+import { HealthEntrySchema, JobInfoSchema, LogLevelStateSchema, OutcomeRowSchema, type Account } from '@portly/shared';
 import type { HealthState } from '../../lib/health.ts';
 import type { JobStats, ManualJobInfo } from '../../lib/scheduler.ts';
 import {

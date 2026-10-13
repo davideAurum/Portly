@@ -1,12 +1,12 @@
 /**
- * This browser's pairing with the Homebase server on this PC (hybrid mode), and the two hints the
+ * This browser's pairing with the Portly server on this PC (hybrid mode), and the two hints the
  * next page load uses to pick its backend ({@link decideBootBackend}). All of it lives in
  * localStorage under the Pages base path, because every project site of a `<user>.github.io`
  * origin shares that storage:
  *
- * - `homebase:pairing:<base>`: the pairing record `{token, instanceId, pairedAt}`;
- * - `homebase:backend-mode:<base>`: the backend the last decision chose (`lastMode`);
- * - `homebase:server-seen:<base>`: when a probe last reached the paired server (`lastServerSeenAt`).
+ * - `portly:pairing:<base>`: the pairing record `{token, instanceId, pairedAt}`;
+ * - `portly:backend-mode:<base>`: the backend the last decision chose (`lastMode`);
+ * - `portly:server-seen:<base>`: when a probe last reached the paired server (`lastServerSeenAt`).
  *
  * Every access is guarded (storage can be missing or throw: private modes, blocked site data) and
  * whatever is read back is validated, since another tab, build or program may have written it.
@@ -19,7 +19,7 @@
  * thing `main.tsx` does) checks the nonce (one use), saves the record and strips the token from
  * the address.
  */
-import { InstanceIdSchema, PAIRING_RETURN_ROUTE, PairingTokenSchema, buildPairingRequestUrl, parsePairingReturn } from '@homebase/shared';
+import { InstanceIdSchema, PAIRING_RETURN_ROUTE, PairingTokenSchema, buildPairingRequestUrl, parsePairingReturn } from '@portly/shared';
 import type { Backend } from '../capabilities.ts';
 import { safeHref } from '../lib/openUrl.ts';
 
@@ -42,17 +42,17 @@ export interface HybridStorageKeys {
 /** localStorage keys of hybrid mode for a Pages base path (default: this build's). */
 export function hybridStorageKeys(base: string = import.meta.env.BASE_URL): HybridStorageKeys {
   return {
-    pairing: `homebase:pairing:${base}`,
-    mode: `homebase:backend-mode:${base}`,
-    seen: `homebase:server-seen:${base}`,
+    pairing: `portly:pairing:${base}`,
+    mode: `portly:backend-mode:${base}`,
+    seen: `portly:server-seen:${base}`,
   };
 }
 
 /** sessionStorage: the nonce of the pairing this tab asked for (one use). */
-export const PAIRING_NONCE_KEY = 'homebase:pairing-nonce';
+export const PAIRING_NONCE_KEY = 'portly:pairing-nonce';
 
 /** sessionStorage: the backend switch to announce after the reload that applied it (`<target>:<reason>`). */
-export const MODE_SWITCH_TOAST_KEY = 'homebase:mode-switch-toast';
+export const MODE_SWITCH_TOAST_KEY = 'portly:mode-switch-toast';
 
 export function browserLocalStorage(): StorageLike | null {
   try {

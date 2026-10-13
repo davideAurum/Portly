@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultSettings } from '@homebase/shared';
+import { defaultSettings } from '@portly/shared';
 import { migrate } from '../db/migrate.ts';
 import { openDb, type Db } from '../db/open.ts';
 import { createMemoryLogger } from './logger.ts';

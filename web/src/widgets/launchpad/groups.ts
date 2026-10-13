@@ -1,4 +1,4 @@
-import type { BookmarkGroup } from '@homebase/shared';
+import type { BookmarkGroup } from '@portly/shared';
 import type { LaunchpadConfig } from './index.ts';
 
 /**

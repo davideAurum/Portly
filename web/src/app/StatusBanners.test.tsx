@@ -84,7 +84,7 @@ describe('Pages build, browser backend', () => {
     pagesBrowser();
     status = { state: 'failed', message: 'cannot read', retryAt: 0 };
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY });
-    expect(await screen.findByText("Homebase couldn't load its saved data")).toBeInTheDocument();
+    expect(await screen.findByText("Portly couldn't load its saved data")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
   });
 
@@ -107,7 +107,7 @@ describe('Pages build, browser backend', () => {
     pagesBrowser();
     status = { state: 'ready', storage: 'indexeddb' };
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: { 'GET /api/health': unreachable } });
-    expect(await screen.findByText("Homebase couldn't load its data")).toBeInTheDocument();
+    expect(await screen.findByText("Portly couldn't load its data")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
     expect(screen.queryByText(/server|on this PC/)).not.toBeInTheDocument();
   });
@@ -121,14 +121,14 @@ describe('Pages build, browser backend', () => {
     expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument();
   });
 
-  it('a switch to Homebase on this PC waiting for the page to be idle offers Switch now', async () => {
+  it('a switch to Portly on this PC waiting for the page to be idle offers Switch now', async () => {
     pagesBrowser();
     status = { state: 'ready', storage: 'indexeddb' };
     const controller = plugController({ backend: 'browser', pendingSwitch: { target: 'server', reason: 'connected' } });
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY });
     const banner = screen.getByRole('status');
-    expect(banner).toHaveTextContent('Homebase on this PC is ready');
-    expect(banner).toHaveTextContent("This page switches to Homebase on this PC when you're done");
+    expect(banner).toHaveTextContent('Portly on this PC is ready');
+    expect(banner).toHaveTextContent("This page switches to Portly on this PC when you're done");
     // Every reason the page counts as busy: a text field with typed text defers the switch too.
     expect(banner).toHaveTextContent("it waits while a dialog is open, you're editing the layout or typing.");
     await userEvent.setup().click(within(banner).getByRole('button', { name: 'Switch now' }));
@@ -136,7 +136,7 @@ describe('Pages build, browser backend', () => {
   });
 });
 
-describe('Pages build, server backend (Homebase on this PC)', () => {
+describe('Pages build, server backend (Portly on this PC)', () => {
   const pagesServer = () => setCapabilitiesForTests(capabilitiesFor(true, 'server'));
 
   it('never shows the browser-storage banners', async () => {
@@ -146,7 +146,7 @@ describe('Pages build, server backend (Homebase on this PC)', () => {
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
     await settle();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.queryByText("Homebase couldn't load its saved data")).not.toBeInTheDocument();
+    expect(screen.queryByText("Portly couldn't load its saved data")).not.toBeInTheDocument();
   });
 
   it('reconnecting shows the last saved data without a Reload button, and goes away when connected again', async () => {
@@ -154,7 +154,7 @@ describe('Pages build, server backend (Homebase on this PC)', () => {
     status = null;
     const controller = plugController({ status: 'reconnecting' });
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY });
-    expect(screen.getByRole('alert')).toHaveTextContent('Reconnecting to Homebase on this PC — showing the last saved data');
+    expect(screen.getByRole('alert')).toHaveTextContent('Reconnecting to Portly on this PC — showing the last saved data');
     expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument();
     controller.set({ status: 'connected' });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -165,17 +165,17 @@ describe('Pages build, server backend (Homebase on this PC)', () => {
     const controller = plugController({ status: 'revoked', paired: false, pendingSwitch: { target: 'browser', reason: 'revoked' } });
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY });
     const banner = screen.getByRole('alert');
-    expect(banner).toHaveTextContent('Homebase on this PC no longer accepts this browser');
+    expect(banner).toHaveTextContent('Portly on this PC no longer accepts this browser');
     expect(banner).toHaveTextContent('switches to the copy saved in this browser');
     await userEvent.setup().click(within(banner).getByRole('button', { name: 'Switch now' }));
     expect(controller.actions.switchNow).toHaveBeenCalledOnce();
   });
 
-  it('an unreachable backend names Homebase on this PC', async () => {
+  it('an unreachable backend names Portly on this PC', async () => {
     pagesServer();
     plugController();
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: { 'GET /api/health': unreachable } });
-    expect(await screen.findByText("Can't reach Homebase on this PC")).toBeInTheDocument();
+    expect(await screen.findByText("Can't reach Portly on this PC")).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument();
   });
 
@@ -185,14 +185,14 @@ describe('Pages build, server backend (Homebase on this PC)', () => {
     const { unmount } = renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: LOCKED });
     const banner = await screen.findByRole('alert');
     expect(banner).toHaveTextContent('Saved credentials are locked');
-    expect(banner).toHaveTextContent("Homebase couldn't unlock its credential store, so connected accounts and Todoist are paused.");
-    expect(banner).not.toHaveTextContent("Homebase's own page");
+    expect(banner).toHaveTextContent("Portly couldn't unlock its credential store, so connected accounts and Todoist are paused.");
+    expect(banner).not.toHaveTextContent("Portly's own page");
     // One in-app link; nothing built from the page address the server reported.
     expect(within(banner).getAllByRole('link')).toHaveLength(1);
     const link = within(banner).getByRole('link', { name: 'Review in settings' });
     expect(link).toHaveAttribute('href', '#/settings/accounts');
     expect(link).not.toHaveAttribute('target');
-    expect(within(banner).queryByRole('link', { name: /Open Homebase on this PC/ })).not.toBeInTheDocument();
+    expect(within(banner).queryByRole('link', { name: /Open Portly on this PC/ })).not.toBeInTheDocument();
     unmount();
     renderWithProviders(<StatusBanners onAccountsPage />, { apiMocks: LOCKED, toaster: false });
     await settle();
@@ -201,10 +201,10 @@ describe('Pages build, server backend (Homebase on this PC)', () => {
 });
 
 describe('server build', () => {
-  it('an unreachable server names the Homebase server', async () => {
+  it('an unreachable server names the Portly server', async () => {
     status = null;
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: { 'GET /api/health': unreachable } });
-    expect(await screen.findByText("Can't reach the Homebase server")).toBeInTheDocument();
+    expect(await screen.findByText("Can't reach the Portly server")).toBeInTheDocument();
   });
 
   it('a locked vault links to the Accounts settings here, except on that page', async () => {

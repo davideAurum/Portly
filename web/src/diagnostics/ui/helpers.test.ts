@@ -5,7 +5,7 @@
  * takes debug events, a remedy for every health code, the health grouping and its order, when a
  * last error is still the problem, "Run now" targets and the related-log window.
  */
-import { HEALTH_CODES } from '@homebase/shared';
+import { HEALTH_CODES } from '@portly/shared';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../api/client.ts';
 import {
@@ -86,7 +86,7 @@ describe('format', () => {
     expect(diagnosticsUnavailable(new Error('x'))).toBe(false);
   });
 
-  it('links to the diagnostics page of Homebase on this PC (the default origin when the build has none)', () => {
+  it('links to the diagnostics page of Portly on this PC (the default origin when the build has none)', () => {
     expect(localDiagnosticsUrl('http://127.0.0.1:5757')).toBe('http://127.0.0.1:5757/#/settings/diagnostics');
     expect(localDiagnosticsUrl('http://localhost:6000/')).toBe('http://localhost:6000/#/settings/diagnostics');
     expect(localDiagnosticsUrl('')).toBe('http://127.0.0.1:5757/#/settings/diagnostics');
@@ -99,8 +99,8 @@ describe('format', () => {
     expect(answersWithoutCors({ status: 'connected', unreachableReason: 'answers-without-cors' })).toBe(false);
   });
 
-  it('gives this site’s address with its base path (what HOMEBASE_PAGES_URL must be)', () => {
-    expect(thisSiteAddress('https://dana.github.io', '/homebase/')).toBe('https://dana.github.io/homebase/');
+  it('gives this site’s address with its base path (what PORTLY_PAGES_URL must be)', () => {
+    expect(thisSiteAddress('https://dana.github.io', '/portly/')).toBe('https://dana.github.io/portly/');
     expect(thisSiteAddress('https://dana.github.io', '/')).toBe('https://dana.github.io/');
   });
 

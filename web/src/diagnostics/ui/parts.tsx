@@ -1,10 +1,10 @@
 /**
  * Small pieces shared by the Diagnostics panels: a record's level, the server's log level
  * ("Normal" / "Verbose until 14:32"), the formatted JSON of a record's fields, the notice for a
- * server without diagnostics, and the link to the diagnostics page of Homebase on this PC (the
+ * server without diagnostics, and the link to the diagnostics page of Portly on this PC (the
  * Pages build).
  */
-import type { LogLevel, LogLevelState } from '@homebase/shared';
+import type { LogLevel, LogLevelState } from '@portly/shared';
 import { ArrowUpRight, CloudOff } from 'lucide-react';
 import { useFormatters } from '../../lib/format.ts';
 import { Badge, type BadgeTone } from '../../ui/Badge.tsx';
@@ -53,19 +53,19 @@ export function FieldsView({ fields, id }: { fields: unknown; id?: string }) {
 }
 
 /** Title of the notice for a server that predates diagnostics (`403 local_only` / `404`). */
-export const UPDATE_HOMEBASE_NOTICE = 'Update Homebase on this PC to see its diagnostics';
+export const UPDATE_PORTLY_NOTICE = 'Update Portly on this PC to see its diagnostics';
 
 export function UnavailableNotice() {
   return (
     <EmptyState
       icon={CloudOff}
-      title={UPDATE_HOMEBASE_NOTICE}
-      body="Homebase on this PC is older than this page and has no diagnostics yet. This browser's own events are listed under This browser."
+      title={UPDATE_PORTLY_NOTICE}
+      body="Portly on this PC is older than this page and has no diagnostics yet. This browser's own events are listed under This browser."
     />
   );
 }
 
-/** "Open diagnostics on this PC": Homebase's own diagnostics page, which works even when this site can't reach it. */
+/** "Open diagnostics on this PC": Portly's own diagnostics page, which works even when this site can't reach it. */
 export function LocalDiagnosticsLink() {
   return (
     <ExternalLink href={localDiagnosticsUrl()} className={styles.localLink}>

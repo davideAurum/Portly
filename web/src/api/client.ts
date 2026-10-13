@@ -1,5 +1,5 @@
 /**
- * API client: every call goes to the same origin with `X-Homebase: 1` (§4.2) and JSON bodies —
+ * API client: every call goes to the same origin with `X-Portly: 1` (§4.2) and JSON bodies —
  * in the Pages build to this page load's backend instead (`localServer/transport.ts`).
  * Non-2xx responses throw {@link ApiError} carrying the server's `{code, message, details?, accountId?}`
  * and the id the server logged the request under (`X-Request-Id`). {@link apiResponse} is the same
@@ -25,7 +25,7 @@ import {
   type ClientEventCategory,
   type ErrorCode,
   type LogLevel,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { getCapabilities } from '../capabilities.ts';
 import { clientSessionId, recordClientEvent, type ClientEventFields } from '../diagnostics/clientLog.ts';
 
@@ -264,7 +264,7 @@ function switchingBackend(err: unknown): boolean {
  */
 export async function apiResponse(path: string, options: ApiRequestOptions = {}): Promise<Response> {
   const headers = new Headers(options.headers);
-  headers.set('X-Homebase', '1');
+  headers.set('X-Portly', '1');
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
 
   let body: BodyInit | undefined;
@@ -290,14 +290,14 @@ export async function apiResponse(path: string, options: ApiRequestOptions = {})
   let res: Response;
   try {
     // Pages build: this page load's backend answers with a real Response — the in-browser backend,
-    // or the Homebase server on this PC in hybrid mode (`localServer/transport.ts`) — so everything
+    // or the Portly server on this PC in hybrid mode (`localServer/transport.ts`) — so everything
     // below (error bodies, 204, JSON parsing) is shared with the server build. The dynamic import
     // keeps both out of the server build's bundle.
-    res = __HOMEBASE_STATIC__ ? await (await import('../localServer/transport.ts')).pagesFetch(path, init) : await fetch(path, init);
+    res = __PORTLY_STATIC__ ? await (await import('../localServer/transport.ts')).pagesFetch(path, init) : await fetch(path, init);
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
     if (!cancelled(err, options.signal) && !switchingBackend(err)) noteNoAnswer(facts(), err);
-    throw new ApiError(0, 'network_error', 'Homebase is not reachable');
+    throw new ApiError(0, 'network_error', 'Portly is not reachable');
   }
 
   if (!res.ok) {

@@ -14,7 +14,7 @@
  *   profile layout — the server's daily job) and registers the referenced uploads as object URLs
  *   (see {@link syncUploadAssets}); uploads created in this tab are registered when stored.
  */
-import { uploadUrl, type UploadResponse } from '@homebase/shared';
+import { uploadUrl, type UploadResponse } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { isUuidV4 } from '../lib/ids.ts';
 import { sniffImageType } from '../lib/imageSniff.ts';

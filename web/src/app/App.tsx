@@ -8,7 +8,7 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { RefreshCw, TriangleAlert } from 'lucide-react';
-import { OAuthResultSchema, type OAuthResult } from '@homebase/shared';
+import { OAuthResultSchema, type OAuthResult } from '@portly/shared';
 import { invalidateAccountData } from '../api/keys.ts';
 import { useApplyTheme } from '../theme/useTheme.ts';
 import { Button } from '../ui/Button.tsx';

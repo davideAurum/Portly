@@ -4,7 +4,7 @@
  * verification always on, TLS ≥ 1.2; `logger: false`; 15 s connect/greeting/socket timeouts; no
  * auto-IDLE (connections are short-lived); response size bounds against hostile servers.
  *
- * The bounds are deliberately small: Homebase never fetches bodies (ENVELOPE + FLAGS only), and
+ * The bounds are deliberately small: Portly never fetches bodies (ENVELOPE + FLAGS only), and
  * imapflow's tokenizer cost grows super-linearly with a line's length (e.g. runs of `[`), summed
  * over every line of one response. 64 KiB lines × a 256 KiB response bound one parse to about a
  * second of CPU — on the IMAP worker thread (imap-runner.ts), never on the main thread.

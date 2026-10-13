@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Feed } from '@homebase/shared';
+import type { Feed } from '@portly/shared';
 import type { AppEnv } from '../../context.ts';
 import { createErrorHandler } from '../../lib/errors.ts';
 import { contextFieldForKey } from '../../lib/health.ts';

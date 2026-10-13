@@ -2,7 +2,7 @@
  * A tiny in-memory stand-in for the core profile/settings routes (§7 Core), so tests that mutate
  * layouts see the same state on refetch that a real server would return.
  */
-import { SettingsSchema, type Profile, type Settings, type WidgetFrame, type WidgetInstance } from '@homebase/shared';
+import { SettingsSchema, type Profile, type Settings, type WidgetFrame, type WidgetInstance } from '@portly/shared';
 import { applyMergePatch } from '../lib/mergePatch.ts';
 import { mockResponse, type ApiMock, type MockRequest } from './render.tsx';
 import { health, settings as makeSettings } from './fixtures.ts';

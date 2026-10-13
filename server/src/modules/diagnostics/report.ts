@@ -9,7 +9,7 @@
  *   in memory, `flight` the whole debug ring, `client` the whole browser-event ring, `files` the last
  *   2 000 records of `server.log`; `supervisorLog` the last 300 records of `supervisor.log`;
  *   `launcherLog` the last 100 lines of the extension launcher's log (null when it has none).
- * - `config` names the `HOMEBASE_*` variables that are set, never their values.
+ * - `config` names the `PORTLY_*` variables that are set, never their values.
  * - Everything passes through `scrubFields` (item by item, so long lists and deep records are not
  *   cut) and this PC's home directory is masked: no secrets, no URLs beyond their host, user paths
  *   as `C:\Users\~\…`. Health and job codes are machine tokens and stay as they are (also null).
@@ -20,7 +20,7 @@
  *   nothing about the user.
  */
 import os from 'node:os';
-import { REASON_TOKEN, type RedactionDictionary } from '@homebase/shared';
+import { REASON_TOKEN, type RedactionDictionary } from '@portly/shared';
 import { nativeHostLogPath } from '../../config.ts';
 import type { AppContext } from '../../context.ts';
 import type { DetailValue, OutcomeRowState, OutcomeStatus } from '../../lib/health.ts';
@@ -40,7 +40,7 @@ const MEMORY_PAGE = 5000;
 const MAX_MEMORY_PAGES = 12;
 
 /**
- * Public hosts of the services Homebase talks to: kept by `redact=1` (they tell which provider
+ * Public hosts of the services Portly talks to: kept by `redact=1` (they tell which provider
  * failed, not who the user is).
  */
 export const WELL_KNOWN_HOSTS: readonly string[] = [
@@ -78,11 +78,11 @@ export interface ReportOptions {
 // File name
 // ---------------------------------------------------------------------------
 
-/** `homebase-diagnostics-YYYYMMDD-HHmm.json` (local time). */
+/** `portly-diagnostics-YYYYMMDD-HHmm.json` (local time). */
 export function reportFilename(date: Date): string {
   const pad = (n: number): string => String(n).padStart(2, '0');
   const day = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
-  return `homebase-diagnostics-${day}-${pad(date.getHours())}${pad(date.getMinutes())}.json`;
+  return `portly-diagnostics-${day}-${pad(date.getHours())}${pad(date.getMinutes())}.json`;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ function scrubEach(items: readonly unknown[]): unknown[] {
 }
 
 /** A placeholder `scrubFields` keeps under the key `code` (letters and underscores). */
-const CODE_PLACEHOLDER = 'homebase_code_placeholder';
+const CODE_PLACEHOLDER = 'portly_code_placeholder';
 
 /**
  * Scrubs an object whose `code` is a health or job code: `scrubFields` treats any `code` that is
@@ -246,10 +246,10 @@ function calendarRows(ctx: Pick<AppContext, 'db'>): CalendarListRow[] {
   }
 }
 
-/** Names of the `HOMEBASE_*` variables that are set (values never). */
-export function homebaseEnvNames(env: NodeJS.ProcessEnv = process.env): string[] {
+/** Names of the `PORTLY_*` variables that are set (values never). */
+export function portlyEnvNames(env: NodeJS.ProcessEnv = process.env): string[] {
   return Object.keys(env)
-    .filter((name) => /^HOMEBASE_[A-Z0-9_]+$/i.test(name) && env[name] !== undefined)
+    .filter((name) => /^PORTLY_[A-Z0-9_]+$/i.test(name) && env[name] !== undefined)
     .sort();
 }
 
@@ -311,7 +311,7 @@ export async function buildReport(ctx: AppContext, options: ReportOptions): Prom
       dev: ctx.config.dev,
       pagesOrigin: ctx.config.pagesOrigin,
       logLevel: toLogLevelState(ctx.logs.levelState()),
-      envSet: homebaseEnvNames(),
+      envSet: portlyEnvNames(),
     }),
   };
 }

@@ -2,7 +2,7 @@
  * Engine selection helpers for the search widget (§10.8): which engines a widget offers, the
  * default, keyword lookup, the suggestion provider in effect and bookmark matching.
  */
-import { buildSearchUrl, type Bookmark, type BookmarkGroup, type SearchEngine, type SearchSettings, type SuggestProvider } from '@homebase/shared';
+import { buildSearchUrl, type Bookmark, type BookmarkGroup, type SearchEngine, type SearchSettings, type SuggestProvider } from '@portly/shared';
 import type { SearchConfig } from './index.ts';
 
 export { buildSearchUrl };

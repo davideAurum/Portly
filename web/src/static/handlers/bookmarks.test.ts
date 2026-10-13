@@ -5,7 +5,7 @@
  * site-meta substitute. Imports are covered in bookmarkImport.test.ts.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_BOOKMARKS, MAX_BOOKMARK_GROUPS, type Bookmark, type BookmarkGroup, type BookmarksResponse, type SiteMeta } from '@homebase/shared';
+import { MAX_BOOKMARKS, MAX_BOOKMARK_GROUPS, type Bookmark, type BookmarkGroup, type BookmarksResponse, type SiteMeta } from '@portly/shared';
 import { getBookmarks, getIcons, getSettings, ORPHAN_GRACE_MS, SLICE, type StoredBookmark, type StoredBookmarkGroup, type StoredIconMeta } from '../slices.ts';
 import { MemoryStorage } from '../storage/memory.ts';
 import { createTestBackend, fileForm, PNG_BYTES, type TestBackend } from '../test/harness.ts';
@@ -310,7 +310,7 @@ describe('static bookmarks', () => {
     it('assigns the host id synchronously when automatic icons are on, never for local-looking hosts', async () => {
       autoIcons(true);
       const g = await createGroup('G');
-      expect((await createBookmark(g.id, 'GitHub', 'https://GitHub.com/homebase')).iconId).toBe('fav:github.com');
+      expect((await createBookmark(g.id, 'GitHub', 'https://GitHub.com/portly')).iconId).toBe('fav:github.com');
       expect((await createBookmark(g.id, 'Port', 'http://example.com:8080/x')).iconId).toBe('fav:example.com:8080');
       for (const url of ['http://nas/', 'http://192.168.1.10:8080/', 'http://localhost:3000/', 'http://printer.local/', 'http://[::1]/', 'http://10.0.0.1/']) {
         const b = await createBookmark(g.id, 'Local', url);

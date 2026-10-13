@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { BookmarkGroup } from '@homebase/shared';
+import type { BookmarkGroup } from '@portly/shared';
 import { parseNetscapeBookmarks } from '../static/lib/importHtml.ts';
 import { planGroups } from '../static/lib/importPlan.ts';
 import { bookmarksFilename, toNetscapeBookmarks } from './bookmarkExport.ts';
@@ -43,7 +43,7 @@ describe('toNetscapeBookmarks', () => {
     expect(html).toContain('>Tom&#39;s &quot;Site&quot;</A>');
   });
 
-  it('round-trips through the Homebase importer as one group per folder, in order', () => {
+  it('round-trips through the Portly importer as one group per folder, in order', () => {
     const root = parseNetscapeBookmarks(toNetscapeBookmarks(GROUPS));
     const plan = planGroups(root, 'folders', 'Imported', { skipped: 0, seen: 0 });
     expect(plan).toEqual([
@@ -59,6 +59,6 @@ describe('toNetscapeBookmarks', () => {
   });
 
   it('names the file by local date', () => {
-    expect(bookmarksFilename(new Date(2026, 9, 1))).toBe('homebase-bookmarks-2026-10-01.html');
+    expect(bookmarksFilename(new Date(2026, 9, 1))).toBe('portly-bookmarks-2026-10-01.html');
   });
 });

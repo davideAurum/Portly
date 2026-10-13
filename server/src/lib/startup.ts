@@ -6,7 +6,7 @@
  *   (`web/dist` missing → EXIT_PERMANENT_FAILURE) and fields to log.
  * - {@link reportStartupFailure}: `startup failed {phase, …}` in the log (before the logger exists:
  *   a bootstrap line in server.log) and the fatal text on stderr when nobody else shows it.
- * - {@link describeLastExit}: the supervisor's `HOMEBASE_SUPERVISOR_LAST_EXIT` as one scrubbed line.
+ * - {@link describeLastExit}: the supervisor's `PORTLY_SUPERVISOR_LAST_EXIT` as one scrubbed line.
  * - {@link redirectConsole}: `console.*` into the log, nested calls straight to stderr.
  * - {@link healthCounts}: health subjects by status for the `status` line (`stale` counted apart).
  * - {@link stopServer}: the shutdown sequence (stop jobs → close listeners → wait for job runs and
@@ -30,7 +30,7 @@ export const MAX_LAST_EXIT = 300;
 // Start-up failures
 // ---------------------------------------------------------------------------
 
-/** A start-up failure with its own exit code, a Homebase-authored message and fields to log. */
+/** A start-up failure with its own exit code, a Portly-authored message and fields to log. */
 export class StartupError extends Error {
   override name = 'StartupError';
   readonly code: string;
@@ -79,10 +79,10 @@ export function reportStartupFailure(phase: string, err: unknown, out: StartupFa
   } else {
     writeBootstrapFailure(out.bootstrapFile(), phase, err);
   }
-  if (out.log === null || out.supervised) out.writeStderr(fatalText(`Homebase: startup failed (${phase})`, err));
+  if (out.log === null || out.supervised) out.writeStderr(fatalText(`Portly: startup failed (${phase})`, err));
 }
 
-/** `HOMEBASE_SUPERVISOR_LAST_EXIT`: JSON `{code, signal, failure?}` → one scrubbed line; other text as is (scrubbed). */
+/** `PORTLY_SUPERVISOR_LAST_EXIT`: JSON `{code, signal, failure?}` → one scrubbed line; other text as is (scrubbed). */
 export function describeLastExit(raw: string | undefined): string | null {
   if (raw === undefined || raw.trim() === '') return null;
   let text = raw.trim();

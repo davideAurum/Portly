@@ -1,5 +1,5 @@
 /*
- * Styles for the extension pages (new-tab fallback + options). Mirrors the Homebase design
+ * Styles for the extension pages (new-tab fallback + options). Mirrors the Portly design
  * tokens (web/src/styles/tokens.css): the default gradient backdrop with a calm glass card,
  * system fonts, light and dark via prefers-color-scheme.
  */
@@ -313,7 +313,7 @@ label.choice:has(input:checked) {
   display: none;
 }
 
-/* New tab while the launcher starts Homebase. Fades in after a moment, so a launcher that answers
+/* New tab while the launcher starts Portly. Fades in after a moment, so a launcher that answers
    at once ("not installed") goes straight to the fallback without a flash. */
 .starting {
   display: none;
@@ -346,7 +346,7 @@ label.choice:has(input:checked) {
   }
 }
 
-/* What happened when the page tried to start Homebase. */
+/* What happened when the page tried to start Portly. */
 .notice {
   padding: 10px 12px;
   border-radius: var(--radius-md);

@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import ReactGridLayout, { useContainerWidth, type Layout as GridLayoutValue } from 'react-grid-layout';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, LayoutGrid, Plus } from 'lucide-react';
-import type { Layout, WidgetInstance, WidgetPosition } from '@homebase/shared';
+import type { Layout, WidgetInstance, WidgetPosition } from '@portly/shared';
 import { qk } from '../api/keys.ts';
 import { getCapabilities } from '../capabilities.ts';
 import { applyPositions, saveWidget, savePositions, updateCachedLayout, useAddWidget, useRemoveWidget } from '../api/profiles.ts';

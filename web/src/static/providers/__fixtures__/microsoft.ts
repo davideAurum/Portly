@@ -3,7 +3,7 @@
  * answers (the static counterpart of server/src/modules/accounts/__fixtures__/oauth.ts). All
  * credentials here are fake test values.
  */
-import { MICROSOFT_CONSUMER_TENANT_ID } from '@homebase/shared';
+import { MICROSOFT_CONSUMER_TENANT_ID } from '@portly/shared';
 import { encodeBase64 } from '../../lib/base64.ts';
 import { toBase64Url } from '../../lib/ids.ts';
 import { MICROSOFT_ISSUER } from '../microsoftAuth.ts';

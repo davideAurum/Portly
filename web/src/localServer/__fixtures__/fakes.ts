@@ -1,10 +1,10 @@
 /**
  * Test doubles for the local server controller and its helpers (hybrid mode): in-memory storage,
- * a fake Homebase server on this PC whose answers each test sets per route, the browser's local
+ * a fake Portly server on this PC whose answers each test sets per route, the browser's local
  * network permission, page visibility/focus signals and cross-tab pairing events. Tests only.
  */
 import { vi, type Mock } from 'vitest';
-import { HOMEBASE_API_VERSION, type LogLevel } from '@homebase/shared';
+import { PORTLY_API_VERSION, type LogLevel } from '@portly/shared';
 import { createLocalServerController, type HybridController, type HybridDiagFields, type LocalServerControllerDeps, type ReportedStatus } from '../controller.ts';
 import type { PageEvent, PageSignals } from '../page.ts';
 import { createPairingStore, type PairingRecord, type StorageLike } from '../pairing.ts';
@@ -18,7 +18,7 @@ export const TOKEN = 'T'.repeat(43);
 export const NEW_TOKEN = 'N'.repeat(43);
 export const INSTANCE = 'instance-A';
 export const OTHER_INSTANCE = 'instance-B';
-export const SERVER_CACHE_KEY = 'homebase:query-cache:local-server:/';
+export const SERVER_CACHE_KEY = 'portly:query-cache:local-server:/';
 /** Epoch ms the fake clock starts at. */
 export const START = 1_800_000_000_000;
 
@@ -69,7 +69,7 @@ export function jsonResponse(body: unknown, status = 200, headers: Record<string
 }
 
 export function healthBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return { ok: true, version: '0.1.0', vault: 'ready', app: 'homebase', apiVersion: HOMEBASE_API_VERSION, instanceId: INSTANCE, appUrl: APP_URL, ...overrides };
+  return { ok: true, version: '0.1.0', vault: 'ready', app: 'portly', apiVersion: PORTLY_API_VERSION, instanceId: INSTANCE, appUrl: APP_URL, ...overrides };
 }
 
 export function pairingBody(instanceId = INSTANCE): Record<string, unknown> {
@@ -87,7 +87,7 @@ export type Handler = (url: string, init: RequestInit) => Response | Promise<Res
 export const down: Handler = () => Promise.reject(new TypeError('Failed to fetch'));
 
 /**
- * Homebase answers, but not to this site's CORS requests (its `HOMEBASE_PAGES_URL` is another
+ * Portly answers, but not to this site's CORS requests (its `PORTLY_PAGES_URL` is another
  * site): a CORS request fails like `down`, a `no-cors` one gets an opaque answer.
  */
 export const refusesCors: Handler = (url, init) => (init.mode === 'no-cors' ? new Response(null, { status: 200 }) : down(url, init));

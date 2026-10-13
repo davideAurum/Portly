@@ -14,7 +14,7 @@ import {
   type CalendarEvent,
   type CalendarSource,
   type EventStatus,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { Db } from '../../db/open.ts';
 import { newId, sha1Hex } from '../../lib/ids.ts';
 import { descriptionText, singleLine } from './text.ts';
@@ -320,7 +320,7 @@ export interface ReplaceOptions {
   skipIds?: ReadonlySet<string>;
   /** Non-fatal warning recorded as `last_error` (e.g. shortened repeating events); default none. */
   warning?: string | null;
-  /** Event ids Homebase wrote recently: the result names the ones this listing deletes. */
+  /** Event ids Portly wrote recently: the result names the ones this listing deletes. */
   watchIds?: ReadonlySet<string>;
   /** Global limits (tests); default {@link MAX_STORED_EVENTS} / {@link MAX_STORED_EVENT_CHARS}. */
   storageLimits?: { events: number; chars: number };
@@ -345,7 +345,7 @@ export interface ReplaceResult {
 export const MAX_STORED_EVENTS = 100_000;
 export const MAX_STORED_EVENT_CHARS = 64 * 1024 * 1024;
 export const STORAGE_LIMIT_ERROR =
-  'This calendar was not updated: Homebase already stores as many calendar events as it keeps. Remove a very large calendar or feed to make room.';
+  'This calendar was not updated: Portly already stores as many calendar events as it keeps. Remove a very large calendar or feed to make room.';
 
 interface StoredTotals {
   rows: number;
@@ -378,7 +378,7 @@ function eventChars(e: SanitizedEvent): number {
  * the calendar's events that were not returned, and mark the calendar synced. A listing that
  * would exceed {@link MAX_STORED_EVENTS} / {@link MAX_STORED_EVENT_CHARS} (with every other
  * calendar's rows) changes nothing and records {@link STORAGE_LIMIT_ERROR}. Deleted rows that the
- * caller watches (events Homebase wrote moments ago) are reported in `deletedWatched`.
+ * caller watches (events Portly wrote moments ago) are reported in `deletedWatched`.
  */
 export function replaceCalendarEvents(db: Db, calendarId: string, records: readonly EventRecord[], options: ReplaceOptions): ReplaceResult {
   const byId = new Map<string, SanitizedEvent>();

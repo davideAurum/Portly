@@ -9,7 +9,7 @@
  *   object URLs created from the stored blobs (or, for bookmark icons that come from a favicon
  *   service, to that service's https URL);
  * - Pages build, server backend (hybrid mode): a `ServerAssetSource` (`setServerAssetSource`) loads
- *   the image from the Homebase server on this PC and hands out a `blob:` or `data:` URL once it is
+ *   the image from the Portly server on this PC and hands out a `blob:` or `data:` URL once it is
  *   loaded. Until then there is no URL — never the raw `/api/…` path, which would ask the Pages
  *   host for it and leak the id.
  *
@@ -120,7 +120,7 @@ export function getActiveAssetRegistry(): AssetRegistry | null {
 }
 
 /**
- * Where a server-backend page of the Pages build gets its images: the Homebase server on this PC,
+ * Where a server-backend page of the Pages build gets its images: the Portly server on this PC,
  * through the hybrid-mode transport. `get` answers synchronously (null until loaded, or when the
  * image does not exist), `load` fetches it if needed, and `subscribe` hears about every newly
  * loaded image.
@@ -174,7 +174,7 @@ function registryUrl(url: string): string {
   return active.resolve(parsed.kind, parsed.id) ?? url;
 }
 
-/** True for an app API path, which only the Homebase server can answer (never asked of the Pages host). */
+/** True for an app API path, which only the Portly server can answer (never asked of the Pages host). */
 function isApiPath(url: string): boolean {
   return url === '/api' || url.startsWith('/api/');
 }

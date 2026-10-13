@@ -1,5 +1,5 @@
 /**
- * `HOMEBASE_STATIC_SERVER` at build time: the default origin, `off`, and loopback-only http(s)
+ * `PORTLY_STATIC_SERVER` at build time: the default origin, `off`, and loopback-only http(s)
  * origins (anything else fails the build).
  */
 import { describe, expect, it } from 'vitest';
@@ -21,7 +21,7 @@ describe('parseLocalServerOrigin', () => {
     expect(parseLocalServerOrigin('http://localhost:5858')).toBe('http://localhost:5858');
     expect(parseLocalServerOrigin('http://127.0.0.1:5757/')).toBe('http://127.0.0.1:5757');
     expect(parseLocalServerOrigin('https://[::1]:8443')).toBe('https://[::1]:8443');
-    expect(parseLocalServerOrigin('http://homebase.localhost:5757')).toBe('http://homebase.localhost:5757');
+    expect(parseLocalServerOrigin('http://portly.localhost:5757')).toBe('http://portly.localhost:5757');
     expect(parseLocalServerOrigin('HTTP://LOCALHOST:80')).toBe('http://localhost');
   });
 
@@ -38,7 +38,7 @@ describe('parseLocalServerOrigin', () => {
       'http://127.0.0.1:5757/#',
       'not a url',
     ]) {
-      expect(() => parseLocalServerOrigin(value), value).toThrow(/HOMEBASE_STATIC_SERVER/);
+      expect(() => parseLocalServerOrigin(value), value).toThrow(/PORTLY_STATIC_SERVER/);
     }
   });
 });

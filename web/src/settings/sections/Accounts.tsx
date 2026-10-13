@@ -4,7 +4,7 @@
  * exact redirect URI to register, forms for Yahoo / CalDAV / IMAP with per-capability results,
  * and the vault-locked banner with "Reset credentials". Secrets are write-only.
  *
- * The same on Homebase's own page and on the Pages site paired with it: there is one page, with or
+ * The same on Portly's own page and on the Pages site paired with it: there is one page, with or
  * without the server. The Pages site on its in-browser backend shows Outlook.com alone: its sign-in
  * runs in the browser (a single-page-application registration); everything else needs the server
  * (`capabilities.ts`).
@@ -34,7 +34,7 @@ import {
   type Capability,
   type OAuthProvider,
   type ProbeResult,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { z } from 'zod';
 import { isApiError } from '../../api/client.ts';
 import {
@@ -100,7 +100,7 @@ export default function AccountsSettings() {
 
 /** The Outlook.com card on the in-browser backend: where the sign-in lives and how long it lasts. */
 export const STATIC_OUTLOOK_DESCRIPTION =
-  "Your Outlook.com calendar through Microsoft's official API, signed in from this browser. It needs a one-time app registration that only you control. The sign-in is kept in this browser (not encrypted) and lasts 24 hours; Homebase renews it by itself when you open the page while you are still signed in to Microsoft.";
+  "Your Outlook.com calendar through Microsoft's official API, signed in from this browser. It needs a one-time app registration that only you control. The sign-in is kept in this browser (not encrypted) and lasts 24 hours; Portly renews it by itself when you open the page while you are still signed in to Microsoft.";
 
 function OtherAccounts() {
   return (
@@ -152,7 +152,7 @@ function VaultLockedBanner() {
           </Button>
         }
       >
-        Homebase could not read its encryption key (for example after restoring the data folder on another PC or Windows
+        Portly could not read its encryption key (for example after restoring the data folder on another PC or Windows
         account). Accounts, Todoist and ICS calendar subscriptions are paused. Resetting deletes every stored password, token and
         subscription address and creates a new key; you then reconnect your accounts and re-enter your ICS feed addresses.
       </Banner>
@@ -405,8 +405,8 @@ function AccountRow({ account }: { account: Account }) {
         title={`Remove ${account.label}?`}
         description={
           account.kind === 'google'
-            ? 'Homebase deletes its stored tokens, calendars and cached events for this account and asks Google to revoke access.'
-            : 'Homebase deletes its stored credentials, calendars and cached events for this account. Nothing is deleted at the provider.'
+            ? 'Portly deletes its stored tokens, calendars and cached events for this account and asks Google to revoke access.'
+            : 'Portly deletes its stored credentials, calendars and cached events for this account. Nothing is deleted at the provider.'
         }
         confirmLabel="Remove account"
         destructive
@@ -564,7 +564,7 @@ function OAuthProviderSetup({ provider, description }: { provider: OAuthProvider
           <li key={index}>{step}</li>
         ))}
       </ol>
-      <Field label="Redirect URI" help={`Must match exactly. Step-by-step guide: ${info.guide} in the Homebase folder.`}>
+      <Field label="Redirect URI" help={`Must match exactly. Step-by-step guide: ${info.guide} in the Portly folder.`}>
         <CopyField value={data.redirectUri} label="Redirect URI" />
       </Field>
       <form className={styles.formGrid} onSubmit={(event) => void submit(event)} noValidate aria-label={`${info.title} app registration`}>
@@ -771,7 +771,7 @@ function YahooForm() {
         <ExternalLink href="https://login.yahoo.com/account/security" showIcon>
           Yahoo Account Security
         </ExternalLink>{' '}
-        → Generate app password. Homebase checks calendar (CalDAV, read-only) and mail (IMAP) separately.
+        → Generate app password. Portly checks calendar (CalDAV, read-only) and mail (IMAP) separately.
       </p>
       <FieldGrid>
         <Field label="Yahoo email" error={errors.email} required>

@@ -1,10 +1,10 @@
 /**
  * Search suggestion providers (§8 Search suggestions). Every provider answers an OpenSearch-style
  * array `[query, string[], ...]`; index 1 holds the suggestions. Requests use safe-fetch policy
- * `provider` (fixed vendor endpoints) with purpose `suggest.<provider>`, and send the Homebase
+ * `provider` (fixed vendor endpoints) with purpose `suggest.<provider>`, and send the Portly
  * User-Agent (added by safe-fetch).
  */
-import { MAX_SUGGESTIONS, type SuggestProvider } from '@homebase/shared';
+import { MAX_SUGGESTIONS, type SuggestProvider } from '@portly/shared';
 import { SafeFetchError, type SafeFetch } from '../../security/safe-fetch.ts';
 
 export const SUGGEST_TIMEOUT_MS = 4_000;

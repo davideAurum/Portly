@@ -10,7 +10,7 @@
  */
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { SearchSettingsSchema, type SearchEngine, type SearchSettings, type Settings } from '@homebase/shared';
+import { SearchSettingsSchema, type SearchEngine, type SearchSettings, type Settings } from '@portly/shared';
 import { fetchSiteMeta } from '../../api/bookmarks.ts';
 import { qk } from '../../api/keys.ts';
 import { patchSettings } from '../../api/settings.ts';

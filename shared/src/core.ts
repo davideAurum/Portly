@@ -184,11 +184,11 @@ export type VaultState = z.output<typeof VaultStateSchema>;
  * change would break a Pages build published earlier (a renamed route, a stricter request schema),
  * so an outdated page shows "Needs update" instead of failing request by request.
  */
-export const HOMEBASE_API_VERSION = 1;
+export const PORTLY_API_VERSION = 1;
 
 /**
  * `GET /api/health`. The server also identifies itself (`app`, `apiVersion`, `instanceId`,
- * `appUrl`) so the Pages site can tell Homebase from another program on the port, and the server
+ * `appUrl`) so the Pages site can tell Portly from another program on the port, and the server
  * it paired with from another one, and names the Pages site it answers (`pagesUrl`) so the new-tab
  * extension can follow it. The in-browser backend of the Pages build omits them.
  */
@@ -197,12 +197,12 @@ export const HealthResponseSchema = z
     ok: z.boolean(),
     version: z.string(),
     vault: VaultStateSchema,
-    app: z.literal('homebase').optional(),
+    app: z.literal('portly').optional(),
     apiVersion: z.number().int().min(1).optional(),
     instanceId: z.string().min(1).max(64).optional(),
     /** The server's own page, e.g. `http://localhost:5757/` (always ends with `/`). */
     appUrl: z.string().min(1).max(MAX_URL_LENGTH).optional(),
-    /** The Pages site this server answers (`HOMEBASE_PAGES_URL`, ends with `/`); null when hybrid mode is off. */
+    /** The Pages site this server answers (`PORTLY_PAGES_URL`, ends with `/`); null when hybrid mode is off. */
     pagesUrl: z.string().min(1).max(MAX_URL_LENGTH).nullable().optional(),
   })
   .strict();

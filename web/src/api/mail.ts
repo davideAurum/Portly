@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
-import type { MailAccountSummary } from '@homebase/shared';
+import type { MailAccountSummary } from '@portly/shared';
 import { toast, toastError, toastUndo } from '../ui/toast.ts';
 import { apiGet, apiPath, apiPost, isApiError } from './client.ts';
 import { qk } from './keys.ts';

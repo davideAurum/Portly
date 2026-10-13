@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds the Homebase release package for Windows x64: one zip that installs and runs without
+    Builds the Portly release package for Windows x64: one zip that installs and runs without
     Git, npm or a separate Node.js (scripts\install.ps1, docs\setup\releases.md).
 
 .DESCRIPTION
@@ -13,9 +13,9 @@
        nodejs.org once into <OutDir>\cache and checked against its SHA-256 (or -NodeExe).
     5. Stages the package: package.json and README.md; server\ and shared\ without tests, fixtures
        and test helpers; web\dist; extension\ without tests and tools; native-host\; the scripts an
-       installed copy uses (install, autostart, status, start, the homebase command) with
+       installed copy uses (install, autostart, status, start, the portly command) with
        scripts\lib; docs\; node_modules\; runtime\node.exe with Node's LICENSE; and release.json.
-    6. Zips it to <OutDir>\homebase-<version>-win-x64.zip and writes <OutDir>\homebase-release.json
+    6. Zips it to <OutDir>\portly-<version>-win-x64.zip and writes <OutDir>\portly-release.json
        (version, package name, SHA-256, size): the two files scripts\publish-release.ps1 publishes.
 
 .PARAMETER OutDir
@@ -28,7 +28,7 @@
 
 .PARAMETER ReleaseRepo
     The public GitHub repository installed copies update from, as owner/name (default
-    davideAurum/Homebase). Written into release.json.
+    davideAurum/Portly). Written into release.json.
 
 .PARAMETER SkipBuild
     Use the existing web\dist instead of building it.
@@ -44,7 +44,7 @@
 param(
     [string]$OutDir,
     [string]$NodeExe,
-    [string]$ReleaseRepo = 'davideAurum/Homebase',
+    [string]$ReleaseRepo = 'davideAurum/Portly',
     [switch]$SkipBuild,
     [switch]$AllowDirty
 )
@@ -53,9 +53,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 
 $ReleasePlatform = 'win-x64'
-$ReleaseManifestName = 'homebase-release.json'
-# The scripts an installed copy runs (the rest of scripts\ is for developing Homebase).
-$ReleaseScripts = @('install.ps1', 'install-autostart.ps1', 'uninstall-autostart.ps1', 'install-cli.ps1', 'homebase.ps1',
+$ReleaseManifestName = 'portly-release.json'
+# The scripts an installed copy runs (the rest of scripts\ is for developing Portly).
+$ReleaseScripts = @('install.ps1', 'install-autostart.ps1', 'uninstall-autostart.ps1', 'install-cli.ps1', 'portly.ps1',
     'start.ps1', 'status.ps1', 'README.md', 'lib\Common.ps1')
 
 function Invoke-ReleaseProgram {
@@ -177,7 +177,7 @@ function Invoke-BuildRelease {
     $npm = (Get-Command -Name 'npm.cmd' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1)
     if ($null -eq $npm) { throw 'npm.cmd was not found on PATH (it is installed with Node.js).' }
 
-    Write-HbStep "Building Homebase $version for $ReleasePlatform into $out"
+    Write-HbStep "Building Portly $version for $ReleasePlatform into $out"
     if (-not $SkipBuild) {
         Write-HbStep 'Building the web app: npm run build'
         Invoke-ReleaseProgram -FilePath $npm.Source -Arguments @('run', 'build') -WorkingDirectory $repoRoot
@@ -196,10 +196,10 @@ function Invoke-BuildRelease {
         $null = New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force
         Copy-Item -LiteralPath (Join-Path $repoRoot $manifest) -Destination $target
     }
-    Invoke-ReleaseProgram -FilePath $npm.Source -WorkingDirectory $deps -Arguments @('ci', '--omit=dev', '--workspace=@homebase/server',
-        '--workspace=@homebase/shared', '--include-workspace-root=false', '--no-audit', '--no-fund')
+    Invoke-ReleaseProgram -FilePath $npm.Source -WorkingDirectory $deps -Arguments @('ci', '--omit=dev', '--workspace=@portly/server',
+        '--workspace=@portly/shared', '--include-workspace-root=false', '--no-audit', '--no-fund')
     # The workspace links point into the scratch folder; the installer creates the one it needs.
-    $links = Join-Path $deps 'node_modules\@homebase'
+    $links = Join-Path $deps 'node_modules\@portly'
     if (Test-Path -LiteralPath $links) {
         foreach ($entry in @([System.IO.Directory]::GetFileSystemEntries($links))) { Remove-HbDirectoryLink -Path $entry }
         Remove-Item -LiteralPath $links -Recurse -Force
@@ -248,7 +248,7 @@ function Invoke-BuildRelease {
 
     $builtAt = [System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
     Write-ReleaseJson -Path (Join-Path $stage 'release.json') -Value ([ordered]@{
-            name             = 'homebase'
+            name             = 'portly'
             version          = $version
             platform         = $ReleasePlatform
             node             = $nodeVersion
@@ -260,7 +260,7 @@ function Invoke-BuildRelease {
             releaseRepo      = $ReleaseRepo
         })
 
-    $packageName = "homebase-$version-$ReleasePlatform.zip"
+    $packageName = "portly-$version-$ReleasePlatform.zip"
     $zip = Join-Path $out $packageName
     Write-HbStep "Zipping $packageName"
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
@@ -269,7 +269,7 @@ function Invoke-BuildRelease {
     $sha256 = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
     $size = (Get-Item -LiteralPath $zip).Length
     Write-ReleaseJson -Path (Join-Path $out $ReleaseManifestName) -Value ([ordered]@{
-            name     = 'homebase'
+            name     = 'portly'
             version  = $version
             platform = $ReleasePlatform
             package  = $packageName

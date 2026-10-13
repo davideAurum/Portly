@@ -3,8 +3,8 @@
  * (`setCapabilitiesForTests(capabilitiesFor(true, 'browser'))`): suggestions are described as
  * going straight to Wikipedia with the other providers labelled unavailable (the stored enum is
  * unchanged), the Todoist token is described as living in this browser, Todoist's own token help is
- * linked (the guide in the Homebase folder is out of the site's reach) and the vault-locked banner never shows. On the
- * Homebase server on this PC (hybrid mode) the server's copy applies, and a locked vault links to
+ * linked (the guide in the Portly folder is out of the site's reach) and the vault-locked banner never shows. On the
+ * Portly server on this PC (hybrid mode) the server's copy applies, and a locked vault links to
  * this page's own Accounts settings, where it is reset.
  */
 import { act, screen, within } from '@testing-library/react';
@@ -33,7 +33,7 @@ describe('static build: Settings → Search copy', () => {
     expect(items[4]).not.toHaveTextContent('not available');
 
     expect(screen.getByText(/directly from your browser to Wikipedia; Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build/)).toBeInTheDocument();
-    expect(screen.queryByText(/through Homebase/)).toBeNull();
+    expect(screen.queryByText(/through Portly/)).toBeNull();
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Custom engine' }));
@@ -70,11 +70,11 @@ describe('static build: Settings → Todoist copy', () => {
     expect(TODOIST_TOKEN_HELP_URL).toBe('https://www.todoist.com/help/articles/find-your-api-token-Jpzx9IIlB');
     expect(guide).toHaveAttribute('href', TODOIST_TOKEN_HELP_URL);
     expect(guide).toHaveAttribute('target', '_blank');
-    expect(screen.queryByText(/in the Homebase folder/)).toBeNull();
-    // Nothing points into the private Homebase repository (it would 404 for everyone but its owner).
+    expect(screen.queryByText(/in the Portly folder/)).toBeNull();
+    // Nothing points into the private Portly repository (it would 404 for everyone but its owner).
     for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href') ?? '').not.toContain('github.com');
     // Step 3 still holds: the static backend validates the token with Todoist before storing it.
-    expect(screen.getByText(/Homebase checks it with Todoist before storing it/)).toBeInTheDocument();
+    expect(screen.getByText(/Portly checks it with Todoist before storing it/)).toBeInTheDocument();
 
     // A "locked" health answer is meaningless without a vault: no banner, nothing disabled.
     expect(await screen.findByText('Connected')).toBeInTheDocument();
@@ -85,17 +85,17 @@ describe('static build: Settings → Todoist copy', () => {
   });
 });
 
-describe('Pages build on the Homebase server on this PC: Settings → Search and Todoist', () => {
+describe('Pages build on the Portly server on this PC: Settings → Search and Todoist', () => {
   beforeEach(() => setCapabilitiesForTests(capabilitiesFor(true, 'server')));
 
-  it('offers every suggestion provider through Homebase', async () => {
+  it('offers every suggestion provider through Portly', async () => {
     const server = createFakeServer([]);
     server.settings.bookmarks.autoFetchIcons = false;
     renderWithProviders(<SearchSettings />, { apiMocks: server.mocks });
     const list = await screen.findByRole('list', { name: 'Search engines' });
     expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Google suggestions');
     expect(screen.queryByText(/not available/)).toBeNull();
-    expect(screen.getByText(/through Homebase/)).toBeInTheDocument();
+    expect(screen.getByText(/through Portly/)).toBeInTheDocument();
     expect(isSuggestProviderAvailable('google')).toBe(true);
   });
 
@@ -118,11 +118,11 @@ describe('Pages build on the Homebase server on this PC: Settings → Search and
     expect(await screen.findByText('Saved credentials are locked')).toBeInTheDocument();
     expect(screen.getByText(/stored encrypted on this PC/)).toBeInTheDocument();
     expect(screen.getByText(/Reset credentials in Settings → Accounts, then add your token here again/)).toBeInTheDocument();
-    expect(screen.queryByText(/Homebase's own page/)).toBeNull();
+    expect(screen.queryByText(/Portly's own page/)).toBeNull();
     const link = screen.getByRole('link', { name: 'Open Accounts' });
     expect(link).toHaveAttribute('href', '#/settings/accounts');
     expect(link).not.toHaveAttribute('target');
-    expect(screen.queryByRole('link', { name: /Open Homebase on this PC/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Open Portly on this PC/ })).toBeNull();
     for (const each of screen.queryAllByRole('link')) expect(each.getAttribute('href') ?? '').not.toContain('evil.example');
     expect(screen.getByLabelText('Replace token')).toBeDisabled();
   });

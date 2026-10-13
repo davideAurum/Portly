@@ -10,7 +10,7 @@ import {
   type DiagnosticsSummary,
   type HealthHistoryResponse,
   type LogsResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { withLogContext } from '../../lib/log-context.ts';
 import { foreignOrigins } from '../../security/foreign-origins.ts';
 import { TEST_PAGES_ORIGIN } from '../../testing/test-request.ts';
@@ -77,7 +77,7 @@ describe('diagnostics routes', () => {
       expect(res.body.error.code).toBe('pairing_required');
     });
 
-    it.each(ROUTES)('$method $path answers Homebase’s own page', async (route) => {
+    it.each(ROUTES)('$method $path answers Portly’s own page', async (route) => {
       t = diagnosticsTestbed();
       const res = await t.json(route.method, route.path, { body: route.body });
       expect(res.status).toBe(route.status);
@@ -366,7 +366,7 @@ describe('diagnostics routes', () => {
         fields: { cf: { method: 'GET', route: '/api/mail/summary', status: 0, code: 'network_error' }, client: { cat: 'api', late: false } },
       });
 
-      // The pairing has its own budget (CLIENT_EVENTS_PER_MINUTE = 120): using it up leaves Homebase's own page alone.
+      // The pairing has its own budget (CLIENT_EVENTS_PER_MINUTE = 120): using it up leaves Portly's own page alone.
       expect((await post(many(100), headers)).body).toMatchObject({ accepted: 100, dropped: 0 });
       expect((await post(many(19), headers)).body).toMatchObject({ accepted: 19, dropped: 0 });
       expect((await post(clientBatch())).body).toMatchObject({ accepted: 1, dropped: 0 });

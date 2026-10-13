@@ -1,5 +1,5 @@
 /** Registry of the OAuth provider specs. */
-import { isOAuthProvider, type AccountKind, type OAuthProvider } from '@homebase/shared';
+import { isOAuthProvider, type AccountKind, type OAuthProvider } from '@portly/shared';
 import { HttpError } from '../../../lib/errors.ts';
 import { google } from './google.ts';
 import { microsoft } from './microsoft.ts';

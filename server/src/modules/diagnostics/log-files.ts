@@ -20,7 +20,7 @@ import {
   LOG_SOURCES,
   type LogLevel,
   type LogSource,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { levelForFilter, scrubText, scrubValue, type LogRecordOut } from '../../lib/logger.ts';
 import { isoOrNull } from './summary.ts';
 

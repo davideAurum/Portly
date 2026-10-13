@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ThemeSchema } from '@homebase/shared';
+import { ThemeSchema } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { SEARCH_INPUT_ATTRIBUTE } from '../lib/hotkeys.ts';
 import { setLocalServerController } from '../localServer/store.ts';
@@ -51,7 +51,7 @@ afterEach(() => {
 
 const WIDGET_TITLES = ['Launch pad', 'Weather', 'Calendar', 'Todoist', 'Mail'];
 
-/** The Homebase server on this PC as the local server controller last saw it (Pages build tests). */
+/** The Portly server on this PC as the local server controller last saw it (Pages build tests). */
 const LOCAL_SERVER: LocalServerInfo = { version: '0.1.0', instanceId: 'instance-1', appUrl: 'http://localhost:5757/', apiVersion: 1, vault: 'ready' };
 
 describe('Shell', () => {
@@ -86,7 +86,7 @@ describe('Shell', () => {
     expect(await screen.findByText(stubWidgetText('weather'))).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Profile: Work/ })).toBeInTheDocument();
     expect(unmatched).toEqual([]);
-    for (const req of requests) expect(req.headers.get('X-Homebase')).toBe('1');
+    for (const req of requests) expect(req.headers.get('X-Portly')).toBe('1');
   });
 
   it('switches profiles from the header menu', async () => {
@@ -158,7 +158,7 @@ describe('Shell', () => {
         },
       },
     });
-    expect(await screen.findByText("Can't reach the Homebase server")).toBeInTheDocument();
+    expect(await screen.findByText("Can't reach the Portly server")).toBeInTheDocument();
   });
 
   it('ends the footer with the local server indicator in the Pages build only', async () => {
@@ -166,14 +166,14 @@ describe('Shell', () => {
     setLocalServerController(fake.controller);
     const server = renderWithProviders(<Shell />, { apiMocks: shellMocks([profile('p1', 'Home')]) });
     const serverFooter = await screen.findByRole('contentinfo');
-    expect(within(serverFooter).queryByRole('button', { name: /Homebase on this PC/ })).not.toBeInTheDocument();
+    expect(within(serverFooter).queryByRole('button', { name: /Portly on this PC/ })).not.toBeInTheDocument();
     server.unmount();
 
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     renderWithProviders(<Shell />, { apiMocks: shellMocks([profile('p1', 'Home')]) });
     const footer = await screen.findByRole('contentinfo');
     // Loaded on its own (the server build's bundle never carries it).
-    expect(await within(footer).findByRole('button', { name: 'Homebase on this PC: Connected · v0.1.0' })).toBeInTheDocument();
+    expect(await within(footer).findByRole('button', { name: 'Portly on this PC: Connected · v0.1.0' })).toBeInTheDocument();
     expect(within(footer).getByText(/^Version/)).toBeInTheDocument();
   });
 
@@ -187,21 +187,21 @@ describe('Shell', () => {
     await act(() => new Promise((r) => setTimeout(r, 20)));
     const footer = screen.getByRole('contentinfo');
     expect(within(footer).getByText(/^Version/)).toBeInTheDocument();
-    expect(within(footer).queryByRole('button', { name: /Homebase on this PC/ })).not.toBeInTheDocument();
+    expect(within(footer).queryByRole('button', { name: /Portly on this PC/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
   });
 
-  it('Pages build on Homebase on this PC: banners follow the local server controller', async () => {
+  it('Pages build on Portly on this PC: banners follow the local server controller', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     const fake = fakeLocalServer({ backend: 'server', status: 'reconnecting', server: LOCAL_SERVER, paired: true, permission: 'granted' });
     setLocalServerController(fake.controller);
     renderWithProviders(<Shell />, { apiMocks: shellMocks([profile('p1', 'Home')]) });
-    expect(await screen.findByText('Reconnecting to Homebase on this PC — showing the last saved data')).toBeInTheDocument();
+    expect(await screen.findByText('Reconnecting to Portly on this PC — showing the last saved data')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument();
 
     act(() => fake.set({ status: 'absent', pendingSwitch: { target: 'browser', reason: 'unreachable' } }));
-    expect(await screen.findByText("Homebase on this PC isn't reachable")).toBeInTheDocument();
-    expect(screen.queryByText(/^Reconnecting to Homebase on this PC/)).not.toBeInTheDocument();
+    expect(await screen.findByText("Portly on this PC isn't reachable")).toBeInTheDocument();
+    expect(screen.queryByText(/^Reconnecting to Portly on this PC/)).not.toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Switch now' }));
     expect(fake.actions.switchNow).toHaveBeenCalledOnce();
   });
@@ -211,7 +211,7 @@ describe('Shell', () => {
       route: '#/settings/about',
       apiMocks: {
         ...shellMocks([]),
-        'GET /api/about': { version: '0.0.0-test', dataDir: 'C:\\Data\\Homebase', logPath: 'C:\\Data\\Homebase\\logs\\server.log', vault: 'ready' },
+        'GET /api/about': { version: '0.0.0-test', dataDir: 'C:\\Data\\Portly', logPath: 'C:\\Data\\Portly\\logs\\server.log', vault: 'ready' },
       },
     });
     expect(await screen.findByRole('heading', { level: 1, name: 'About' })).toBeInTheDocument();
@@ -222,7 +222,7 @@ describe('Shell', () => {
     // Diagnostics comes right before About.
     const links = within(nav).getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(links.slice(-2)).toEqual(['#/settings/diagnostics', '#/settings/about']);
-    expect(await screen.findByDisplayValue('C:\\Data\\Homebase')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('C:\\Data\\Portly')).toBeInTheDocument();
     expect(screen.getByText('Unlocked and ready')).toBeInTheDocument();
   });
 });

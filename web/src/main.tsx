@@ -37,7 +37,7 @@ function recordUncaughtErrors(): void {
 
 // Pages build: the server's redirect back after pairing carries the token in the address. Save it
 // (when the nonce matches) and take it out of the address before anything else happens.
-const pairingReturn: PairingReturnResult = __HOMEBASE_STATIC__
+const pairingReturn: PairingReturnResult = __PORTLY_STATIC__
   ? consumePairingReturn({
       location: window.location,
       history: window.history,
@@ -67,7 +67,7 @@ function render(persist: QueryPersistOptions): void {
 }
 
 /** sessionStorage key: when this tab last reloaded because a code chunk was missing. */
-const PRELOAD_RELOAD_KEY = 'homebase:reloaded-after-preload-error';
+const PRELOAD_RELOAD_KEY = 'portly:reloaded-after-preload-error';
 /**
  * At most one such reload per tab in this window. Long enough to outlast a static host's cached
  * index.html after a deploy (GitHub Pages: 10 minutes), so a still-stale page cannot loop, short
@@ -91,7 +91,7 @@ function reloadOnMissingChunks(): void {
 }
 
 /**
- * A page load whose backend is the Homebase server sends this browser's diagnostic events there
+ * A page load whose backend is the Portly server sends this browser's diagnostic events there
  * (`diagnostics/upload.ts`, loaded on demand: the Pages site on its browser backend never needs it).
  */
 function uploadClientEvents(): void {
@@ -100,7 +100,7 @@ function uploadClientEvents(): void {
       upload.startClientEventUpload();
     })
     .catch((err: unknown) => {
-      console.error('[Homebase] Could not start sending diagnostic events to Homebase', err);
+      console.error('[Portly] Could not start sending diagnostic events to Portly', err);
     });
 }
 
@@ -110,7 +110,7 @@ type StaticBackendModule = typeof import('./static/backend.ts');
  * Pages build, browser backend: open the in-browser backend first so stored images resolve to
  * object URLs on the very first paint, and refresh what another tab of this site changed.
  * `preloaded` is the module's import when `start()` already began it. (The literal
- * `__HOMEBASE_STATIC__` at the call sites keeps the static backend out of the server build's
+ * `__PORTLY_STATIC__` at the call sites keeps the static backend out of the server build's
  * bundle.)
  */
 async function startStaticBackend(preloaded: Promise<StaticBackendModule> | null): Promise<void> {
@@ -140,7 +140,7 @@ async function startStaticBackend(preloaded: Promise<StaticBackendModule> | null
     watchOtherTabs();
   } catch (err) {
     // Reported by the backend status (the shell shows a banner).
-    console.error('[Homebase] The in-browser backend could not start', err);
+    console.error('[Portly] The in-browser backend could not start', err);
   }
 }
 
@@ -167,14 +167,14 @@ async function finishOutlookSignIn(preloaded: Promise<StaticBackendModule> | nul
     window.location.replace(automatic);
     return true;
   } catch (err) {
-    console.error('[Homebase] The Outlook.com sign-in in this browser could not be completed', err);
+    console.error('[Portly] The Outlook.com sign-in in this browser could not be completed', err);
     return false;
   }
 }
 
 /**
  * Pages build, server backend: a Microsoft answer meant for this browser's own Outlook.com sign-in
- * arrived while the page uses Homebase on this PC. It cannot be completed here (the pending
+ * arrived while the page uses Portly on this PC. It cannot be completed here (the pending
  * sign-in lives in this browser's copy); keep the code out of the address bar and the history.
  */
 function dropMicrosoftAnswer(): void {
@@ -190,25 +190,25 @@ interface StartNotices {
 }
 
 function showNotices({ pairing, modeSwitch }: StartNotices): void {
-  if (pairing === 'paired') toast.success('This browser is now paired with Homebase on this PC');
-  else if (pairing === 'refused') toast.error('Pairing with Homebase on this PC didn’t complete. Try again from Settings → About.');
+  if (pairing === 'paired') toast.success('This browser is now paired with Portly on this PC');
+  else if (pairing === 'refused') toast.error('Pairing with Portly on this PC didn’t complete. Try again from Settings → About.');
   if (modeSwitch?.tone === 'success') toast.success(modeSwitch.message);
   else if (modeSwitch !== null) toast.info(modeSwitch.message);
 }
 
 async function start(): Promise<void> {
   let persist: QueryPersistOptions = persistOptionsOf(queryClient);
-  let backend: Backend = __HOMEBASE_STATIC__ ? 'browser' : 'server';
+  let backend: Backend = __PORTLY_STATIC__ ? 'browser' : 'server';
   let startLocalServer = (): void => {};
   const notices: StartNotices = { pairing: pairingReturn, modeSwitch: null };
   let offlineFallback = false;
-  if (!__HOMEBASE_STATIC__) {
-    // One page: Homebase's own page forwards to the Pages site, unless that can't be reached.
+  if (!__PORTLY_STATIC__) {
+    // One page: Portly's own page forwards to the Pages site, unless that can't be reached.
     const forward = await forwardToPages({ location: window.location, framed: isFramed() });
     if (forward === 'forwarded') return;
     offlineFallback = forward === 'offline';
   }
-  if (__HOMEBASE_STATIC__) {
+  if (__PORTLY_STATIC__) {
     // Before the first dynamic import, which is itself a chunk that may be gone after a deploy.
     reloadOnMissingChunks();
     // A page load that will stay on this browser's copy (hybrid mode off, framed, or the hints say
@@ -218,7 +218,7 @@ async function start(): Promise<void> {
     const staysInBrowser = !HYBRID_ENABLED || isFramed() || createPairingStore(browserLocalStorage()).nextBootBackend(Date.now()) === 'browser';
     const staticBackend = staysInBrowser ? import('./static/backend.ts') : null;
     void staticBackend?.catch(() => undefined);
-    // Decide this page load's backend before anything reads data, and keep it: the Homebase server
+    // Decide this page load's backend before anything reads data, and keep it: the Portly server
     // on this PC when paired and recently seen (hybrid mode), else this browser's copy. Also drops
     // the server backend's leftovers when this browser is not paired (even with hybrid mode off).
     try {
@@ -230,7 +230,7 @@ async function start(): Promise<void> {
       notices.modeSwitch = hybrid.takeModeSwitchNotice(boot.backend);
     } catch (err) {
       // This page load stays on the in-browser backend.
-      console.error('[Homebase] Could not look for Homebase on this PC', err);
+      console.error('[Portly] Could not look for Portly on this PC', err);
     }
     // Recorded once this page load's backend is known (the events carry it).
     if (pairingReturn === 'paired') recordClientEvent('info', 'hybrid', 'pairing completed');
@@ -260,7 +260,7 @@ async function start(): Promise<void> {
   await prepareFirstRender(queryClient, persist).catch(() => undefined);
   render(persist);
   if (offlineFallback) toast.info('Your Pages site can’t be reached right now, so this is the copy on this PC.');
-  if (__HOMEBASE_STATIC__) {
+  if (__PORTLY_STATIC__) {
     // Toasts raised before the Toaster mounts are shown once it subscribes.
     showNotices(notices);
     // Probing starts once the page is up (it may show the browser's permission prompt).

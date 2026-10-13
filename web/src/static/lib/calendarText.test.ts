@@ -1,6 +1,6 @@
 /** Mirrors server/src/modules/calendar/text.test.ts for the static port. */
 import { describe, expect, it } from 'vitest';
-import { EVENT_TEXT_LIMITS } from '@homebase/shared';
+import { EVENT_TEXT_LIMITS } from '@portly/shared';
 import { descriptionText, looksLikeHtml, multiLine, singleLine } from './calendarText.ts';
 
 const MAX = EVENT_TEXT_LIMITS.description;

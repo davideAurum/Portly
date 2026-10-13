@@ -5,7 +5,7 @@
  */
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import type { CalendarEvent } from '@homebase/shared';
+import type { CalendarEvent } from '@portly/shared';
 import { Button } from '../../ui/Button.tsx';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/Popover.tsx';
 import { useCalendarWidget } from './context.tsx';

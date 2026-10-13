@@ -5,7 +5,7 @@
  * text is never reflected to the client; the provider's reason codes, status and `Retry-After`
  * are kept on {@link ProviderHttpError} for logs and health only (lib/provider-errors.ts).
  */
-import type { ErrorCode } from '@homebase/shared';
+import type { ErrorCode } from '@portly/shared';
 import type { AccountService } from '../../../context.ts';
 import { HttpError, ProviderUnauthorizedError } from '../../../lib/errors.ts';
 import {

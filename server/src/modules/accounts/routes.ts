@@ -4,7 +4,7 @@
  *
  * Every route except the callback is declared `paired()`: the paired Pages site (hybrid mode) sets up
  * OAuth clients, connects accounts (OAuth start, app-password accounts) and manages them, like
- * Homebase's own page. The callback lands on Homebase's own page, which forwards to the Pages site.
+ * Portly's own page. The callback lands on Portly's own page, which forwards to the Pages site.
  */
 import type { Context, Hono } from 'hono';
 import {
@@ -16,7 +16,7 @@ import {
   OAuthStartSchema,
   YahooAccountCreateSchema,
   type OAuthStartResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppEnv } from '../../context.ts';
 import { exempt, paired } from '../../lib/routes.ts';
 import { parseBody } from '../../lib/validate.ts';

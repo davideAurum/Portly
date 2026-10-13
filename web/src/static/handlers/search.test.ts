@@ -4,7 +4,7 @@
  * `origin=*`), the other providers answer `[]` without a request.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SUGGEST_PROVIDERS, type SuggestProvider } from '@homebase/shared';
+import { SUGGEST_PROVIDERS, type SuggestProvider } from '@portly/shared';
 import { createFakeFetch, failingFetch, hangingFetch, type FakeFetchRoute } from '../providers/__fixtures__/fakeFetch.ts';
 import { browserSuggestUrl, isBrowserSuggestProvider, normalizeQuery, parseSuggestions, suggestUrl } from '../providers/suggest.ts';
 import { createTestBackend, type TestBackend } from '../test/harness.ts';

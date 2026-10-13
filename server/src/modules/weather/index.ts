@@ -19,7 +19,7 @@
  */
 import type { Hono } from 'hono';
 import { z } from 'zod';
-import { Latitude, Longitude, type GeoPlace, type WeatherReport, type WeatherUnits } from '@homebase/shared';
+import { Latitude, Longitude, type GeoPlace, type WeatherReport, type WeatherUnits } from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import type { HttpError } from '../../lib/errors.ts';
 import { outcomeFromError, type HealthSubject, type Outcome } from '../../lib/health.ts';

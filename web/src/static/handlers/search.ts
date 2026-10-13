@@ -16,7 +16,7 @@
  *   keystroke's lookup finishes under its 4 s deadline and fills the cache.
  */
 import { z } from 'zod';
-import { SuggestProviderSchema, type SuggestResponse } from '@homebase/shared';
+import { SuggestProviderSchema, type SuggestResponse } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { createMemoryCache, type MemoryCache } from '../lib/cache.ts';
 import { parseQuery } from '../lib/validate.ts';

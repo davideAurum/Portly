@@ -1,5 +1,5 @@
 /**
- * Requests the Pages site sends to the Homebase server on this PC to find out whether it is there
+ * Requests the Pages site sends to the Portly server on this PC to find out whether it is there
  * and whether it still accepts this browser (hybrid mode). Whatever answers on the port is
  * untrusted input: answers are validated with the shared schemas, and the server's `appUrl` only
  * survives as a loopback root page (`validateAppUrl`). The published site and the server are
@@ -9,7 +9,7 @@
  * Every request is a CORS request with no credentials, no HTTP cache and
  * `targetAddressSpace: 'loopback'` (Local Network Access: the browser asks for the permission when
  * the request reaches the port). The health probe sends no custom header, so it needs no
- * preflight; the pairing check sends the token and `X-Homebase`.
+ * preflight; the pairing check sends the token and `X-Portly`.
  *
  * The `…Detailed` variants also say what the request showed besides its verdict
  * ({@link ProbeDetails}: time, HTTP status, error name), for the controller's diagnostic events
@@ -23,7 +23,7 @@ import {
   PairingStatusResponseSchema,
   type HealthResponse,
   type PairingStatusResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { z } from 'zod';
 import { validateAppUrl } from './urls.ts';
 
@@ -45,12 +45,12 @@ export const LOOPBACK_REQUEST_INIT: Readonly<LoopbackRequestInit> = Object.freez
 });
 
 export type HealthProbeResult =
-  /** Homebase answered; `appUrl` is the validated page URL it reported (null when missing or refused). */
+  /** Portly answered; `appUrl` is the validated page URL it reported (null when missing or refused). */
   | { kind: 'ok'; health: HealthResponse; appUrl: string | null }
   /** Nothing answered (connection refused, CORS refused, permission denied: the browser cannot tell them apart). */
   | { kind: 'unreachable' }
-  /** Something answered that is not Homebase. */
-  | { kind: 'not-homebase' }
+  /** Something answered that is not Portly. */
+  | { kind: 'not-portly' }
   | { kind: 'aborted' };
 
 /** What a request to the local server showed besides its verdict (diagnostic events only). */
@@ -113,23 +113,23 @@ export async function probeHealthDetailed(origin: string, options: ProbeOptions)
   recorder.details.httpStatus = res.status;
   if (!res.ok || !(res.headers.get('content-type') ?? '').includes('application/json')) {
     recorder.done();
-    return finish({ kind: 'not-homebase' });
+    return finish({ kind: 'not-portly' });
   }
   let body: unknown;
   try {
     body = await res.json();
   } catch (err) {
     recorder.failed(err);
-    return finish(isAbort(err, signal) ? { kind: 'aborted' } : { kind: 'not-homebase' });
+    return finish(isAbort(err, signal) ? { kind: 'aborted' } : { kind: 'not-portly' });
   }
   recorder.done();
   const health = HealthReader.safeParse(body);
-  // A Homebase from before hybrid mode omits `app` (and `apiVersion`): it reads as an incompatible Homebase.
-  if (!health.success || (health.data.app !== undefined && health.data.app !== 'homebase')) return finish({ kind: 'not-homebase' });
+  // A Portly from before hybrid mode omits `app` (and `apiVersion`): it reads as an incompatible Portly.
+  if (!health.success || (health.data.app !== undefined && health.data.app !== 'portly')) return finish({ kind: 'not-portly' });
   return finish({ kind: 'ok', health: health.data, appUrl: validateAppUrl(health.data.appUrl) });
 }
 
-/** `GET <origin>/api/health`: is Homebase there, which one, and which API version does it speak? */
+/** `GET <origin>/api/health`: is Portly there, which one, and which API version does it speak? */
 export async function probeHealth(origin: string, options: ProbeOptions): Promise<HealthProbeResult> {
   return (await probeHealthDetailed(origin, options)).result;
 }
@@ -143,7 +143,7 @@ export type NoCorsProbeResult = 'answers' | 'unreachable' | 'aborted';
 /**
  * `GET <origin>/api/health` as a `no-cors` request, for after a CORS probe failed: an (opaque)
  * answer shows that something listens on the port but does not accept this site's CORS requests —
- * Homebase on this PC without this site as its `HOMEBASE_PAGES_URL`, or one from before hybrid
+ * Portly on this PC without this site as its `PORTLY_PAGES_URL`, or one from before hybrid
  * mode. Only with the local network permission granted (or none in this browser): it must never
  * be the request that shows the permission prompt. It carries nothing — no token, no header, no
  * credentials, no referrer — and nothing of the answer is read.
@@ -181,7 +181,7 @@ export type PairingCheckResult =
 /** The headers of every paired request: the CSRF header and the pairing token. */
 export function pairedHeaders(token: string, headers?: HeadersInit): Headers {
   const out = new Headers(headers);
-  out.set('X-Homebase', '1');
+  out.set('X-Portly', '1');
   out.set(PAIRING_TOKEN_HEADER, token);
   return out;
 }

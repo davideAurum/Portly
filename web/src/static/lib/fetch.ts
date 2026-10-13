@@ -11,7 +11,7 @@
  * - {@link classifyFetchError} / {@link upstreamFailure} map transport failures to the server's
  *   API errors: timeout → `504 upstream_timeout`, network/CORS `TypeError` and oversized bodies →
  *   `502 provider_error`, while the caller's own abort is rethrown so the API client can ignore
- *   it. A handler must never let a raw `TypeError` escape: the client would show "Homebase is not
+ *   it. A handler must never let a raw `TypeError` escape: the client would show "Portly is not
  *   reachable" (`network_error`).
  */
 import { StaticApiError } from '../respond.ts';

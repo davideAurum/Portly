@@ -333,7 +333,7 @@ describe('ServerLogPanel', () => {
 
   it('shows the update notice when the server has no diagnostics', async () => {
     renderWithProviders(<Harness />, { apiMocks: { 'GET /api/diagnostics/logs': mockError(403, 'local_only', 'Local only') } });
-    expect(await screen.findByText('Update Homebase on this PC to see its diagnostics')).toBeInTheDocument();
+    expect(await screen.findByText('Update Portly on this PC to see its diagnostics')).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Live' })).toBeDisabled();
   });
 });

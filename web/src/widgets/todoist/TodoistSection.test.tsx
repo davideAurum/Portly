@@ -2,7 +2,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { SettingsPatch } from '@homebase/shared';
+import type { SettingsPatch } from '@portly/shared';
 import TodoistSettingsSection from '../../settings/sections/Todoist.tsx';
 import { health, settings } from '../../test/fixtures.ts';
 import { mockError, renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';

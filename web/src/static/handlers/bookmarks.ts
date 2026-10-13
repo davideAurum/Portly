@@ -43,7 +43,7 @@ import {
   type BookmarksResponse,
   type IconMode,
   type SiteMeta,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { z } from 'zod';
 import type { StaticContext } from '../context.ts';
 import { faviconIdFor, faviconServiceUrl, hostKeyOf, isFaviconId } from '../favicon.ts';

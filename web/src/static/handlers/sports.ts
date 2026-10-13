@@ -15,7 +15,7 @@
  * As in weather.ts, upstream calls run inside the cache's single flight under their own deadline,
  * never one request's AbortSignal.
  */
-import { SportsGamesQuerySchema, SportsTeamsQuerySchema, sportsLeague, type SportsLeagueInfo } from '@homebase/shared';
+import { SportsGamesQuerySchema, SportsTeamsQuerySchema, sportsLeague, type SportsLeagueInfo } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { createMemoryCache, type MemoryCache } from '../lib/cache.ts';
 import { fetchTextCapped, upstreamFailure, type FetchLike } from '../lib/fetch.ts';

@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Trophy } from 'lucide-react';
 import { z } from 'zod';
-import { SportsLeagueId, SportsTeamId } from '@homebase/shared';
+import { SportsLeagueId, SportsTeamId } from '@portly/shared';
 import { lazyWithPreload } from '../lazyWidget.ts';
 import type { WidgetDefinition } from '../types.ts';
 

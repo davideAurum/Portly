@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BookmarksResponse, Settings } from '@homebase/shared';
+import type { BookmarksResponse, Settings } from '@portly/shared';
 import { focusSearchInput } from '../../lib/hotkeys.ts';
 import { renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';
 import { settings as makeSettings } from '../../test/fixtures.ts';

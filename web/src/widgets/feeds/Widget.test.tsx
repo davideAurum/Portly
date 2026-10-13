@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Feed } from '@homebase/shared';
+import type { Feed } from '@portly/shared';
 import { WidgetFrameContext, type WidgetFrameContextValue } from '../../grid/WidgetContext.tsx';
 import { mockError, renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';
 import { feedsConfigSchema, type FeedsConfig } from './index.ts';

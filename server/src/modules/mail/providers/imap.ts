@@ -34,7 +34,7 @@ import {
   type Account,
   type AccountDraft,
   type MailMessage,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AccountProbe, AccountService } from '../../../context.ts';
 import type { MemoryCache } from '../../../lib/cache.ts';
 import { HttpError } from '../../../lib/errors.ts';
@@ -158,7 +158,7 @@ export function mapImapError(err: unknown, host: string, accountId: string | und
     new HttpError(status, errCode, accountId === undefined ? { message, cause } : { message, accountId, cause });
 
   if (err instanceof ImapWorkerError && !aborted) {
-    // Homebase's own failure (worker could not run or crashed), not the mail server's.
+    // Portly's own failure (worker could not run or crashed), not the mail server's.
     return withAccount(502, 'provider_error', `The mail session with ${host} stopped unexpectedly; try again`);
   }
 

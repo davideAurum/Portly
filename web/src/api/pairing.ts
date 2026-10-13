@@ -1,8 +1,8 @@
 /**
  * Paired browsers (hybrid mode): the configured Pages address and the pairings
- * (`GET /api/pairings`) and revoking one (`DELETE /api/pairings/:id`), from Homebase's own page or
+ * (`GET /api/pairings`) and revoking one (`DELETE /api/pairings/:id`), from Portly's own page or
  * the paired Pages site; approving a pairing request (`POST /api/pairings`, then back to the Pages
- * site with the token in the fragment) only on Homebase's own page. The list is never persisted:
+ * site with the token in the fragment) only on Portly's own page. The list is never persisted:
  * it must always show what the server trusts now.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,7 +14,7 @@ import {
   parsePairingReturn,
   type PairingCreateResponse,
   type PairingsResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { assignLocation, safeHref } from '../lib/openUrl.ts';
 import { toastError } from '../ui/toast.ts';
 import { apiDelete, apiGet, apiPath, apiPost, isApiError } from './client.ts';
@@ -68,7 +68,7 @@ export async function approvePairing(nonce: string, pagesUrl: string): Promise<v
   const { redirectUrl } = await createPairing(nonce);
   const target = pairingRedirectTarget(redirectUrl, pagesUrl, nonce);
   if (target === null || !assignLocation(target)) {
-    throw new PairingRedirectError('Homebase answered with an unexpected address, so this page did not open it.');
+    throw new PairingRedirectError('Portly answered with an unexpected address, so this page did not open it.');
   }
 }
 

@@ -5,7 +5,7 @@
  * or Settings → Bookmarks.
  */
 import { ArrowDown, ArrowUp, Settings2 } from 'lucide-react';
-import type { BookmarkGroup } from '@homebase/shared';
+import type { BookmarkGroup } from '@portly/shared';
 import { useBookmarks } from '../../api/bookmarks.ts';
 import { safeHref } from '../../lib/openUrl.ts';
 import { safeColor } from '../../lib/color.ts';

@@ -3,7 +3,7 @@
  * (`settings.general.locale` / `.timeFormat` through the Formatters).
  */
 import type { CSSProperties } from 'react';
-import type { Calendar, CalendarEvent } from '@homebase/shared';
+import type { Calendar, CalendarEvent } from '@portly/shared';
 import type { Formatters } from '../../lib/format.ts';
 import { readableTextColor, safeColor } from '../../lib/color.ts';
 import { addDaysKey, dateKey, daysBetweenKeys, eventBounds, keyToDate, type AgendaItem, type CalendarView, type DayRange } from './model.ts';

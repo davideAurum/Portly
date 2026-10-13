@@ -10,7 +10,10 @@ import styles from './Footer.module.css';
 
 export const APP_UPDATED: string = __APP_UPDATED__;
 
-/** Public pages Google's OAuth consent screen links to (the `site/` folder, published separately). */
+/**
+ * Public pages Google's OAuth consent screen links to (the `site/` folder, published separately to
+ * the repository still named homebase-site).
+ */
 export const SITE_URL = 'https://davideaurum.github.io/homebase-site/';
 export const CONTACT_URL = 'https://github.com/davideAurum';
 
@@ -59,7 +62,7 @@ export function Footer({ version, updated = APP_UPDATED, onShowShortcuts, server
           </a>
         </nav>
         <p className={styles.meta}>
-          <span>© {updated.slice(0, 4)} Homebase</span>
+          <span>© {updated.slice(0, 4)} Portly</span>
           <span aria-hidden="true">·</span>
           <span>Version {version}</span>
           <span aria-hidden="true">·</span>

@@ -3,7 +3,7 @@
  * endpoint), PKCE S256, offline access with forced consent so a refresh token is always issued,
  * incremental grants. Partial grants are read from the token response's `scope`.
  */
-import type { Capability } from '@homebase/shared';
+import type { Capability } from '@portly/shared';
 import { audienceMatches, notExpired, stringClaim } from './id-token.ts';
 import type { OAuthProviderSpec } from './types.ts';
 

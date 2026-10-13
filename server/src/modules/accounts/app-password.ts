@@ -12,7 +12,7 @@ import {
   type ImapAccountCreate,
   type ValidationIssue,
   type YahooAccountCreate,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { z } from 'zod';
 import { HttpError } from '../../lib/errors.ts';
 import { hostIsPrivate, type LookupFn } from './net.ts';

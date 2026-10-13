@@ -1,7 +1,7 @@
 /**
  * The Pages build's transport: a browser-backend page answers from the in-browser backend; a
- * server-backend page waits for the controller, then calls the Homebase server on this PC as a
- * credential-less CORS request carrying `X-Homebase` and the pairing token, with no timeout of its
+ * server-backend page waits for the controller, then calls the Portly server on this PC as a
+ * credential-less CORS request carrying `X-Portly` and the pairing token, with no timeout of its
  * own, and tells the controller what it learned (any response, a network failure, a revoked
  * pairing — never an abort or the end of server mode). The browser's own backups never reach it.
  */
@@ -49,7 +49,7 @@ describe('server transport', () => {
     const res = await serverFetch('/api/settings', {
       method: 'PATCH',
       body: '{"a":1}',
-      headers: { 'Content-Type': 'application/json', 'X-Homebase': '1' },
+      headers: { 'Content-Type': 'application/json', 'X-Portly': '1' },
       credentials: 'same-origin',
       cache: 'no-store',
       signal: abort.signal,
@@ -69,16 +69,16 @@ describe('server transport', () => {
     });
     const headers = new Headers(init?.headers);
     expect(headers.get('Content-Type')).toBe('application/json');
-    expect(headers.get('X-Homebase')).toBe('1');
-    expect(headers.get('X-Homebase-Token')).toBe(TOKEN);
+    expect(headers.get('X-Portly')).toBe('1');
+    expect(headers.get('X-Portly-Token')).toBe(TOKEN);
     expect(controller.reportResponse).toHaveBeenCalledTimes(1);
   });
 
-  it('adds X-Homebase itself (image loads call it directly)', async () => {
+  it('adds X-Portly itself (image loads call it directly)', async () => {
     const { fetch, serverFetch } = transport(fakeController());
     await serverFetch('/api/icons/abc', { method: 'GET', cache: 'default' });
     const [, init] = fetch.mock.calls[0]!;
-    expect(new Headers(init?.headers).get('X-Homebase')).toBe('1');
+    expect(new Headers(init?.headers).get('X-Portly')).toBe('1');
     expect(init?.cache).toBe('default');
   });
 

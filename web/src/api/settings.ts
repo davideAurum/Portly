@@ -5,7 +5,7 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { SettingsSchema, type Settings, type SettingsPatch } from '@homebase/shared';
+import { SettingsSchema, type Settings, type SettingsPatch } from '@portly/shared';
 import { applyMergePatch, canCombineMergePatches, combineMergePatches } from '../lib/mergePatch.ts';
 import { useDebouncedCallback } from '../lib/useDebouncedCallback.ts';
 import { toastError } from '../ui/toast.ts';

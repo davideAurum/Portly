@@ -34,7 +34,7 @@
  * Writes (Google/Microsoft only): provider call → upsert the cache row from the provider response
  * → return it, logged as `info 'calendar event written'` (warn on failure). Written ids are watched
  * for {@link WRITTEN_WATCH_MS}: a listing of the sync window that deletes one is reported (`event
- * written by Homebase is missing from the provider listing`); events outside the window are not
+ * written by Portly is missing from the provider listing`); events outside the window are not
  * listed, so not watched. Deletes remove the row and remember its id briefly so a listing fetched
  * before the delete cannot resurrect it.
  */
@@ -48,7 +48,7 @@ import {
   type EventUpdate,
   type IcsCreate,
   type IcsUpdate,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { outcomeFromError, type HealthSubject, type Outcome } from '../../lib/health.ts';
@@ -125,7 +125,7 @@ export interface CalendarService {
 
 const TOMBSTONE_MS = 10 * 60 * 1000;
 
-/** Events written through Homebase are watched this long for a listing that drops them. */
+/** Events written through Portly are watched this long for a listing that drops them. */
 export const WRITTEN_WATCH_MS = 30 * 60 * 1000;
 
 /** A health subject is stale after this many intervals of its job without a check (§17). */
@@ -369,7 +369,7 @@ export function createCalendarService(deps: CalendarServiceDeps): CalendarServic
   };
 
   // ---------------------------------------------------------------------------
-  // Events written through Homebase (watched for a listing that drops them)
+  // Events written through Portly (watched for a listing that drops them)
   // ---------------------------------------------------------------------------
 
   /** By event id: the write, when, and when the event takes place (as stored). */
@@ -398,7 +398,7 @@ export function createCalendarService(deps: CalendarServiceDeps): CalendarServic
       const mark = written.get(eventId);
       if (!mark) continue;
       written.delete(eventId);
-      log.warn('event written by Homebase is missing from the provider listing', { calendarId, eventId, op: mark.op, agoMs: Math.max(0, now() - mark.at) });
+      log.warn('event written by Portly is missing from the provider listing', { calendarId, eventId, op: mark.op, agoMs: Math.max(0, now() - mark.at) });
     }
   };
 
@@ -756,7 +756,7 @@ export function createCalendarService(deps: CalendarServiceDeps): CalendarServic
       const row = await logWrite('create', account, calendar, input.allDay, async () => {
         const write = await writer.createEvent(account, calendar, input);
         const stored = upsertEvent(db, calendar.id, write.record, now());
-        if (!stored) throw new HttpError(502, 'provider_error', 'The provider returned an event Homebase cannot show');
+        if (!stored) throw new HttpError(502, 'provider_error', 'The provider returned an event Portly cannot show');
         return { result: stored, info: write, remoteId: write.record.remoteId };
       });
       markWritten('create', row);
@@ -773,7 +773,7 @@ export function createCalendarService(deps: CalendarServiceDeps): CalendarServic
       const row = await logWrite('update', account, calendar, patch.allDay ?? event.all_day === 1, async () => {
         const write = await writer.updateEvent(account, calendar, event, patch);
         const stored = upsertEvent(db, calendar.id, write.record, now());
-        if (!stored) throw new HttpError(502, 'provider_error', 'The provider returned an event Homebase cannot show');
+        if (!stored) throw new HttpError(502, 'provider_error', 'The provider returned an event Portly cannot show');
         return { result: stored, info: write, remoteId: write.record.remoteId };
       });
       if (row.id !== event.id) {
@@ -817,7 +817,7 @@ export function createCalendarService(deps: CalendarServiceDeps): CalendarServic
   /** The account and writer for a calendar, or the §7a refusal. */
   function writeTarget(calendar: CalendarRow): { account: Account; writer: WriteProvider } {
     const writer = writerFor(calendar.source);
-    if (!writer) throw new HttpError(409, 'conflict', 'This calendar is read-only in Homebase');
+    if (!writer) throw new HttpError(409, 'conflict', 'This calendar is read-only in Portly');
     if (!isWritableRow(calendar)) {
       throw new HttpError(403, 'forbidden', calendar.user_read_only === 1 ? 'This calendar is marked read-only' : 'You cannot add or change events in this calendar');
     }

@@ -127,7 +127,7 @@ export const SCRUB_PATTERNS: readonly (readonly [RegExp, ScrubReplacement])[] = 
   [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/-]+=*/gi, `$1 ${REDACTED}`],
   // 2. Header dumps: the whole value up to the end of the line or the closing quote (multi-cookie headers).
   [
-    /\b(authorization|proxy-authorization|cookie|set-cookie|x-homebase-token)(["']?\s*:\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\r\n"']+)/gi,
+    /\b(authorization|proxy-authorization|cookie|set-cookie|x-portly-token)(["']?\s*:\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\r\n"']+)/gi,
     redactKeyValue,
   ],
   // 3. Compound / camelCase secret keys with any separator (`password: x`, `"accessToken":"…"`, `nextPageToken=…`).
@@ -217,7 +217,7 @@ export function scrub(text: string): string {
 
 /** Keys whose value is a secret whatever its type. */
 const SECRET_KEY_RE =
-  /^(refresh_?token|access_?token|id_?token|client_?secret|app_?password|password|passphrase(key)?|cache_?key|token|nonce|secret|api_?key|x-homebase-token|cookie|set-cookie|authorization|code_?verifier|code)$/i;
+  /^(refresh_?token|access_?token|id_?token|client_?secret|app_?password|password|passphrase(key)?|cache_?key|token|nonce|secret|api_?key|x-portly-token|cookie|set-cookie|authorization|code_?verifier|code)$/i;
 /** The compound keys of {@link SCRUB_PATTERNS} rule 3 as whole keys (`nextPageToken`, `clientSecret`, `syncToken` …). */
 const COMPOUND_SECRET_KEY_RE = new RegExp(String.raw`^(?:${SECRET_KEY_NAMES})$`, 'i');
 /** A `code` value that is an error code (`ECONNREFUSED`, `provider_error`), not an OAuth code. */
@@ -470,7 +470,7 @@ const GENERIC_TERMS: ReadonlySet<string> = new Set([
   'gmail',
   'caldav',
   'imap',
-  'homebase',
+  'portly',
   'localhost',
   'www',
   'app',

@@ -2,13 +2,13 @@
 /**
  * Options page controller. Three settings in chrome.storage.local:
  *
- * - what a new tab opens (whatever Homebase on this PC is set up for, the default; the Pages
- *   site; or Homebase on this PC), saved as soon as a choice is picked;
- * - the Pages site address (https, or http on a loopback host; empty = the address Homebase on
+ * - what a new tab opens (whatever Portly on this PC is set up for, the default; the Pages
+ *   site; or Portly on this PC), saved as soon as a choice is picked;
+ * - the Pages site address (https, or http on a loopback host; empty = the address Portly on
  *   this PC reports), validated and saved like the port;
- * - the Homebase port (integer 1024–65535).
+ * - the Portly port (integer 1024–65535).
  *
- * Plus "Test connection" (GET /api/health, which also records what Homebase says about its Pages
+ * Plus "Test connection" (GET /api/health, which also records what Portly says about its Pages
  * site) and "Test launcher" (a ping to the native-messaging launcher) helpers. DOM output uses
  * textContent only.
  */
@@ -21,7 +21,7 @@ import {
   checkHealth,
   clearPagesUrl,
   describeFailure,
-  homebaseOrigin,
+  portlyOrigin,
   isTarget,
   parsePagesUrl,
   parsePort,
@@ -31,7 +31,7 @@ import {
   writePagesUrl,
   writePort,
   writeTarget,
-} from './homebase.js';
+} from './portly.js';
 import { LAUNCHER_PROTOCOL_VERSION, PING_STATUS, PINNED_EXTENSION_ID, isStaleExtensionId } from './launcher.js';
 
 export const PORT_ERROR = `Enter a whole number from ${MIN_PORT} to ${MAX_PORT}.`;
@@ -41,7 +41,7 @@ export const PAGES_URL_ERROR =
 const INSTALL_COMMAND = 'scripts\\install-autostart.ps1';
 const SETUP_DOC = 'docs\\setup\\autostart.md';
 const RELOAD_STEPS =
-  'On chrome://extensions (or edge://extensions), click Remove on Homebase New Tab, then Load unpacked and select the extension folder again';
+  'On chrome://extensions (or edge://extensions), click Remove on Portly New Tab, then Load unpacked and select the extension folder again';
 
 export const LAUNCHER_UNAVAILABLE =
   "Native messaging isn't available to this page, so the launcher can't be tested. Reload the extension on the extensions page and try again.";
@@ -75,14 +75,14 @@ export function describePing(result, extensionId) {
     case PING_STATUS.installed:
       if (result.version !== LAUNCHER_PROTOCOL_VERSION) {
         return {
-          message: `The launcher answered, but with protocol version ${result.version ?? 'unknown'} (this extension expects ${LAUNCHER_PROTOCOL_VERSION}). Run ${INSTALL_COMMAND} again from this copy of Homebase.`,
+          message: `The launcher answered, but with protocol version ${result.version ?? 'unknown'} (this extension expects ${LAUNCHER_PROTOCOL_VERSION}). Run ${INSTALL_COMMAND} again from this copy of Portly.`,
           tone: 'error',
         };
       }
-      return { message: 'The launcher is installed and answering. New tabs can start Homebase.', tone: 'ok' };
+      return { message: 'The launcher is installed and answering. New tabs can start Portly.', tone: 'ok' };
     case PING_STATUS.notInstalled:
       return {
-        message: `The launcher isn't installed. Run ${INSTALL_COMMAND} in your Homebase folder (see ${SETUP_DOC}).`,
+        message: `The launcher isn't installed. Run ${INSTALL_COMMAND} in your Portly folder (see ${SETUP_DOC}).`,
         tone: 'error',
       };
     case PING_STATUS.mismatch:
@@ -103,7 +103,7 @@ export function describePing(result, extensionId) {
 /**
  * @typedef {object} OptionsEnv
  * @property {Document} document
- * @property {import('./homebase.js').StorageAreaLike} storage
+ * @property {import('./portly.js').StorageAreaLike} storage
  * @property {typeof fetch} fetch
  * @property {import('./launcher.js').Launcher | null} [launcher]
  * @property {string | null} [extensionId] chrome.runtime.id
@@ -154,12 +154,12 @@ export function createOptionsPage(env) {
   let savedPort = DEFAULT_PORT;
   /** @type {string} one of TARGET */
   let savedTarget = DEFAULT_TARGET;
-  /** @type {string | null} the stored Pages site address; null: use the one Homebase reports */
+  /** @type {string | null} the stored Pages site address; null: use the one Portly reports */
   let savedPagesUrl = null;
-  /** @type {import('./homebase.js').ServerSite | null} what Homebase last said (on whichever port) */
+  /** @type {import('./portly.js').ServerSite | null} what Portly last said (on whichever port) */
   let serverSite = null;
 
-  /** The Pages site Homebase on the saved port reported; null when none (or not known). */
+  /** The Pages site Portly on the saved port reported; null when none (or not known). */
   function reportedPagesUrl() {
     return serverSiteFor({ port: savedPort, serverSite })?.pagesUrl ?? null;
   }
@@ -172,14 +172,14 @@ export function createOptionsPage(env) {
   /** Where the "auto" choice sends new tabs, in words. */
   function describeAuto() {
     const site = serverSiteFor({ port: savedPort, serverSite });
-    const origin = homebaseOrigin(savedPort);
-    if (site === null) return `Homebase itself, ${origin}, until it answers this browser`;
-    return site.pagesUrl === null ? `Homebase itself, ${origin}` : `its Pages site, ${site.pagesUrl}`;
+    const origin = portlyOrigin(savedPort);
+    if (site === null) return `Portly itself, ${origin}, until it answers this browser`;
+    return site.pagesUrl === null ? `Portly itself, ${origin}` : `its Pages site, ${site.pagesUrl}`;
   }
 
   function renderSavedPort() {
-    const origin = homebaseOrigin(savedPort);
-    for (const node of doc.querySelectorAll('[data-homebase-url]')) node.textContent = origin;
+    const origin = portlyOrigin(savedPort);
+    for (const node of doc.querySelectorAll('[data-portly-url]')) node.textContent = origin;
   }
 
   /** Checks the saved choice and shows the summary that goes with it. */
@@ -194,7 +194,7 @@ export function createOptionsPage(env) {
   function renderDestinations() {
     const pages = pagesDestination();
     for (const node of doc.querySelectorAll('[data-pages-url]')) {
-      node.textContent = pages ?? 'not set yet (enter it below); until then new tabs open Homebase on this PC';
+      node.textContent = pages ?? 'not set yet (enter it below); until then new tabs open Portly on this PC';
     }
     for (const node of doc.querySelectorAll('[data-server-site]')) node.textContent = describeAuto();
     els.pagesInput.placeholder = reportedPagesUrl() ?? '';
@@ -269,17 +269,17 @@ export function createOptionsPage(env) {
 
   /** The confirmation for the saved choice of what a new tab opens. */
   function describeSavedTarget() {
-    if (savedTarget === TARGET.local) return `Saved. New tabs will open Homebase on this PC, ${homebaseOrigin(savedPort)}.`;
-    if (savedTarget === TARGET.auto) return `Saved. New tabs will follow Homebase on this PC: ${describeAuto()}.`;
+    if (savedTarget === TARGET.local) return `Saved. New tabs will open Portly on this PC, ${portlyOrigin(savedPort)}.`;
+    if (savedTarget === TARGET.auto) return `Saved. New tabs will follow Portly on this PC: ${describeAuto()}.`;
     const pages = pagesDestination();
     return pages === null
-      ? 'Saved. Enter the Pages site address below; until then new tabs open Homebase on this PC.'
+      ? 'Saved. Enter the Pages site address below; until then new tabs open Portly on this PC.'
       : `Saved. New tabs will open the Pages site, ${pages}.`;
   }
 
   /**
    * Validates the Pages address field; shows the error and returns null when invalid. An empty
-   * field is valid and yields '' (use the address Homebase reports).
+   * field is valid and yields '' (use the address Portly reports).
    */
   function inputPagesUrl() {
     if (els.pagesInput.value.trim() === '') {
@@ -315,7 +315,7 @@ export function createOptionsPage(env) {
     els.pagesInput.value = url;
     renderDestinations();
     if (savedTarget === TARGET.pages) showNewTabStatus(describeSavedTarget(), 'ok');
-    else if (url === '') showNewTabStatus('Saved. "The Pages site" will use the address Homebase on this PC reports.', 'ok');
+    else if (url === '') showNewTabStatus('Saved. "The Pages site" will use the address Portly on this PC reports.', 'ok');
     else showNewTabStatus('Saved. New tabs use this address once you choose "The Pages site" above.', 'ok');
     return url;
   }
@@ -350,25 +350,25 @@ export function createOptionsPage(env) {
     els.input.value = String(savedPort);
     renderSavedPort();
     renderDestinations();
-    const origin = homebaseOrigin(savedPort);
+    const origin = portlyOrigin(savedPort);
     showStatus(
       savedTarget === TARGET.local
         ? `Saved. New tabs will open ${origin}.`
-        : `Saved. The extension looks for Homebase on this PC at ${origin}.`,
+        : `Saved. The extension looks for Portly on this PC at ${origin}.`,
       'ok',
     );
     return savedPort;
   }
 
   /**
-   * What a healthy Homebase said about its Pages site, as a sentence for the connection status
+   * What a healthy Portly said about its Pages site, as a sentence for the connection status
    * ('' when it said nothing).
-   * @param {import('./homebase.js').HealthOk} result
+   * @param {import('./portly.js').HealthOk} result
    */
   function describeReportedSite(result) {
     if (result.pagesUrl === undefined) return '';
     return result.pagesUrl === null
-      ? ' It has no Pages site (HOMEBASE_PAGES_URL is not set).'
+      ? ' It has no Pages site (PORTLY_PAGES_URL is not set).'
       : ` Its Pages site: ${result.pagesUrl}.`;
   }
 
@@ -377,7 +377,7 @@ export function createOptionsPage(env) {
     const port = inputPort();
     if (port === null) return null;
     els.test.disabled = true;
-    showStatus(`Checking ${homebaseOrigin(port)}…`);
+    showStatus(`Checking ${portlyOrigin(port)}…`);
     try {
       const result = await checkHealth(port, {
         fetch: env.fetch,
@@ -387,8 +387,8 @@ export function createOptionsPage(env) {
       if (result.ok) {
         const version = result.version ? ` (version ${result.version})` : '';
         const vault =
-          result.vault === 'locked' ? ' Its credential vault is locked; open Settings → Accounts in Homebase.' : '';
-        showStatus(`Homebase is running on port ${port}${version}.${describeReportedSite(result)}${vault}`, 'ok');
+          result.vault === 'locked' ? ' Its credential vault is locked; open Settings → Accounts in Portly.' : '';
+        showStatus(`Portly is running on port ${port}${version}.${describeReportedSite(result)}${vault}`, 'ok');
         if (result.pagesUrl !== undefined) {
           serverSite = await rememberServerSite(env.storage, port, result, serverSite);
           renderDestinations();

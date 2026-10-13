@@ -3,7 +3,7 @@
  * time-zone offsets / day differences for extra zones, and the searchable IANA zone list.
  * All Intl formatters are cached (the clock re-renders every second when seconds are shown).
  */
-import { isValidTimeZone, type GeneralSettings } from '@homebase/shared';
+import { isValidTimeZone, type GeneralSettings } from '@portly/shared';
 import { hourCycleFor } from '../../lib/format.ts';
 
 export type ClockFormat = 'inherit' | '12h' | '24h';

@@ -169,12 +169,12 @@ export interface ModeSwitchNotice {
 
 const BROWSER_NOTICES: Readonly<Record<PendingSwitchReason, string>> = Object.freeze({
   connected: 'Using this browser’s copy',
-  unreachable: 'Homebase on this PC isn’t reachable — using this browser’s copy',
-  revoked: 'Homebase on this PC no longer accepts this browser — using this browser’s copy',
-  disconnected: 'Disconnected from Homebase on this PC — using this browser’s copy',
-  'other-server': 'A different Homebase answers on this PC — using this browser’s copy',
-  incompatible: 'This page and Homebase on this PC need updating to the same version — using this browser’s copy',
-  blocked: 'The browser blocks access to Homebase on this PC — using this browser’s copy',
+  unreachable: 'Portly on this PC isn’t reachable — using this browser’s copy',
+  revoked: 'Portly on this PC no longer accepts this browser — using this browser’s copy',
+  disconnected: 'Disconnected from Portly on this PC — using this browser’s copy',
+  'other-server': 'A different Portly answers on this PC — using this browser’s copy',
+  incompatible: 'This page and Portly on this PC need updating to the same version — using this browser’s copy',
+  blocked: 'The browser blocks access to Portly on this PC — using this browser’s copy',
 });
 
 /**
@@ -189,7 +189,7 @@ export function takeModeSwitchNotice(backend: Backend, session: StorageLike | nu
   removeItem(session, MODE_SWITCH_TOAST_KEY);
   const [target, reason] = raw.split(':', 2);
   if (target !== backend) return null;
-  if (target === 'server') return { tone: 'success', message: 'Connected to Homebase on this PC' };
+  if (target === 'server') return { tone: 'success', message: 'Connected to Portly on this PC' };
   if (target === 'browser' && reason !== undefined && Object.hasOwn(BROWSER_NOTICES, reason)) {
     return { tone: 'info', message: BROWSER_NOTICES[reason as PendingSwitchReason] };
   }

@@ -4,7 +4,7 @@
  * All credentials here are fake test values.
  */
 import type { Hono } from 'hono';
-import { MICROSOFT_CONSUMER_TENANT_ID, type AccountKind, type Capability } from '@homebase/shared';
+import { MICROSOFT_CONSUMER_TENANT_ID, type AccountKind, type Capability } from '@portly/shared';
 import { createApp } from '../../../app.ts';
 import type { AccountService, AppEnv } from '../../../context.ts';
 import type { Logger } from '../../../lib/logger.ts';

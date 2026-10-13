@@ -3,7 +3,7 @@
  * `POST /api/import/preview|commit`), a port of server/src/modules/core/transfer.ts over the
  * slices and the blob store.
  *
- * Export: `{format:'homebase-export', version:1, exportedAt, data:{settings, profiles,
+ * Export: `{format:'portly-export', version:1, exportedAt, data:{settings, profiles,
  * bookmarkGroups, bookmarks, uploads[base64], customIcons[base64]}}`, built by an explicit
  * per-entity allowlist serializer (each entity re-validated with its export schema). Only uploads
  * whose UUID occurs in the settings/profiles JSON and custom icons referenced by custom bookmarks
@@ -59,7 +59,7 @@ import {
   type ImportSummary,
   type Profile,
   type Settings,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { faviconIdFor, isFaviconId } from '../favicon.ts';
 import { decodeBase64, encodeBase64 } from '../lib/base64.ts';
@@ -264,7 +264,7 @@ export function parseImportFile(bytes: Uint8Array): ExportFile {
   }
   assertSafeJson(raw, 'The import file');
   if (!isPlainObject(raw) || raw.format !== EXPORT_FORMAT) {
-    throw new StaticApiError('validation_failed', 'This is not a Homebase export file');
+    throw new StaticApiError('validation_failed', 'This is not a Portly export file');
   }
   if (raw.version !== EXPORT_VERSION) {
     throw new StaticApiError('validation_failed', `Unsupported export version (expected ${EXPORT_VERSION})`);
@@ -657,7 +657,7 @@ export function register(router: StaticRouter): void {
   router.get('/api/export', async (ctx) => {
     const file = await buildExport(ctx);
     const res = json(file);
-    res.headers.set('content-disposition', `attachment; filename="homebase-export-${localDateStamp(new Date(ctx.now()))}.json"`);
+    res.headers.set('content-disposition', `attachment; filename="portly-export-${localDateStamp(new Date(ctx.now()))}.json"`);
     return res;
   });
 
@@ -691,7 +691,7 @@ export function register(router: StaticRouter): void {
       headers: {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',
-        'content-disposition': `attachment; filename="homebase-backup-${localDateStamp(new Date(backup.entry.at))}.json"`,
+        'content-disposition': `attachment; filename="portly-backup-${localDateStamp(new Date(backup.entry.at))}.json"`,
       },
     });
   });

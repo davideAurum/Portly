@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { ThemeSchema, uploadUrl, type Theme } from '@homebase/shared';
+import { ThemeSchema, uploadUrl, type Theme } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { AssetRegistry, setActiveAssetRegistry, setServerAssetSource } from '../static/assets.ts';
 import { manualAssetSource } from '../test/hybrid.ts';
@@ -141,7 +141,7 @@ describe('image backdrops on this page load', () => {
     expect(backdropValue(image)).toBe('url("blob:http://pages.example/photo")');
   });
 
-  it('Pages build on the Homebase server: no image until it is loaded, never the raw /api URL', () => {
+  it('Pages build on the Portly server: no image until it is loaded, never the raw /api URL', () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     const fake = manualAssetSource();
     setServerAssetSource(fake.source);

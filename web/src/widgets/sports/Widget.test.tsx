@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SportsCompetitor, SportsGame, SportsTeam, SportsTeamGames } from '@homebase/shared';
+import type { SportsCompetitor, SportsGame, SportsTeam, SportsTeamGames } from '@portly/shared';
 import { teamGamesRefetchMs, SPORTS_IDLE_REFETCH_MS, SPORTS_LIVE_REFETCH_MS, SPORTS_SOON_REFETCH_MS } from '../../api/sports.ts';
 import { WidgetFrameContext, type WidgetFrameContextValue } from '../../grid/WidgetContext.tsx';
 import { mockError, renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';

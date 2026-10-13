@@ -7,7 +7,7 @@
  * `prompt=none` re-sign-in.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Account, OAuthClientInfo } from '@homebase/shared';
+import type { Account, OAuthClientInfo } from '@portly/shared';
 import { finishSignIn, planAutomaticSignIn } from '../oauthRedirect.ts';
 import { createFakeFetch, type FakeFetch, type FakeFetchRoute } from '../providers/__fixtures__/fakeFetch.ts';
 import { MICROSOFT_CLIENT_ID, OTHER_SUBJECT, formOf, microsoftIdToken, tokenError, tokenOk } from '../providers/__fixtures__/microsoft.ts';

@@ -8,7 +8,7 @@
  * Moved here from `modules/calendar/providers/http.ts` (which re-exports them) so the mail module
  * and the health tracker (`outcomeFromError`) share one classification.
  */
-import type { ErrorCode } from '@homebase/shared';
+import type { ErrorCode } from '@portly/shared';
 import { HttpError } from './errors.ts';
 
 /**

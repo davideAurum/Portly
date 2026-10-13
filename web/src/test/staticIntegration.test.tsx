@@ -20,7 +20,7 @@ import {
   type ExportFile,
   type Profile,
   type Settings,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { apiGet, apiPost } from '../api/client.ts';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { commitImport, previewImport } from '../api/importExport.ts';
@@ -349,7 +349,7 @@ describe('static build: export and import', () => {
     // Import it back through the page's own request helpers: a File in a FormData, which the
     // fetch stub serializes as multipart bytes (vitest's jsdom shim cannot hand a jsdom FormData
     // to Node's Request, see renderWithStaticBackend.tsx) and the backend parses with req.formData().
-    const upload = new File([JSON.stringify(file)], 'homebase-export.json', { type: 'application/json' });
+    const upload = new File([JSON.stringify(file)], 'portly-export.json', { type: 'application/json' });
     const preview = await previewImport(upload);
     expect(preview.previewId).toMatch(/^[A-Za-z0-9_-]{32}$/);
     expect(preview.summary.counts).toEqual({ profiles: 1, widgets: STATIC_DEFAULT_TYPES.length, bookmarkGroups: 1, bookmarks: 1, uploads: 0, customIcons: 0 });
@@ -402,7 +402,7 @@ describe('static build: export and import', () => {
 describe('static build: server-only features', () => {
   it('shows the notice when #/settings/calendars is opened and keeps the section out of the nav', async () => {
     const { requestsTo } = await renderWithStaticBackend(<Shell />, { route: '#/settings/calendars' });
-    expect(await screen.findByText('Calendars needs the Homebase server')).toBeInTheDocument();
+    expect(await screen.findByText('Calendars needs the Portly server')).toBeInTheDocument();
     expect(screen.getByText('Not available in the browser-only build.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Calendars' })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Settings sections' });
@@ -413,7 +413,7 @@ describe('static build: server-only features', () => {
     await waitFor(() => expect(requestsTo('GET /api/health')).toEqual([{ method: 'GET', path: '/api/health', search: '', status: 200 }]));
     await settle();
     expect(requestsTo('GET /api/calendar/calendars')).toHaveLength(0);
-    expect(screen.queryByText("Can't reach the Homebase server")).not.toBeInTheDocument();
+    expect(screen.queryByText("Can't reach the Portly server")).not.toBeInTheDocument();
   });
 
   it('offers Outlook.com alone on the Accounts page, with this site as the single-page-app redirect URI', async () => {
@@ -444,7 +444,7 @@ describe('static build: server-only features', () => {
     await storage.setJson('slice:settings', { ...defaultSettings(), activeProfileId: 'p1' });
 
     const { requestsTo } = await renderWithStaticBackend(<Dashboard />, { storage });
-    expect(await screen.findByText('Calendar needs the Homebase server')).toBeInTheDocument();
+    expect(await screen.findByText('Calendar needs the Portly server')).toBeInTheDocument();
     expect(screen.getByText(/Not available in the browser-only build\. Remove it in edit mode\./)).toBeInTheDocument();
     expect(screen.getByText(stubWidgetText('clock'))).toBeInTheDocument();
     expect(screen.queryByText(stubWidgetText('calendar'))).not.toBeInTheDocument();

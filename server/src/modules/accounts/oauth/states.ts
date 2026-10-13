@@ -5,7 +5,7 @@
  * atomically (`DELETE … RETURNING`) before any token exchange, so it can be used at most once.
  */
 import { createHash } from 'node:crypto';
-import type { OAuthProvider } from '@homebase/shared';
+import type { OAuthProvider } from '@portly/shared';
 import type { Db } from '../../../db/open.ts';
 import { newToken } from '../../../lib/ids.ts';
 

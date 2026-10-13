@@ -3,7 +3,7 @@
  * answered by the REAL in-browser backend of the static build (`src/static/backend.ts`) over an
  * in-memory storage instead of per-route mocks. Global `fetch` is stubbed to
  * `backend.fetch(path, init)`, which is exactly what `api()` calls in the static build, so the
- * unchanged `api()` → ApiError path is exercised without the `__HOMEBASE_STATIC__` build flag
+ * unchanged `api()` → ApiError path is exercised without the `__PORTLY_STATIC__` build flag
  * (the web vitest project defines it `false`). The backend registers whatever handler modules
  * `src/static/handlers/index.ts` lists.
  *
@@ -109,7 +109,7 @@ function headerValue(value: string): string {
  * so Node's `Request` can carry it (see the module docs). File parts keep their name and type.
  */
 export async function multipartBody(form: FormData): Promise<{ body: Uint8Array<ArrayBuffer>; contentType: string }> {
-  const boundary = `----homebase-test-${Math.random().toString(36).slice(2)}`;
+  const boundary = `----portly-test-${Math.random().toString(36).slice(2)}`;
   const encoder = new TextEncoder();
   const parts: Uint8Array<ArrayBuffer>[] = [];
   for (const [name, value] of form) {

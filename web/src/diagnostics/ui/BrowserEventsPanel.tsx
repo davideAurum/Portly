@@ -2,7 +2,7 @@
  * Diagnostics → This browser (ARCHITECTURE §17): the events this browser recorded
  * (`clientLog.ts`): failed or slow requests, hybrid-mode changes, in-browser backend and provider
  * failures, widget errors and uncaught app errors — newest first, live (any tab), each marked as
- * sent to Homebase, not sent yet, or kept in this browser only, and expandable to its fields.
+ * sent to Portly, not sent yet, or kept in this browser only, and expandable to its fields.
  * Clear forgets them in every tab.
  *
  * "Not sent yet" only for what the uploader (`upload.ts`, every 15 s) will send: not to a server
@@ -33,19 +33,19 @@ interface DeliveryContext {
 
 function delivery(entry: ClientLogEntry, context: DeliveryContext): { label: string; title: string } {
   const { event } = entry;
-  if (entry.uploaded) return { label: 'Sent', title: 'Homebase on this PC has it in its log' };
+  if (entry.uploaded) return { label: 'Sent', title: 'Portly on this PC has it in its log' };
   if (!isUploadable(event)) {
     return {
       label: 'This browser only',
-      title: event.page.backend === 'server' ? 'Homebase answered this request and logged it itself' : 'Recorded while this page used the copy saved in this browser',
+      title: event.page.backend === 'server' ? 'Portly answered this request and logged it itself' : 'Recorded while this page used the copy saved in this browser',
     };
   }
-  if (context.refused) return { label: 'This browser only', title: 'Homebase on this PC is older than this page and does not take browser events' };
+  if (context.refused) return { label: 'This browser only', title: 'Portly on this PC is older than this page and does not take browser events' };
   if (event.level === 'debug' && !context.acceptDebug) {
     return { label: 'This browser only (debug)', title: 'Debug events are sent only while verbose logging covers browser events (Logging level)' };
   }
-  if (!context.server) return { label: 'Not sent yet', title: 'Sent once this site uses Homebase on this PC again' };
-  return { label: 'Not sent yet', title: 'Sent to Homebase on this PC within about 15 seconds' };
+  if (!context.server) return { label: 'Not sent yet', title: 'Sent once this site uses Portly on this PC again' };
+  return { label: 'Not sent yet', title: 'Sent to Portly on this PC within about 15 seconds' };
 }
 
 function EventRow({ entry, current, context }: { entry: ClientLogEntry; current: boolean; context: DeliveryContext }) {
@@ -92,8 +92,8 @@ export function BrowserEventsPanel({ serverRefuses = false, acceptDebug = false 
       title="This browser"
       description={
         server
-          ? 'What this browser noticed: failed requests, the connection with Homebase on this PC and app errors. Kept for 7 days in this browser and sent to Homebase on this PC.'
-          : 'What this browser noticed: failed requests, the search for Homebase on this PC and app errors. Kept for 7 days in this browser only.'
+          ? 'What this browser noticed: failed requests, the connection with Portly on this PC and app errors. Kept for 7 days in this browser and sent to Portly on this PC.'
+          : 'What this browser noticed: failed requests, the search for Portly on this PC and app errors. Kept for 7 days in this browser only.'
       }
       actions={
         <Button size="sm" variant="ghost" icon={Eraser} disabled={entries.length === 0} onClick={() => clearClientEvents()}>

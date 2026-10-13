@@ -64,10 +64,10 @@ function isEditable(element: Element | null): boolean {
 /**
  * True while reloading would interrupt the user: a modal dialog is open (`[role="dialog"]
  * [aria-modal="true"]` or `<dialog open>`), the dashboard is in edit mode
- * (`<html data-homebase-editing="true">`), or a text field with text in it has focus.
+ * (`<html data-portly-editing="true">`), or a text field with text in it has focus.
  */
 export function isPageBusy(doc: Document = document): boolean {
   if (doc.querySelector('[role="dialog"][aria-modal="true"], dialog[open]') !== null) return true;
-  if (doc.documentElement.dataset.homebaseEditing === 'true') return true;
+  if (doc.documentElement.dataset.portlyEditing === 'true') return true;
   return isEditable(doc.activeElement);
 }

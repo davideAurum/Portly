@@ -1,4 +1,4 @@
-import type { Account, AccountCreateResult, AccountDraft, AccountTestResult, ValidationIssue } from '@homebase/shared';
+import type { Account, AccountCreateResult, AccountDraft, AccountTestResult, ValidationIssue } from '@portly/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { HttpError } from '../../lib/errors.ts';
 import { testRequest } from '../../testing/test-request.ts';

@@ -1,7 +1,7 @@
 /**
- * Pairing between the Pages site and the Homebase server on the same PC (hybrid mode).
+ * Pairing between the Pages site and the Portly server on the same PC (hybrid mode).
  *
- * The server accepts requests from its configured Pages origin (`HOMEBASE_PAGES_URL`) only when
+ * The server accepts requests from its configured Pages origin (`PORTLY_PAGES_URL`) only when
  * they carry a pairing token in {@link PAIRING_TOKEN_HEADER}. A browser gets a token once: the
  * Pages site sends the tab to the server's own page (`<appUrl>#/pair?nonce=…`), the user approves
  * there, and the server redirects back to the configured Pages URL with the token in the fragment
@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { IsoDateTime } from './core.ts';
 
 /** Request header carrying the pairing token on every Pages → server call. */
-export const PAIRING_TOKEN_HEADER = 'X-Homebase-Token';
+export const PAIRING_TOKEN_HEADER = 'X-Portly-Token';
 
 /** At most this many browsers can be paired at once; pairing one more replaces the least recently used. */
 export const MAX_PAIRINGS = 20;
@@ -52,7 +52,7 @@ export type PairingSummary = z.output<typeof PairingSummarySchema>;
 /** `GET /api/pairings` (server's own page only). */
 export const PairingsResponseSchema = z
   .object({
-    /** The configured Pages URL (`HOMEBASE_PAGES_URL`), or null when pairing is off. */
+    /** The configured Pages URL (`PORTLY_PAGES_URL`), or null when pairing is off. */
     pagesUrl: z.string().nullable(),
     instanceId: InstanceIdSchema,
     pairings: z.array(PairingSummarySchema),

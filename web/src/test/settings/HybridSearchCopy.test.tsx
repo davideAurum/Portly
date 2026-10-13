@@ -1,7 +1,7 @@
 /**
  * Settings → Search in a hybrid Pages build (`localServer/config.ts` mocked with a local server
- * origin) on its in-browser backend: the providers only Homebase can reach are labelled as needing
- * Homebase on this PC rather than missing from the build, since connecting makes them work. Inside a
+ * origin) on its in-browser backend: the providers only Portly can reach are labelled as needing
+ * Portly on this PC rather than missing from the build, since connecting makes them work. Inside a
  * frame (which never uses the local server) the browser-only wording stays.
  */
 import { act, screen, within } from '@testing-library/react';
@@ -24,12 +24,12 @@ function renderSearch() {
 }
 
 describe('hybrid Pages build, in-browser backend: Settings → Search copy', () => {
-  it('says the other suggestion providers need Homebase on this PC', async () => {
+  it('says the other suggestion providers need Portly on this PC', async () => {
     act(() => setLocalServerController(fakeLocalServer({ status: 'idle' }).controller));
     renderSearch();
     const list = await screen.findByRole('list', { name: 'Search engines' });
-    expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Google (needs Homebase on this PC) suggestions');
-    expect(screen.getByText(/YouTube suggestions work while this browser is connected to Homebase on this PC/)).toBeInTheDocument();
+    expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Google (needs Portly on this PC) suggestions');
+    expect(screen.getByText(/YouTube suggestions work while this browser is connected to Portly on this PC/)).toBeInTheDocument();
     expect(screen.queryByText(/not available/)).toBeNull();
   });
 

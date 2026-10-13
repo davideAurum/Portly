@@ -66,7 +66,7 @@ export async function createTestBackend(modules: readonly HandlerModule[], optio
 
   const fetch = (path: string, init?: RequestInit) => dispatch(router, ctx, path, init);
   const call: TestBackend['call'] = (method, path, body, headers = {}) => {
-    const h = new Headers({ 'X-Homebase': '1', Accept: 'application/json', ...headers });
+    const h = new Headers({ 'X-Portly': '1', Accept: 'application/json', ...headers });
     let payload: BodyInit | undefined;
     if (body instanceof FormData) payload = body;
     else if (body !== undefined) {

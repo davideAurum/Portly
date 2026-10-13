@@ -2,7 +2,7 @@
  * Mail widget settings (§10.8): accounts (all or a subset of the mail-enabled ones), how many
  * messages to show, unread only, and merged vs by-account layout.
  */
-import { MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES } from '@homebase/shared';
+import { MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES } from '@portly/shared';
 import { AccountPicker } from '../../ui/accounts/AccountPicker.tsx';
 import { Field } from '../../ui/Field.tsx';
 import { SegmentedControl, Slider, Switch } from '../../ui/Toggles.tsx';

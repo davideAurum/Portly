@@ -1,4 +1,4 @@
-import { DEFAULT_ACCENT } from '@homebase/shared';
+import { DEFAULT_ACCENT } from '@portly/shared';
 import { describe, expect, it } from 'vitest';
 import { SWATCHES, colorFromString, contrastRatio, parseHexColor, readableTextColor, relativeLuminance, safeColor, toOpaqueHex } from './color.ts';
 import { createFormatters, formatRelative, formatTime, hourCycleFor, resolveLocale, uses12Hour } from './format.ts';

@@ -1,6 +1,6 @@
 /** Shared state of one calendar widget instance (calendars, clock, formatters, actions). */
 import { createContext, useContext } from 'react';
-import type { Calendar, CalendarEvent } from '@homebase/shared';
+import type { Calendar, CalendarEvent } from '@portly/shared';
 import type { Formatters } from '../../lib/format.ts';
 
 export interface CalendarWidgetContextValue {

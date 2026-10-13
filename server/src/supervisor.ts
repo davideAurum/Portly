@@ -1,20 +1,20 @@
 /**
  * Autostart supervisor (§3, §12): `node server/src/supervisor.ts` (started at logon by the
- * "Homebase Server" scheduled task) keeps the server running.
+ * "Portly Server" scheduled task) keeps the server running.
  *
  * - Spawns `process.execPath --no-warnings server/src/index.ts` with `windowsHide: true`, stdin and
  *   stdout ignored, stderr piped and an IPC channel. The server logs to its own `logs/server.log`
  *   (no console when supervised) and writes to stderr only for fatal output, so the supervisor
  *   keeps the last lines of it (scrubbed, ≤ 40 lines / 16 KB) as the crash cause; Node's own
  *   warnings stay off stderr (the server logs them).
- * - The child gets `HOMEBASE_SUPERVISED=1` and, on a restart, `HOMEBASE_SUPERVISOR_ATTEMPT` and
- *   `HOMEBASE_SUPERVISOR_LAST_EXIT` (JSON `{code, signal, failure?}`; Settings → Diagnostics shows
+ * - The child gets `PORTLY_SUPERVISED=1` and, on a restart, `PORTLY_SUPERVISOR_ATTEMPT` and
+ *   `PORTLY_SUPERVISOR_LAST_EXIT` (JSON `{code, signal, failure?}`; Settings → Diagnostics shows
  *   them). A server whose start-up fails reports why over IPC (`startup-failed`): logged with that
  *   run's exit as `lastFailure` (a run that reported nothing has none, whatever earlier runs said).
  * - Restarts on exit with backoff 1 s, 2 s, 5 s, 10 s, 30 s, 60 s (cap); the backoff resets once a
  *   run lasted 10 minutes. Five runs in a row shorter than a minute log `server keeps crashing at
  *   start-up` once per such loop.
- * - Exit code 3 (EXIT_ALREADY_RUNNING: another Homebase holds the port) → the supervisor exits
+ * - Exit code 3 (EXIT_ALREADY_RUNNING: another Portly holds the port) → the supervisor exits
  *   without restarting. Exit code 4 (EXIT_PERMANENT_FAILURE, e.g. `web/dist` missing) three times
  *   in a row → `server cannot start; not restarting` and the supervisor exits with code 4.
  * - On SIGINT/SIGTERM (and SIGBREAK on Windows) the child is asked to shut down gracefully over
@@ -166,7 +166,7 @@ export interface Supervisor {
   readonly childPid: number | null;
 }
 
-/** What the last run's exit looked like (`HOMEBASE_SUPERVISOR_LAST_EXIT`). */
+/** What the last run's exit looked like (`PORTLY_SUPERVISOR_LAST_EXIT`). */
 interface LastExit {
   code: number | null;
   signal: NodeJS.Signals | null;
@@ -211,12 +211,12 @@ export function startSupervisor(options: SupervisorOptions): Supervisor {
 
   /** The child's environment: supervised, and on a restart the attempt and how the last run ended. */
   const childEnv = (): NodeJS.ProcessEnv => {
-    const env: NodeJS.ProcessEnv = { ...(options.env ?? process.env), HOMEBASE_SUPERVISED: '1' };
-    delete env.HOMEBASE_SUPERVISOR_ATTEMPT;
-    delete env.HOMEBASE_SUPERVISOR_LAST_EXIT;
+    const env: NodeJS.ProcessEnv = { ...(options.env ?? process.env), PORTLY_SUPERVISED: '1' };
+    delete env.PORTLY_SUPERVISOR_ATTEMPT;
+    delete env.PORTLY_SUPERVISOR_LAST_EXIT;
     if (lastExit !== null) {
-      env.HOMEBASE_SUPERVISOR_ATTEMPT = String(attempt);
-      env.HOMEBASE_SUPERVISOR_LAST_EXIT = JSON.stringify(lastExit);
+      env.PORTLY_SUPERVISOR_ATTEMPT = String(attempt);
+      env.PORTLY_SUPERVISOR_LAST_EXIT = JSON.stringify(lastExit);
     }
     return env;
   };
@@ -270,7 +270,7 @@ export function startSupervisor(options: SupervisorOptions): Supervisor {
       permanentFailures = code === EXIT_PERMANENT_FAILURE ? permanentFailures + 1 : 0;
       if (decision.action === 'stop') {
         if (decision.reason === 'already-running') {
-          log.warn('another Homebase is already running; supervisor exiting', { code });
+          log.warn('another Portly is already running; supervisor exiting', { code });
           finish(EXIT_OK);
         } else {
           log.error('server cannot start; not restarting', { code, attempts: permanentFailures, lastFailure: runFailure, stderrTail });
@@ -376,7 +376,7 @@ async function main(): Promise<void> {
     config = loadConfig();
   } catch (err) {
     writeBootstrapFailure(path.join(resolveDataDir(), 'logs', 'supervisor.log'), 'config', err, { src: 'supervisor' });
-    process.stderr.write(fatalText('Homebase supervisor: invalid configuration', err));
+    process.stderr.write(fatalText('Portly supervisor: invalid configuration', err));
     process.exit(EXIT_STARTUP_FAILURE);
   }
   const root = createLogger({ level: config.logLevel, file: config.paths.supervisorLog });
@@ -399,7 +399,7 @@ async function main(): Promise<void> {
 
 if (import.meta.main) {
   main().catch((err: unknown) => {
-    process.stderr.write(fatalText('Homebase supervisor failed', err));
+    process.stderr.write(fatalText('Portly supervisor failed', err));
     process.exit(EXIT_STARTUP_FAILURE);
   });
 }

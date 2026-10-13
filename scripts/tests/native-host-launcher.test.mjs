@@ -82,7 +82,7 @@ async function runLauncher({ input, argv = [ORIGIN, '--parent-window=0'], config
   const stdin = new PassThrough();
   const out = collector();
   const calls = { health: [], task: 0, log: [] };
-  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-launcher-log-'));
+  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-launcher-log-'));
   try {
     const promise = run({
       argv,
@@ -100,7 +100,7 @@ async function runLauncher({ input, argv = [ORIGIN, '--parent-window=0'], config
       },
       runTask: async () => {
         calls.task++;
-        return taskResult ?? { error: null, stdout: 'SUCCESS: Attempted to run the scheduled task "\\Homebase Server".', stderr: '' };
+        return taskResult ?? { error: null, stdout: 'SUCCESS: Attempted to run the scheduled task "\\Portly Server".', stderr: '' };
       },
       readTimeoutMs,
     });
@@ -280,7 +280,7 @@ describe('configuration', () => {
   }
 
   it('throws when the file is missing', () => {
-    assert.throws(() => loadConfig(path.join(os.tmpdir(), `homebase-missing-${process.pid}.json`)));
+    assert.throws(() => loadConfig(path.join(os.tmpdir(), `portly-missing-${process.pid}.json`)));
   });
 });
 
@@ -326,14 +326,14 @@ describe('requests', () => {
     assert.ok(calls.log[0].endsWith(` ${ORIGIN} ping -> pong`), calls.log[0]);
   });
 
-  it('answers running when Homebase already answers, without running the task', async () => {
+  it('answers running when Portly already answers, without running the task', async () => {
     const { response, calls } = await runLauncher({ input: frame({ action: 'start', port: 5800 }), healthy: true });
     assert.deepEqual(response, { ok: true, state: 'running' });
     assert.deepEqual(calls.health, [5800]);
     assert.equal(calls.task, 0);
   });
 
-  it('runs the task once and answers starting when Homebase is not up', async () => {
+  it('runs the task once and answers starting when Portly is not up', async () => {
     const { response, frames, calls } = await runLauncher({ input: frame({ action: 'start', port: 5757 }) });
     assert.deepEqual(response, { ok: true, state: 'starting' });
     assert.deepEqual(frames, [response]);
@@ -398,21 +398,21 @@ describe('requests', () => {
 });
 
 describe('schtasks', () => {
-  it('runs %SystemRoot%\\System32\\schtasks.exe /run /tn "\\Homebase Server" with no shell and a hidden window', async () => {
+  it('runs %SystemRoot%\\System32\\schtasks.exe /run /tn "\\Portly Server" with no shell and a hidden window', async () => {
     const seen = [];
     const runner = createTaskRunner({
       schtasksPath: defaultSchtasksPath({ SystemRoot: 'D:\\Windows' }),
       execFileImpl: (file, args, options, callback) => {
         seen.push({ file, args, options });
-        callback(null, 'SUCCESS: Attempted to run the scheduled task "\\Homebase Server".\r\n', '');
+        callback(null, 'SUCCESS: Attempted to run the scheduled task "\\Portly Server".\r\n', '');
       },
     });
     const result = await runner();
     assert.equal(result.error, null);
     assert.equal(seen.length, 1);
     assert.equal(seen[0].file, 'D:\\Windows\\System32\\schtasks.exe');
-    assert.deepEqual(seen[0].args, ['/run', '/tn', '\\Homebase Server']);
-    assert.equal(TASK_PATH, '\\Homebase Server');
+    assert.deepEqual(seen[0].args, ['/run', '/tn', '\\Portly Server']);
+    assert.equal(TASK_PATH, '\\Portly Server');
     assert.equal(seen[0].options.windowsHide, true);
     assert.equal(seen[0].options.shell, false);
     assert.equal(seen[0].options.timeout, 10_000);
@@ -451,7 +451,7 @@ describe('schtasks', () => {
     assert.equal(classifyTaskRun({ error: { code: 1 }, stdout: '', stderr: 'ERROR: The task has been disabled.' }).error, 'schtasks_failed');
   });
 
-  it('treats "already running" from schtasks as starting (the task is up; Homebase is on its way)', () => {
+  it('treats "already running" from schtasks as starting (the task is up; Portly is on its way)', () => {
     const starting = { ok: true, state: 'starting' };
     assert.deepEqual(classifyTaskRun({ error: { code: 1 }, stdout: '', stderr: 'ERROR: An instance of this task is already running.' }), starting);
     assert.deepEqual(classifyTaskRun({ error: { code: 1 }, stdout: 'ERROR: 0x8004131F', stderr: '' }), starting);
@@ -465,7 +465,7 @@ describe('schtasks', () => {
   });
 
   it('recognizes the real "task not found" output of schtasks.exe on this machine (read-only /query)', { skip: !isWindows }, async () => {
-    const missingTask = `\\Homebase-check-missing-${process.pid}-${Date.now()}`;
+    const missingTask = `\\Portly-check-missing-${process.pid}-${Date.now()}`;
     const result = await new Promise((resolve) => {
       execFile(defaultSchtasksPath(), ['/query', '/tn', missingTask], { windowsHide: true, timeout: 10_000 }, (error, stdout, stderr) =>
         resolve({ error, stdout: String(stdout), stderr: String(stderr) }),
@@ -525,7 +525,7 @@ describe('health check', () => {
   });
   const portOf = (name) => servers[name].address().port;
 
-  it('accepts a Homebase answer on 127.0.0.1', async () => {
+  it('accepts a Portly answer on 127.0.0.1', async () => {
     assert.equal(await probeHealth('127.0.0.1', portOf('ok')), true);
     assert.equal(await checkHealth(portOf('ok')), true);
   });
@@ -577,7 +577,7 @@ describe('launcher.cmd end to end (cmd.exe /d /s /c, as Chrome runs native hosts
   /** A port where nothing listens (taken from the OS, then released). */
   let closedPort;
   before(async () => {
-    stubLog = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-schtasks-stub-')), 'calls.jsonl');
+    stubLog = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'portly-schtasks-stub-')), 'calls.jsonl');
     closedPort = await new Promise((resolve, reject) => {
       const probe = net.createServer();
       probe.once('error', reject);
@@ -588,7 +588,7 @@ describe('launcher.cmd end to end (cmd.exe /d /s /c, as Chrome runs native hosts
     });
     // Spaces, an ampersand, parentheses, a caret and a non-ASCII letter: the folder sits in the
     // user's profile, whose name may contain any of them ("Jos\u00e9 (Work)").
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase native-host & t\u00e9st (1) ^x '));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly native-host & t\u00e9st (1) ^x '));
     fs.copyFileSync(path.join(hostDir, 'launcher.mjs'), path.join(dir, 'launcher.mjs'));
     const template = fs.readFileSync(path.join(hostDir, 'launcher.cmd'), 'utf8');
     assert.equal(template.split('{{NODE_EXE}}').length, 2, 'the template has exactly one {{NODE_EXE}} placeholder');
@@ -620,7 +620,7 @@ describe('launcher.cmd end to end (cmd.exe /d /s /c, as Chrome runs native hosts
    * Starts launcher.cmd like Chrome, writes one frame and keeps stdin open (as Chrome does).
    * schtasks.exe is always replaced by scripts/tests/schtasks-stub.mjs (preloaded through
    * NODE_OPTIONS, which reaches node through launcher.cmd like the browser's environment), so a
-   * test never runs the real "Homebase Server" task; `schtasks` picks the stub's answer.
+   * test never runs the real "Portly Server" task; `schtasks` picks the stub's answer.
    */
   function callHost(origin, message, { endInput = false, schtasks = 'success' } = {}) {
     fs.rmSync(stubLog, { force: true });
@@ -629,8 +629,8 @@ describe('launcher.cmd end to end (cmd.exe /d /s /c, as Chrome runs native hosts
       const env = { ...process.env };
       for (const name of Object.keys(env)) if (name.toUpperCase() === 'NODE_OPTIONS') delete env[name];
       env.NODE_OPTIONS = `--import=${pathToFileURL(path.join(testDir, 'schtasks-stub.mjs')).href}`;
-      env.HOMEBASE_TEST_SCHTASKS = schtasks;
-      env.HOMEBASE_TEST_SCHTASKS_LOG = stubLog;
+      env.PORTLY_TEST_SCHTASKS = schtasks;
+      env.PORTLY_TEST_SCHTASKS_LOG = stubLog;
       const child = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `""${cmdPath}" ${origin} --parent-window=0"`], {
         windowsVerbatimArguments: true,
         windowsHide: true,
@@ -663,14 +663,14 @@ describe('launcher.cmd end to end (cmd.exe /d /s /c, as Chrome runs native hosts
     assert.match(fs.readFileSync(path.join(dir, 'launcher.log'), 'utf8'), / ping -> pong/);
   });
 
-  it('answers running for a port where Homebase answers, without running schtasks', async () => {
+  it('answers running for a port where Portly answers, without running schtasks', async () => {
     const result = await callHost(ORIGIN, frame({ action: 'start', port: server.address().port }));
     assert.equal(result.code, 0, result.stderr);
     assert.deepEqual(decodeFrames(result.stdout), [{ ok: true, state: 'running' }]);
     assert.deepEqual(schtasksCalls(), []);
   });
 
-  it('runs %SystemRoot%\\System32\\schtasks.exe /run /tn "\\Homebase Server" and answers starting when nothing answers yet', async () => {
+  it('runs %SystemRoot%\\System32\\schtasks.exe /run /tn "\\Portly Server" and answers starting when nothing answers yet', async () => {
     const result = await callHost(ORIGIN, frame({ action: 'start', port: closedPort }));
     assert.equal(result.code, 0, result.stderr);
     assert.deepEqual(decodeFrames(result.stdout), [{ ok: true, state: 'starting' }]);
@@ -714,7 +714,7 @@ describe('launcher.cmd end to end (cmd.exe /d /s /c, as Chrome runs native hosts
     assert.equal(result.stderr, '');
   });
 
-  it('is named com.homebase.launcher', () => {
-    assert.equal(HOST_NAME, 'com.homebase.launcher');
+  it('is named com.portly.launcher', () => {
+    assert.equal(HOST_NAME, 'com.portly.launcher');
   });
 });

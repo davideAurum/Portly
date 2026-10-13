@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { CloudSun } from 'lucide-react';
 import { z } from 'zod';
-import { GeoPlaceSchema } from '@homebase/shared';
+import { GeoPlaceSchema } from '@portly/shared';
 import { lazyWithPreload } from '../lazyWidget.ts';
 import type { WidgetDefinition } from '../types.ts';
 

@@ -7,20 +7,20 @@
 # a message saying so: nothing is published by accident, and the workflow is otherwise inert.
 #
 # One-time setup:
-#   1. Create the public repository, e.g. <user>/homebase-pages, and set its Pages source to
+#   1. Create the public repository, e.g. <user>/portly-pages, and set its Pages source to
 #      "Deploy from a branch", branch gh-pages, folder / (root).
 #   2. Generate a key pair without a passphrase (press Enter twice at the passphrase prompts; no -N:
 #      -N '""' sets the two characters "" as the passphrase in Git Bash and PowerShell 7, and
 #      Windows PowerShell 5.1 drops the empty argument of -N ""):
-#        ssh-keygen -t rsa -b 4096 -C "homebase-pages deploy key" -f homebase-pages-key
-#      `ssh-keygen -y -f homebase-pages-key` must then print the public key without asking anything.
-#   3. Public repository -> Settings -> Deploy keys -> Add deploy key: paste homebase-pages-key.pub
+#        ssh-keygen -t rsa -b 4096 -C "portly-pages deploy key" -f portly-pages-key
+#      `ssh-keygen -y -f portly-pages-key` must then print the public key without asking anything.
+#   3. Public repository -> Settings -> Deploy keys -> Add deploy key: paste portly-pages-key.pub
 #      and tick "Allow write access". (GITHUB_TOKEN cannot push to another repository, hence a key.)
 #   4. THIS repository -> Settings -> Secrets and variables -> Actions -> New repository secret:
-#      name ACTIONS_DEPLOY_KEY, value = the contents of homebase-pages-key (the private key).
+#      name ACTIONS_DEPLOY_KEY, value = the contents of portly-pages-key (the private key).
 #      Delete both key files from your PC afterwards.
-#   5. Run the workflow: public_repo = <user>/homebase-pages, base = /homebase-pages/ for a project
-#      site (https://<user>.github.io/homebase-pages/), or base = / for a user site.
+#   5. Run the workflow: public_repo = <user>/portly-pages, base = /portly-pages/ for a project
+#      site (https://<user>.github.io/portly-pages/), or base = / for a user site.
 #
 # The deploy key never expires; revoke it on the public repository's Deploy keys page when done.
 # The build output already contains .nojekyll (web/public/.nojekyll); peaceiris adds one anyway.
@@ -41,7 +41,7 @@ on:
   workflow_dispatch:
     inputs:
       public_repo:
-        description: 'Public repository that serves the site, as owner/name (for example davideAurum/homebase-pages)'
+        description: 'Public repository that serves the site, as owner/name (for example davideAurum/portly-pages)'
         required: true
         type: string
       base:
@@ -105,11 +105,11 @@ jobs:
 
       - name: Build the browser-only site
         env:
-          HOMEBASE_STATIC_BASE: ${{ inputs.base }}
+          PORTLY_STATIC_BASE: ${{ inputs.base }}
         run: |
           npm run build:static
           test -f web/dist-static/index.html
-          grep -q -F "${HOMEBASE_STATIC_BASE}assets/" web/dist-static/index.html
+          grep -q -F "${PORTLY_STATIC_BASE}assets/" web/dist-static/index.html
 
       - name: Push web/dist-static to the public repository
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
@@ -120,6 +120,6 @@ jobs:
           publish_dir: web/dist-static
           # The publish branch keeps only the latest build (no history of old bundles).
           force_orphan: true
-          commit_message: 'Publish Homebase static build ${{ github.sha }}'
+          commit_message: 'Publish Portly static build ${{ github.sha }}'
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'

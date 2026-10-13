@@ -75,7 +75,7 @@ describe('status views', () => {
       'waiting-permission': 'Waiting for permission',
       blocked: 'Blocked by browser',
       unpaired: 'Found, not paired',
-      'other-server': 'Paired with another Homebase',
+      'other-server': 'Paired with another Portly',
       revoked: 'Pairing removed',
       incompatible: 'Needs update',
       reconnecting: 'Reconnecting…',
@@ -111,19 +111,19 @@ describe('LocalServerPanel', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('not checked yet: explains the permission prompt and looks for Homebase on a click', async () => {
+  it('not checked yet: explains the permission prompt and looks for Portly on a click', async () => {
     const controller = renderPanel({ status: 'idle', permission: 'prompt' });
-    const card = screen.getByRole('region', { name: 'Homebase on this PC' });
+    const card = screen.getByRole('region', { name: 'Portly on this PC' });
     expect(within(card).getByText('Not checked')).toBeInTheDocument();
     expect(card).toHaveTextContent('your browser asks whether this site may reach apps on this device: choose Allow');
     expect(card).toHaveTextContent("This page's dataSaved in this browser");
     // What the server adds, and that the two datasets stay apart.
-    const adds = within(card).getByText('What Homebase on this PC adds').parentElement!;
+    const adds = within(card).getByText('What Portly on this PC adds').parentElement!;
     expect(within(adds).getAllByRole('listitem').map((item) => item.textContent)).toContain('Calendar, mail and RSS feed widgets');
     expect(adds).toHaveTextContent('The copy saved in this browser stays as it is');
     expect(within(card).queryByRole('link')).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: /Disconnect/ })).not.toBeInTheDocument();
-    await userEvent.setup().click(within(card).getByRole('button', { name: 'Look for Homebase on this PC' }));
+    await userEvent.setup().click(within(card).getByRole('button', { name: 'Look for Portly on this PC' }));
     expect(controller.actions.lookForServer).toHaveBeenCalledOnce();
     expect(controller.actions.checkNow).not.toHaveBeenCalled();
   });
@@ -131,11 +131,11 @@ describe('LocalServerPanel', () => {
   it('keeps focus on the check button while a check runs and its label changes', async () => {
     const user = userEvent.setup();
     const controller = renderPanel({ status: 'idle' });
-    const button = screen.getByRole('button', { name: 'Look for Homebase on this PC' });
+    const button = screen.getByRole('button', { name: 'Look for Portly on this PC' });
     await user.click(button);
     expect(button).toHaveFocus();
     controller.set({ status: 'checking', manual: true });
-    expect(screen.getByText('Looking for Homebase on this PC…')).toBeInTheDocument();
+    expect(screen.getByText('Looking for Portly on this PC…')).toBeInTheDocument();
     expect(button).toHaveFocus();
     controller.set({ status: 'absent', manual: true, checkedAt: Date.now() - 5_000 });
     expect(button).toHaveFocus();
@@ -156,7 +156,7 @@ describe('LocalServerPanel', () => {
 
   it('blocked by the browser: says how to allow local network access', () => {
     renderPanel({ status: 'blocked', permission: 'denied' });
-    const card = screen.getByRole('region', { name: 'Homebase on this PC' });
+    const card = screen.getByRole('region', { name: 'Portly on this PC' });
     expect(within(card).getByText('Blocked by browser')).toBeInTheDocument();
     expect(card).toHaveTextContent('set Local network access (called Apps on device in some versions) to Allow, then check again');
     expect(within(card).getByRole('button', { name: 'Check again' })).toBeInTheDocument();
@@ -168,12 +168,12 @@ describe('LocalServerPanel', () => {
     expect(screen.queryByText(/Local network access/)).not.toBeInTheDocument();
   });
 
-  it('found, not paired: pairs this browser from here, with no link out to Homebase’s own page', async () => {
+  it('found, not paired: pairs this browser from here, with no link out to Portly’s own page', async () => {
     const controller = renderPanel({ status: 'unpaired', server: SERVER, permission: 'granted', checkedAt: Date.now() });
-    const card = screen.getByRole('region', { name: 'Homebase on this PC' });
+    const card = screen.getByRole('region', { name: 'Portly on this PC' });
     expect(within(card).getByText('Found, not paired')).toBeInTheDocument();
     expect(card).toHaveTextContent('Version0.1.0');
-    expect(within(card).queryByRole('link', { name: /Open Homebase on this PC/ })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('link', { name: /Open Portly on this PC/ })).not.toBeInTheDocument();
     expect(card.querySelector('a[href^="http://localhost"]')).toBeNull();
     await userEvent.setup().click(within(card).getByRole('button', { name: 'Pair this browser' }));
     expect(controller.actions.startPairing).toHaveBeenCalledOnce();
@@ -184,13 +184,13 @@ describe('LocalServerPanel', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
-  it('pairing removed or another Homebase: pair again; a stale pairing can be disconnected', () => {
+  it('pairing removed or another Portly: pair again; a stale pairing can be disconnected', () => {
     const controller = renderPanel({ status: 'revoked', server: SERVER });
     expect(screen.getByText('Pairing removed')).toBeInTheDocument();
     expect(screen.getByText(/its pairing was removed there/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pair this browser' })).toBeInTheDocument();
     controller.set({ status: 'other-server', paired: true });
-    expect(screen.getByText('Paired with another Homebase')).toBeInTheDocument();
+    expect(screen.getByText('Paired with another Portly')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pair this browser' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Disconnect this browser' })).toBeInTheDocument();
   });
@@ -205,13 +205,13 @@ describe('LocalServerPanel', () => {
   it('connected on the server backend: where the data comes from, no link out, Disconnect after confirming', async () => {
     const user = userEvent.setup();
     const controller = renderPanel({ backend: 'server', status: 'connected', server: SERVER, paired: true, permission: 'granted' });
-    const card = screen.getByRole('region', { name: 'Homebase on this PC' });
+    const card = screen.getByRole('region', { name: 'Portly on this PC' });
     expect(within(card).getByText('Connected · v0.1.0')).toBeInTheDocument();
-    expect(card).toHaveTextContent("This page's data comes from Homebase running on this PC.");
-    expect(card).toHaveTextContent("This page's dataFrom Homebase on this PC");
+    expect(card).toHaveTextContent("This page's data comes from Portly running on this PC.");
+    expect(card).toHaveTextContent("This page's dataFrom Portly on this PC");
     expect(within(card).queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
-    expect(within(card).queryByText('What Homebase on this PC adds')).not.toBeInTheDocument();
-    expect(within(card).queryByRole('link', { name: /Open Homebase on this PC/ })).not.toBeInTheDocument();
+    expect(within(card).queryByText('What Portly on this PC adds')).not.toBeInTheDocument();
+    expect(within(card).queryByRole('link', { name: /Open Portly on this PC/ })).not.toBeInTheDocument();
     expect(within(card).queryByRole('link')).not.toBeInTheDocument();
 
     await user.click(within(card).getByRole('button', { name: 'Disconnect this browser' }));
@@ -231,22 +231,22 @@ describe('LocalServerPanel', () => {
 
   it('a pending switch explains the wait and switches now on request', async () => {
     const controller = renderPanel({ status: 'connected', server: SERVER, paired: true, pendingSwitch: { target: 'server', reason: 'connected' } });
-    expect(screen.getByText(/This page switches to Homebase on this PC when you're done/)).toBeInTheDocument();
+    expect(screen.getByText(/This page switches to Portly on this PC when you're done/)).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Switch now' }));
     expect(controller.actions.switchNow).toHaveBeenCalledOnce();
   });
 
   it('in a frame: says why and offers nothing to do', () => {
     renderPanel({ status: 'framed', permission: null });
-    expect(screen.getByText(/Inside a frame, Homebase always uses the copy saved in this browser/)).toBeInTheDocument();
+    expect(screen.getByText(/Inside a frame, Portly always uses the copy saved in this browser/)).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('the popover variant has its own title and folds what the server adds into a disclosure', async () => {
     renderPanel({ status: 'absent' }, 'popover');
-    expect(screen.queryByRole('region', { name: 'Homebase on this PC' })).not.toBeInTheDocument();
-    expect(screen.getByText('Homebase on this PC')).toBeInTheDocument();
-    const summary = screen.getByText('What Homebase on this PC adds');
+    expect(screen.queryByRole('region', { name: 'Portly on this PC' })).not.toBeInTheDocument();
+    expect(screen.getByText('Portly on this PC')).toBeInTheDocument();
+    const summary = screen.getByText('What Portly on this PC adds');
     expect(summary.tagName).toBe('SUMMARY');
     expect(summary.parentElement).not.toHaveAttribute('open');
   });

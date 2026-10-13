@@ -11,7 +11,7 @@ import { BookmarkGroupNameSchema, BookmarkTitleSchema, IconModeSchema, MAX_BOOKM
 import { MAX_PROFILES, ProfileSchema } from './profiles.ts';
 import { SettingsSchema } from './settings.ts';
 
-export const EXPORT_FORMAT = 'homebase-export';
+export const EXPORT_FORMAT = 'portly-export';
 export const EXPORT_VERSION = 1;
 
 /** Max import file size (multipart upload), bytes. */

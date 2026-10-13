@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Builds the browser-only Homebase site (web\dist-static) and publishes it to a local clone of
+    Builds the browser-only Portly site (web\dist-static) and publishes it to a local clone of
     your PUBLIC GitHub Pages repository.
 
 .DESCRIPTION
-    Runs `npm run build:static` with HOMEBASE_STATIC_BASE set to -Base, checks that
+    Runs `npm run build:static` with PORTLY_STATIC_BASE set to -Base, checks that
     web\dist-static\index.html exists and uses that base, then replaces the contents of the
     public repository's working tree with it: every tracked file is removed (CNAME and README.md
     are kept, .git is never touched), web\dist-static\* and an empty .nojekyll are copied in, the
@@ -16,8 +16,8 @@
 
     Safety rails: the folder must be the root of a git repository with a branch checked out and a
     clean working tree (no uncommitted changes, no untracked files), and it must not be this
-    Homebase checkout or any other Homebase checkout. The repository must be empty or hold only
-    an earlier Homebase publish (index.html with <meta name="homebase-build" content="static">,
+    Portly checkout or any other Portly checkout. The repository must be empty or hold only
+    an earlier Portly publish (index.html with <meta name="portly-build" content="static">,
     assets/, setup.ps1, the files of web\public, .nojekyll, CNAME, README.md); anything else is refused
     unless -ReplaceEverything. When origin is on github.com and there is no CNAME file, -Base must
     match the repository ('/' for <user>.github.io, '/<repo>/' otherwise). Only the build's own
@@ -28,7 +28,7 @@
     `git push` (the old files are still in its history).
 
     Every publish replaces the whole content of the repository it is given, so the site gets a
-    public repository of its own, never the Homebase repository. See docs\setup\static-build.md.
+    public repository of its own, never the Portly repository. See docs\setup\static-build.md.
 
 .PARAMETER PublicRepoPath
     Local clone of the public repository that serves the site. Its checked-out branch is the one
@@ -41,7 +41,7 @@
     Must start and end with '/'.
 
 .PARAMETER Message
-    Commit message. Default: "Publish Homebase <version> (<date>)".
+    Commit message. Default: "Publish Portly <version> (<date>)".
 
 .PARAMETER DryRun
     Print what would be built, removed, copied, committed and pushed; change nothing.
@@ -50,15 +50,15 @@
     Commit, but do not push.
 
 .PARAMETER ReplaceEverything
-    Publish even though the repository holds files that are not an earlier Homebase publish: they
+    Publish even though the repository holds files that are not an earlier Portly publish: they
     are deleted (CNAME and README.md excepted). Skips only that check; every other one still
     applies. The plan lists each file before anything is removed.
 
 .EXAMPLE
-    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-static.ps1 -PublicRepoPath ..\homebase-pages -Base /homebase-pages/
+    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-static.ps1 -PublicRepoPath ..\portly-pages -Base /portly-pages/
 
 .EXAMPLE
-    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-static.ps1 -PublicRepoPath ..\homebase-pages -DryRun
+    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-static.ps1 -PublicRepoPath ..\portly-pages -DryRun
 #>
 #Requires -Version 5.1
 [CmdletBinding()]
@@ -78,7 +78,7 @@ $ErrorActionPreference = 'Stop'
 $HbPublishKeep = @('CNAME', 'README.md')
 $HbNoJekyll = '.nojekyll'
 # web\vite.config.ts (staticHtml) puts this tag into every static build's index.html.
-$HbBuildMarker = '<meta\s[^>]*name\s*=\s*["'']?homebase-build["'']?[^>]*content\s*=\s*["'']?static\b'
+$HbBuildMarker = '<meta\s[^>]*name\s*=\s*["'']?portly-build["'']?[^>]*content\s*=\s*["'']?static\b'
 
 # Runs git in a folder. Output is captured (stderr included) unless -ShowOutput, which streams it
 # to the console (commit, push). Throws on a non-zero exit code unless -AllowFailure.
@@ -118,24 +118,24 @@ function Get-HbNormalizedPath {
     return $full.TrimEnd('\')
 }
 
-# Runs `npm run build:static` with HOMEBASE_STATIC_BASE for this process only.
+# Runs `npm run build:static` with PORTLY_STATIC_BASE for this process only.
 function Invoke-HbStaticBuild {
     param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)][string]$BasePath)
     $npm = Get-Command -Name 'npm.cmd' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $npm) {
         throw 'npm.cmd was not found on PATH (it is installed with Node.js).'
     }
-    $saved = [System.Environment]::GetEnvironmentVariable('HOMEBASE_STATIC_BASE', 'Process')
+    $saved = [System.Environment]::GetEnvironmentVariable('PORTLY_STATIC_BASE', 'Process')
     $previous = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     Push-Location -LiteralPath $RepoRoot
     try {
-        [System.Environment]::SetEnvironmentVariable('HOMEBASE_STATIC_BASE', $BasePath, 'Process')
+        [System.Environment]::SetEnvironmentVariable('PORTLY_STATIC_BASE', $BasePath, 'Process')
         & $npm.Source run build:static | Out-Host
         $exitCode = $LASTEXITCODE
     } finally {
         Pop-Location
-        [System.Environment]::SetEnvironmentVariable('HOMEBASE_STATIC_BASE', $saved, 'Process')
+        [System.Environment]::SetEnvironmentVariable('PORTLY_STATIC_BASE', $saved, 'Process')
         $ErrorActionPreference = $previous
     }
     if ($exitCode -ne 0) { throw "npm run build:static failed (exit code $exitCode)." }
@@ -184,7 +184,7 @@ function Write-HbRemovalList {
 function Get-PublishPlan {
     $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
     if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'web\vite.config.ts') -PathType Leaf)) {
-        throw "This script must stay in the scripts folder of a Homebase checkout (no web\vite.config.ts under $repoRoot)."
+        throw "This script must stay in the scripts folder of a Portly checkout (no web\vite.config.ts under $repoRoot)."
     }
 
     # -Base follows web\vite.config.ts (staticBase): absolute, trailing slash, no spaces.
@@ -211,20 +211,20 @@ function Get-PublishPlan {
         throw "$target is inside the repository $targetRoot. Pass the repository root itself."
     }
 
-    # Never publish into Homebase: this checkout (or a worktree of the same repository), or another one.
+    # Never publish into Portly: this checkout (or a worktree of the same repository), or another one.
     $thisRoot = Get-HbNormalizedPath -Path $repoRoot
     if ([string]::Equals($targetRoot, $thisRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw 'The target is this Homebase repository itself. Publish into a separate, public repository that holds only the built site (see docs\setup\static-build.md).'
+        throw 'The target is this Portly repository itself. Publish into a separate, public repository that holds only the built site (see docs\setup\static-build.md).'
     }
     $thisCommon = Invoke-HbGit -Git $gitExe -Directory $thisRoot -Arguments @('rev-parse', '--path-format=absolute', '--git-common-dir') -AllowFailure
     $targetCommon = Invoke-HbGit -Git $gitExe -Directory $targetRoot -Arguments @('rev-parse', '--path-format=absolute', '--git-common-dir') -AllowFailure
     if ($thisCommon.ExitCode -eq 0 -and $targetCommon.ExitCode -eq 0 -and $thisCommon.Lines.Count -gt 0 -and $targetCommon.Lines.Count -gt 0 -and
         [string]::Equals((Get-HbNormalizedPath -Path $thisCommon.Lines[0]), (Get-HbNormalizedPath -Path $targetCommon.Lines[0]), [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw 'The target is a worktree of this Homebase repository itself. Publish into a separate, public repository that holds only the built site.'
+        throw 'The target is a worktree of this Portly repository itself. Publish into a separate, public repository that holds only the built site.'
     }
     foreach ($marker in @('server\src\index.ts', 'web\vite.config.ts', 'shared\package.json')) {
         if (Test-Path -LiteralPath (Join-Path $targetRoot $marker) -PathType Leaf) {
-            throw "The target looks like a Homebase checkout ($marker exists). Publish into a separate, public repository that holds only the built site."
+            throw "The target looks like a Portly checkout ($marker exists). Publish into a separate, public repository that holds only the built site."
         }
     }
 
@@ -270,7 +270,7 @@ function Get-PublishPlan {
     $kept = @($tracked | Where-Object { $HbPublishKeep -contains $_ })
 
     # Publishing deletes every tracked file but CNAME and README.md. Allow that only for an empty
-    # repository or an earlier Homebase publish - never for another site's pages (a privacy page,
+    # repository or an earlier Portly publish - never for another site's pages (a privacy page,
     # a verification file, a user site) unless -ReplaceEverything says so.
     if ($toRemove.Count -gt 0 -and -not $ReplaceEverything) {
         $publishedNames = Get-HbPublishedNames -RepoRoot $repoRoot
@@ -279,7 +279,7 @@ function Get-PublishPlan {
         if ($foreign.Count -gt 0) {
             $shown = @($foreign | Select-Object -First 5) -join ', '
             if ($foreign.Count -gt 5) { $shown += ", ... ($($foreign.Count) in all)" }
-            $reason = "it holds files that are not part of a Homebase build: $shown"
+            $reason = "it holds files that are not part of a Portly build: $shown"
         } else {
             $indexPath = Join-Path $targetRoot 'index.html'
             $indexText = ''
@@ -287,13 +287,13 @@ function Get-PublishPlan {
                 $indexText = [System.IO.File]::ReadAllText($indexPath)
             }
             if ($indexText -notmatch $HbBuildMarker) {
-                $reason = 'its index.html is missing or is not a Homebase build (no <meta name="homebase-build" content="static">)'
+                $reason = 'its index.html is missing or is not a Portly build (no <meta name="portly-build" content="static">)'
             }
         }
         if ($null -ne $reason) {
-            throw ("The public repository $targetRoot is neither empty nor an earlier Homebase publish - $reason. " +
+            throw ("The public repository $targetRoot is neither empty nor an earlier Portly publish - $reason. " +
                 "Publishing deletes every tracked file except $($HbPublishKeep -join ' and '), so all of that would vanish from the site. " +
-                'Create a new, empty public repository for Homebase and pass its clone, or re-run with -ReplaceEverything to replace this content anyway ' +
+                'Create a new, empty public repository for Portly and pass its clone, or re-run with -ReplaceEverything to replace this content anyway ' +
                 '(it stays in the repository history: git revert the publish commit and push to get it back).')
         }
     }
@@ -315,7 +315,7 @@ function Get-PublishPlan {
     $version = "$(Get-HbProperty $packageJson 'version')"
     $commitMessage = $Message
     if ([string]::IsNullOrWhiteSpace($commitMessage)) {
-        $commitMessage = "Publish Homebase $version ($(Get-Date -Format 'yyyy-MM-dd'))"
+        $commitMessage = "Publish Portly $version ($(Get-Date -Format 'yyyy-MM-dd'))"
     }
 
     return [pscustomobject]@{
@@ -355,8 +355,8 @@ try {
 $buildFiles = Get-HbBuildFiles -DistStatic $plan.DistStatic
 if ($DryRun) {
     Write-HbStep 'Publish plan (dry run - nothing is built or changed)'
-    Write-HbField -Name 'Homebase' -Value $plan.RepoRoot
-    Write-HbField -Name 'Build' -Value "npm run build:static  (HOMEBASE_STATIC_BASE=$Base)"
+    Write-HbField -Name 'Portly' -Value $plan.RepoRoot
+    Write-HbField -Name 'Build' -Value "npm run build:static  (PORTLY_STATIC_BASE=$Base)"
     $outputState = 'not built yet; the build creates it'
     if ($buildFiles.Count -gt 0) { $outputState = "$($buildFiles.Count) file(s) from an earlier build; the build replaces them" }
     Write-HbField -Name 'Output' -Value "$($plan.DistStatic)  ($outputState)"
@@ -378,7 +378,7 @@ if ($DryRun) {
 }
 
 try {
-    Write-HbStep "Building the browser-only site: npm run build:static (HOMEBASE_STATIC_BASE=$Base)"
+    Write-HbStep "Building the browser-only site: npm run build:static (PORTLY_STATIC_BASE=$Base)"
     Invoke-HbStaticBuild -RepoRoot $plan.RepoRoot -BasePath $Base
     $indexHtml = Join-Path $plan.DistStatic 'index.html'
     if (-not (Test-Path -LiteralPath $indexHtml -PathType Leaf)) {
@@ -386,7 +386,7 @@ try {
     }
     $indexText = [System.IO.File]::ReadAllText($indexHtml)
     if (-not $indexText.Contains("$($Base)assets/")) {
-        throw "web\dist-static\index.html does not reference $($Base)assets/ - the build did not pick up HOMEBASE_STATIC_BASE=$Base."
+        throw "web\dist-static\index.html does not reference $($Base)assets/ - the build did not pick up PORTLY_STATIC_BASE=$Base."
     }
     $buildFiles = Get-HbBuildFiles -DistStatic $plan.DistStatic
     Write-HbOk "web\dist-static built ($($buildFiles.Count) files)"

@@ -38,7 +38,7 @@ import {
   type BookmarkImportReport,
   type BookmarksResponse,
   type SiteMeta,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext, AppEnv, RegisterModule } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { errorFields } from '../../lib/logger.ts';

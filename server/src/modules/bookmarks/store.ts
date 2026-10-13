@@ -22,7 +22,7 @@ import {
   type BookmarkGroupUpdate,
   type BookmarkUpdate,
   type IconMode,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { Db } from '../../db/open.ts';
 import { toBool } from '../../db/helpers.ts';
 import { HttpError } from '../../lib/errors.ts';

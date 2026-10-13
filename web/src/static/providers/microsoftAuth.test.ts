@@ -4,7 +4,7 @@
  * id-token.ts tests, with the browser scopes and the single-page-app session length).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MICROSOFT_CONSUMER_TENANT_ID } from '@homebase/shared';
+import { MICROSOFT_CONSUMER_TENANT_ID } from '@portly/shared';
 import { createFakeFetch, failingFetch } from './__fixtures__/fakeFetch.ts';
 import { MICROSOFT_CLIENT_ID, SUBJECT, microsoftIdToken, tokenError, tokenOk } from './__fixtures__/microsoft.ts';
 import {

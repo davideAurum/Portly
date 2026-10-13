@@ -70,8 +70,8 @@ export const TEST_PORT = 5757;
 /** Config for tests: default port and origin, a unique (never created) temp data dir. */
 export function testConfig(env: Record<string, string> = {}, patch: Partial<Config> = {}): Config {
   const base = loadConfig({
-    HOMEBASE_PORT: String(TEST_PORT),
-    HOMEBASE_DATA_DIR: path.join(os.tmpdir(), `homebase-test-${newId()}`),
+    PORTLY_PORT: String(TEST_PORT),
+    PORTLY_DATA_DIR: path.join(os.tmpdir(), `portly-test-${newId()}`),
     ...env,
   });
   return Object.freeze({ ...base, ...patch });

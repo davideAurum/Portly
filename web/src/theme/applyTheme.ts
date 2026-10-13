@@ -5,13 +5,13 @@
  * enums. No CSS text is ever built from user input: colors are regex-checked hex, numbers are
  * bounded, fonts map to constant stacks, and the only URL is `/api/uploads/<validated UUID>` as
  * `getAssetUrl` resolves it for this page load (itself, a `blob:` URL, or a base64 `data:` URL).
- * While that image is not loaded yet (a Pages page load on the Homebase server on this PC) the
+ * While that image is not loaded yet (a Pages page load on the Portly server on this PC) the
  * backdrop has no image; `useApplyTheme` applies the theme again once it is there.
  *
  * `--hb-focus` deliberately stays with the stylesheet's per-scheme values: an arbitrary accent
  * (pale yellow on white, navy on the dark surfaces) can make focus rings invisible.
  */
-import { ThemeSchema, uploadUrl, type Theme, type ThemeBackground, type ThemeFont } from '@homebase/shared';
+import { ThemeSchema, uploadUrl, type Theme, type ThemeBackground, type ThemeFont } from '@portly/shared';
 import { readableTextColor } from '../lib/color.ts';
 import { getAssetUrl } from '../static/assets.ts';
 

@@ -1,5 +1,5 @@
 /**
- * Database backups (§3): a daily `VACUUM INTO backups/homebase-<YYYY-MM-DD>.db` (local date, the
+ * Database backups (§3): a daily `VACUUM INTO backups/portly-<YYYY-MM-DD>.db` (local date, the
  * last 7 kept) and a `pre-import-<timestamp>.db` snapshot before every config import.
  *
  * Each backup is written to a temporary name and renamed into place, so a crash mid-way never
@@ -13,7 +13,7 @@ import { errorFields, type Logger } from './logger.ts';
 
 export const DAILY_BACKUPS_KEPT = 7;
 export const PRE_IMPORT_BACKUPS_KEPT = 5;
-export const DAILY_BACKUP_REGEX = /^homebase-\d{4}-\d{2}-\d{2}\.db$/;
+export const DAILY_BACKUP_REGEX = /^portly-\d{4}-\d{2}-\d{2}\.db$/;
 export const PRE_IMPORT_BACKUP_REGEX = /^pre-import-\d{8}T\d{9}Z(-\d+)?\.db$/;
 
 /** `YYYY-MM-DD` in local time. */
@@ -78,7 +78,7 @@ export interface BackupOptions {
 export function runDailyBackup(options: BackupOptions): string | null {
   const { db, dir, log } = options;
   const today = (options.now ?? (() => new Date()))();
-  const file = path.join(dir, `homebase-${localDateStamp(today)}.db`);
+  const file = path.join(dir, `portly-${localDateStamp(today)}.db`);
   let written: string | null = null;
   if (!fs.existsSync(file)) {
     const started = Date.now();

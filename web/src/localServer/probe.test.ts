@@ -1,8 +1,8 @@
 /**
- * The requests that find the Homebase server on this PC: the health probe (a simple CORS GET with
+ * The requests that find the Portly server on this PC: the health probe (a simple CORS GET with
  * no custom header, no cache, no credentials, aimed at the loopback address space; answers
  * validated, the server's page URL kept only when it is a loopback root page) and the pairing
- * check (token and `X-Homebase`; only `pairing_required` clears a pairing); what each request showed
+ * check (token and `X-Portly`; only `pairing_required` clears a pairing); what each request showed
  * for the diagnostic events; and the `no-cors` fallback, which carries nothing.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -46,7 +46,7 @@ describe('probeHealth', () => {
     expect(init?.headers).toBeUndefined();
   });
 
-  it('reads a Homebase answer, keeping the reported page only when it is a loopback root page', async () => {
+  it('reads a Portly answer, keeping the reported page only when it is a loopback root page', async () => {
     const ok = await probeHealth(ORIGIN, { fetch: fetchReturning(jsonResponse(healthBody())) });
     expect(ok).toMatchObject({ kind: 'ok', appUrl: APP_URL, health: { instanceId: INSTANCE, apiVersion: 1, vault: 'ready' } });
 
@@ -56,18 +56,18 @@ describe('probeHealth', () => {
     }
   });
 
-  it('a Homebase from before hybrid mode (no app field) still reads as Homebase', async () => {
+  it('a Portly from before hybrid mode (no app field) still reads as Portly', async () => {
     const answer = await probeHealth(ORIGIN, { fetch: fetchReturning(jsonResponse({ ok: true, version: '0.0.9', vault: 'locked' })) });
     expect(answer).toMatchObject({ kind: 'ok', appUrl: null, health: { version: '0.0.9' } });
   });
 
-  it('a newer Homebase with fields this page does not know still reads as Homebase', async () => {
+  it('a newer Portly with fields this page does not know still reads as Portly', async () => {
     const answer = await probeHealth(ORIGIN, { fetch: fetchReturning(jsonResponse({ ...healthBody(), features: ['x'] })) });
     expect(answer).toMatchObject({ kind: 'ok', appUrl: APP_URL, health: { instanceId: INSTANCE, apiVersion: 1 } });
     expect(answer.kind === 'ok' && 'features' in answer.health).toBe(false);
   });
 
-  it('anything else on the port is not Homebase', async () => {
+  it('anything else on the port is not Portly', async () => {
     const others = [
       new Response('<html></html>', { headers: { 'Content-Type': 'text/html' } }),
       jsonResponse(healthBody(), 500),
@@ -75,7 +75,7 @@ describe('probeHealth', () => {
       jsonResponse({ ...healthBody(), vault: 'open-sesame' }),
       new Response('{not json', { headers: { 'Content-Type': 'application/json' } }),
     ];
-    for (const res of others) expect(await probeHealth(ORIGIN, { fetch: fetchReturning(res) })).toEqual({ kind: 'not-homebase' });
+    for (const res of others) expect(await probeHealth(ORIGIN, { fetch: fetchReturning(res) })).toEqual({ kind: 'not-portly' });
   });
 
   it('a failed fetch is unreachable; an aborted one is aborted', async () => {
@@ -88,7 +88,7 @@ describe('probeHealth', () => {
 });
 
 describe('checkPairing', () => {
-  it('sends the token and X-Homebase', async () => {
+  it('sends the token and X-Portly', async () => {
     const fetch = fetchReturning(jsonResponse(pairingBody()));
     const answer = await checkPairing(ORIGIN, TOKEN, { fetch });
     expect(answer).toMatchObject({ kind: 'ok', pairing: { instanceId: INSTANCE } });
@@ -96,8 +96,8 @@ describe('checkPairing', () => {
     expect(url).toBe(`${ORIGIN}/api/pairing`);
     expect(init).toMatchObject({ method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', targetAddressSpace: 'loopback' });
     const headers = new Headers(init?.headers);
-    expect(headers.get('X-Homebase-Token')).toBe(TOKEN);
-    expect(headers.get('X-Homebase')).toBe('1');
+    expect(headers.get('X-Portly-Token')).toBe(TOKEN);
+    expect(headers.get('X-Portly')).toBe('1');
   });
 
   it('reads an answer from a newer server with fields this page does not know', async () => {
@@ -127,10 +127,10 @@ describe('checkPairing', () => {
 
 describe('helpers', () => {
   it('pairedHeaders keeps the caller headers and sets the two of hybrid mode', () => {
-    const headers = pairedHeaders(TOKEN, { 'Content-Type': 'application/json', 'X-Homebase-Token': 'forged' });
+    const headers = pairedHeaders(TOKEN, { 'Content-Type': 'application/json', 'X-Portly-Token': 'forged' });
     expect(headers.get('Content-Type')).toBe('application/json');
-    expect(headers.get('X-Homebase-Token')).toBe(TOKEN);
-    expect(headers.get('X-Homebase')).toBe('1');
+    expect(headers.get('X-Portly-Token')).toBe(TOKEN);
+    expect(headers.get('X-Portly')).toBe('1');
   });
 
   it('isPairingRequired leaves the response readable', async () => {
@@ -152,11 +152,11 @@ describe('details for the diagnostic events', () => {
     const ok = await probeHealthDetailed(ORIGIN, { fetch: fetchReturning(jsonResponse(healthBody())), now: ticking() });
     expect(ok).toMatchObject({ result: { kind: 'ok' }, details: { ms: 7, httpStatus: 200, errName: null } });
     const html = await probeHealthDetailed(ORIGIN, { fetch: fetchReturning(new Response('<html>', { status: 404 })) });
-    expect(html).toMatchObject({ result: { kind: 'not-homebase' }, details: { httpStatus: 404, errName: null } });
+    expect(html).toMatchObject({ result: { kind: 'not-portly' }, details: { httpStatus: 404, errName: null } });
     const down = await probeHealthDetailed(ORIGIN, { fetch: fetchReturning(new TypeError('Failed to fetch')) });
     expect(down).toEqual({ result: { kind: 'unreachable' }, details: { ms: expect.any(Number), httpStatus: null, errName: 'TypeError' } });
     const garbled = await probeHealthDetailed(ORIGIN, { fetch: fetchReturning(new Response('{not json', { headers: { 'Content-Type': 'application/json' } })) });
-    expect(garbled).toMatchObject({ result: { kind: 'not-homebase' }, details: { httpStatus: 200, errName: 'SyntaxError' } });
+    expect(garbled).toMatchObject({ result: { kind: 'not-portly' }, details: { httpStatus: 200, errName: 'SyntaxError' } });
   });
 
   it('the pairing check too', async () => {

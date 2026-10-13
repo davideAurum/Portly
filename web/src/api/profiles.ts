@@ -16,7 +16,7 @@ import {
   type WidgetInstance,
   type WidgetPosition,
   type WidgetUpdate,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { toastError } from '../ui/toast.ts';
 import { apiDelete, apiGet, apiPatch, apiPath, apiPost, apiPut } from './client.ts';
 import { qk } from './keys.ts';

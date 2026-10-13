@@ -10,7 +10,7 @@
  */
 import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { ArrowUpRight, Bookmark as BookmarkGlyph, ChevronDown, CornerDownLeft, Search as SearchGlyph, X } from 'lucide-react';
-import type { Bookmark, SearchEngine, SearchSettings } from '@homebase/shared';
+import type { Bookmark, SearchEngine, SearchSettings } from '@portly/shared';
 import { useBookmarks } from '../../api/bookmarks.ts';
 import { useSuggestions } from '../../api/search.ts';
 import { useSettings } from '../../api/settings.ts';

@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Mail } from 'lucide-react';
 import { z } from 'zod';
-import { MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES } from '@homebase/shared';
+import { MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES } from '@portly/shared';
 import { lazyWithPreload } from '../lazyWidget.ts';
 import type { WidgetDefinition } from '../types.ts';
 

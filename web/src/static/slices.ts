@@ -24,7 +24,7 @@ import {
   type Capability,
   type Profile,
   type Settings,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { StaticContext } from './context.ts';
 
 export const SLICE = Object.freeze({
@@ -78,7 +78,7 @@ function checkedSlice<T extends object>(
     }
   }
   const replaced = repair?.(value) ?? init();
-  console.warn(`[Homebase] Stored "${name}" data had an unexpected shape and was repaired`);
+  console.warn(`[Portly] Stored "${name}" data had an unexpected shape and was repaired`);
   checkedSlices.add(replaced);
   return ctx.state.set(name, replaced);
 }
@@ -114,7 +114,7 @@ export function getSettings(ctx: StaticContext): Settings {
     if (parsed.success) repaired[ns] = parsed.data;
     else {
       repaired[ns] = settingsNamespaceSchema(ns).parse(undefined);
-      console.warn(`[Homebase] Stored settings "${ns}" were invalid and fell back to the defaults`);
+      console.warn(`[Portly] Stored settings "${ns}" were invalid and fell back to the defaults`);
     }
   }
   const result = SettingsSchema.safeParse(repaired);

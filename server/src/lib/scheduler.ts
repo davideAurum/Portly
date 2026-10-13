@@ -177,7 +177,7 @@ class JobCore {
       this.consecutiveFailures++;
       const fields = errorFields(error);
       const outcome = outcomeFromError(error);
-      // The summary is readable by the paired Pages site: keep Homebase's own text (as health
+      // The summary is readable by the paired Pages site: keep Portly's own text (as health
       // messages do), never a library message; the full errMessage stays in the log line.
       this.lastError = {
         name: String(fields.errName ?? 'Error'),

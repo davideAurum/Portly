@@ -7,9 +7,9 @@
  * so an account that keeps failing for days is one event, not one per new tab. One record per
  * account for the whole page (several mail widgets show the same accounts). Fields: `widget`,
  * `accountId`, `code` and `status` (the provider's HTTP status when the error carries one, else the
- * one Homebase answers that code with); never the error's message, a subject or an address.
+ * one Portly answers that code with); never the error's message, a subject or an address.
  */
-import { ERROR_CODES, ERROR_STATUS, type ErrorCode, type MailAccountSummary } from '@homebase/shared';
+import { ERROR_CODES, ERROR_STATUS, type ErrorCode, type MailAccountSummary } from '@portly/shared';
 import { clientSessionId, getClientEvents, recordClientEvent } from '../../diagnostics/clientLog.ts';
 
 /** accountId → the error code last seen (null: listed fine). */

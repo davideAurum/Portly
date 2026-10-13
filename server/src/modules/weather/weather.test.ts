@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { GeoPlace, WeatherReport } from '@homebase/shared';
+import type { GeoPlace, WeatherReport } from '@portly/shared';
 import { SafeFetchError } from '../../security/safe-fetch.ts';
 import type { FakeFetchRoute } from '../../testing/fake-fetch.ts';
 import { berlinForecast, springfieldGeocode, weatherTestbed, type WeatherTestbed } from './__fixtures__/open-meteo.ts';
@@ -49,7 +49,7 @@ describe('open-meteo: request parameters and cache keys', () => {
     expect(p.get('precipitation_unit')).toBe('mm');
   });
 
-  it('maps every Homebase unit to its Open-Meteo parameter', () => {
+  it('maps every Portly unit to its Open-Meteo parameter', () => {
     const p = paramsOf(forecastUrl(1, 2, IMPERIAL));
     expect(p.get('temperature_unit')).toBe('fahrenheit');
     expect(p.get('wind_speed_unit')).toBe('mph');
@@ -219,7 +219,7 @@ describe('GET /api/weather', () => {
     expect(calls).toHaveLength(1);
     const p = paramsOf(calls[0]!.url);
     expect([p.get('latitude'), p.get('longitude'), p.get('temperature_unit'), p.get('timezone')]).toEqual(['52.52', '13.41', 'celsius', 'auto']);
-    expect(calls[0]!.headers.get('user-agent')).toMatch(/^Homebase\//);
+    expect(calls[0]!.headers.get('user-agent')).toMatch(/^Portly\//);
 
     // Same rounded coordinates → served from the cache.
     expect((await t.json('/api/weather?lat=52.5249&lon=13.4149')).status).toBe(200);
@@ -318,7 +318,7 @@ describe('GET /api/weather', () => {
 
   it('is gated like every non-exempt API route', async () => {
     t = weatherTestbed();
-    expect((await t.json('/api/weather?lat=1&lon=1', { headers: { 'X-Homebase': null } })).status).toBe(403);
+    expect((await t.json('/api/weather?lat=1&lon=1', { headers: { 'X-Portly': null } })).status).toBe(403);
     expect((await t.json('/api/weather?lat=1&lon=1', { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status).toBe(403);
   });
 });

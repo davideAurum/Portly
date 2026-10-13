@@ -2,7 +2,7 @@
  * Pure helpers of the Todoist widget: filter presets, due-date classification and labels, task
  * sorting and markdown-ish content → plain text. No React, no DOM — easy to test.
  */
-import type { Task, TaskDue } from '@homebase/shared';
+import type { Task, TaskDue } from '@portly/shared';
 import type { Formatters } from '../../lib/format.ts';
 
 // ---------------------------------------------------------------------------

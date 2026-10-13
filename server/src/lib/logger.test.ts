@@ -97,7 +97,7 @@ describe('file logger', () => {
       .map((l) => JSON.parse(l) as Record<string, unknown>);
 
   it('writes lines at or above the level and rotates at maxBytes keeping `keep` files', () => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-log-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-log-'));
     const file = path.join(dir, 'logs', 'server.log');
     const log = createLogger({ file, level: 'info', console: false, maxBytes: 300, keep: 3 });
     log.debug('hidden');
@@ -114,7 +114,7 @@ describe('file logger', () => {
   });
 
   it('writes valid JSON Lines in the documented shape', () => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-log-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-log-'));
     const file = path.join(dir, 'server.log');
     const log = createLogger({ file, level: 'debug', console: false });
     withLogContext({ rid: 'abc123def4', area: 'calendar', job: 'calendar:sync' }, () => {
@@ -141,7 +141,7 @@ describe('file logger', () => {
   });
 
   it('writes fields named like Object.prototype members (file and memory agree)', () => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-log-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-log-'));
     const file = path.join(dir, 'server.log');
     const log = createLogger({ file, level: 'info', console: false });
     const fields = { toString: 'a', valueOf: 1, hasOwnProperty: true, isPrototypeOf: 2, ok: 3 };
@@ -153,7 +153,7 @@ describe('file logger', () => {
   });
 
   it('reopens instead of rotating when another process rotated the file', () => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-log-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-log-'));
     const file = path.join(dir, 'server.log');
     const log = createLogger({ file, level: 'info', console: false, maxBytes: 400, keep: 3 });
     log.info(`first ${'a'.repeat(150)}`);
@@ -171,7 +171,7 @@ describe('file logger', () => {
   });
 
   it('a failed rotation stops at the failing rename and is retried only after a back-off', () => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-log-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-log-'));
     const file = path.join(dir, 'server.log');
     let t = 1_000_000;
     const log = createLogger({ file, level: 'info', console: false, maxBytes: 300, keep: 3, now: () => t });
@@ -918,8 +918,8 @@ describe('errorFields', () => {
     ['ImapOpError', new ImapOpError(409, 'conflict', 'Mailbox busy'), { errStatus: 409, errCode: 'conflict' }],
     ['DavParseError', new DavParseError('limit', 'The CalDAV response could not be read'), { errReason: 'limit' }],
     ['ExpandError', new ExpandError('limit', 'Too many instances'), { errReason: 'limit' }],
-    ['BlockedAddressError', new BlockedAddressError('nas.local'), { host: 'nas.local', errCode: 'EHOMEBASE_BLOCKED' }],
-    ['NotPrivateAddressError', new NotPrivateAddressError('printer.lan'), { host: 'printer.lan', errCode: 'EHOMEBASE_NOT_LAN' }],
+    ['BlockedAddressError', new BlockedAddressError('nas.local'), { host: 'nas.local', errCode: 'EPORTLY_BLOCKED' }],
+    ['NotPrivateAddressError', new NotPrivateAddressError('printer.lan'), { host: 'printer.lan', errCode: 'EPORTLY_NOT_LAN' }],
     ['TodoistRateLimitError', new TodoistRateLimitError(12), { errStatus: 429, errCode: 'rate_limited', retryAfterSeconds: 12 }],
   ])('%s', (name, err, expected) => {
     expect(err.name).toBe(name.split(' ')[0]);

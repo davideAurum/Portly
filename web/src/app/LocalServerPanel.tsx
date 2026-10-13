@@ -1,8 +1,8 @@
 /**
  * The local server panel (Pages build, hybrid mode): where this page load's data comes from, what
- * the local server controller found on this PC, and the next step — look for Homebase, check
- * again, pair this browser, open Homebase's own page, disconnect this browser or switch now — with
- * how to allow the browser's local network permission and what Homebase on this PC adds. It is
+ * the local server controller found on this PC, and the next step — look for Portly, check
+ * again, pair this browser, open Portly's own page, disconnect this browser or switch now — with
+ * how to allow the browser's local network permission and what Portly on this PC adds. It is
  * the footer indicator's popover (`LocalServerStatus`) and a card in Settings → About.
  *
  * State and actions come from the local server store (`useLocalServer`, `localServerActions`).
@@ -40,7 +40,7 @@ const STATUS_VIEWS: Readonly<Record<LocalServerStatus, LocalServerStatusView>> =
   'waiting-permission': { label: 'Waiting for permission', tone: 'warning' },
   unpaired: { label: 'Found, not paired', tone: 'accent' },
   revoked: { label: 'Pairing removed', tone: 'warning' },
-  'other-server': { label: 'Paired with another Homebase', tone: 'warning' },
+  'other-server': { label: 'Paired with another Portly', tone: 'warning' },
   incompatible: { label: 'Needs update', tone: 'warning' },
   connected: { label: 'Connected', tone: 'success' },
   reconnecting: { label: 'Reconnecting…', tone: 'warning' },
@@ -65,7 +65,7 @@ export function useDisplayedLocalServerStatus(state: LocalServerState): LocalSer
   return state.status === 'checking' && !state.manual && settled !== null ? settled : state.status;
 }
 
-/** What the Homebase server adds over the copy in this browser. */
+/** What the Portly server adds over the copy in this browser. */
 const SERVER_ADDS: readonly string[] = [
   'Calendar, mail and RSS feed widgets',
   'Google, Outlook.com, Yahoo, CalDAV and IMAP accounts',
@@ -80,37 +80,37 @@ function describeStatus(status: LocalServerStatus, state: LocalServerState): Rea
     case 'disabled':
       return null;
     case 'framed':
-      return 'Inside a frame, Homebase always uses the copy saved in this browser. Open Homebase in its own tab to use Homebase on this PC.';
+      return 'Inside a frame, Portly always uses the copy saved in this browser. Open Portly in its own tab to use Portly on this PC.';
     case 'idle':
       return state.permission === 'prompt'
-        ? 'This site can use Homebase running on this PC instead of the copy saved in this browser. When you look for it, your browser asks whether this site may reach apps on this device: choose Allow.'
-        : 'This site can use Homebase running on this PC instead of the copy saved in this browser.';
+        ? 'This site can use Portly running on this PC instead of the copy saved in this browser. When you look for it, your browser asks whether this site may reach apps on this device: choose Allow.'
+        : 'This site can use Portly running on this PC instead of the copy saved in this browser.';
     case 'checking':
-      return 'Looking for Homebase on this PC…';
+      return 'Looking for Portly on this PC…';
     case 'absent':
-      return "Homebase isn't running on this PC, or isn't installed here. This page uses the copy saved in this browser.";
+      return "Portly isn't running on this PC, or isn't installed here. This page uses the copy saved in this browser.";
     case 'blocked':
       return 'Your browser blocks this site from reaching apps on this PC, so this page uses the copy saved in this browser.';
     case 'waiting-permission':
       return 'Your browser is asking whether this site may reach apps on this PC. Choose Allow in its prompt next to the address bar.';
     case 'unpaired':
-      return "Homebase is running on this PC, but this browser isn't paired with it yet. Pairing is a one-time approval on Homebase's own page.";
+      return "Portly is running on this PC, but this browser isn't paired with it yet. Pairing is a one-time approval on Portly's own page.";
     case 'revoked':
-      return 'Homebase on this PC no longer accepts this browser: its pairing was removed there. Pair this browser again to use it.';
+      return 'Portly on this PC no longer accepts this browser: its pairing was removed there. Pair this browser again to use it.';
     case 'other-server':
-      return 'A different Homebase is running on this PC than the one this browser was paired with (for example after a reinstall). Pair this browser again to use it.';
+      return 'A different Portly is running on this PC than the one this browser was paired with (for example after a reinstall). Pair this browser again to use it.';
     case 'incompatible':
-      return "Homebase on this PC and this site are versions that can't work together. Update Homebase on this PC (or this site) so both are current, then check again.";
+      return "Portly on this PC and this site are versions that can't work together. Update Portly on this PC (or this site) so both are current, then check again.";
     case 'connected':
       return onServer
-        ? "This page uses Homebase on this PC: your settings, bookmarks, accounts, calendars, mail and feeds come from it. Accounts are connected on Homebase's own page."
-        : 'Homebase on this PC is ready. This page switches to it.';
+        ? "This page uses Portly on this PC: your settings, bookmarks, accounts, calendars, mail and feeds come from it. Accounts are connected on Portly's own page."
+        : 'Portly on this PC is ready. This page switches to it.';
     case 'reconnecting':
-      return "Homebase on this PC stopped answering. This page shows the last saved data and reconnects when it's back; if it stays away, the page switches to the copy saved in this browser.";
+      return "Portly on this PC stopped answering. This page shows the last saved data and reconnects when it's back; if it stays away, the page switches to the copy saved in this browser.";
   }
 }
 
-/** Statuses where a Homebase server answered, so its own page can be opened. */
+/** Statuses where a Portly server answered, so its own page can be opened. */
 const SERVER_FOUND: ReadonlySet<LocalServerStatus> = new Set(['unpaired', 'revoked', 'other-server', 'incompatible', 'connected', 'reconnecting']);
 const PAIRABLE: ReadonlySet<LocalServerStatus> = new Set(['unpaired', 'revoked', 'other-server']);
 
@@ -126,7 +126,7 @@ export function DisconnectDialog({ open, onOpenChange }: DisconnectDialogProps) 
       open={open}
       onOpenChange={onOpenChange}
       title="Disconnect this browser?"
-      description="This browser forgets its pairing with Homebase on this PC (and tells Homebase to forget it too), and the page then uses the copy saved in this browser. To use Homebase on this PC again, pair this browser again."
+      description="This browser forgets its pairing with Portly on this PC (and tells Portly to forget it too), and the page then uses the copy saved in this browser. To use Portly on this PC again, pair this browser again."
       confirmLabel="Disconnect"
       destructive
       onConfirm={async () => {
@@ -173,11 +173,11 @@ export function LocalServerPanel({ variant, status: shownStatus, onDisconnect }:
       <>
         <SettingsCard
           id="local-server"
-          title="Homebase on this PC"
+          title="Portly on this PC"
           description={
             state.backend === 'server'
-              ? "This page's data comes from Homebase running on this PC."
-              : 'This site can use Homebase running on this PC instead of the copy saved in this browser.'
+              ? "This page's data comes from Portly running on this PC."
+              : 'This site can use Portly running on this PC instead of the copy saved in this browser.'
           }
           actions={badge}
         >
@@ -190,7 +190,7 @@ export function LocalServerPanel({ variant, status: shownStatus, onDisconnect }:
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <p className={styles.title}>Homebase on this PC</p>
+        <p className={styles.title}>Portly on this PC</p>
         {badge}
       </div>
       {body}
@@ -215,7 +215,7 @@ function PanelBody({ state, status, variant, onDisconnect }: PanelBodyProps) {
   const blocked = status === 'blocked' || state.permission === 'denied';
 
   const facts: { label: ReactNode; value: ReactNode }[] = [
-    { label: "This page's data", value: onServer ? 'From Homebase on this PC' : 'Saved in this browser' },
+    { label: "This page's data", value: onServer ? 'From Portly on this PC' : 'Saved in this browser' },
   ];
   if (state.server !== null && SERVER_FOUND.has(status)) facts.push({ label: 'Version', value: state.server.version });
   if (state.checkedAt !== null) facts.push({ label: 'Last checked', value: <RelativeTime date={state.checkedAt} /> });
@@ -265,7 +265,7 @@ function PanelBody({ state, status, variant, onDisconnect }: PanelBodyProps) {
               // Unpaired, the permission may not be granted yet: looking is the user's gesture.
               onClick={() => (state.paired ? localServerActions.checkNow() : localServerActions.lookForServer())}
             >
-              {status === 'idle' ? 'Look for Homebase on this PC' : 'Check again'}
+              {status === 'idle' ? 'Look for Portly on this PC' : 'Check again'}
             </Button>
           ) : null}
           {state.paired ? (
@@ -280,7 +280,7 @@ function PanelBody({ state, status, variant, onDisconnect }: PanelBodyProps) {
   );
 }
 
-/** What Homebase on this PC adds (a disclosure in the popover, a list in the card). */
+/** What Portly on this PC adds (a disclosure in the popover, a list in the card). */
 function ServerAdds({ collapsible }: { collapsible: boolean }) {
   const list = (
     <>
@@ -290,7 +290,7 @@ function ServerAdds({ collapsible }: { collapsible: boolean }) {
         ))}
       </ul>
       <p className={styles.note}>
-        Homebase on this PC keeps its own settings and bookmarks. The copy saved in this browser stays as it is, for when Homebase isn't
+        Portly on this PC keeps its own settings and bookmarks. The copy saved in this browser stays as it is, for when Portly isn't
         running.
       </p>
     </>
@@ -298,14 +298,14 @@ function ServerAdds({ collapsible }: { collapsible: boolean }) {
   if (collapsible) {
     return (
       <details className={styles.details}>
-        <summary>What Homebase on this PC adds</summary>
+        <summary>What Portly on this PC adds</summary>
         {list}
       </details>
     );
   }
   return (
     <div className={styles.addsSection}>
-      <p className={styles.addsTitle}>What Homebase on this PC adds</p>
+      <p className={styles.addsTitle}>What Portly on this PC adds</p>
       {list}
     </div>
   );

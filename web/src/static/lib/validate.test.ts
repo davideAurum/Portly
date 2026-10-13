@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { StaticApiError } from '../respond.ts';
 import { parseJsonBody, parseQuery, readMultipartFile, readSafeJson, validate } from './validate.ts';
 
-const URL_BASE = 'http://homebase.static/api/things';
+const URL_BASE = 'http://portly.static/api/things';
 
 function jsonRequest(body: string | undefined, type: string | null = 'application/json'): Request {
-  const headers = new Headers({ 'X-Homebase': '1' });
+  const headers = new Headers({ 'X-Portly': '1' });
   if (type !== null) headers.set('content-type', type);
   return new Request(URL_BASE, { method: 'POST', body, headers });
 }

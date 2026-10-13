@@ -6,7 +6,7 @@
  * uploaded, when it counts as uploaded, and the lock that keeps two tabs from sending it twice.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ClientEventSchema, ClientEventsRequestSchema, type ClientEventCategory } from '@homebase/shared';
+import { ClientEventSchema, ClientEventsRequestSchema, type ClientEventCategory } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import {
   CLIENT_EVENT_FIELDS,
@@ -27,7 +27,7 @@ import {
   withUploadLock,
 } from './clientLog.ts';
 
-const KEY = 'homebase:diagnostics:events';
+const KEY = 'portly:diagnostics:events';
 const START = Date.parse('2026-10-11T12:00:00.000Z');
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -204,7 +204,7 @@ describe('fields', () => {
     expect(fieldsOf('api', { path: '/api/search/suggest?q=private+words#x', route: '/api/search/suggest?q=1' })).toEqual({ path: '/api/search/suggest', route: '/api/search/suggest' });
     expect(fieldsOf('api', { status: 404, code: 'not_found', errMessage: 'Feed not found' })).toEqual({ status: 404, code: 'not_found' });
     expect(fieldsOf('api', { status: 503, errMessage: 'Mail is unavailable' }).errMessage).toBe('Mail is unavailable');
-    expect(fieldsOf('api', { status: 0, code: 'network_error', errMessage: 'Homebase is not reachable' })).toEqual({ status: 0, code: 'network_error', errMessage: 'Homebase is not reachable' });
+    expect(fieldsOf('api', { status: 0, code: 'network_error', errMessage: 'Portly is not reachable' })).toEqual({ status: 0, code: 'network_error', errMessage: 'Portly is not reachable' });
     const long = fieldsOf('api', { code: 'network_error', errMessage: 'e'.repeat(400) }).errMessage as string;
     expect(long).toHaveLength(200);
     expect(long.endsWith('…')).toBe(true);
@@ -238,8 +238,8 @@ describe('fields', () => {
   it('keeps 5 stack frames with file names only, never the header line', () => {
     const v8 = [
       'TypeError: Cannot read properties of undefined (reading \'x\') at C:\\Users\\riley',
-      '    at render (https://user.github.io/homebase/assets/index-1a2b.js:10:20)',
-      '    at https://user.github.io/homebase/assets/Widget-3c4d.js?v=1#frag:3:4',
+      '    at render (https://user.github.io/portly/assets/index-1a2b.js:10:20)',
+      '    at https://user.github.io/portly/assets/Widget-3c4d.js?v=1#frag:3:4',
       '    at eval (eval at f (http://127.0.0.1:5757/assets/a.js:1:2), <anonymous>:1:1)',
       '    at file:///C:/Users/riley/dev/main.js:5:6',
       '    at blob:https://user.github.io/0b6d1c2e-uuid:7:8',
@@ -252,9 +252,9 @@ describe('fields', () => {
       'at file:///…/main.js:5:6',
       'at blob:https://user.github.io/…/0b6d1c2e-uuid:7:8',
     ]);
-    const firefox = 'render@https://user.github.io/homebase/assets/index.js?x=1:10:20\n@https://user.github.io/homebase/assets/main.js:1:2\n';
+    const firefox = 'render@https://user.github.io/portly/assets/index.js?x=1:10:20\n@https://user.github.io/portly/assets/main.js:1:2\n';
     expect(fieldsOf('app', { stack: firefox }).stack).toEqual(['render@https://user.github.io/…/index.js:10:20', '@https://user.github.io/…/main.js:1:2']);
-    const safari = 'forEach@[native code]\nasync*load@https://user.github.io/homebase/assets/a.js:5:6\nglobal code@https://user.github.io/homebase/assets/main.js:3:4';
+    const safari = 'forEach@[native code]\nasync*load@https://user.github.io/portly/assets/a.js:5:6\nglobal code@https://user.github.io/portly/assets/main.js:3:4';
     expect(fieldsOf('app', { stack: safari }).stack).toEqual([
       'forEach@[native code]',
       'async*load@https://user.github.io/…/a.js:5:6',
@@ -263,16 +263,16 @@ describe('fields', () => {
     expect(fieldsOf('app', { errName: 'Error', stack: 'Error: no frames here' })).toEqual({ errName: 'Error' });
     // A header-only stack (Chromium errors made by native code) has no frames, even with an '@' in it.
     expect(fieldsOf('app', { errName: 'TypeError', stack: 'TypeError: Failed to fetch for anne@example.com' })).toEqual({ errName: 'TypeError' });
-    expect(fieldsOf('app', { stack: 'QuotaExceededError: The quota has been exceeded.\nkey=homebase@x\nlogin user@imap.example.com:993:1' })).toEqual({});
+    expect(fieldsOf('app', { stack: 'QuotaExceededError: The quota has been exceeded.\nkey=portly@x\nlogin user@imap.example.com:993:1' })).toEqual({});
   });
 });
 
 describe('storage mirror', () => {
   it('uses one key per build: the Pages build under its base path', () => {
     expect(clientEventsStorageKey()).toBe(KEY);
-    expect(clientEventsStorageKey(false, '/homebase/')).toBe(KEY);
-    expect(clientEventsStorageKey(true, '/homebase/')).toBe('homebase:diagnostics:events:/homebase/');
-    expect(clientEventsStorageKey(true)).toBe('homebase:diagnostics:events:/');
+    expect(clientEventsStorageKey(false, '/portly/')).toBe(KEY);
+    expect(clientEventsStorageKey(true, '/portly/')).toBe('portly:diagnostics:events:/portly/');
+    expect(clientEventsStorageKey(true)).toBe('portly:diagnostics:events:/');
   });
 
   it('persists events across page loads, but never debug events', () => {
@@ -475,7 +475,7 @@ describe('other tabs', () => {
     expect(listener).toHaveBeenCalledTimes(4);
     expect(pendingUpload(false).map((entry) => entry.event.msg)).toEqual(['theirs', 'mine again']);
     // Unrelated keys are ignored.
-    window.dispatchEvent(new StorageEvent('storage', { key: 'homebase:query-cache', newValue: 'x' }));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'portly:query-cache', newValue: 'x' }));
     expect(listener).toHaveBeenCalledTimes(4);
   });
 

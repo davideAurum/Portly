@@ -25,7 +25,7 @@
  * request's rid, or the maintenance job's run). Never the page URL — the host only.
  */
 import { SIZE_CAPS, decodeDataImage, isLocalLookingHost, type SafeFetch } from '../../security/safe-fetch.ts';
-import type { ImageContentType } from '@homebase/shared';
+import type { ImageContentType } from '@portly/shared';
 import type { Db } from '../../db/open.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { isUuidV4, newId } from '../../lib/ids.ts';

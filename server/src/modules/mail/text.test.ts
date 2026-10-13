@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAIL_TEXT_LIMITS } from '@homebase/shared';
+import { MAIL_TEXT_LIMITS } from '@portly/shared';
 import { capText, cleanSubject, decodeSnippet, parseFromHeader, toIsoDate } from './text.ts';
 import { allowlistedWebUrl, gmailMessageUrl, webmailUrlFor } from './weburl.ts';
 

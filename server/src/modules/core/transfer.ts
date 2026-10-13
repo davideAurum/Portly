@@ -1,7 +1,7 @@
 /**
  * Config export / import (§7 Core: `GET /api/export`, `POST /api/import/preview|commit`).
  *
- * Export: `{format:'homebase-export', version:1, exportedAt, data:{settings, profiles,
+ * Export: `{format:'portly-export', version:1, exportedAt, data:{settings, profiles,
  * bookmarkGroups, bookmarks, uploads[base64], customIcons[base64]}}`, built by an explicit
  * per-entity allowlist serializer (each field copied by name, each entity re-validated with its
  * export schema). Never exported: accounts, secrets, oauth_*, the Todoist token, calendars/ICS
@@ -45,7 +45,7 @@ import {
   type ImportSummary,
   type Profile,
   type Settings,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { Db } from '../../db/open.ts';
 import { toBool } from '../../db/helpers.ts';
 import { HttpError, formatZodIssues } from '../../lib/errors.ts';
@@ -265,7 +265,7 @@ export function parseImportFile(bytes: Buffer): ExportFile {
   }
   assertSafeJson(raw, 'The import file');
   if (!isPlainObject(raw) || raw.format !== EXPORT_FORMAT) {
-    throw new HttpError(422, 'validation_failed', 'This is not a Homebase export file');
+    throw new HttpError(422, 'validation_failed', 'This is not a Portly export file');
   }
   if (raw.version !== EXPORT_VERSION) {
     throw new HttpError(422, 'validation_failed', `Unsupported export version (expected ${EXPORT_VERSION})`);

@@ -1,16 +1,16 @@
 <#
 .SYNOPSIS
-    Stops Homebase and removes the "Homebase Server" autostart task and the native host.
+    Stops Portly and removes the "Portly Server" autostart task and the native host.
 
 .DESCRIPTION
-    Removes the native messaging host com.homebase.launcher first (so no browser can start the
+    Removes the native messaging host com.portly.launcher first (so no browser can start the
     task again meanwhile): the registry keys
-    HKCU\Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher and
-    HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher, and the folder
-    %LOCALAPPDATA%\Homebase\native-host (only that folder). Then stops the scheduled task, stops
-    the Homebase node processes it started from this folder (Stop-ScheduledTask alone ends only
+    HKCU\Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher and
+    HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher, and the folder
+    %LOCALAPPDATA%\Portly\native-host (only that folder). Then stops the scheduled task, stops
+    the Portly node processes it started from this folder (Stop-ScheduledTask alone ends only
     conhost.exe) and unregisters the task (ARCHITECTURE section 12). The rest of your data folder
-    (%LOCALAPPDATA%\Homebase or HOMEBASE_DATA_DIR) is never touched. Safe to run when nothing
+    (%LOCALAPPDATA%\Portly or PORTLY_DATA_DIR) is never touched. Safe to run when nothing
     is installed.
 
 .PARAMETER DryRun
@@ -42,7 +42,7 @@ function Invoke-Uninstall {
     $dataDir = Get-HbDataDir -Scope Task -RepoRoot $repoRoot
     $hostDir = Get-HbNativeHostDir
     $hostDirExists = Test-Path -LiteralPath $hostDir
-    $hostKeys = @(foreach ($entry in $HomebaseNativeHostRegistry) {
+    $hostKeys = @(foreach ($entry in $PortlyNativeHostRegistry) {
             [pscustomobject]@{
                 Browser = $entry.Browser
                 SubKey  = $entry.SubKey
@@ -53,9 +53,9 @@ function Invoke-Uninstall {
     $presentKeys = @($hostKeys | Where-Object { $null -ne $_.Value })
 
     Write-Host ''
-    Write-Host 'Homebase autostart removal' -ForegroundColor White
+    Write-Host 'Portly autostart removal' -ForegroundColor White
     if ($null -ne $task) {
-        Write-HbField 'Task' "$HomebaseTaskPath$HomebaseTaskName ($($task.State), $(Get-HbTaskTriggerMode -Task $task) mode)"
+        Write-HbField 'Task' "$PortlyTaskPath$PortlyTaskName ($($task.State), $(Get-HbTaskTriggerMode -Task $task) mode)"
     } else {
         Write-HbField 'Task' 'not installed'
     }
@@ -81,10 +81,10 @@ function Invoke-Uninstall {
         } else {
             Write-HbInfo "- no native host folder to delete ($hostDir)"
         }
-        if ($null -ne $task -and "$($task.State)" -eq 'Running') { Write-HbInfo "- stop the task '$HomebaseTaskName'" }
+        if ($null -ne $task -and "$($task.State)" -eq 'Running') { Write-HbInfo "- stop the task '$PortlyTaskName'" }
         if ($running.Count -gt 0) { Write-HbInfo "- stop $(Format-HbProcessList -Trees $running)" }
         if ($null -ne $task) {
-            Write-HbInfo "- unregister the task '$HomebaseTaskName'"
+            Write-HbInfo "- unregister the task '$PortlyTaskName'"
         } else {
             Write-HbInfo '- no task to unregister'
         }
@@ -97,7 +97,7 @@ function Invoke-Uninstall {
     # The native host goes first: once it is gone, no browser start or new tab can start the task
     # again while it is being stopped and removed.
     if ($presentKeys.Count -gt 0 -or $hostDirExists) {
-        Write-HbStep "Removing the native messaging host $HomebaseNativeHostName"
+        Write-HbStep "Removing the native messaging host $PortlyNativeHostName"
         $null = Uninstall-HbNativeHost -Destination $hostDir
         Write-HbOk "Removed the registry keys for Chrome and Edge and $hostDir"
     } else {
@@ -106,19 +106,19 @@ function Invoke-Uninstall {
 
     try {
         if ($null -ne $task -and "$($task.State)" -eq 'Running') {
-            Write-HbStep "Stopping the task '$HomebaseTaskName'"
-            Stop-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+            Write-HbStep "Stopping the task '$PortlyTaskName'"
+            Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
         }
         $stopped = @(Stop-HbSupervisorProcesses -RepoRoot $repoRoot)
         if ($stopped.Count -gt 0) {
-            Write-HbOk "Stopped Homebase (PID $($stopped -join ', '))"
+            Write-HbOk "Stopped Portly (PID $($stopped -join ', '))"
         }
         if ($null -ne $task) {
-            Write-HbStep "Removing the task '$HomebaseTaskName'"
-            Unregister-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath -Confirm:$false
+            Write-HbStep "Removing the task '$PortlyTaskName'"
+            Unregister-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -Confirm:$false
             Write-HbOk 'Autostart task removed'
         } else {
-            Write-HbOk "The task '$HomebaseTaskName' is not installed; nothing to remove"
+            Write-HbOk "The task '$PortlyTaskName' is not installed; nothing to remove"
         }
     } catch {
         if (Test-HbAccessDenied $_) {
@@ -131,12 +131,12 @@ function Invoke-Uninstall {
     Start-Sleep -Milliseconds 500
     $health = Test-HbHealth -Port $port -TimeoutSeconds 2
     if ($health.Ok) {
-        Write-Warning ("Homebase is still $(Format-HbHealth $health) - probably started with npm start or scripts\start.ps1. " +
+        Write-Warning ("Portly is still $(Format-HbHealth $health) - probably started with npm start or scripts\start.ps1. " +
             'Stop it with Ctrl+C in that window.')
     }
     Write-HbInfo "Your data was left untouched in $dataDir"
     Write-HbInfo '(delete that folder yourself to remove settings, cached data and encrypted credentials).'
-    Write-HbInfo 'The new-tab extension keeps working; it shows its "Homebase isn''t running" page until you start Homebase yourself.'
+    Write-HbInfo 'The new-tab extension keeps working; it shows its "Portly isn''t running" page until you start Portly yourself.'
     return 0
 }
 

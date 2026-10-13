@@ -10,7 +10,7 @@ import {
   isSafeHttpUrl,
   type Feed,
   type FeedItem,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { htmlToPlainText, parseTag, scanTags } from '../../lib/html-scan.ts';
 import { child, childText, children, parseXml, type XmlElement } from './xml.ts';
 

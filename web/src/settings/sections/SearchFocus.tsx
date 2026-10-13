@@ -32,7 +32,7 @@ export function SearchFocusSwitch() {
       label="Focus the search box on a new tab"
       description={
         widgets.length > 0
-          ? `Puts the cursor in the search box when Homebase opens, so you can type straight away (the “${profile!.name}” profile).`
+          ? `Puts the cursor in the search box when Portly opens, so you can type straight away (the “${profile!.name}” profile).`
           : `The “${profile?.name ?? 'current'}” profile has no search box.`
       }
       checked={checked}

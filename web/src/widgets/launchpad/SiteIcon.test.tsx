@@ -1,12 +1,12 @@
 /**
  * SiteIcon's image URL through `useAssetUrl`: the URL itself in the server build; on the Pages
- * build's server backend (hybrid mode) the letter tile until the Homebase server on this PC has
+ * build's server backend (hybrid mode) the letter tile until the Portly server on this PC has
  * delivered the icon, then the loaded `blob:` URL — never the raw `/api/icons/…` path — and a
  * failed image falls back to the letter tile only until the URL changes.
  */
 import { act, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { iconUrl } from '@homebase/shared';
+import { iconUrl } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
 import { setServerAssetSource } from '../../static/assets.ts';
 import { manualAssetSource } from '../../test/hybrid.ts';
@@ -24,7 +24,7 @@ describe('SiteIcon', () => {
     expect(container.querySelector('img')).toHaveAttribute('src', iconUrl(ICON_A));
   });
 
-  it('Pages build on the Homebase server: the letter tile until the icon is loaded, then the loaded URL', () => {
+  it('Pages build on the Portly server: the letter tile until the icon is loaded, then the loaded URL', () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     const fake = manualAssetSource();
     setServerAssetSource(fake.source);

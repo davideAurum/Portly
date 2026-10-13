@@ -15,7 +15,7 @@ import {
   type EventUpdate,
   type IcsCreate,
   type IcsUpdate,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { apiDelete, apiGet, apiPatch, apiPath, apiPost, isApiError } from './client.ts';
 import { qk } from './keys.ts';
 

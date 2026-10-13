@@ -107,15 +107,15 @@ describe('bootPagesBackend', () => {
 
   it("drops the server backend's leftovers when this browser is not paired", () => {
     local.setItem(SERVER_CACHE_KEY, '{"late":"write"}');
-    local.setItem('homebase:backend-mode:/', 'server');
-    local.setItem('homebase:server-seen:/', String(START));
-    local.setItem('homebase:query-cache:static:/', '{"keep":true}');
+    local.setItem('portly:backend-mode:/', 'server');
+    local.setItem('portly:server-seen:/', String(START));
+    local.setItem('portly:query-cache:static:/', '{"keep":true}');
     const result = boot();
     expect(result.backend).toBe('browser');
     expect(local.items.has(SERVER_CACHE_KEY)).toBe(false);
-    expect(local.items.has('homebase:backend-mode:/')).toBe(false);
-    expect(local.items.has('homebase:server-seen:/')).toBe(false);
-    expect(local.getItem('homebase:query-cache:static:/')).toBe('{"keep":true}');
+    expect(local.items.has('portly:backend-mode:/')).toBe(false);
+    expect(local.items.has('portly:server-seen:/')).toBe(false);
+    expect(local.getItem('portly:query-cache:static:/')).toBe('{"keep":true}');
   });
 
   it('keeps them while paired, and starts on the server', () => {
@@ -206,20 +206,20 @@ describe('bootPagesBackend', () => {
     expect(await loadAssetUrl('/api/icons/abc')).toBe(`data:image/svg+xml;base64,${btoa(svg)}`);
     const [url, init] = fetch.mock.calls[0]!;
     expect(url).toBe('/api/icons/abc');
-    expect(new Headers(init?.headers).get('X-Homebase-Token')).toBe(TOKEN);
+    expect(new Headers(init?.headers).get('X-Portly-Token')).toBe(TOKEN);
   });
 });
 
 describe('takeModeSwitchNotice', () => {
   it('announces the switch the reload applied, once', () => {
     const session = memoryStorage({ [MODE_SWITCH_TOAST_KEY]: 'server:connected' });
-    expect(takeModeSwitchNotice('server', session)).toEqual({ tone: 'success', message: 'Connected to Homebase on this PC' });
+    expect(takeModeSwitchNotice('server', session)).toEqual({ tone: 'success', message: 'Connected to Portly on this PC' });
     expect(takeModeSwitchNotice('server', session)).toBeNull();
   });
 
   it('explains a fall back to the browser by its reason', () => {
     const session = memoryStorage({ [MODE_SWITCH_TOAST_KEY]: 'browser:unreachable' });
-    expect(takeModeSwitchNotice('browser', session)).toEqual({ tone: 'info', message: 'Homebase on this PC isn’t reachable — using this browser’s copy' });
+    expect(takeModeSwitchNotice('browser', session)).toEqual({ tone: 'info', message: 'Portly on this PC isn’t reachable — using this browser’s copy' });
     for (const reason of ['revoked', 'disconnected', 'other-server', 'incompatible', 'blocked']) {
       session.setItem(MODE_SWITCH_TOAST_KEY, `browser:${reason}`);
       expect(takeModeSwitchNotice('browser', session)?.message).toMatch(/using this browser’s copy$/);

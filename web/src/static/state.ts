@@ -13,7 +13,7 @@
 import type { StaticStorage, StoredBlob } from './storage/types.ts';
 
 /** Namespaced like the database (storage/idb.ts): two deployments on one origin never cross-talk. */
-export const STATIC_CHANNEL_NAME = `homebase-static:${import.meta.env.BASE_URL}`;
+export const STATIC_CHANNEL_NAME = `portly-static:${import.meta.env.BASE_URL}`;
 const SLICE_PREFIX = 'slice:';
 
 interface SlicesChangedMessage {
@@ -71,7 +71,7 @@ export class StaticState {
         .then(() => this.reload(keys))
         .then(
           () => this.notify(keys),
-          (err: unknown) => console.warn('[Homebase] Could not reload data another tab changed', err),
+          (err: unknown) => console.warn('[Portly] Could not reload data another tab changed', err),
         );
     });
   }
@@ -228,7 +228,7 @@ export class StaticState {
       try {
         listener(keys);
       } catch (err) {
-        console.error('[Homebase] A cross-tab change listener failed', err);
+        console.error('[Portly] A cross-tab change listener failed', err);
       }
     }
   }

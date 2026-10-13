@@ -1,4 +1,4 @@
-# Shared helpers for the Homebase PowerShell scripts (ARCHITECTURE section 12).
+# Shared helpers for the Portly PowerShell scripts (ARCHITECTURE section 12).
 #
 # Dot-source from a script in scripts\:   . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 #
@@ -7,24 +7,24 @@
 
 Set-StrictMode -Version 3.0
 
-$HomebaseTaskName = 'Homebase Server'
-$HomebaseTaskPath = '\'
-$HomebaseDefaultPort = 5757
-$HomebaseMinNodeMajor = 24
-$HomebaseTaskDescriptions = @{
-    Browser = 'Starts the Homebase server (server\src\supervisor.ts) when Chrome or Edge asks for it through the Homebase extension (native host com.homebase.launcher). No logon trigger. Installed by scripts\install-autostart.ps1.'
-    Logon   = 'Starts the Homebase server (server\src\supervisor.ts) at logon. Installed by scripts\install-autostart.ps1.'
+$PortlyTaskName = 'Portly Server'
+$PortlyTaskPath = '\'
+$PortlyDefaultPort = 5757
+$PortlyMinNodeMajor = 24
+$PortlyTaskDescriptions = @{
+    Browser = 'Starts the Portly server (server\src\supervisor.ts) when Chrome or Edge asks for it through the Portly extension (native host com.portly.launcher). No logon trigger. Installed by scripts\install-autostart.ps1.'
+    Logon   = 'Starts the Portly server (server\src\supervisor.ts) at logon. Installed by scripts\install-autostart.ps1.'
 }
 # Native messaging host (ARCHITECTURE section 12): the extension asks it to run the task.
-$HomebaseNativeHostName = 'com.homebase.launcher'
-$HomebaseNativeHostDescription = 'Homebase launcher (starts the Homebase Server scheduled task)'
-$HomebaseNativeHostRegistry = @(
-    [pscustomobject]@{ Browser = 'Chrome'; SubKey = 'Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher' }
-    [pscustomobject]@{ Browser = 'Edge'; SubKey = 'Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher' }
+$PortlyNativeHostName = 'com.portly.launcher'
+$PortlyNativeHostDescription = 'Portly launcher (starts the Portly Server scheduled task)'
+$PortlyNativeHostRegistry = @(
+    [pscustomobject]@{ Browser = 'Chrome'; SubKey = 'Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher' }
+    [pscustomobject]@{ Browser = 'Edge'; SubKey = 'Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher' }
 )
-$HomebaseNodePlaceholder = '{{NODE_EXE}}'
+$PortlyNodePlaceholder = '{{NODE_EXE}}'
 # Every environment variable server/src/config.ts reads.
-$HomebaseEnvNames = @('HOMEBASE_PORT', 'HOMEBASE_BIND', 'HOMEBASE_ORIGIN', 'HOMEBASE_DATA_DIR', 'HOMEBASE_DEV', 'HOMEBASE_VITE_PORT', 'HOMEBASE_PAGES_URL', 'HOMEBASE_LOG_LEVEL')
+$PortlyEnvNames = @('PORTLY_PORT', 'PORTLY_BIND', 'PORTLY_ORIGIN', 'PORTLY_DATA_DIR', 'PORTLY_DEV', 'PORTLY_VITE_PORT', 'PORTLY_PAGES_URL', 'PORTLY_LOG_LEVEL')
 
 # --------------------------------------------------------------------------------------------
 # Output
@@ -69,7 +69,7 @@ function Get-HbRepoRoot {
 }
 
 # Session worktrees (.claude\worktrees\<name>) are deleted when their session ends, so nothing
-# long-lived (builds, the homebase command) may point into one.
+# long-lived (builds, the portly command) may point into one.
 function Test-HbWorktreePath {
     param([Parameter(Mandatory)][string]$Path)
     return $Path -match '\\\.claude\\worktrees\\'
@@ -164,15 +164,15 @@ function ConvertTo-HbPort {
 
 function Get-HbPortSetting {
     param([ValidateSet('Process', 'Task')][string]$Scope = 'Process')
-    $raw = Get-HbEnvValue -Name 'HOMEBASE_PORT' -Scope $Scope
+    $raw = Get-HbEnvValue -Name 'PORTLY_PORT' -Scope $Scope
     if ($null -eq $raw) {
-        return [pscustomobject]@{ Port = $HomebaseDefaultPort; Source = 'default' }
+        return [pscustomobject]@{ Port = $PortlyDefaultPort; Source = 'default' }
     }
-    $label = if ($Scope -eq 'Task') { 'HOMEBASE_PORT (user/machine environment variable)' } else { 'HOMEBASE_PORT' }
+    $label = if ($Scope -eq 'Task') { 'PORTLY_PORT (user/machine environment variable)' } else { 'PORTLY_PORT' }
     return [pscustomobject]@{ Port = (ConvertTo-HbPort -Value $raw -Source $label); Source = $label }
 }
 
-# The server resolves a relative HOMEBASE_DATA_DIR against its working directory, which is the
+# The server resolves a relative PORTLY_DATA_DIR against its working directory, which is the
 # repository root for the task, start.ps1 and `npm start` - so the same is done here (never
 # against this PowerShell process's .NET current directory).
 function Get-HbDataDir {
@@ -180,13 +180,13 @@ function Get-HbDataDir {
         [ValidateSet('Process', 'Task')][string]$Scope = 'Process',
         [Parameter(Mandatory)][string]$RepoRoot
     )
-    $raw = Get-HbEnvValue -Name 'HOMEBASE_DATA_DIR' -Scope $Scope
+    $raw = Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope $Scope
     if ($null -ne $raw) {
         if (-not [System.IO.Path]::IsPathRooted($raw)) { $raw = Join-Path $RepoRoot $raw }
         return [System.IO.Path]::GetFullPath($raw)
     }
     $localAppData = [System.Environment]::GetFolderPath('LocalApplicationData')
-    return (Join-Path $localAppData 'Homebase')
+    return (Join-Path $localAppData 'Portly')
 }
 
 function Get-HbLogFile {
@@ -194,19 +194,19 @@ function Get-HbLogFile {
     return (Join-Path (Join-Path $DataDir 'logs') 'server.log')
 }
 
-# The supervisor (autostart) writes its own log next to server.log: restarts, "another Homebase
+# The supervisor (autostart) writes its own log next to server.log: restarts, "another Portly
 # is already running", and why it stopped.
 function Get-HbSupervisorLogFile {
     param([Parameter(Mandatory)][string]$DataDir)
     return (Join-Path (Join-Path $DataDir 'logs') 'supervisor.log')
 }
 
-# HOMEBASE_* variables whose value in this PowerShell window differs from the user/machine
-# environment the scheduled task gets at logon (e.g. `$env:HOMEBASE_PORT = ...` typed in this
+# PORTLY_* variables whose value in this PowerShell window differs from the user/machine
+# environment the scheduled task gets at logon (e.g. `$env:PORTLY_PORT = ...` typed in this
 # window only). Each item: Name, Process, Task (either may be $null).
 function Get-HbEnvMismatches {
     $result = New-Object System.Collections.Generic.List[object]
-    foreach ($name in $HomebaseEnvNames) {
+    foreach ($name in $PortlyEnvNames) {
         $processValue = Get-HbEnvValue -Name $name -Scope Process
         $taskValue = Get-HbEnvValue -Name $name -Scope Task
         if ($processValue -cne $taskValue) {
@@ -216,7 +216,7 @@ function Get-HbEnvMismatches {
     return $result.ToArray()
 }
 
-# Loads server/src/config.ts with node exactly as the server does at startup (same HOMEBASE_*
+# Loads server/src/config.ts with node exactly as the server does at startup (same PORTLY_*
 # values for the scope, repository root as working directory), so a variable the server would
 # reject is reported now instead of the autostarted server silently exiting at logon (its
 # console output goes nowhere). $Override (name -> value, $null = unset) is for tests.
@@ -248,7 +248,7 @@ function Test-HbServerConfig {
     $startInfo.RedirectStandardInput = $true
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
-    foreach ($name in $HomebaseEnvNames) {
+    foreach ($name in $PortlyEnvNames) {
         $value = if ($Override.ContainsKey($name)) { $Override[$name] } else { Get-HbEnvValue -Name $name -Scope $Scope }
         if ($null -eq $value) {
             $startInfo.EnvironmentVariables.Remove($name)
@@ -379,7 +379,7 @@ function Test-HbHealth {
         }
         $ok = Get-HbProperty $json 'ok'
         if (-not ($ok -is [bool] -and $ok)) {
-            $result.Error = "the answer is not a Homebase health check (another program may be using port $Port)"
+            $result.Error = "the answer is not a Portly health check (another program may be using port $Port)"
             return $result
         }
         $result.Ok = $true
@@ -465,7 +465,7 @@ function Resolve-HbNode {
     if ([string]::IsNullOrWhiteSpace($NodePath)) {
         $command = Get-Command -Name 'node.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -eq $command) {
-            throw "node.exe was not found on PATH. Install Node.js $HomebaseMinNodeMajor or newer from https://nodejs.org/ (or pass -NodePath)."
+            throw "node.exe was not found on PATH. Install Node.js $PortlyMinNodeMajor or newer from https://nodejs.org/ (or pass -NodePath)."
         }
         $NodePath = $command.Source
     }
@@ -475,8 +475,8 @@ function Resolve-HbNode {
     $full = (Resolve-Path -LiteralPath $NodePath).ProviderPath
     $version = Get-HbNodeVersion -NodeExe $full
     $major = [int]($version.Split('.')[0])
-    if ($major -lt $HomebaseMinNodeMajor) {
-        throw "Homebase needs Node.js $HomebaseMinNodeMajor or newer, but $full is v$version."
+    if ($major -lt $PortlyMinNodeMajor) {
+        throw "Portly needs Node.js $PortlyMinNodeMajor or newer, but $full is v$version."
     }
     $temporary = $full -match '\\fnm_multishells\\' -or
         $full.StartsWith([System.IO.Path]::GetTempPath(), [System.StringComparison]::OrdinalIgnoreCase)
@@ -498,8 +498,8 @@ function Get-HbReleaseInfo {
     } catch {
         throw "$path is not valid JSON: $($_.Exception.Message)"
     }
-    if ((Get-HbProperty $info 'name') -ne 'homebase' -or [string]::IsNullOrWhiteSpace("$(Get-HbProperty $info 'version')")) {
-        throw "$path does not describe a Homebase release."
+    if ((Get-HbProperty $info 'name') -ne 'portly' -or [string]::IsNullOrWhiteSpace("$(Get-HbProperty $info 'version')")) {
+        throw "$path does not describe a Portly release."
     }
     return $info
 }
@@ -530,18 +530,18 @@ function Remove-HbDirectoryLink {
     [System.IO.Directory]::Delete($Path)
 }
 
-# The server imports @homebase/shared, which npm links into node_modules in a checkout. A release
+# The server imports @portly/shared, which npm links into node_modules in a checkout. A release
 # package cannot carry that link (zip files have no junctions), so the installer creates it once
-# the package sits in its final folder: node_modules\@homebase\shared -> <RepoRoot>\shared. A
+# the package sits in its final folder: node_modules\@portly\shared -> <RepoRoot>\shared. A
 # junction needs no administrator rights; Node resolves it to shared\src, outside node_modules, so
 # it still strips the TypeScript types there. Idempotent.
 function Initialize-HbReleaseLinks {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $target = Join-Path $RepoRoot 'shared'
     if (-not (Test-Path -LiteralPath (Join-Path $target 'package.json') -PathType Leaf)) {
-        throw "$target\package.json is missing: not a complete Homebase package."
+        throw "$target\package.json is missing: not a complete Portly package."
     }
-    $scope = Join-Path $RepoRoot 'node_modules\@homebase'
+    $scope = Join-Path $RepoRoot 'node_modules\@portly'
     if (-not (Test-Path -LiteralPath $scope)) { $null = New-Item -ItemType Directory -Path $scope -Force }
     $link = Join-Path $scope 'shared'
     $attributes = Get-HbEntryAttributes -Path $link
@@ -599,7 +599,7 @@ function Test-HbScheduledTasksAvailable {
 }
 
 function Get-HbTask {
-    return Get-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath -ErrorAction SilentlyContinue |
+    return Get-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -ErrorAction SilentlyContinue |
         Select-Object -First 1
 }
 
@@ -632,7 +632,7 @@ function New-HbTaskDefinition {
     $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([System.TimeSpan]::Zero) -AllowStartIfOnBatteries `
         -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -StartWhenAvailable -Priority 4 -RestartCount 3 `
         -RestartInterval (New-TimeSpan -Minutes 1)
-    $description = $HomebaseTaskDescriptions[$Trigger]
+    $description = $PortlyTaskDescriptions[$Trigger]
     if ($Trigger -eq 'Logon') {
         $logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $UserId
         if ($LogonDelaySeconds -gt 0) {
@@ -654,12 +654,12 @@ function Get-HbTaskTriggerMode {
     return 'Other'
 }
 
-# One line describing when the task starts Homebase.
+# One line describing when the task starts Portly.
 function Format-HbTaskTrigger {
     param([Parameter(Mandatory)]$Task)
     $triggers = @(@($Task.Triggers) | Where-Object { $null -ne $_ })
     if ($triggers.Count -eq 0) {
-        return 'none - Browser mode: runs on demand only (the browser extension starts it through the native host com.homebase.launcher; or Start-ScheduledTask)'
+        return 'none - Browser mode: runs on demand only (the browser extension starts it through the native host com.portly.launcher; or Start-ScheduledTask)'
     }
     $parts = foreach ($trigger in $triggers) {
         $kind = $trigger.CimClass.CimClassName -replace '^MSFT_Task', '' -replace 'Trigger$', ''
@@ -677,7 +677,7 @@ function Write-HbTaskDefinition {
     param([Parameter(Mandatory)]$Task)
     $action = @($Task.Actions)[0]
     $settings = $Task.Settings
-    Write-HbField 'Task' ("$HomebaseTaskPath$HomebaseTaskName")
+    Write-HbField 'Task' ("$PortlyTaskPath$PortlyTaskName")
     Write-HbField 'Description' $Task.Description
     Write-HbField 'Trigger' (Format-HbTaskTrigger -Task $Task)
     Write-HbField 'Principal' ("$($Task.Principal.UserId), LogonType $($Task.Principal.LogonType), RunLevel $($Task.Principal.RunLevel)")
@@ -700,9 +700,9 @@ function Format-HbTaskResult {
     $hex = '0x{0:X}' -f $Code
     switch ($Code) {
         0 { return "$hex (success)" }
-        1 { return "$hex (Homebase failed to start - see the logs, or run scripts\start.ps1 to see the error)" }
-        3 { return "$hex (port already in use - another Homebase instance is running)" }
-        4 { return "$hex (Homebase cannot start until fixed, e.g. web\dist is missing - run npm run build; see logs\supervisor.log)" }
+        1 { return "$hex (Portly failed to start - see the logs, or run scripts\start.ps1 to see the error)" }
+        3 { return "$hex (port already in use - another Portly instance is running)" }
+        4 { return "$hex (Portly cannot start until fixed, e.g. web\dist is missing - run npm run build; see logs\supervisor.log)" }
         267009 { return "$hex (running)" }
         267011 { return "$hex (has not run yet)" }
         267014 { return "$hex (stopped by the user)" }
@@ -846,13 +846,13 @@ function Write-HbLogTail {
 }
 
 # --------------------------------------------------------------------------------------------
-# Native messaging host com.homebase.launcher (Chrome and Edge)
+# Native messaging host com.portly.launcher (Chrome and Edge)
 #
-# The extension calls chrome.runtime.sendNativeMessage('com.homebase.launcher', ...). The browser
-# finds the host through HKCU\Software\<browser>\NativeMessagingHosts\com.homebase.launcher
+# The extension calls chrome.runtime.sendNativeMessage('com.portly.launcher', ...). The browser
+# finds the host through HKCU\Software\<browser>\NativeMessagingHosts\com.portly.launcher
 # (default value = path of the host manifest JSON) and runs launcher.cmd from
-# %LOCALAPPDATA%\Homebase\native-host, which runs launcher.mjs with node.exe. The launcher only
-# ever runs "schtasks /run /tn \Homebase Server": Task Scheduler starts the server, so it is not
+# %LOCALAPPDATA%\Portly\native-host, which runs launcher.mjs with node.exe. The launcher only
+# ever runs "schtasks /run /tn \Portly Server": Task Scheduler starts the server, so it is not
 # a child of the browser (whose isolated mode kills a native host's children with it).
 # --------------------------------------------------------------------------------------------
 
@@ -862,7 +862,7 @@ function Get-HbNativeHostDir {
     if ([string]::IsNullOrWhiteSpace($localAppData)) {
         throw 'Could not find your local application data folder (%LOCALAPPDATA%).'
     }
-    return (Join-Path (Join-Path $localAppData 'Homebase') 'native-host')
+    return (Join-Path (Join-Path $localAppData 'Portly') 'native-host')
 }
 
 # Chrome/Edge extension ID from a SHA-256 digest: the first 16 bytes as hex, with the hex digits
@@ -917,7 +917,7 @@ function Get-HbExtensionIdFromManifest {
     $key = Get-HbProperty $manifest 'key'
     if (-not ($key -is [string]) -or [string]::IsNullOrWhiteSpace($key)) {
         throw ("$ManifestPath has no ""key"" entry, so the extension's ID is not fixed and the native host cannot " +
-            'name it in allowed_origins. Update your Homebase checkout (the new-tab extension pins its ID with a "key"), ' +
+            'name it in allowed_origins. Update your Portly checkout (the new-tab extension pins its ID with a "key"), ' +
             'or run the installer with -NoNativeHost.')
     }
     return Get-HbExtensionIdFromKey -Key $key
@@ -991,13 +991,13 @@ function New-HbNativeHostPlan {
     $templateSource = Join-Path $sourceDir 'launcher.cmd'
     foreach ($required in @($launcherSource, $templateSource)) {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
-            throw "The native host file $required is missing from this Homebase checkout."
+            throw "The native host file $required is missing from this Portly checkout."
         }
     }
 
     $template = [System.IO.File]::ReadAllText($templateSource)
-    $pieces = $template.Split([string[]]@($HomebaseNodePlaceholder), [System.StringSplitOptions]::None)
-    if ($pieces.Count -ne 2) { throw "$templateSource must contain $HomebaseNodePlaceholder exactly once." }
+    $pieces = $template.Split([string[]]@($PortlyNodePlaceholder), [System.StringSplitOptions]::None)
+    if ($pieces.Count -ne 2) { throw "$templateSource must contain $PortlyNodePlaceholder exactly once." }
     # A batch file expands %...%, so a literal percent sign in the path is written as %%.
     $cmdText = $pieces[0] + $NodeExe.Replace('%', '%%') + $pieces[1]
     $cmdText = [regex]::Replace($cmdText, '\r?\n', "`r`n")
@@ -1005,12 +1005,12 @@ function New-HbNativeHostPlan {
 
     $origin = "chrome-extension://$ExtensionId/"
     $cmdPath = Join-Path $Destination 'launcher.cmd'
-    $manifestPath = Join-Path $Destination "$HomebaseNativeHostName.json"
+    $manifestPath = Join-Path $Destination "$PortlyNativeHostName.json"
     $newline = "`r`n"
     $manifestText = (@(
             '{'
-            ('  "name": {0},' -f (ConvertTo-HbJsonString $HomebaseNativeHostName))
-            ('  "description": {0},' -f (ConvertTo-HbJsonString $HomebaseNativeHostDescription))
+            ('  "name": {0},' -f (ConvertTo-HbJsonString $PortlyNativeHostName))
+            ('  "description": {0},' -f (ConvertTo-HbJsonString $PortlyNativeHostDescription))
             ('  "path": {0},' -f (ConvertTo-HbJsonString $cmdPath))
             '  "type": "stdio",'
             '  "allowed_origins": ['
@@ -1038,7 +1038,7 @@ function New-HbNativeHostPlan {
             Bytes = (ConvertTo-HbBatchBytes -Text $cmdText)
         }
         [pscustomobject]@{
-            Name = "$HomebaseNativeHostName.json"; Path = $manifestPath; Text = $manifestText; Source = $null
+            Name = "$PortlyNativeHostName.json"; Path = $manifestPath; Text = $manifestText; Source = $null
             Bytes = [System.Text.Encoding]::ASCII.GetBytes($manifestText)
         }
         [pscustomobject]@{
@@ -1046,7 +1046,7 @@ function New-HbNativeHostPlan {
             Bytes = [System.Text.Encoding]::ASCII.GetBytes($configText)
         }
     )
-    $registry = @(foreach ($entry in $HomebaseNativeHostRegistry) {
+    $registry = @(foreach ($entry in $PortlyNativeHostRegistry) {
             [pscustomobject]@{
                 Browser = $entry.Browser
                 SubKey  = $entry.SubKey
@@ -1070,7 +1070,7 @@ function New-HbNativeHostPlan {
 # every registry value.
 function Write-HbNativeHostPlan {
     param([Parameter(Mandatory)]$Plan)
-    Write-HbField 'Host name' $HomebaseNativeHostName
+    Write-HbField 'Host name' $PortlyNativeHostName
     Write-HbField 'Extension ID' "$($Plan.ExtensionId) (allowed origin $($Plan.Origin))"
     Write-HbField 'Folder' $Plan.Destination
     foreach ($file in @($Plan.Files)) {
@@ -1185,7 +1185,7 @@ function Uninstall-HbNativeHost {
     if ($null -eq $RegistryRemover) {
         $RegistryRemover = { param([string]$SubKey) Remove-HbRegistryKey -SubKey $SubKey }
     }
-    foreach ($entry in $HomebaseNativeHostRegistry) {
+    foreach ($entry in $PortlyNativeHostRegistry) {
         & $RegistryRemover $entry.SubKey
     }
     return (Remove-HbNativeHostFolder -Path $Destination)
@@ -1223,8 +1223,8 @@ function Test-HbNativeHostManifest {
         $problems.Add("the manifest is not valid JSON: $ManifestPath")
         return , $problems.ToArray()
     }
-    if ((Get-HbProperty $manifest 'name') -cne $HomebaseNativeHostName) {
-        $problems.Add("the manifest's name is not $HomebaseNativeHostName")
+    if ((Get-HbProperty $manifest 'name') -cne $PortlyNativeHostName) {
+        $problems.Add("the manifest's name is not $PortlyNativeHostName")
     }
     if ((Get-HbProperty $manifest 'type') -cne 'stdio') { $problems.Add('the manifest''s type is not "stdio"') }
     $description = Get-HbProperty $manifest 'description'
@@ -1276,7 +1276,7 @@ function Test-HbNativeHostManifest {
 }
 
 # $true when the installed launcher.mjs is byte for byte this checkout's native-host\launcher.mjs,
-# $false when it differs (Homebase was updated but install-autostart.ps1 was not run again), $null
+# $false when it differs (Portly was updated but install-autostart.ps1 was not run again), $null
 # when either file is missing.
 function Test-HbInstalledLauncherCurrent {
     param([Parameter(Mandatory)][string]$InstalledDir, [Parameter(Mandatory)][string]$RepoRoot)
@@ -1298,7 +1298,7 @@ function Get-HbNativeHostStatus {
     if ($null -eq $RegistryReader) {
         $RegistryReader = { param([string]$SubKey) Get-HbRegistryDefaultValue -SubKey $SubKey }
     }
-    $results = foreach ($entry in $HomebaseNativeHostRegistry) {
+    $results = foreach ($entry in $PortlyNativeHostRegistry) {
         $value = & $RegistryReader $entry.SubKey
         $problems = @()
         if ($null -ne $value -and "$value" -eq '') {

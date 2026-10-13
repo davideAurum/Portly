@@ -4,7 +4,7 @@
  * "Add widget" and the default layout but keep their titles when a persisted layout still has
  * them; server-only settings sections (Calendars) are hidden and answer with a notice, while
  * Accounts stays for Outlook.com, which signs in from the browser, and Diagnostics stays with this
- * site's overview and this browser's events (never asking a server). On the Homebase server
+ * site's overview and this browser's events (never asking a server). On the Portly server
  * (hybrid mode, `capabilitiesFor(true, 'server')`) the same page load offers everything.
  */
 import { screen } from '@testing-library/react';
@@ -44,20 +44,20 @@ describe('static build gating (Pages build, in-browser backend)', () => {
     expect(await screen.findByRole('tab', { name: 'Overview' })).toBeInTheDocument();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Overview', 'This browser']);
     expect(screen.getByRole('region', { name: 'This site' })).toBeInTheDocument();
-    expect(screen.queryByText(/needs the Homebase server/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/needs the Portly server/)).not.toBeInTheDocument();
     expect(requests.filter((r) => r.path.startsWith('/api/diagnostics'))).toEqual([]);
   });
 
   it('renders a notice instead of a server-only widget that is still in a layout', async () => {
     renderWithProviders(<WidgetFrame instance={CALENDAR_INSTANCE} profileId="p1" editMode={false} onOpenSettings={() => {}} />);
-    expect(await screen.findByText('Calendar needs the Homebase server')).toBeInTheDocument();
+    expect(await screen.findByText('Calendar needs the Portly server')).toBeInTheDocument();
     expect(screen.getByText(/Not available in the browser-only build/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Calendar settings/ })).not.toBeInTheDocument();
   });
 
   it('shows a notice when a hidden settings section is opened by URL', async () => {
     renderWithProviders(<SettingsShell section="calendars" />);
-    expect(await screen.findByText('Calendars needs the Homebase server')).toBeInTheDocument();
+    expect(await screen.findByText('Calendars needs the Portly server')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Calendars' })).not.toBeInTheDocument();
   });
 
@@ -75,7 +75,7 @@ describe('static build gating (Pages build, in-browser backend)', () => {
   });
 });
 
-describe('static build gating (Pages build on the Homebase server on this PC)', () => {
+describe('static build gating (Pages build on the Portly server on this PC)', () => {
   beforeEach(() => setCapabilitiesForTests(capabilitiesFor(true, 'server')));
 
   it('offers calendar, mail and feeds and the full default layout', () => {
@@ -92,7 +92,7 @@ describe('static build gating (Pages build on the Homebase server on this PC)', 
   it('runs a calendar widget instead of the notice', async () => {
     renderWithProviders(<WidgetFrame instance={CALENDAR_INSTANCE} profileId="p1" editMode={false} onOpenSettings={() => {}} />);
     expect(await screen.findByRole('button', { name: 'Calendar settings' })).toBeInTheDocument();
-    expect(screen.queryByText(/needs the Homebase server/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/needs the Portly server/)).not.toBeInTheDocument();
   });
 
   it('preloads the code of every widget in the layout', async () => {

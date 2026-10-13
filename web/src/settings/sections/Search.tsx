@@ -21,7 +21,7 @@ import {
   type SearchEngine,
   type SearchSettings,
   type SuggestProvider,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { useSettings, useUpdateSettings } from '../../api/settings.ts';
 import { getCapabilities } from '../../capabilities.ts';
 import { HYBRID_ENABLED } from '../../localServer/config.ts';
@@ -70,7 +70,7 @@ export function isSuggestProviderAvailable(provider: SuggestProvider): boolean {
 }
 
 /**
- * True when the other providers become available once this browser uses Homebase on this PC
+ * True when the other providers become available once this browser uses Portly on this PC
  * (hybrid mode, not in a frame); otherwise this build never offers them.
  */
 function serverSuggestionsReachable(): boolean {
@@ -80,15 +80,15 @@ function serverSuggestionsReachable(): boolean {
 
 function suggestProviderLabel(provider: SuggestProvider): string {
   if (isSuggestProviderAvailable(provider)) return SUGGEST_PROVIDER_LABELS[provider];
-  return `${SUGGEST_PROVIDER_LABELS[provider]} (${serverSuggestionsReachable() ? 'needs Homebase on this PC' : 'not available in this build'})`;
+  return `${SUGGEST_PROVIDER_LABELS[provider]} (${serverSuggestionsReachable() ? 'needs Portly on this PC' : 'not available in this build'})`;
 }
 
 function suggestionsDescription(): string {
   if (getCapabilities().serverSearchSuggestions) {
-    return 'Sends what you type to the engine’s suggestion service (Google, DuckDuckGo, Bing, Wikipedia or YouTube) through Homebase.';
+    return 'Sends what you type to the engine’s suggestion service (Google, DuckDuckGo, Bing, Wikipedia or YouTube) through Portly.';
   }
   return serverSuggestionsReachable()
-    ? 'Sends what you type directly from your browser to Wikipedia; Google, DuckDuckGo, Bing and YouTube suggestions work while this browser is connected to Homebase on this PC.'
+    ? 'Sends what you type directly from your browser to Wikipedia; Google, DuckDuckGo, Bing and YouTube suggestions work while this browser is connected to Portly on this PC.'
     : 'Sends what you type directly from your browser to Wikipedia; Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build.';
 }
 

@@ -5,14 +5,14 @@
  * using conditional GET (ETag / Last-Modified kept in `calendars.sync_state`); parsed and
  * expanded in the worker.
  *
- * Failures are HttpErrors with Homebase messages built from the host and status: an error status
+ * Failures are HttpErrors with Portly messages built from the host and status: an error status
  * keeps it as `httpStatus` ({@link IcsHttpError}), a transport failure keeps the SafeFetchError as
  * `cause` ({@link feedTransportError}), a parse failure names its health code in `details.reason`.
  * What the request saw ({@link IcsFetchInfo}: status, final host, redirects, size) feeds the
  * `ics:<id>` health detail (§17).
  */
 import { z } from 'zod';
-import type { ErrorCode } from '@homebase/shared';
+import type { ErrorCode } from '@portly/shared';
 import type { AppContext } from '../../../context.ts';
 import { HttpError } from '../../../lib/errors.ts';
 import { SIZE_CAPS, SafeFetchError } from '../../../security/safe-fetch.ts';

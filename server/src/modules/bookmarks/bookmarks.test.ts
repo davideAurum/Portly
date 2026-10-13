@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Bookmark, BookmarkGroup, BookmarksResponse } from '@homebase/shared';
+import type { Bookmark, BookmarkGroup, BookmarksResponse } from '@portly/shared';
 import { bookmarksTestbed, type BookmarksTestbed } from './__fixtures__/setup.ts';
 
 describe('bookmarks: groups and bookmarks', () => {

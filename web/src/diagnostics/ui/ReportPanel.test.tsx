@@ -54,7 +54,7 @@ describe('ReportPanel', () => {
     const { requestsTo } = renderWithProviders(<ReportPanel summary={SUMMARY} accounts={ACCOUNTS} />, { apiMocks: mocks() });
     expect(screen.getByRole('checkbox', { name: 'Hide hosts, emails and names (for sharing publicly)' })).not.toBeChecked();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Download diagnostic report' }));
-    expect(await screen.findByText('Saved homebase-diagnostics.json.')).toBeInTheDocument();
+    expect(await screen.findByText('Saved portly-diagnostics.json.')).toBeInTheDocument();
     expect(requestsTo('GET /api/diagnostics/report')[0]!.search).toBe('?redact=0');
     const report = JSON.parse(await captured.files[0]!.blob.text());
     expect(report.redacted).toBe(false);
@@ -76,9 +76,9 @@ describe('ReportPanel', () => {
   });
 
   it('tells when the report could not be downloaded', async () => {
-    renderWithProviders(<ReportPanel summary={SUMMARY} accounts={ACCOUNTS} />, { apiMocks: mocks({ 'GET /api/diagnostics/report': mockError(403, 'local_only', 'Only on Homebase itself') }) });
+    renderWithProviders(<ReportPanel summary={SUMMARY} accounts={ACCOUNTS} />, { apiMocks: mocks({ 'GET /api/diagnostics/report': mockError(403, 'local_only', 'Only on Portly itself') }) });
     await userEvent.setup().click(screen.getByRole('button', { name: 'Download diagnostic report' }));
-    expect(await screen.findByText('Only on Homebase itself')).toBeInTheDocument();
+    expect(await screen.findByText('Only on Portly itself')).toBeInTheDocument();
     expect(captured.files).toHaveLength(0);
   });
 
@@ -89,7 +89,7 @@ describe('ReportPanel', () => {
     expect(await screen.findByText('Summary copied.')).toBeInTheDocument();
     const full = captured.copied[0]!;
     expect(full.split('\n').length).toBeLessThanOrEqual(40);
-    expect(full).toMatch(/^Homebase diagnostics, /);
+    expect(full).toMatch(/^Portly diagnostics, /);
     expect(full).toContain('- failing account:acc-1 (Dana Work): invalid_grant — Sign-in expired');
     expect(full).toContain('- 1× warn [accounts] accounts failing (invalid_grant)');
     expect(new URLSearchParams(requestsTo('GET /api/diagnostics/logs')[0]!.search).get('level')).toBe('warn');
@@ -120,10 +120,10 @@ describe('ReportPanel', () => {
 
   it('copies the summary without the server part when there is none, and says when copying failed', async () => {
     captured.copyOk = false;
-    const { requestsTo } = renderWithProviders(<ReportPanel summary={null} summaryProblem="Update Homebase on this PC to see its diagnostics" accounts={[]} />, { apiMocks: mocks() });
+    const { requestsTo } = renderWithProviders(<ReportPanel summary={null} summaryProblem="Update Portly on this PC to see its diagnostics" accounts={[]} />, { apiMocks: mocks() });
     await userEvent.setup().click(screen.getByRole('button', { name: 'Copy summary' }));
     expect(await screen.findByText('Copy failed — your browser did not allow it.')).toBeInTheDocument();
-    expect(captured.copied[0]).toContain('Server: Update Homebase on this PC to see its diagnostics');
+    expect(captured.copied[0]).toContain('Server: Update Portly on this PC to see its diagnostics');
     expect(requestsTo('GET /api/diagnostics/logs')).toHaveLength(0);
   });
 });

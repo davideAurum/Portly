@@ -8,7 +8,7 @@ import type {
   AccountConfigByKind,
   AccountKind,
   Capability,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AccountChangeEvent, AccountProbe, AccountService } from '../context.ts';
 import { HttpError, ProviderUnauthorizedError } from '../lib/errors.ts';
 

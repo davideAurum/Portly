@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * Shared logic for the Homebase new-tab extension (ARCHITECTURE §11): the settings in
- * chrome.storage.local (what a new tab opens, the Pages site address, the port and what Homebase
+ * Shared logic for the Portly new-tab extension (ARCHITECTURE §11): the settings in
+ * chrome.storage.local (what a new tab opens, the Pages site address, the port and what Portly
  * on this PC last said about its Pages site), the health check, the warm-up message and URL
  * builders. Pure functions with injected dependencies so they run unchanged in Chrome/Edge and
  * under `node --test` with fakes.
@@ -18,19 +18,19 @@ export const TARGET_KEY = 'target';
 /** chrome.storage.local key holding the Pages site address (a normalised URL string). */
 export const PAGES_URL_KEY = 'pagesUrl';
 /**
- * chrome.storage.local key holding what Homebase on this PC last reported about its Pages site
- * (`pagesUrl` in /api/health, the server's HOMEBASE_PAGES_URL): `{port, pagesUrl}` (a ServerSite).
+ * chrome.storage.local key holding what Portly on this PC last reported about its Pages site
+ * (`pagesUrl` in /api/health, the server's PORTLY_PAGES_URL): `{port, pagesUrl}` (a ServerSite).
  */
 export const SERVER_SITE_KEY = 'serverSite';
 
 /**
  * What a new tab opens.
- * - auto (the default): whatever Homebase on this PC is set up for — its Pages site when the
- *   server reports one (HOMEBASE_PAGES_URL), otherwise Homebase itself (as `local`).
- * - pages: the Homebase Pages site (the browser-only build) at the stored address, or the one the
- *   server reports when none is stored. It uses Homebase on this PC when that runs and the browser
+ * - auto (the default): whatever Portly on this PC is set up for — its Pages site when the
+ *   server reports one (PORTLY_PAGES_URL), otherwise Portly itself (as `local`).
+ * - pages: the Portly Pages site (the browser-only build) at the stored address, or the one the
+ *   server reports when none is stored. It uses Portly on this PC when that runs and the browser
  *   is paired with it, and its own in-browser copy otherwise.
- * - local: Homebase on this PC (http://localhost:<port>), with the "isn't running" fallback.
+ * - local: Portly on this PC (http://localhost:<port>), with the "isn't running" fallback.
  */
 export const TARGET = Object.freeze({ auto: 'auto', pages: 'pages', local: 'local' });
 export const DEFAULT_TARGET = TARGET.auto;
@@ -40,10 +40,10 @@ export const MAX_PAGES_URL_LENGTH = 2048;
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /**
- * The message a new tab sends the service worker before it opens the Pages site, so Homebase on
+ * The message a new tab sends the service worker before it opens the Pages site, so Portly on
  * this PC is started when it isn't running (lib/warm-up.js answers it).
  */
-export const WARM_UP_MESSAGE_TYPE = 'homebase:warm-up';
+export const WARM_UP_MESSAGE_TYPE = 'portly:warm-up';
 
 /** @param {unknown} message */
 export function isWarmUpMessage(message) {
@@ -181,7 +181,7 @@ export function parsePagesUrl(input) {
 
 /**
  * Reads the stored Pages site address; null when none is stored (or it is invalid or unreadable):
- * the address Homebase on this PC reports is used then.
+ * the address Portly on this PC reports is used then.
  * @param {StorageAreaLike | undefined | null} storage
  * @returns {Promise<string | null>}
  */
@@ -210,7 +210,7 @@ export async function writePagesUrl(storage, input) {
 }
 
 /**
- * Forgets the stored Pages site address, so the one Homebase on this PC reports is used.
+ * Forgets the stored Pages site address, so the one Portly on this PC reports is used.
  * @param {StorageAreaLike} storage
  * @returns {Promise<void>}
  */
@@ -220,9 +220,9 @@ export async function clearPagesUrl(storage) {
 }
 
 /**
- * What Homebase on this PC said about its Pages site: the address it answers (HOMEBASE_PAGES_URL,
+ * What Portly on this PC said about its Pages site: the address it answers (PORTLY_PAGES_URL,
  * normalised like a stored address), or null when it has none (hybrid mode off). `port` is the
- * port that Homebase answered on; the record means nothing for another port.
+ * port that Portly answered on; the record means nothing for another port.
  * @typedef {object} ServerSite
  * @property {number} port
  * @property {string | null} pagesUrl
@@ -247,7 +247,7 @@ export function parseServerSite(value) {
  * @property {string} target one of TARGET
  * @property {string | null} pagesUrl the stored Pages site address, or null when none is stored
  * @property {number} port
- * @property {ServerSite | null} serverSite what Homebase last said about its Pages site (on
+ * @property {ServerSite | null} serverSite what Portly last said about its Pages site (on
  *   whichever port it was), or null when it hasn't said anything yet
  */
 
@@ -278,7 +278,7 @@ export async function readSettings(storage) {
 }
 
 /**
- * What Homebase on the configured port last said about its Pages site; null when it hasn't said
+ * What Portly on the configured port last said about its Pages site; null when it hasn't said
  * anything (or said it on another port).
  * @param {Pick<Settings, 'port' | 'serverSite'>} settings
  * @returns {ServerSite | null}
@@ -289,7 +289,7 @@ export function serverSiteFor(settings) {
 }
 
 /**
- * Where a new tab goes, from the settings alone: the Pages site at `url`, or Homebase on this PC
+ * Where a new tab goes, from the settings alone: the Pages site at `url`, or Portly on this PC
  * (`local`, which checks /api/health first and may still end up on the Pages site the answer
  * names, see newtab-page.js).
  * - local → local.
@@ -306,7 +306,7 @@ export function resolveNewTab(settings) {
 }
 
 /**
- * Records what a healthy Homebase on `port` said about its Pages site, when it said anything and
+ * Records what a healthy Portly on `port` said about its Pages site, when it said anything and
  * that differs from `known` (the stored record; pass undefined to read it first). Never throws.
  * Whatever answers on the port is trusted here as it is for the redirect itself (ARCHITECTURE
  * §4.1 accepts port squatting); the address it names still passes parsePagesUrl.
@@ -336,17 +336,17 @@ export async function rememberServerSite(storage, port, health, known) {
 }
 
 /** `http://localhost:<port>` (no trailing slash). */
-export function homebaseOrigin(port) {
+export function portlyOrigin(port) {
   return `http://localhost:${port}`;
 }
 
-/** The URL a new tab redirects to once Homebase answers. */
+/** The URL a new tab redirects to once Portly answers. */
 export function newTabUrl(port) {
-  return `${homebaseOrigin(port)}/?src=newtab`;
+  return `${portlyOrigin(port)}/?src=newtab`;
 }
 
 export function healthUrl(port) {
-  return `${homebaseOrigin(port)}/api/health`;
+  return `${portlyOrigin(port)}/api/health`;
 }
 
 /**
@@ -362,8 +362,8 @@ export function googleSearchUrl(query) {
  * @property {true} ok
  * @property {string | null} version
  * @property {'ready' | 'locked' | null} vault
- * @property {string | null} [pagesUrl] the Pages site the server answers (HOMEBASE_PAGES_URL), null
- *   when it has none; absent when the server didn't say (an older Homebase) or named an address
+ * @property {string | null} [pagesUrl] the Pages site the server answers (PORTLY_PAGES_URL), null
+ *   when it has none; absent when the server didn't say (an older Portly) or named an address
  *   this extension wouldn't open
  *
  * @typedef {object} HealthFailure
@@ -431,7 +431,7 @@ export async function checkHealth(port, deps) {
     return result;
   } catch (err) {
     if (timedOut) return { ok: false, reason: 'timeout' };
-    // A body that is not JSON means something other than Homebase answered.
+    // A body that is not JSON means something other than Portly answered.
     if (err instanceof SyntaxError) return { ok: false, reason: 'unexpected' };
     return { ok: false, reason: 'unreachable' };
   } finally {
@@ -446,15 +446,15 @@ export async function checkHealth(port, deps) {
  * @param {number} [timeoutMs]
  */
 export function describeFailure(result, port, timeoutMs = HEALTH_TIMEOUT_MS) {
-  const origin = homebaseOrigin(port);
+  const origin = portlyOrigin(port);
   switch (result.reason) {
     case 'timeout':
       // Also what a closed port looks like: Windows takes ~2 s to report a refused connection.
       return `Couldn't reach ${origin} (no answer within ${timeoutMs / 1000} seconds).`;
     case 'http':
-      return `Something answered on ${origin}, but it isn't Homebase (HTTP ${result.status ?? '?'}).`;
+      return `Something answered on ${origin}, but it isn't Portly (HTTP ${result.status ?? '?'}).`;
     case 'unexpected':
-      return `Something answered on ${origin}, but it doesn't look like Homebase.`;
+      return `Something answered on ${origin}, but it doesn't look like Portly.`;
     default:
       return `Nothing is answering on ${origin}.`;
   }

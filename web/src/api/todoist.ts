@@ -7,7 +7,7 @@
  */
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { Project, Task, TaskUpdate, TodoistTokenStatus } from '@homebase/shared';
+import type { Project, Task, TaskUpdate, TodoistTokenStatus } from '@portly/shared';
 import { apiDelete, apiGet, apiPatch, apiPath, apiPost, apiPut } from './client.ts';
 import { qk } from './keys.ts';
 

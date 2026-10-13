@@ -6,7 +6,7 @@
  * - Pages build, either backend: a backend switch waits for the page to be idle ("Switch now";
  *   switching reloads the page, so it waits while a dialog is open, the layout is edited or the
  *   user is typing in a field).
- * - `server` in the Pages build (Homebase on this PC): reconnecting to it, with the last saved
+ * - `server` in the Pages build (Portly on this PC): reconnecting to it, with the last saved
  *   data shown (no Reload: the controller reconnects or switches by itself).
  * - Every backend: the backend is unreachable (cached data is shown), and the credential vault is
  *   locked (§4.6 — accounts and Todoist are paused until it is reset in Settings → Accounts).
@@ -34,18 +34,18 @@ function ReloadButton() {
  * not in the panel: the shell is in the main bundle, the panel loads only in the Pages build.
  */
 export function pendingSwitchText(pending: PendingSwitch): string {
-  const where = pending.target === 'server' ? 'Homebase on this PC' : 'the copy saved in this browser';
+  const where = pending.target === 'server' ? 'Portly on this PC' : 'the copy saved in this browser';
   return `This page switches to ${where} when you're done: switching reloads the page, so it waits while a dialog is open, you're editing the layout or typing.`;
 }
 
 const SWITCH_TITLES: Readonly<Record<PendingSwitchReason, string>> = Object.freeze({
-  connected: 'Homebase on this PC is ready',
-  unreachable: "Homebase on this PC isn't reachable",
-  revoked: 'Homebase on this PC no longer accepts this browser',
-  'other-server': 'A different Homebase is running on this PC',
-  incompatible: "Homebase on this PC can't work with this version of the site",
-  blocked: 'Your browser blocked access to Homebase on this PC',
-  disconnected: 'This browser was disconnected from Homebase on this PC',
+  connected: 'Portly on this PC is ready',
+  unreachable: "Portly on this PC isn't reachable",
+  revoked: 'Portly on this PC no longer accepts this browser',
+  'other-server': 'A different Portly is running on this PC',
+  incompatible: "Portly on this PC can't work with this version of the site",
+  blocked: 'Your browser blocked access to Portly on this PC',
+  disconnected: 'This browser was disconnected from Portly on this PC',
 });
 
 function PendingSwitchBanner({ pending }: { pending: PendingSwitch }) {
@@ -82,7 +82,7 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
   if (caps.backend === 'browser' && staticBackend?.state === 'failed') {
     return (
       <div className={styles.banners}>
-        <Banner tone="danger" title="Homebase couldn't load its saved data" actions={<ReloadButton />}>
+        <Banner tone="danger" title="Portly couldn't load its saved data" actions={<ReloadButton />}>
           Its storage in this browser could not be opened, so you're seeing the last data shown here and changes can't be saved.
           Reload the page to try again. If this keeps happening, the device may be out of space.
         </Banner>
@@ -94,7 +94,7 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
     return (
       <div className={styles.banners}>
         <Banner tone="warning" title="Reload to keep saving changes" actions={<ReloadButton />}>
-          Homebase was updated or its data was cleared in another tab, so this tab can no longer save. Reload the page to continue.
+          Portly was updated or its data was cleared in another tab, so this tab can no longer save. Reload the page to continue.
         </Banner>
       </div>
     );
@@ -104,7 +104,7 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
     return (
       <div className={styles.banners}>
         <Banner tone="warning" title="Nothing can be saved in this browser">
-          Homebase couldn't open its browser storage (private browsing or blocked site data), so changes last only until this
+          Portly couldn't open its browser storage (private browsing or blocked site data), so changes last only until this
           tab closes. Export your settings before leaving if you want to keep them.
         </Banner>
       </div>
@@ -114,8 +114,8 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
   if (caps.remoteServer && localServer.status === 'reconnecting') {
     return (
       <div className={styles.banners}>
-        <Banner tone="warning" title="Reconnecting to Homebase on this PC — showing the last saved data">
-          Homebase on this PC stopped answering. If it doesn't come back soon, this page switches to the copy saved in this browser.
+        <Banner tone="warning" title="Reconnecting to Portly on this PC — showing the last saved data">
+          Portly on this PC stopped answering. If it doesn't come back soon, this page switches to the copy saved in this browser.
         </Banner>
       </div>
     );
@@ -125,15 +125,15 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
     return (
       <div className={styles.banners}>
         {caps.backend === 'browser' ? (
-          <Banner tone="warning" title="Homebase couldn't load its data" actions={<ReloadButton />}>
+          <Banner tone="warning" title="Portly couldn't load its data" actions={<ReloadButton />}>
             You're seeing the last saved data. Reload the page to try again.
           </Banner>
         ) : caps.remoteServer ? (
-          <Banner tone="warning" title="Can't reach Homebase on this PC">
-            You're seeing the last saved data. It will refresh when Homebase on this PC is back.
+          <Banner tone="warning" title="Can't reach Portly on this PC">
+            You're seeing the last saved data. It will refresh when Portly on this PC is back.
           </Banner>
         ) : (
-          <Banner tone="warning" title="Can't reach the Homebase server">
+          <Banner tone="warning" title="Can't reach the Portly server">
             You're seeing the last saved data. It will refresh when the server is back.
           </Banner>
         )}
@@ -153,7 +153,7 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
             </a>
           }
         >
-          Homebase couldn't unlock its credential store, so connected accounts and Todoist are paused. Everything else keeps working.
+          Portly couldn't unlock its credential store, so connected accounts and Todoist are paused. Everything else keeps working.
         </Banner>
       </div>
     );

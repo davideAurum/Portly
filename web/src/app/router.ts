@@ -5,7 +5,7 @@
  * request without a well-formed nonce keeps the `pair` route with `nonce: null` (the page explains).
  */
 import { useMemo, useSyncExternalStore } from 'react';
-import { PAIRING_REQUEST_ROUTE, parsePairingRequest } from '@homebase/shared';
+import { PAIRING_REQUEST_ROUTE, parsePairingRequest } from '@portly/shared';
 import { DEFAULT_SETTINGS_SECTION, isSettingsSectionId, type SettingsSectionId } from '../settings/nav.ts';
 
 export type Route = { name: 'home' } | { name: 'settings'; section: SettingsSectionId } | { name: 'pair'; nonce: string | null };

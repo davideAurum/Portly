@@ -12,7 +12,7 @@
  * oldest queries are dropped until it fits, rather than silently keeping an ever older snapshot.
  *
  * Each backend has its own snapshot ({@link persistOptionsFor}): the server build's; in the Pages
- * build the in-browser backend's and, in hybrid mode, the one of the Homebase server on this PC
+ * build the in-browser backend's and, in hybrid mode, the one of the Portly server on this PC
  * (keyed by that server's instance, kept 7 days, without accounts or OAuth clients). The two Pages
  * datasets never mix: a page load restores and writes only its own backend's snapshot, and on a
  * quota error the other backend's snapshot is dropped first. The options belong to the QueryClient
@@ -31,7 +31,7 @@ import { useToastSpaceReserved } from '../ui/toast.ts';
 export const APP_VERSION: string = __APP_VERSION__;
 export const QUERY_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /**
- * The Pages build's snapshot of the Homebase server on this PC lives longer: a page load on the
+ * The Pages build's snapshot of the Portly server on this PC lives longer: a page load on the
  * server backend paints it while the server is being checked, even after a week away.
  */
 export const LOCAL_SERVER_QUERY_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -40,15 +40,15 @@ export const LOCAL_SERVER_QUERY_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
  * `<user>.github.io` origin shares localStorage, and a static and a server build may both run
  * on localhost during development. In the Pages build this is the in-browser backend's key.
  */
-export const QUERY_CACHE_STORAGE_KEY = __HOMEBASE_STATIC__ ? `homebase:query-cache:static:${import.meta.env.BASE_URL}` : 'homebase:query-cache';
+export const QUERY_CACHE_STORAGE_KEY = __PORTLY_STATIC__ ? `portly:query-cache:static:${import.meta.env.BASE_URL}` : 'portly:query-cache';
 /** Persisted snapshots from another build or version are discarded. */
-export const QUERY_CACHE_BUSTER = __HOMEBASE_STATIC__ ? `${APP_VERSION}+static` : APP_VERSION;
-/** The Pages build's key for the snapshot of the Homebase server on this PC (hybrid mode). */
-export const LOCAL_SERVER_QUERY_CACHE_KEY = `homebase:query-cache:local-server:${import.meta.env.BASE_URL}`;
+export const QUERY_CACHE_BUSTER = __PORTLY_STATIC__ ? `${APP_VERSION}+static` : APP_VERSION;
+/** The Pages build's key for the snapshot of the Portly server on this PC (hybrid mode). */
+export const LOCAL_SERVER_QUERY_CACHE_KEY = `portly:query-cache:local-server:${import.meta.env.BASE_URL}`;
 /** The Pages build's key for the in-browser backend's snapshot. */
-const BROWSER_QUERY_CACHE_KEY = `homebase:query-cache:static:${import.meta.env.BASE_URL}`;
+const BROWSER_QUERY_CACHE_KEY = `portly:query-cache:static:${import.meta.env.BASE_URL}`;
 /** The server build's key. */
-const SERVER_BUILD_QUERY_CACHE_KEY = 'homebase:query-cache';
+const SERVER_BUILD_QUERY_CACHE_KEY = 'portly:query-cache';
 
 function shouldRetry(failureCount: number, error: unknown): boolean {
   // Client errors (4xx), reauth/not-configured states and 501 stubs will not fix themselves.
@@ -201,15 +201,15 @@ export interface QueryPersistOptions {
 const pageOptions = new Map<string, QueryPersistOptions>();
 
 /**
- * The persist options of a backend: the server build's (`homebase:query-cache`, buster = version);
+ * The persist options of a backend: the server build's (`portly:query-cache`, buster = version);
  * in the Pages build (`pagesBuild`, default: this build) the in-browser backend's
- * (`homebase:query-cache:static:<base>`, buster `<version>+static`) or those of the Homebase server
- * on this PC (`homebase:query-cache:local-server:<base>`, buster
+ * (`portly:query-cache:static:<base>`, buster `<version>+static`) or those of the Portly server
+ * on this PC (`portly:query-cache:local-server:<base>`, buster
  * `<version>+local-server:<instanceId>`, 7 days, no accounts or OAuth clients). Without a `storage`
  * override, the same object for the same key and buster.
  */
 export function persistOptionsFor(backend: Backend, instanceId: string | null = null, options: { pagesBuild?: boolean; storage?: Storage } = {}): QueryPersistOptions {
-  const pagesBuild = options.pagesBuild ?? __HOMEBASE_STATIC__;
+  const pagesBuild = options.pagesBuild ?? __PORTLY_STATIC__;
   const remote = pagesBuild && backend === 'server';
   const key = !pagesBuild ? SERVER_BUILD_QUERY_CACHE_KEY : remote ? LOCAL_SERVER_QUERY_CACHE_KEY : BROWSER_QUERY_CACHE_KEY;
   const buster = !pagesBuild ? APP_VERSION : remote ? `${APP_VERSION}+local-server:${instanceId ?? ''}` : `${APP_VERSION}+static`;
@@ -237,7 +237,7 @@ const clientOptions = new WeakMap<QueryClient, QueryPersistOptions>();
  * default backend (the server build's, or the in-browser backend's in the Pages build).
  */
 export function persistOptionsOf(client: QueryClient): QueryPersistOptions {
-  return clientOptions.get(client) ?? persistOptionsFor(__HOMEBASE_STATIC__ ? 'browser' : 'server');
+  return clientOptions.get(client) ?? persistOptionsFor(__PORTLY_STATIC__ ? 'browser' : 'server');
 }
 
 /** The client's options, settled by the first caller (later `persist` arguments cannot change them). */

@@ -1,28 +1,28 @@
 <#
 .SYNOPSIS
-    Shows whether Homebase is running (health first) and how it is set up.
+    Shows whether Portly is running (health first) and how it is set up.
 
 .DESCRIPTION
     Read-only. Two sections:
 
     Status - is it working right now: the /api/health check, the supervisor and server
-    processes, the "Homebase Server" task state and last result, the last launcher request, the
+    processes, the "Portly Server" task state and last result, the last launcher request, the
     native host for Chrome and Edge (OK, or what is wrong), and the server configuration check
-    when Homebase does not answer.
+    when Portly does not answer.
 
     Settings - how it is set up: port, URL, checkout, data folder and log files, the task's mode
     and command, the extension ID pinned by the "key" in extension\manifest.json, the native host
-    manifests, and the GitHub Pages settings (HOMEBASE_PAGES_URL, HOMEBASE_PAGES_REPO).
+    manifests, and the GitHub Pages settings (PORTLY_PAGES_URL, PORTLY_PAGES_REPO).
 
-    Exits with 0 when http://localhost:<port>/api/health answers as Homebase and 1 otherwise, so
+    Exits with 0 when http://localhost:<port>/api/health answers as Portly and 1 otherwise, so
     it can be used from other scripts (-View Settings always exits 0).
 
 .PARAMETER View
-    All (default): both sections. Status or Settings: just that one (homebase --status and
-    homebase --settings).
+    All (default): both sections. Status or Settings: just that one (portly --status and
+    portly --settings).
 
 .PARAMETER Port
-    Port to check (1024-65535). Defaults to HOMEBASE_PORT, else 5757.
+    Port to check (1024-65535). Defaults to PORTLY_PORT, else 5757.
 
 .PARAMETER LogLines
     Also print the last N lines of the server log, (up to 20 lines) of the autostart
@@ -80,7 +80,7 @@ function Invoke-Status {
     if ($windowsTasks) {
         $task = Get-HbTask
         if ($null -ne $task) {
-            $info = Get-ScheduledTaskInfo -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+            $info = Get-ScheduledTaskInfo -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
             $mode = Get-HbTaskTriggerMode -Task $task
         }
         $hostLog = Join-Path (Get-HbNativeHostDir) 'launcher.log'
@@ -97,7 +97,7 @@ function Invoke-Status {
     $health = $null
     if ($showStatus) {
         $health = Test-HbHealth -Port $checkPort -TimeoutSeconds 2
-        Write-StatusSection 'Homebase status'
+        Write-StatusSection 'Portly status'
         if ($health.Ok) {
             Write-Host ('  {0,-15}: {1}' -f 'Health', "OK - $(Format-HbHealth $health)") -ForegroundColor Green
         } else {
@@ -153,11 +153,11 @@ function Invoke-Status {
             $launcherCurrent = Test-HbInstalledLauncherCurrent -InstalledDir (Get-HbNativeHostDir) -RepoRoot $repoRoot
             if ($launcherCurrent -is [bool] -and -not $launcherCurrent) {
                 Write-Warning ("The installed launcher ($(Join-Path (Get-HbNativeHostDir) 'launcher.mjs')) differs from this checkout's " +
-                    'native-host\launcher.mjs (Homebase was updated?). Run scripts\install-autostart.ps1 again to update it.')
+                    'native-host\launcher.mjs (Portly was updated?). Run scripts\install-autostart.ps1 again to update it.')
             }
         }
         if (-not $health.Ok) {
-            # A HOMEBASE_* value the server rejects is printed only to its console, which the
+            # A PORTLY_* value the server rejects is printed only to its console, which the
             # autostart task does not show - so check it here with the server's own loader.
             $scope = if ($null -ne $task) { 'Task' } else { 'Process' }
             try {
@@ -173,18 +173,18 @@ function Invoke-Status {
             }
         }
         if ($health.Ok -and $health.Vault -eq 'locked') {
-            Write-Warning 'The credential vault is locked: open Homebase > Settings > Accounts and follow the banner.'
+            Write-Warning 'The credential vault is locked: open Portly > Settings > Accounts and follow the banner.'
         }
     }
 
     if ($showSettings) {
-        Write-StatusSection 'Homebase settings'
+        Write-StatusSection 'Portly settings'
         Write-HbField 'Port' $portText
         Write-HbField 'URL' "http://localhost:$checkPort"
         $release = $null
         try { $release = Get-HbReleaseInfo -RepoRoot $repoRoot } catch { }
         if ($null -ne $release) {
-            Write-HbField 'Installed' "release $($release.version), Node.js $(Get-HbProperty $release 'node') (homebase --update)"
+            Write-HbField 'Installed' "release $($release.version), Node.js $(Get-HbProperty $release 'node') (portly --update)"
             Write-HbField 'Program' $repoRoot
         } else {
             Write-HbField 'Checkout' $repoRoot
@@ -211,10 +211,10 @@ function Invoke-Status {
             $where = if ($entry.Registered) { $entry.ManifestPath } else { "not registered ($($entry.Key))" }
             Write-HbField "Host ($($entry.Browser))" $where
         }
-        $pagesUrl = Get-HbEnvValue -Name 'HOMEBASE_PAGES_URL' -Scope Task
-        $pagesRepo = Get-HbEnvValue -Name 'HOMEBASE_PAGES_REPO' -Scope Task
-        $pagesUrlText = if ($pagesUrl) { "$pagesUrl (HOMEBASE_PAGES_URL)" } else { 'not set (HOMEBASE_PAGES_URL: the Pages site cannot use this server)' }
-        $pagesRepoText = if ($pagesRepo) { "$pagesRepo (HOMEBASE_PAGES_REPO)" } else { 'not set (HOMEBASE_PAGES_REPO: homebase --rebuild skips publishing)' }
+        $pagesUrl = Get-HbEnvValue -Name 'PORTLY_PAGES_URL' -Scope Task
+        $pagesRepo = Get-HbEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task
+        $pagesUrlText = if ($pagesUrl) { "$pagesUrl (PORTLY_PAGES_URL)" } else { 'not set (PORTLY_PAGES_URL: the Pages site cannot use this server)' }
+        $pagesRepoText = if ($pagesRepo) { "$pagesRepo (PORTLY_PAGES_REPO)" } else { 'not set (PORTLY_PAGES_REPO: portly --rebuild skips publishing)' }
         Write-HbField 'Pages site' $pagesUrlText
         if ($null -eq $release) { Write-HbField 'Pages repo' $pagesRepoText }
     }

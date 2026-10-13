@@ -21,7 +21,7 @@ describe('backups', () => {
   const log = createSilentLogger();
 
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-backups-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-backups-'));
     db = openDb(':memory:');
     migrate(db);
     db.run("INSERT INTO settings (namespace, value, updated_at) VALUES ('general', '{\"userName\":\"Dana\"}', 1)");
@@ -49,13 +49,13 @@ describe('backups', () => {
   it('writes one daily backup per local day and keeps the last 7', () => {
     for (let day = 1; day <= 9; day++) {
       const written = runDailyBackup({ db, dir, log, now: () => new Date(2026, 8, day, 12) });
-      expect(written).toBe(path.join(dir, `homebase-2026-09-${String(day).padStart(2, '0')}.db`));
+      expect(written).toBe(path.join(dir, `portly-2026-09-${String(day).padStart(2, '0')}.db`));
     }
     expect(runDailyBackup({ db, dir, log, now: () => new Date(2026, 8, 9, 18) })).toBeNull();
     const names = fs.readdirSync(dir).sort();
     expect(names).toHaveLength(DAILY_BACKUPS_KEPT);
-    expect(names[0]).toBe('homebase-2026-09-03.db');
-    expect(names.at(-1)).toBe('homebase-2026-09-09.db');
+    expect(names[0]).toBe('portly-2026-09-03.db');
+    expect(names.at(-1)).toBe('portly-2026-09-09.db');
   });
 
   it('pre-import backups never collide and are pruned separately', () => {
@@ -64,9 +64,9 @@ describe('backups', () => {
     const b = runPreImportBackup({ db, dir, log, now });
     expect(a).not.toBe(b);
     expect(fs.existsSync(a) && fs.existsSync(b)).toBe(true);
-    fs.writeFileSync(path.join(dir, 'homebase-2026-09-01.db'), '');
+    fs.writeFileSync(path.join(dir, 'portly-2026-09-01.db'), '');
     fs.writeFileSync(path.join(dir, 'unrelated.txt'), '');
-    expect(pruneBackups(dir, /^homebase-/, 0)).toEqual(['homebase-2026-09-01.db']);
+    expect(pruneBackups(dir, /^portly-/, 0)).toEqual(['portly-2026-09-01.db']);
     expect(fs.existsSync(path.join(dir, 'unrelated.txt'))).toBe(true);
   });
 });

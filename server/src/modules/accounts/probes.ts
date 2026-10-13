@@ -15,7 +15,7 @@ import {
   type Capability,
   type ProbeResult,
   type ValidationIssue,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AccountProbe } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { outcomeFromError } from '../../lib/health.ts';

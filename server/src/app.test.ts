@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { HOMEBASE_API_VERSION, REQUEST_ID_HEADER, REQUEST_ID_REGEX, SettingsSchema, type HealthResponse, type Profile } from '@homebase/shared';
+import { PORTLY_API_VERSION, REQUEST_ID_HEADER, REQUEST_ID_REGEX, SettingsSchema, type HealthResponse, type Profile } from '@portly/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ASSET_CACHE_CONTROL,
@@ -28,8 +28,8 @@ describe('app: static files and SPA fallback', () => {
   let ctx: TestContext;
 
   beforeAll(() => {
-    dist = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-dist-'));
-    fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>Homebase</title><div id="root"></div>');
+    dist = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-dist-'));
+    fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>Portly</title><div id="root"></div>');
     fs.writeFileSync(path.join(dist, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     fs.mkdirSync(path.join(dist, 'assets'));
     fs.writeFileSync(path.join(dist, 'assets', 'index-abc123.js'), 'export {}');
@@ -43,7 +43,7 @@ describe('app: static files and SPA fallback', () => {
   const app = () => createApp(ctx, { webDist: dist }).app;
 
   it('serves index.html at / with no-cache', async () => {
-    const res = await testRequest(app(), 'GET', '/', { headers: { 'X-Homebase': null } });
+    const res = await testRequest(app(), 'GET', '/', { headers: { 'X-Portly': null } });
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/^text\/html/);
     expect(res.headers.get('cache-control')).toBe('no-cache');
@@ -102,17 +102,17 @@ describe('app: modules', () => {
   });
   afterEach(() => ctx.close());
 
-  it('GET /api/health works without X-Homebase and reports the vault state', async () => {
+  it('GET /api/health works without X-Portly and reports the vault state', async () => {
     const { app } = createApp(ctx, { webDist: null });
-    const res = await testRequest(app, 'GET', '/api/health', { headers: { 'X-Homebase': null, 'Sec-Fetch-Site': null } });
+    const res = await testRequest(app, 'GET', '/api/health', { headers: { 'X-Portly': null, 'Sec-Fetch-Site': null } });
     expect(res.status).toBe(200);
     const body = (await res.json()) as HealthResponse;
     expect(body).toEqual({
       ok: true,
       version: ctx.config.version,
       vault: 'ready',
-      app: 'homebase',
-      apiVersion: HOMEBASE_API_VERSION,
+      app: 'portly',
+      apiVersion: PORTLY_API_VERSION,
       instanceId: ctx.pairing.instanceId(),
       appUrl: `${ctx.config.appOrigin}/`,
       pagesUrl: null,
@@ -122,9 +122,9 @@ describe('app: modules', () => {
     expect(locked.vault).toBe('locked');
   });
 
-  it('GET /api/settings returns full defaults and needs X-Homebase', async () => {
+  it('GET /api/settings returns full defaults and needs X-Portly', async () => {
     const { app } = createApp(ctx, { webDist: null });
-    expect((await testRequest(app, 'GET', '/api/settings', { headers: { 'X-Homebase': null } })).status).toBe(403);
+    expect((await testRequest(app, 'GET', '/api/settings', { headers: { 'X-Portly': null } })).status).toBe(403);
     const res = await testRequest(app, 'GET', '/api/settings');
     expect(res.status).toBe(200);
     expect((await res.json()) as unknown).toEqual(SettingsSchema.parse({}));
@@ -276,8 +276,8 @@ describe('app: modules', () => {
 });
 
 /**
- * Every API route and who may call it: `paired` = Homebase's own page and the paired Pages site;
- * `local` = Homebase's own page on this PC only. Health and the OAuth callback are exempt routes
+ * Every API route and who may call it: `paired` = Portly's own page and the paired Pages site;
+ * `local` = Portly's own page on this PC only. Health and the OAuth callback are exempt routes
  * (no token, no pairing); they are listed as local because they are not declared `paired()`.
  */
 const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'local'>> = {
@@ -429,16 +429,16 @@ describe('app: request log', () => {
   const requestLines = () => logs.lines().filter((r) => r.msg === 'request');
 
   it('stamps X-Request-Id on API, 404, error and static answers, and logs it as the line rid', async () => {
-    const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-dist-'));
+    const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-dist-'));
     try {
-      fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>Homebase</title>');
+      fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>Portly</title>');
       const { app } = createApp(ctx, { modules: [probeModule], webDist: dist });
       const answers = [
         await testRequest(app, 'GET', '/api/probe/items/a1'),
         await testRequest(app, 'GET', '/api/nope'),
         await testRequest(app, 'GET', '/api/probe/crash'),
         await testRequest(app, 'GET', '/'),
-        await testRequest(app, 'GET', '/api/probe/items/a1', { headers: { 'X-Homebase': null } }),
+        await testRequest(app, 'GET', '/api/probe/items/a1', { headers: { 'X-Portly': null } }),
       ];
       const ids = answers.map((res) => res.headers.get(REQUEST_ID_HEADER));
       for (const id of ids) expect(id).toMatch(REQUEST_ID_REGEX);
@@ -485,7 +485,7 @@ describe('app: request log', () => {
     const { app } = createApp(ctx, { modules: [probeModule], webDist: null });
     await testRequest(app, 'GET', '/api/probe/items/a1');
     await testRequest(app, 'POST', '/api/probe/items', { body: {} });
-    await testRequest(app, 'GET', '/api/probe/items/a1', { headers: { 'X-Homebase': null } });
+    await testRequest(app, 'GET', '/api/probe/items/a1', { headers: { 'X-Portly': null } });
     await testRequest(app, 'GET', '/api/probe/crash');
     expect(requestLines().map((r) => [r.level, r.fields.method, r.fields.status])).toEqual([
       ['debug', 'GET', 200],
@@ -532,7 +532,7 @@ describe('app: request log', () => {
 
     await testRequest(created.app, 'GET', '/api/probe/missing');
     await testRequest(created.app, 'GET', '/api/probe/crash');
-    await testRequest(created.app, 'GET', '/', { headers: { 'X-Homebase': null } });
+    await testRequest(created.app, 'GET', '/', { headers: { 'X-Portly': null } });
     expect(created.requestCounts()).toEqual({ count: 3, s4xx: 1, s5xx: 1 });
   });
 

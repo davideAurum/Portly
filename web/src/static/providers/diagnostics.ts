@@ -9,7 +9,7 @@
  * and how long it took. Never the request's URL, query, body or token. The same failure within a
  * minute is counted, not recorded again (`recordCollapsedClientEvent`).
  */
-import { REASON_TOKEN, type LogLevel } from '@homebase/shared';
+import { REASON_TOKEN, type LogLevel } from '@portly/shared';
 import { recordCollapsedClientEvent } from '../../api/client.ts';
 import { classifyFetchError, UpstreamPayloadTooLargeError } from '../lib/fetch.ts';
 

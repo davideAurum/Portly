@@ -14,7 +14,7 @@
  * fallback name). Nothing here filters URLs: `toSafeHttpUrl` and the de-duplication happen when
  * the plan is written, where skipped links are counted.
  */
-import { BookmarkGroupNameSchema, type BrowserImport } from '@homebase/shared';
+import { BookmarkGroupNameSchema, type BrowserImport } from '@portly/shared';
 import { cleanTitle } from './cleanTitle.ts';
 
 export interface ImportLink {

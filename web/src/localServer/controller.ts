@@ -1,5 +1,5 @@
 /**
- * The local server controller (hybrid mode, Pages build). It looks for the Homebase server on this
+ * The local server controller (hybrid mode, Pages build). It looks for the Portly server on this
  * PC, knows whether this browser is paired with it, and decides when this page load should switch
  * backend. The backend itself never changes in place: each page load has one (`browser`, the
  * in-browser copy, or `server`), and a switch persists what the next load needs and reloads the
@@ -22,7 +22,7 @@
  *
  * | Probe result                        | B = browser                     | B = server                    |
  * | ----------------------------------- | ------------------------------- | ----------------------------- |
- * | unreachable / not Homebase          | `absent`                        | `reconnecting` (grace)        |
+ * | unreachable / not Portly          | `absent`                        | `reconnecting` (grace)        |
  * | permission denied                   | `blocked`                       | switch → browser (`blocked`)  |
  * | apiVersion ≠ ours                   | `incompatible`                  | switch → browser              |
  * | healthy, not paired                 | `unpaired`                      | switch → browser              |
@@ -46,8 +46,8 @@
  *
  * A CORS probe that fails with the permission granted (or no such permission) is followed by one
  * `no-cors` health request (`probeHealthWithoutCors`, which carries nothing): an opaque answer means
- * Homebase runs on this PC but does not accept this site (`unreachableReason:
- * 'answers-without-cors'` — its `HOMEBASE_PAGES_URL` is another site).
+ * Portly runs on this PC but does not accept this site (`unreachableReason:
+ * 'answers-without-cors'` — its `PORTLY_PAGES_URL` is another site).
  *
  * What happens is reported through the `diag` dependency (`boot.ts`: this browser's `hybrid`
  * events, ARCHITECTURE §17): status transitions with the probe that caused them, every probe's
@@ -59,7 +59,7 @@
  * Every side effect is a dependency ({@link LocalServerControllerDeps}), so the whole state machine
  * runs under fake timers in tests. `boot.ts` builds the page's instance from the browser's.
  */
-import { HOMEBASE_API_VERSION, type LogLevel } from '@homebase/shared';
+import { PORTLY_API_VERSION, type LogLevel } from '@portly/shared';
 import type { Backend } from '../capabilities.ts';
 import type { PageEvent, PageSignals } from './page.ts';
 import {
@@ -134,7 +134,7 @@ export class ServerModeEndedError extends TypeError {
 }
 
 export interface LocalServerControllerDeps {
-  /** Origin of the Homebase server on this PC (`LOCAL_SERVER_ORIGIN`); `''` disables the controller. */
+  /** Origin of the Portly server on this PC (`LOCAL_SERVER_ORIGIN`); `''` disables the controller. */
   origin: string;
   /** This page load's backend. */
   backend: Backend;
@@ -210,7 +210,7 @@ export interface HybridController extends LocalServerController {
   /** A request of this server-backend page failed at the network level: probe now. */
   reportNetworkFailure(): void;
   /**
-   * The server refused `token` (401 `pairing_required`). Not proof by itself (another Homebase may
+   * The server refused `token` (401 `pairing_required`). Not proof by itself (another Portly may
    * answer on the port now): a probe decides, and clears the pairing only for the paired server.
    */
   reportUnpaired(token: string): void;
@@ -225,8 +225,8 @@ export interface HybridController extends LocalServerController {
  */
 type Trigger = 'boot' | 'timer' | 'retry' | 'event' | 'change' | 'manual' | 'response';
 
-/** Why a probe found nothing usable, when it knows: a refusing server, or something that is not Homebase. */
-type UnreachableCause = LocalServerUnreachableReason | 'not-homebase';
+/** Why a probe found nothing usable, when it knows: a refusing server, or something that is not Portly. */
+type UnreachableCause = LocalServerUnreachableReason | 'not-portly';
 
 type Outcome =
   | { kind: 'aborted' }
@@ -539,12 +539,12 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
       const permission = await permissionNow();
       return permission === 'denied' ? { kind: 'denied' } : withoutCors(current, permission);
     }
-    if (health.kind === 'not-homebase') return { kind: 'unreachable', cause: 'not-homebase' };
+    if (health.kind === 'not-portly') return { kind: 'unreachable', cause: 'not-portly' };
     const info = serverInfo(health);
-    if (info.apiVersion !== HOMEBASE_API_VERSION) return { kind: 'incompatible', info };
+    if (info.apiVersion !== PORTLY_API_VERSION) return { kind: 'incompatible', info };
     const paired = record;
     if (paired === null) return { kind: 'unpaired', info };
-    // Another Homebase never sees this browser's token.
+    // Another Portly never sees this browser's token.
     if (info.instanceId !== paired.instanceId) return { kind: 'other-server', info };
     const checked = await checkPairingDetailed(deps.origin, paired.token, { fetch: deps.fetch, signal, now });
     current.details = checked.details;
@@ -654,7 +654,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     lastProbeSignature = signature;
     const fields = { ...probe, reason };
     if (outcome.kind === 'pairing-error') diag(changed ? 'warn' : 'debug', 'pairing check failed', fields);
-    else if (outcome.kind === 'revoked') diag('warn', 'pairing revoked by Homebase on this PC', fields);
+    else if (outcome.kind === 'revoked') diag('warn', 'pairing revoked by Portly on this PC', fields);
     else diag(changed && !first && outcome.kind !== 'inconclusive' && status === settledStatus ? 'info' : 'debug', 'probe result', fields);
     return { reason, probe };
   }
@@ -935,7 +935,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
 
   /**
    * Asks the paired server to forget `paired` (best effort, at most 3 s in all). Only when the
-   * Homebase answering on the port right now is that server: another one never sees the token.
+   * Portly answering on the port right now is that server: another one never sees the token.
    */
   async function forgetOnServer(paired: PairingRecord): Promise<void> {
     const abort = new AbortController();
@@ -1080,7 +1080,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     reportUnpaired() {
       if (deps.backend !== 'server' || !running()) return;
       diag('debug', 'a request was refused: pairing required', { httpStatus: 401, reason: 'pairing_required' });
-      // The refusal may come from another Homebase now on the port (which must not cost this browser
+      // The refusal may come from another Portly now on the port (which must not cost this browser
       // its pairing with the real one), or be for a token another tab has replaced meanwhile. Take
       // up such a change, then let a probe decide: `other-server` keeps the record, and only the
       // paired server refusing it (`revoked`) clears it.

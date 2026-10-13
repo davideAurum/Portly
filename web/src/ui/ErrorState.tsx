@@ -52,7 +52,7 @@ export function ErrorState({ error, onRetry, setupHref, setupLabel = 'Set up', t
         icon={Unplug}
         compact={compact}
         title={title ?? `Reconnect ${name}`}
-        body="Homebase lost access to this account. Sign in again to keep things in sync."
+        body="Portly lost access to this account. Sign in again to keep things in sync."
         action={accountId ? <ReconnectButton accountId={accountId} /> : <SetupLink href="#/settings/accounts" label="Open accounts" />}
       />
     );

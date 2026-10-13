@@ -24,7 +24,7 @@
  */
 import { memo, useCallback, useEffect, useId, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { ChevronRight, Search, X } from 'lucide-react';
-import { DIAGNOSTIC_AREAS, type LogRecord } from '@homebase/shared';
+import { DIAGNOSTIC_AREAS, type LogRecord } from '@portly/shared';
 import { getDiagnosticsLogs, useDiagnosticsLogs } from '../../api/diagnostics.ts';
 import { useFormatters } from '../../lib/format.ts';
 import { Badge } from '../../ui/Badge.tsx';
@@ -127,7 +127,7 @@ const LogRowView = memo(function LogRowView({ row, names, chips, onChip }: RowVi
         <span className={styles.area}>{origin}</span>
         <span className={styles.msg}>{msg}</span>
         {server && isLate(row.record) ? (
-          <Badge tone="warning" title="This browser event reached Homebase more than 5 minutes after it happened">
+          <Badge tone="warning" title="This browser event reached Portly more than 5 minutes after it happened">
             late
           </Badge>
         ) : null}
@@ -423,7 +423,7 @@ export function ServerLogPanel({ filters, setFilters, timeline, setTimeline, nam
     <SettingsCard
       id="diagnostics-log"
       title="Server log"
-      description="Recent records from Homebase's memory; older ones come from its log files. Live follows new records, Timeline adds this browser's own events. Nothing here contains passwords, tokens or the contents of your mail, calendars or tasks."
+      description="Recent records from Portly's memory; older ones come from its log files. Live follows new records, Timeline adds this browser's own events. Nothing here contains passwords, tokens or the contents of your mail, calendars or tasks."
       actions={
         <div className={styles.inlineRow}>
           <Switch size="sm" label="Timeline" checked={timeline} onCheckedChange={setTimeline} />

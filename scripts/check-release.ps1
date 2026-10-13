@@ -7,10 +7,10 @@
     1. Without -ZipPath, builds a test package first (build-release.ps1 -AllowDirty, with the
        node.exe on PATH unless -DownloadRuntime).
     2. scripts\install.ps1 -ZipPath into a temporary install folder (-SkipAutostart -SkipCli
-       -NoBrowser, HOMEBASE_DATA_DIR pointing at a temporary data folder): the package lands in
-       app\, app.new is gone, node_modules\@homebase\shared is a junction to app\shared.
+       -NoBrowser, PORTLY_DATA_DIR pointing at a temporary data folder): the package lands in
+       app\, app.new is gone, node_modules\@portly\shared is a junction to app\shared.
     3. Starts the installed server with its own runtime\node.exe on a free port and the temporary
-       data folder, and checks /api/health (Homebase, the package's version) and that the page is
+       data folder, and checks /api/health (Portly, the package's version) and that the page is
        served.
     4. install.ps1 again: "already installed", nothing changes.
     5. install.ps1 -Force (the update path): the database is copied to backups\, the old version is
@@ -62,19 +62,19 @@ function Get-FreePort {
     try { return ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port } finally { $listener.Stop() }
 }
 
-# Runs a script in a child Windows PowerShell with HOMEBASE_DATA_DIR set to the temporary data
+# Runs a script in a child Windows PowerShell with PORTLY_DATA_DIR set to the temporary data
 # folder; returns ExitCode and Text.
 function Invoke-CheckScript {
     param([Parameter(Mandatory)][string]$Path, [string[]]$Arguments = @())
-    $previousData = $env:HOMEBASE_DATA_DIR
+    $previousData = $env:PORTLY_DATA_DIR
     $previousPreference = $ErrorActionPreference
-    $env:HOMEBASE_DATA_DIR = $dataDir
+    $env:PORTLY_DATA_DIR = $dataDir
     $ErrorActionPreference = 'Continue'
     try {
         $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $Path @Arguments 2>&1 | ForEach-Object { "$_" }
         return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Text = ($output -join "`n") }
     } finally {
-        $env:HOMEBASE_DATA_DIR = $previousData
+        $env:PORTLY_DATA_DIR = $previousData
         $ErrorActionPreference = $previousPreference
     }
 }
@@ -88,7 +88,7 @@ function Test-Junction {
 }
 
 $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
-$workDir = Join-Path ([System.IO.Path]::GetTempPath()) ('homebase-release-check-' + [guid]::NewGuid().ToString('N'))
+$workDir = Join-Path ([System.IO.Path]::GetTempPath()) ('portly-release-check-' + [guid]::NewGuid().ToString('N'))
 $installDir = Join-Path $workDir 'install'
 $dataDir = Join-Path $workDir 'data'
 $null = New-Item -ItemType Directory -Path $installDir, $dataDir -Force
@@ -108,7 +108,7 @@ try {
         $build = Invoke-CheckScript -Path (Join-Path $PSScriptRoot 'build-release.ps1') -Arguments $buildArgs
         Assert-That -Name 'build-release.ps1 builds a package' -Condition ($build.ExitCode -eq 0) -Detail $build.Text
         if ($build.ExitCode -ne 0) { throw 'No package to check.' }
-        $ZipPath = @(Get-ChildItem -LiteralPath (Join-Path $workDir 'out') -Filter 'homebase-*-win-x64.zip' -File)[0].FullName
+        $ZipPath = @(Get-ChildItem -LiteralPath (Join-Path $workDir 'out') -Filter 'portly-*-win-x64.zip' -File)[0].FullName
     }
     $zip = (Resolve-Path -LiteralPath $ZipPath).ProviderPath
     Write-Host "Package: $zip" -ForegroundColor White
@@ -125,7 +125,7 @@ try {
     $leaks = @($entries | Where-Object {
             $_ -match '^(server|shared)/.*\.test\.tsx?$' -or $_ -match '^(server|shared)/.*/__fixtures__/' -or
             $_ -like 'server/src/testing/*' -or $_ -like 'extension/test/*' -or $_ -like 'extension/tools/*' -or
-            $_ -like 'web/src/*' -or $_ -like 'node_modules/@homebase/*' -or $_ -like 'node_modules/vite/*' -or $_ -like 'node_modules/react/*' -or
+            $_ -like 'web/src/*' -or $_ -like 'node_modules/@portly/*' -or $_ -like 'node_modules/vite/*' -or $_ -like 'node_modules/react/*' -or
             $_ -like 'scripts/check-*' -or $_ -like 'scripts/setup.ps1' -or $_ -like 'docs/reviews/*'
         })
     Assert-That -Name 'the package leaves out tests, fixtures, sources of the web build, dev packages and dev scripts' -Condition (
@@ -140,24 +140,24 @@ try {
     $version = "$(Get-HbProperty $info 'version')"
     Assert-That -Name 'install.ps1 -ZipPath installs the package into app\' -Condition (
         $install.ExitCode -eq 0 -and $null -ne $info -and -not (Test-Path -LiteralPath (Join-Path $installDir 'app.new')) -and
-        $install.Text.Contains("Homebase $version is in $app")) -Detail $install.Text
-    Assert-That -Name 'node_modules\@homebase\shared is a junction to app\shared' -Condition (
-        Test-Junction -Path (Join-Path $app 'node_modules\@homebase\shared') -Target (Join-Path $app 'shared'))
+        $install.Text.Contains("Portly $version is in $app")) -Detail $install.Text
+    Assert-That -Name 'node_modules\@portly\shared is a junction to app\shared' -Condition (
+        Test-Junction -Path (Join-Path $app 'node_modules\@portly\shared') -Target (Join-Path $app 'shared'))
     Assert-That -Name 'Resolve-HbNode prefers the package''s runtime\node.exe' -Condition (
         (Resolve-HbNode -RepoRoot $app).Path -ieq (Join-Path $app 'runtime\node.exe'))
     Assert-That -Name 'Initialize-HbReleaseLinks keeps a correct link' -Condition (
-        (Initialize-HbReleaseLinks -RepoRoot $app) -ieq (Join-Path $app 'node_modules\@homebase\shared') -and
-        (Test-Junction -Path (Join-Path $app 'node_modules\@homebase\shared') -Target (Join-Path $app 'shared')))
+        (Initialize-HbReleaseLinks -RepoRoot $app) -ieq (Join-Path $app 'node_modules\@portly\shared') -and
+        (Test-Junction -Path (Join-Path $app 'node_modules\@portly\shared') -Target (Join-Path $app 'shared')))
 
-    $cli = Join-Path $app 'scripts\homebase.ps1'
+    $cli = Join-Path $app 'scripts\portly.ps1'
     $cliVersion = Invoke-CheckScript -Path $cli -Arguments @('--version')
-    Assert-That -Name 'the installed homebase --version says it is a release install' -Condition (
-        $cliVersion.ExitCode -eq 0 -and $cliVersion.Text.Contains("Homebase $version (release install")) -Detail $cliVersion.Text
+    Assert-That -Name 'the installed portly --version says it is a release install' -Condition (
+        $cliVersion.ExitCode -eq 0 -and $cliVersion.Text.Contains("Portly $version (release install")) -Detail $cliVersion.Text
     $cliRebuild = Invoke-CheckScript -Path $cli -Arguments @('--rebuild')
-    Assert-That -Name 'the installed homebase --rebuild points to --update' -Condition (
-        $cliRebuild.ExitCode -eq 1 -and $cliRebuild.Text.Contains('use homebase --update')) -Detail $cliRebuild.Text
+    Assert-That -Name 'the installed portly --rebuild points to --update' -Condition (
+        $cliRebuild.ExitCode -eq 1 -and $cliRebuild.Text.Contains('use portly --update')) -Detail $cliRebuild.Text
     $cliBadOption = Invoke-CheckScript -Path $cli -Arguments @('--update', '--version')
-    Assert-That -Name 'the installed homebase --update --version without a version is refused' -Condition (
+    Assert-That -Name 'the installed portly --update --version without a version is refused' -Condition (
         $cliBadOption.ExitCode -eq 2) -Detail $cliBadOption.Text
     # A dry run registers and writes nothing; it shows the task and launcher the install would get.
     $autostart = Invoke-CheckScript -Path (Join-Path $app 'scripts\install-autostart.ps1') -Arguments @('-DryRun')
@@ -183,15 +183,15 @@ try {
     $startInfo.CreateNoWindow = $true
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
-    foreach ($name in $HomebaseEnvNames) { $startInfo.EnvironmentVariables.Remove($name) }
-    $startInfo.EnvironmentVariables['HOMEBASE_PORT'] = "$port"
-    $startInfo.EnvironmentVariables['HOMEBASE_DATA_DIR'] = $dataDir
+    foreach ($name in $PortlyEnvNames) { $startInfo.EnvironmentVariables.Remove($name) }
+    $startInfo.EnvironmentVariables['PORTLY_PORT'] = "$port"
+    $startInfo.EnvironmentVariables['PORTLY_DATA_DIR'] = $dataDir
     $server = [System.Diagnostics.Process]::Start($startInfo)
     $stdout = $server.StandardOutput.ReadToEndAsync()
     $stderr = $server.StandardError.ReadToEndAsync()
     $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
     $healthVersion = "$($health.Version)"
-    Assert-That -Name "the installed server answers /api/health as Homebase $version" -Condition (
+    Assert-That -Name "the installed server answers /api/health as Portly $version" -Condition (
         $health.Ok -and $healthVersion -eq $version) -Detail "$(Format-HbHealth $health)"
     $page = $null
     try { $page = Invoke-WebRequest -Uri "http://localhost:$port/" -UseBasicParsing -TimeoutSec 10 } catch { }
@@ -200,26 +200,26 @@ try {
     $null = $server.WaitForExit(10000)
     if (-not $health.Ok) { Write-Host ($stdout.Result + $stderr.Result) -ForegroundColor DarkYellow }
     Assert-That -Name 'the server created its database in the temporary data folder' -Condition (
-        Test-Path -LiteralPath (Join-Path $dataDir 'homebase.db') -PathType Leaf)
+        Test-Path -LiteralPath (Join-Path $dataDir 'portly.db') -PathType Leaf)
 
     Write-Host ''
     Write-Host 'Update' -ForegroundColor White
     $again = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip) + $common)
     Assert-That -Name 'install.ps1 again: already installed, nothing changes' -Condition (
-        $again.ExitCode -eq 0 -and $again.Text.Contains("Homebase $version is already installed") -and
+        $again.ExitCode -eq 0 -and $again.Text.Contains("Portly $version is already installed") -and
         -not (Test-Path -LiteralPath (Join-Path $installDir 'app.previous'))) -Detail $again.Text
 
     $update = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip, '-Force') + $common)
     $previous = Join-Path $installDir 'app.previous'
-    $backups = @(Get-ChildItem -LiteralPath (Join-Path $dataDir 'backups') -Filter 'homebase-before-*.db' -File -ErrorAction SilentlyContinue)
+    $backups = @(Get-ChildItem -LiteralPath (Join-Path $dataDir 'backups') -Filter 'portly-before-*.db' -File -ErrorAction SilentlyContinue)
     Assert-That -Name 'install.ps1 -Force updates: old version kept in app.previous, new one in app\' -Condition (
-        $update.ExitCode -eq 0 -and $update.Text.Contains("Updated Homebase $version -> $version") -and
+        $update.ExitCode -eq 0 -and $update.Text.Contains("Updated Portly $version -> $version") -and
         $null -ne (Get-HbReleaseInfo -RepoRoot $previous) -and $null -ne (Get-HbReleaseInfo -RepoRoot $app) -and
         -not (Test-Path -LiteralPath (Join-Path $installDir 'app.new'))) -Detail $update.Text
     Assert-That -Name 'the update copied the database to backups\ first' -Condition ($backups.Count -eq 1) -Detail ($backups | Out-String)
     Assert-That -Name 'after the update app\ is linked to its own shared folder, app.previous to nothing' -Condition (
-        (Test-Junction -Path (Join-Path $app 'node_modules\@homebase\shared') -Target (Join-Path $app 'shared')) -and
-        $null -eq (Get-HbEntryAttributes -Path (Join-Path $previous 'node_modules\@homebase\shared')))
+        (Test-Junction -Path (Join-Path $app 'node_modules\@portly\shared') -Target (Join-Path $app 'shared')) -and
+        $null -eq (Get-HbEntryAttributes -Path (Join-Path $previous 'node_modules\@portly\shared')))
 
     $second = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip, '-Force') + $common)
     Assert-That -Name 'a second update replaces app.previous and leaves app\shared intact' -Condition (
@@ -241,8 +241,8 @@ try {
     $other = Join-Path $workDir 'other'
     $null = New-Item -ItemType Directory -Path (Join-Path $other 'app') -Force
     $notOurs = Invoke-CheckScript -Path $installScript -Arguments @('-ZipPath', $zip, '-InstallDir', $other, '-SkipAutostart', '-SkipCli', '-NoBrowser')
-    Assert-That -Name 'an app folder that is not a Homebase release is left alone' -Condition (
-        $notOurs.ExitCode -eq 1 -and $notOurs.Text.Contains('is not a Homebase release install')) -Detail $notOurs.Text
+    Assert-That -Name 'an app folder that is not a Portly release is left alone' -Condition (
+        $notOurs.ExitCode -eq 1 -and $notOurs.Text.Contains('is not a Portly release install')) -Detail $notOurs.Text
     $dry = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip, '-Force', '-DryRun') + $common)
     Assert-That -Name 'install.ps1 -DryRun changes nothing' -Condition (
         $dry.ExitCode -eq 0 -and $dry.Text.Contains('Dry run finished') -and

@@ -3,7 +3,7 @@
  * (uploads.test.ts on the server side, over the blob store and the uploads slice).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UploadResponse } from '@homebase/shared';
+import type { UploadResponse } from '@portly/shared';
 import { IMAGE_SAMPLES } from '../lib/__fixtures__/images.ts';
 import { isUuidV4 } from '../lib/ids.ts';
 import { getUploads } from '../slices.ts';

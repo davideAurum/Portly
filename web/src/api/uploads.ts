@@ -2,7 +2,7 @@
  * Image uploads (§7 Core `POST /api/uploads`, multipart ≤ 10 MB). The server sniffs the content
  * type from magic bytes; the client pre-checks type and size only to give fast feedback.
  */
-import { UploadResponseSchema, uploadUrl, type UploadResponse } from '@homebase/shared';
+import { UploadResponseSchema, uploadUrl, type UploadResponse } from '@portly/shared';
 import { apiPost } from './client.ts';
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;

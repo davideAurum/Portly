@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Settings } from '@homebase/shared';
+import type { Settings } from '@portly/shared';
 import { settings as makeSettings } from '../../test/fixtures.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import {

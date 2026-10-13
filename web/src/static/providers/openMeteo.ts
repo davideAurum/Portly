@@ -32,7 +32,7 @@ import {
   type WeatherReport,
   type WeatherUnits,
   type WindUnit,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { fetchTextCapped, upstreamFailure, type FetchLike } from '../lib/fetch.ts';
 import { StaticApiError } from '../respond.ts';
 import { errorName, hostOf, recordProviderFailure, statusFailureCode, stopwatch, transportFailureCode } from './diagnostics.ts';
@@ -76,7 +76,7 @@ export const DAILY_VARIABLES = [
   'sunset',
 ] as const;
 
-/** Homebase unit → Open-Meteo query value. */
+/** Portly unit → Open-Meteo query value. */
 export const OPEN_METEO_UNITS = {
   temperature: { C: 'celsius', F: 'fahrenheit' } satisfies Record<TemperatureUnit, string>,
   wind: { kmh: 'kmh', mph: 'mph', ms: 'ms' } satisfies Record<WindUnit, string>,

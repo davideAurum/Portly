@@ -1,6 +1,6 @@
-# Homebase
+# Portly
 
-Homebase is a single-user, highly customizable browser home page — a "portal to the internet" that
+Portly is a single-user, highly customizable browser home page — a "portal to the internet" that
 runs entirely on your own Windows 11 PC. A small Node.js server bound to loopback serves the
 dashboard and holds every credential; a tiny browser extension makes it the New Tab page in Chrome
 and Edge. There is no cloud service: the only outside traffic is to the providers you connect.
@@ -36,7 +36,7 @@ and Edge. There is no cloud service: the only outside traffic is to the provider
  | checks /api/health | redirect |  - serves the React app           |      | Yahoo, CalDAV,  |
  | and redirects      |          |  - JSON API /api/*                |      | IMAP, Todoist,  |
  +--------------------+          |  - SQLite + DPAPI-protected vault |      | Open-Meteo, ... |
- | Homebase web app   |<-------->|  - sync scheduler, OAuth, fetch   |      +-----------------+
+ | Portly web app     |<-------->|  - sync scheduler, OAuth, fetch   |      +-----------------+
  +--------------------+   /api   +-----------------------------------+
                                    started by Task Scheduler when the
                                    extension's launcher asks (browser
@@ -58,11 +58,11 @@ The full design, including the security model, is in
 
 ### Security in one paragraph
 
-The server only listens on loopback, checks the `Host` header, requires `X-Homebase: 1` plus
+The server only listens on loopback, checks the `Host` header, requires `X-Portly: 1` plus
 same-origin fetch metadata on API calls, sends CORS headers to nobody but the one Pages site you
-configure (and answers it only for browsers paired on Homebase's own page, with a token on every
-request; the paired site can do everything Homebase's own page does except approve a new pairing —
-see [Pages site with Homebase on this PC](docs/setup/pages-local-server.md#security-one-site-every-page-on-it)),
+configure (and answers it only for browsers paired on Portly's own page, with a token on every
+request; the paired site can do everything Portly's own page does except approve a new pairing —
+see [Pages site with Portly on this PC](docs/setup/pages-local-server.md#security-one-site-every-page-on-it)),
 serves the app with a strict Content-Security-Policy (no inline or eval'd script), stores
 credentials encrypted with a DPAPI-protected key and never returns them to the browser, treats every
 email, calendar feed and favicon as hostile input, and fetches untrusted URLs only through a guarded
@@ -82,8 +82,8 @@ irm https://davideaurum.github.io/install.ps1 | iex
 ```
 
 installs the latest release package (its own Node.js included; no Git, npm or administrator rights)
-into `%LOCALAPPDATA%\Programs\Homebase`, with autostart and the `homebase` command;
-`homebase --update` updates it. Details: [docs/SETUP.md](docs/SETUP.md#install); building and
+into `%LOCALAPPDATA%\Programs\Portly`, with autostart and the `portly` command;
+`portly --update` updates it. Details: [docs/SETUP.md](docs/SETUP.md#install); building and
 publishing releases: [docs/setup/releases.md](docs/setup/releases.md).
 
 ## Quick start (from the source code)
@@ -94,7 +94,7 @@ npm run build
 npm start        # http://localhost:5757
 ```
 
-On a new PC, `scripts\setup.ps1` does all of this plus Node/Git, autostart and the `homebase`
+On a new PC, `scripts\setup.ps1` does all of this plus Node/Git, autostart and the `portly`
 command in one go ([one-command setup](docs/SETUP.md#one-command-setup-on-a-new-pc)).
 
 Then [install the extension](docs/setup/extension.md), [turn on autostart](docs/setup/autostart.md)
@@ -102,13 +102,13 @@ and [connect your accounts](docs/SETUP.md#connect-your-accounts).
 
 ## Browser-only build
 
-Homebase can also be built as plain files that run entirely in the browser — no server, hosted on
+Portly can also be built as plain files that run entirely in the browser — no server, hosted on
 GitHub Pages — with search, bookmarks, clock, weather, Todoist, themes, profiles and export/import.
 Calendar, mail and accounts need the server and are left out; your data lives in that browser's
 storage (IndexedDB), moved between computers with export/import.
 
 ```powershell
-npm run build:static     # web\dist-static; set HOMEBASE_STATIC_BASE=/<repo>/ for a project site
+npm run build:static     # web\dist-static; set PORTLY_STATIC_BASE=/<repo>/ for a project site
 npm run preview:static   # http://localhost:5173 (localhost only)
 ```
 
@@ -117,23 +117,23 @@ Publishing goes to a separate **public** repository made for the site (a new, em
 `.github\workflows\static-pages.yml`. What is and isn't available, where the data lives and the
 privacy notes are in [docs/setup/static-build.md](docs/setup/static-build.md).
 
-**Hybrid mode.** When Homebase also runs on the PC, the published site can use it: a browser paired
-once on Homebase's own page gets Homebase's data and every feature while it runs, and the site's own
+**Hybrid mode.** When Portly also runs on the PC, the published site can use it: a browser paired
+once on Portly's own page gets Portly's data and every feature while it runs, and the site's own
 in-browser copy otherwise (two separate datasets, no sync). The new-tab extension follows
-Homebase on this PC: it opens the Pages site when the server has one. Set-up: [docs/setup/pages-local-server.md](docs/setup/pages-local-server.md)
-(server: `HOMEBASE_PAGES_URL`; build: `HOMEBASE_STATIC_SERVER`, default `http://127.0.0.1:5757`,
+Portly on this PC: it opens the Pages site when the server has one. Set-up: [docs/setup/pages-local-server.md](docs/setup/pages-local-server.md)
+(server: `PORTLY_PAGES_URL`; build: `PORTLY_STATIC_SERVER`, default `http://127.0.0.1:5757`,
 `off` to disable).
 
 ## Repository layout
 
 | Path         | Package            | What it is                                                |
 | ------------ | ------------------ | --------------------------------------------------------- |
-| `shared/`    | `@homebase/shared` | API contracts: TypeScript types + zod schemas             |
-| `server/`    | `@homebase/server` | Hono + `node:sqlite` server, run directly from TypeScript |
-| `web/`       | `@homebase/web`    | React 19 + Vite 8 single-page app                         |
+| `shared/`    | `@portly/shared` | API contracts: TypeScript types + zod schemas             |
+| `server/`    | `@portly/server` | Hono + `node:sqlite` server, run directly from TypeScript |
+| `web/`       | `@portly/web`    | React 19 + Vite 8 single-page app                         |
 | `extension/` | —                  | Manifest V3 new-tab extension (plain JS)                  |
 | `scripts/`   | —                  | PowerShell start/autostart/status scripts and checks      |
-| `native-host/` | —                | Native messaging host the extension uses to start Homebase |
+| `native-host/` | —                | Native messaging host the extension uses to start Portly |
 | `docs/`      | —                  | Architecture and setup guides                             |
 
 ## npm scripts
@@ -141,9 +141,9 @@ Homebase on this PC: it opens the Pages site when the server has one. Set-up: [d
 | Command             | What it does                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------ |
 | `npm ci`            | Install exactly what `package-lock.json` pins (install scripts are disabled in `.npmrc`).        |
-| `npm run dev`       | Server with `node --watch` (`HOMEBASE_DEV=1`) plus the Vite dev server; open the Vite URL.       |
+| `npm run dev`       | Server with `node --watch` (`PORTLY_DEV=1`) plus the Vite dev server; open the Vite URL.       |
 | `npm run build`     | Build the web app to `web/dist` (the server needs no build).                                     |
-| `npm run build:static` | Build the browser-only app to `web/dist-static` (`vite build --mode static`; `HOMEBASE_STATIC_BASE` sets the URL prefix). See [docs/setup/static-build.md](docs/setup/static-build.md). |
+| `npm run build:static` | Build the browser-only app to `web/dist-static` (`vite build --mode static`; `PORTLY_STATIC_BASE` sets the URL prefix). See [docs/setup/static-build.md](docs/setup/static-build.md). |
 | `npm run preview:static` | Serve `web/dist-static` at `http://localhost:5173` to check it (localhost only).           |
 | `npm start`         | Run the server (`node server/src/index.ts`), serving `web/dist`; fails clearly if it is missing. |
 | `npm run typecheck` | `tsc --noEmit` for shared, server and web.                                                       |
@@ -159,12 +159,12 @@ Run PowerShell scripts as `powershell -NoProfile -ExecutionPolicy Bypass -File .
 | Command | What it does |
 | --- | --- |
 | `scripts\start.ps1` | Foreground run with checks: Node version, builds `web\dist` if missing, refuses to start twice. `-Port`, `-DataDir`, `-Rebuild`. |
-| `scripts\install-autostart.ps1` | Registers the **Homebase Server** scheduled task and the native messaging host `com.homebase.launcher` (Chrome + Edge, per user), so the extension starts Homebase when the browser opens or a new tab needs it (`-Trigger Logon`: at sign-in instead). Starts it and waits for `/api/health`. `-DryRun` prints the task, every file and registry value without changing anything. |
-| `scripts\uninstall-autostart.ps1` | Stops Homebase, removes the task and the native host; leaves your data alone. |
+| `scripts\install-autostart.ps1` | Registers the **Portly Server** scheduled task and the native messaging host `com.portly.launcher` (Chrome + Edge, per user), so the extension starts Portly when the browser opens or a new tab needs it (`-Trigger Logon`: at sign-in instead). Starts it and waits for `/api/health`. `-DryRun` prints the task, every file and registry value without changing anything. |
+| `scripts\uninstall-autostart.ps1` | Stops Portly, removes the task and the native host; leaves your data alone. |
 | `scripts\status.ps1` | Task state and mode, native host registration, processes, health, data folder and logs (`-LogLines N`). |
 | `scripts\publish-static.ps1` | Builds the browser-only app and publishes it to a local clone of your public GitHub Pages repository (`-PublicRepoPath`, `-Base`, `-Message`, `-DryRun`, `-NoPush`, `-ReplaceEverything`). It replaces everything in that repository, so use a new, empty one made for the site. |
-| `scripts\install.ps1` | Installs a release package, or updates an installed one (what `irm <site>/install.ps1 \| iex` and `homebase --update` run): `-Version`, `-ZipPath`, `-PagesUrl`, `-Force`, `-DryRun`. See [releases.md](docs/setup/releases.md). |
-| `scripts\build-release.ps1` | Builds `dist-release\homebase-<version>-win-x64.zip` and `homebase-release.json` (production dependencies, the pinned Node.js runtime). `-NodeExe` and `-AllowDirty` for test builds. |
+| `scripts\install.ps1` | Installs a release package, or updates an installed one (what `irm <site>/install.ps1 \| iex` and `portly --update` run): `-Version`, `-ZipPath`, `-PagesUrl`, `-Force`, `-DryRun`. See [releases.md](docs/setup/releases.md). |
+| `scripts\build-release.ps1` | Builds `dist-release\portly-<version>-win-x64.zip` and `portly-release.json` (production dependencies, the pinned Node.js runtime). `-NodeExe` and `-AllowDirty` for test builds. |
 | `scripts\check-release.ps1` | Builds (or takes `-ZipPath`) a package and checks install, start, update and refusals in a temporary folder. |
 | `scripts\publish-release.ps1` | Publishes the built package as a release of this repository with `gh` (`-DryRun`). |
 | `scripts\check-scripts.ps1` | Self-checks for the PowerShell scripts (parse in 5.1 and 7, unit checks, dry runs). |
@@ -178,17 +178,17 @@ All configuration comes from environment variables (see `server/src/config.ts`):
 
 | Variable             | Default                   | Meaning                                               |
 | -------------------- | ------------------------- | ----------------------------------------------------- |
-| `HOMEBASE_PORT`      | `5757`                    | Server port                                           |
-| `HOMEBASE_BIND`      | `127.0.0.1,::1`           | Listener addresses                                    |
-| `HOMEBASE_ORIGIN`    | `http://localhost:<port>` | Public origin (host/origin allowlists derive from it) |
-| `HOMEBASE_DATA_DIR`  | `%LOCALAPPDATA%\Homebase` | Database, vault key, logs, backups                    |
-| `HOMEBASE_DEV`       | `0`                       | Dev mode (allows the Vite dev server origin)          |
-| `HOMEBASE_VITE_PORT` | `5173`                    | Vite dev server port                                  |
-| `HOMEBASE_PAGES_URL` | *(unset: off)*            | The Pages site that paired browsers may use Homebase from (hybrid mode); `https://`, or `http://` on loopback |
-| `HOMEBASE_LOG_LEVEL` | `info` (`debug` in dev)   | Normal log level: `debug`, `info` or `warn` (Settings → Diagnostics can switch to Verbose for a while) |
+| `PORTLY_PORT`      | `5757`                    | Server port                                           |
+| `PORTLY_BIND`      | `127.0.0.1,::1`           | Listener addresses                                    |
+| `PORTLY_ORIGIN`    | `http://localhost:<port>` | Public origin (host/origin allowlists derive from it) |
+| `PORTLY_DATA_DIR`  | `%LOCALAPPDATA%\Portly` | Database, vault key, logs, backups                    |
+| `PORTLY_DEV`       | `0`                       | Dev mode (allows the Vite dev server origin)          |
+| `PORTLY_VITE_PORT` | `5173`                    | Vite dev server port                                  |
+| `PORTLY_PAGES_URL` | *(unset: off)*            | The Pages site that paired browsers may use Portly from (hybrid mode); `https://`, or `http://` on loopback |
+| `PORTLY_LOG_LEVEL` | `info` (`debug` in dev)   | Normal log level: `debug`, `info` or `warn` (Settings → Diagnostics can switch to Verbose for a while) |
 
-Build-time, for `npm run build:static` only: `HOMEBASE_STATIC_BASE` (URL prefix, default `/`) and
-`HOMEBASE_STATIC_SERVER` (where the site looks for Homebase on this PC, default
+Build-time, for `npm run build:static` only: `PORTLY_STATIC_BASE` (URL prefix, default `/`) and
+`PORTLY_STATIC_SERVER` (where the site looks for Portly on this PC, default
 `http://127.0.0.1:5757`; `off` disables hybrid mode; loopback addresses only).
 
 ## Documentation
@@ -200,7 +200,7 @@ Build-time, for `npm run build:static` only: `HOMEBASE_STATIC_BASE` (URL prefix,
 - [New-tab extension](docs/setup/extension.md) · [Autostart](docs/setup/autostart.md) ·
   [Troubleshooting](docs/setup/troubleshooting.md)
 - [Browser-only build on GitHub Pages](docs/setup/static-build.md) ·
-  [Pages site with Homebase on this PC](docs/setup/pages-local-server.md)
+  [Pages site with Portly on this PC](docs/setup/pages-local-server.md)
 - [Architecture](docs/ARCHITECTURE.md)
 
 ## License

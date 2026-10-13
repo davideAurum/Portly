@@ -21,7 +21,7 @@
  * `upstreamStatus` and turned into a health code by `outcomeFromError` — and Todoist's
  * `error_tag` when it is a machine token. Requests pass `purpose: 'todoist.<purpose>'` to safe-fetch.
  */
-import { REASON_TOKEN, type ErrorCode } from '@homebase/shared';
+import { REASON_TOKEN, type ErrorCode } from '@portly/shared';
 import { HttpError } from '../../lib/errors.ts';
 import type { Logger } from '../../lib/logger.ts';
 import { SIZE_CAPS, type SafeFetch } from '../../security/safe-fetch.ts';

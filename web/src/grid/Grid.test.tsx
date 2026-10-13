@@ -105,18 +105,18 @@ describe('Grid', () => {
 
   it('marks <html> while edit mode is on, so a backend switch waits for the user to finish', async () => {
     const { unmount } = await renderDashboard();
-    expect(document.documentElement.dataset.homebaseEditing).toBeUndefined();
+    expect(document.documentElement.dataset.portlyEditing).toBeUndefined();
     await enterEditMode();
-    expect(document.documentElement.dataset.homebaseEditing).toBe('true');
+    expect(document.documentElement.dataset.portlyEditing).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-    expect(document.documentElement.dataset.homebaseEditing).toBeUndefined();
-    expect(document.documentElement.hasAttribute('data-homebase-editing')).toBe(false);
+    expect(document.documentElement.dataset.portlyEditing).toBeUndefined();
+    expect(document.documentElement.hasAttribute('data-portly-editing')).toBe(false);
 
     await enterEditMode();
-    expect(document.documentElement.dataset.homebaseEditing).toBe('true');
+    expect(document.documentElement.dataset.portlyEditing).toBe('true');
     // Leaving the dashboard (unmounting the provider) clears it too.
     unmount();
-    expect(document.documentElement.hasAttribute('data-homebase-editing')).toBe(false);
+    expect(document.documentElement.hasAttribute('data-portly-editing')).toBe(false);
   });
 
   it('saves changed positions with one debounced PUT /positions (never PATCH) in edit mode', async () => {

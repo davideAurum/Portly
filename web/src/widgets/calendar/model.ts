@@ -4,7 +4,7 @@
  * conversions/validation. All-day events are `YYYY-MM-DD` with an exclusive end; timed events are
  * ISO instants shown in the browser's zone.
  */
-import { isSafeHttpUrl, type Calendar, type CalendarEvent } from '@homebase/shared';
+import { isSafeHttpUrl, type Calendar, type CalendarEvent } from '@portly/shared';
 
 export type CalendarView = 'agenda' | 'week' | 'month';
 export type WeekStart = 0 | 1 | 6;

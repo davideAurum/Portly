@@ -7,7 +7,7 @@
  * route: the security-headers middleware adds the sandbox CSP and `Cache-Control: private,
  * max-age=86400`.
  */
-import { uploadUrl, type ImageContentType, type UploadResponse } from '@homebase/shared';
+import { uploadUrl, type ImageContentType, type UploadResponse } from '@portly/shared';
 import type { Db } from '../../db/open.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { isUuidV4, newId } from '../../lib/ids.ts';

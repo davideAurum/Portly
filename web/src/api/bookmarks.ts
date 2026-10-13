@@ -20,7 +20,7 @@ import type {
   BookmarkUpdate,
   BrowserImport,
   SiteMeta,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { getCapabilities } from '../capabilities.ts';
 import { toastError } from '../ui/toast.ts';
 import { apiDelete, apiGet, apiPatch, apiPath, apiPost } from './client.ts';

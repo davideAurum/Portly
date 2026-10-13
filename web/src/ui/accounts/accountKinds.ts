@@ -1,6 +1,6 @@
 /** Display metadata for account kinds and capabilities. */
 import { CalendarDays, Mail, type LucideIcon } from 'lucide-react';
-import { isOAuthProvider, type AccountKind, type Capability } from '@homebase/shared';
+import { isOAuthProvider, type AccountKind, type Capability } from '@portly/shared';
 
 export const ACCOUNT_KIND_LABELS: Readonly<Record<AccountKind, string>> = Object.freeze({
   google: 'Google',

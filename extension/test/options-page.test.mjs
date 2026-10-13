@@ -52,7 +52,7 @@ describe('options page', () => {
   it('shows the stored port (or the default)', async () => {
     const stored = await setup({ storage: createStorage({ port: 6123 }) });
     assert.equal(stored.$('port').value, '6123');
-    assert.equal(stored.document.querySelector('[data-homebase-url]').textContent, 'http://localhost:6123');
+    assert.equal(stored.document.querySelector('[data-portly-url]').textContent, 'http://localhost:6123');
 
     const fresh = await setup();
     assert.equal(fresh.$('port').value, '5757');
@@ -67,7 +67,7 @@ describe('options page', () => {
     assert.equal(t.$('port').value, '5800');
     assert.equal(t.$('status').textContent, 'Saved. New tabs will open http://localhost:5800.');
     assert.equal(t.$('port-error').hidden, true);
-    assert.equal(t.document.querySelector('[data-homebase-url]').textContent, 'http://localhost:5800');
+    assert.equal(t.document.querySelector('[data-portly-url]').textContent, 'http://localhost:5800');
   });
 
   it('with the Pages target, says what the port is for', async () => {
@@ -76,11 +76,11 @@ describe('options page', () => {
     submit(t);
     await flush();
     assert.deepEqual(t.storage.data, { port: 5800 });
-    assert.equal(t.$('status').textContent, 'Saved. The extension looks for Homebase on this PC at http://localhost:5800.');
-    for (const node of t.document.querySelectorAll('[data-homebase-url]')) assert.equal(node.textContent, 'http://localhost:5800');
-    // The Pages site looks for Homebase at the address it was built with, never at this port.
+    assert.equal(t.$('status').textContent, 'Saved. The extension looks for Portly on this PC at http://localhost:5800.');
+    for (const node of t.document.querySelectorAll('[data-portly-url]')) assert.equal(node.textContent, 'http://localhost:5800');
+    // The Pages site looks for Portly at the address it was built with, never at this port.
     const pagesSummary = t.document.querySelector('[data-summary="pages"]');
-    assert.equal(pagesSummary.querySelector('[data-homebase-url]'), null);
+    assert.equal(pagesSummary.querySelector('[data-portly-url]'), null);
     assert.doesNotMatch(pagesSummary.textContent, /5800/);
   });
 
@@ -130,7 +130,7 @@ describe('options page', () => {
     t.$('test').click();
     await flush();
     assert.equal(t.fetch.calls[0].url, 'http://localhost:6100/api/health');
-    assert.equal(t.$('status').textContent, 'Homebase is running on port 6100 (version 0.1.0).');
+    assert.equal(t.$('status').textContent, 'Portly is running on port 6100 (version 0.1.0).');
     assert.equal(t.$('test').disabled, false);
     assert.deepEqual(t.storage.calls.set, []);
   });
@@ -167,13 +167,13 @@ describe('options page: what a new tab opens', () => {
     radio(t, value).click(); // checks it and fires "change"
   }
 
-  it('defaults to following Homebase on this PC, with no built-in Pages address', async () => {
+  it('defaults to following Portly on this PC, with no built-in Pages address', async () => {
     const t = await setup();
     assert.equal(radio(t, 'auto').checked, true);
     assert.equal(radio(t, 'pages').checked, false);
     assert.equal(radio(t, 'local').checked, false);
     assert.deepEqual(visibleSummary(t), ['auto']);
-    assert.equal(autoText(t), 'Homebase itself, http://localhost:5757, until it answers this browser');
+    assert.equal(autoText(t), 'Portly itself, http://localhost:5757, until it answers this browser');
     assert.equal(t.$('pages-url').value, '');
     assert.equal(t.$('pages-url').placeholder, '');
     assert.match(pagesText(t), /^not set yet/);
@@ -182,22 +182,22 @@ describe('options page: what a new tab opens', () => {
     assert.deepEqual(t.storage.calls.set, [], 'opening the page saves nothing');
   });
 
-  it('shows what Homebase on this PC reported', async () => {
+  it('shows what Portly on this PC reported', async () => {
     const withSite = await setup({ storage: createStorage(known(SITE)) });
     assert.equal(autoText(withSite), `its Pages site, ${SITE}`);
     assert.equal(withSite.$('pages-url').placeholder, SITE);
     assert.equal(pagesText(withSite), SITE);
     const withoutSite = await setup({ storage: createStorage(known(null)) });
-    assert.equal(autoText(withoutSite), 'Homebase itself, http://localhost:5757');
+    assert.equal(autoText(withoutSite), 'Portly itself, http://localhost:5757');
     const otherPort = await setup({ storage: createStorage({ port: 6001, ...known(SITE) }) });
-    assert.equal(autoText(otherPort), 'Homebase itself, http://localhost:6001, until it answers this browser');
+    assert.equal(autoText(otherPort), 'Portly itself, http://localhost:6001, until it answers this browser');
   });
 
   it('shows the stored choice and address', async () => {
-    const t = await setup({ storage: createStorage({ target: 'local', pagesUrl: 'https://me.github.io/homebase-pages/' }) });
+    const t = await setup({ storage: createStorage({ target: 'local', pagesUrl: 'https://me.github.io/portly-pages/' }) });
     assert.equal(radio(t, 'local').checked, true);
     assert.deepEqual(visibleSummary(t), ['local']);
-    assert.equal(t.$('pages-url').value, 'https://me.github.io/homebase-pages/');
+    assert.equal(t.$('pages-url').value, 'https://me.github.io/portly-pages/');
   });
 
   it('shows the defaults for invalid stored values', async () => {
@@ -211,7 +211,7 @@ describe('options page: what a new tab opens', () => {
     choose(t, 'local');
     await flush();
     assert.deepEqual(t.storage.data, { port: 6001, target: 'local' });
-    assert.equal(t.$('newtab-status').textContent, 'Saved. New tabs will open Homebase on this PC, http://localhost:6001.');
+    assert.equal(t.$('newtab-status').textContent, 'Saved. New tabs will open Portly on this PC, http://localhost:6001.');
     assert.equal(t.$('newtab-status').classList.contains('status-ok'), true);
     assert.deepEqual(visibleSummary(t), ['local']);
 
@@ -220,7 +220,7 @@ describe('options page: what a new tab opens', () => {
     assert.equal(t.storage.data.target, 'pages');
     assert.equal(
       t.$('newtab-status').textContent,
-      'Saved. Enter the Pages site address below; until then new tabs open Homebase on this PC.',
+      'Saved. Enter the Pages site address below; until then new tabs open Portly on this PC.',
     );
     assert.deepEqual(visibleSummary(t), ['pages']);
 
@@ -229,7 +229,7 @@ describe('options page: what a new tab opens', () => {
     assert.equal(t.storage.data.target, 'auto');
     assert.equal(
       t.$('newtab-status').textContent,
-      'Saved. New tabs will follow Homebase on this PC: Homebase itself, http://localhost:6001, until it answers this browser.',
+      'Saved. New tabs will follow Portly on this PC: Portly itself, http://localhost:6001, until it answers this browser.',
     );
     assert.deepEqual(visibleSummary(t), ['auto']);
   });
@@ -241,7 +241,7 @@ describe('options page: what a new tab opens', () => {
     assert.equal(t.$('newtab-status').textContent, `Saved. New tabs will open the Pages site, ${SITE}.`);
     choose(t, 'auto');
     await flush();
-    assert.equal(t.$('newtab-status').textContent, `Saved. New tabs will follow Homebase on this PC: its Pages site, ${SITE}.`);
+    assert.equal(t.$('newtab-status').textContent, `Saved. New tabs will follow Portly on this PC: its Pages site, ${SITE}.`);
   });
 
   it('puts the previous choice back when saving fails', async () => {
@@ -263,14 +263,14 @@ describe('options page: what a new tab opens', () => {
 
   it('saves a valid Pages site address, normalised', async () => {
     const t = await setup({ storage: createStorage({ target: 'pages' }) });
-    t.$('pages-url').value = '  https://Me.GitHub.io/homebase-pages  ';
+    t.$('pages-url').value = '  https://Me.GitHub.io/portly-pages  ';
     t.$('pages-form').dispatchEvent(new t.window.Event('submit', { bubbles: true, cancelable: true }));
     await flush();
-    assert.deepEqual(t.storage.data, { target: 'pages', pagesUrl: 'https://me.github.io/homebase-pages/' });
-    assert.equal(t.$('pages-url').value, 'https://me.github.io/homebase-pages/');
+    assert.deepEqual(t.storage.data, { target: 'pages', pagesUrl: 'https://me.github.io/portly-pages/' });
+    assert.equal(t.$('pages-url').value, 'https://me.github.io/portly-pages/');
     assert.equal(t.$('pages-url-error').hidden, true);
-    assert.equal(t.$('newtab-status').textContent, 'Saved. New tabs will open the Pages site, https://me.github.io/homebase-pages/.');
-    assert.equal(pagesText(t), 'https://me.github.io/homebase-pages/');
+    assert.equal(t.$('newtab-status').textContent, 'Saved. New tabs will open the Pages site, https://me.github.io/portly-pages/.');
+    assert.equal(pagesText(t), 'https://me.github.io/portly-pages/');
   });
 
   it('accepts http only for a build on this PC', async () => {
@@ -315,7 +315,7 @@ describe('options page: what a new tab opens', () => {
     assert.equal(t.$('pages-url').hasAttribute('aria-invalid'), false);
   });
 
-  it('an empty address (or "Use the address Homebase reports") forgets the stored one', async () => {
+  it('an empty address (or "Use the address Portly reports") forgets the stored one', async () => {
     const t = await setup({ storage: createStorage({ target: 'pages', pagesUrl: 'https://other.example/', ...known(SITE) }) });
     t.$('pages-reset').click();
     await flush();
@@ -329,7 +329,7 @@ describe('options page: what a new tab opens', () => {
     auto.$('pages-url').value = '   ';
     assert.equal(await auto.page.savePagesUrl(), '');
     assert.deepEqual(auto.storage.data, {});
-    assert.equal(auto.$('newtab-status').textContent, 'Saved. "The Pages site" will use the address Homebase on this PC reports.');
+    assert.equal(auto.$('newtab-status').textContent, 'Saved. "The Pages site" will use the address Portly on this PC reports.');
   });
 
   it('reports storage failures for the address', async () => {
@@ -340,10 +340,10 @@ describe('options page: what a new tab opens', () => {
     assert.equal(t.page.savedPagesUrl, null);
   });
 
-  it('Test connection records the Pages site Homebase names and shows it', async () => {
+  it('Test connection records the Pages site Portly names and shows it', async () => {
     const t = await setup({ fetch: createFetch(() => jsonResponse({ ...HEALTHY, pagesUrl: SITE })) });
     assert.equal(await t.page.test().then((r) => r.ok), true);
-    assert.equal(t.$('status').textContent, `Homebase is running on port 5757 (version 0.1.0). Its Pages site: ${SITE}.`);
+    assert.equal(t.$('status').textContent, `Portly is running on port 5757 (version 0.1.0). Its Pages site: ${SITE}.`);
     assert.deepEqual(t.storage.data, known(SITE));
     assert.equal(autoText(t), `its Pages site, ${SITE}`);
     assert.equal(t.$('pages-url').placeholder, SITE);
@@ -352,9 +352,9 @@ describe('options page: what a new tab opens', () => {
     await none.page.test();
     assert.equal(
       none.$('status').textContent,
-      'Homebase is running on port 5757 (version 0.1.0). It has no Pages site (HOMEBASE_PAGES_URL is not set).',
+      'Portly is running on port 5757 (version 0.1.0). It has no Pages site (PORTLY_PAGES_URL is not set).',
     );
-    assert.equal(autoText(none), 'Homebase itself, http://localhost:5757');
+    assert.equal(autoText(none), 'Portly itself, http://localhost:5757');
   });
 
   it('fails loudly if options.html loses a choice', () => {
@@ -384,8 +384,8 @@ describe('options page: launcher', () => {
     assert.equal(t.$('test-launcher').disabled, true, 'busy while waiting');
     assert.equal(t.$('launcher-status').textContent, 'Asking the launcher…');
     await flush();
-    assert.deepEqual(t.runtime.calls, [{ host: 'com.homebase.launcher', message: { action: 'ping' } }]);
-    assert.equal(t.$('launcher-status').textContent, 'The launcher is installed and answering. New tabs can start Homebase.');
+    assert.deepEqual(t.runtime.calls, [{ host: 'com.portly.launcher', message: { action: 'ping' } }]);
+    assert.equal(t.$('launcher-status').textContent, 'The launcher is installed and answering. New tabs can start Portly.');
     assert.equal(t.$('launcher-status').classList.contains('status-ok'), true);
     assert.equal(t.$('test-launcher').disabled, false);
     assert.deepEqual(t.storage.calls.set, [], 'testing never saves anything');
@@ -397,7 +397,7 @@ describe('options page: launcher', () => {
     assert.equal(result.status, 'not_installed');
     assert.equal(
       t.$('launcher-status').textContent,
-      "The launcher isn't installed. Run scripts\\install-autostart.ps1 in your Homebase folder (see docs\\setup\\autostart.md).",
+      "The launcher isn't installed. Run scripts\\install-autostart.ps1 in your Portly folder (see docs\\setup\\autostart.md).",
     );
     assert.equal(t.$('launcher-status').classList.contains('status-error'), true);
   });
@@ -468,7 +468,7 @@ describe('options page: launcher', () => {
     assert.equal(result.status, 'mismatch');
     assert.equal(
       t.$('launcher-status').textContent,
-      `The launcher only answers this extension's fixed ID (${PINNED_EXTENSION_ID}), but the browser still runs it under its old ID (${OLD_PATH_EXTENSION_ID}). On chrome://extensions (or edge://extensions), click Remove on Homebase New Tab, then Load unpacked and select the extension folder again.`,
+      `The launcher only answers this extension's fixed ID (${PINNED_EXTENSION_ID}), but the browser still runs it under its old ID (${OLD_PATH_EXTENSION_ID}). On chrome://extensions (or edge://extensions), click Remove on Portly New Tab, then Load unpacked and select the extension folder again.`,
     );
   });
 

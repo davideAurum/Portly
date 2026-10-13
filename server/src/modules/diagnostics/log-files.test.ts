@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LogRecordSchema } from '@homebase/shared';
+import { LogRecordSchema } from '@portly/shared';
 import { newId } from '../../lib/ids.ts';
 import { writeLines } from './__fixtures__/setup.ts';
 import { logFileCandidates, parseLogLine, readLogRecords, readRawTail, scanLinesBackwards, type RecordFilter } from './log-files.ts';
@@ -18,7 +18,7 @@ describe('log files', () => {
   let file: string;
 
   beforeEach(() => {
-    dir = path.join(os.tmpdir(), `homebase-logfiles-${newId()}`);
+    dir = path.join(os.tmpdir(), `portly-logfiles-${newId()}`);
     file = path.join(dir, 'server.log');
   });
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));

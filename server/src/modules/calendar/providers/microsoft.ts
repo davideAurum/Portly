@@ -7,7 +7,7 @@
  * `onlineMeeting.joinUrl`; `canEdit` → writable. Outbound purposes (logs, Diagnostics):
  * `graph.calendars`, `graph.calendarView`, `graph.events.create|update|delete`.
  */
-import { EVENT_TEXT_LIMITS, type Account, type EventInput, type EventUpdate } from '@homebase/shared';
+import { EVENT_TEXT_LIMITS, type Account, type EventInput, type EventUpdate } from '@portly/shared';
 import type { AppContext } from '../../../context.ts';
 import { HttpError } from '../../../lib/errors.ts';
 import { descriptionText } from '../text.ts';

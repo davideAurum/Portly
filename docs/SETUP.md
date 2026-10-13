@@ -1,6 +1,6 @@
-# Homebase setup
+# Portly setup
 
-Homebase runs on your own Windows PC: a small Node.js server on `localhost` serves the dashboard
+Portly runs on your own Windows PC: a small Node.js server on `localhost` serves the dashboard
 and keeps your account credentials (encrypted), and a tiny browser extension makes it your New Tab
 page. Nothing is hosted anywhere else and no account data leaves your PC except to the providers
 you connect.
@@ -15,7 +15,7 @@ Setup takes three parts — the first is enough to try it out:
 
 ## Install
 
-The release package carries everything Homebase needs, its own Node.js included: no Git, Node.js,
+The release package carries everything Portly needs, its own Node.js included: no Git, Node.js,
 npm or administrator rights. In PowerShell:
 
 ```powershell
@@ -23,13 +23,13 @@ irm https://davideaurum.github.io/install.ps1 | iex
 ```
 
 It downloads the latest release, checks its SHA-256, installs it into
-`%LOCALAPPDATA%\Programs\Homebase\app`, turns on autostart, installs the `homebase` command and opens
+`%LOCALAPPDATA%\Programs\Portly\app`, turns on autostart, installs the `portly` command and opens
 the browser's extensions page for the one manual step (**Developer mode** → **Load unpacked** →
-`%LOCALAPPDATA%\Programs\Homebase\app\extension`). Options, for example a Pages site:
+`%LOCALAPPDATA%\Programs\Portly\app\extension`). Options, for example a Pages site:
 `& ([scriptblock]::Create((irm https://davideaurum.github.io/install.ps1))) -PagesUrl https://<user>.github.io/`
 (`-DryRun` shows what it would do; all options: `Get-Help` on `scripts\install.ps1`).
 
-**Updating:** `homebase --update` installs the newest release: it copies your database to
+**Updating:** `portly --update` installs the newest release: it copies your database to
 `backups\` first, keeps the previous version in `app.previous`, and puts it back if the new one
 doesn't start. Click **Reload** on the extension when it says the extension changed. Details,
 and how releases are built and published: [Releases](setup/releases.md).
@@ -37,7 +37,7 @@ and how releases are built and published: [Releases](setup/releases.md).
 ## Requirements
 
 - Windows 11. The credential vault uses Windows DPAPI and autostart uses Task Scheduler.
-- Google Chrome or Microsoft Edge for the new-tab extension (any modern browser can open Homebase
+- Google Chrome or Microsoft Edge for the new-tab extension (any modern browser can open Portly
   directly).
 - From the source code only: [Node.js](https://nodejs.org/) **24 or newer** (includes npm 11; check
   with `node -v`) and [Git](https://git-scm.com/) to get and update the code.
@@ -47,8 +47,8 @@ and how releases are built and published: [Releases](setup/releases.md).
 ### One-command setup on a new PC
 
 `scripts\setup.ps1` does everything below that a script can do: installs Git and Node.js with
-winget when they are missing, clones Homebase into `%USERPROFILE%\Coding\Homebase`, installs and
-builds, turns on autostart, installs the `homebase` command, and opens the browser's extensions page
+winget when they are missing, clones Portly into `%USERPROFILE%\Coding\Portly`, installs and
+builds, turns on autostart, installs the `portly` command, and opens the browser's extensions page
 for the one manual step (Load unpacked → the `extension` folder). On a PC without the code, in
 PowerShell:
 
@@ -58,17 +58,17 @@ irm https://davideaurum.github.io/setup.ps1 | iex
 
 The Pages site carries a copy of the script (the static build adds it, so every publish updates
 it). With options:
-`& ([scriptblock]::Create((irm https://davideaurum.github.io/setup.ps1))) -InstallDir D:\Homebase -DryRun`.
+`& ([scriptblock]::Create((irm https://davideaurum.github.io/setup.ps1))) -InstallDir D:\Portly -DryRun`.
 In a checkout you already have:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 ```
 
-If you use a Homebase Pages site ([hybrid mode](setup/pages-local-server.md)), add
-`-PagesUrl https://<user>.github.io/`: setup saves it as `HOMEBASE_PAGES_URL` before it starts
-Homebase, and new tabs then open that site (the extension follows Homebase on this PC). Without it,
-new tabs open Homebase itself at `http://localhost:5757`. `-PagesUrl off` turns the Pages site off
+If you use a Portly Pages site ([hybrid mode](setup/pages-local-server.md)), add
+`-PagesUrl https://<user>.github.io/`: setup saves it as `PORTLY_PAGES_URL` before it starts
+Portly, and new tabs then open that site (the extension follows Portly on this PC). Without it,
+new tabs open Portly itself at `http://localhost:5757`. `-PagesUrl off` turns the Pages site off
 again.
 
 Accounts are not copied: the vault is encrypted for this PC's Windows user, so connect them again;
@@ -79,8 +79,8 @@ move layout and settings with **Settings → Export / Import**.
 In PowerShell:
 
 ```powershell
-git clone <your Homebase repository URL> Homebase
-cd Homebase
+git clone <your Portly repository URL> Portly
+cd Portly
 npm ci             # install exactly the locked dependencies (install scripts are disabled)
 npm run build      # build the web app into web\dist
 npm start          # start the server; press Ctrl+C to stop
@@ -100,19 +100,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ## Make it your New Tab page
 
 A release install has done step 2 already; load the extension from
-`%LOCALAPPDATA%\Programs\Homebase\app\extension`.
+`%LOCALAPPDATA%\Programs\Portly\app\extension`.
 
 1. **[Install the extension](setup/extension.md)** in Chrome or Edge (Developer mode →
-   Load unpacked → the `extension` folder). New tabs now follow Homebase on this PC: they open
+   Load unpacked → the `extension` folder). New tabs now follow Portly on this PC: they open
    `http://localhost:5757` — with a fallback page and search box when it isn't running — or, when
-   the server has a Pages site (`HOMEBASE_PAGES_URL`), that site, which uses Homebase on this PC
+   the server has a Pages site (`PORTLY_PAGES_URL`), that site, which uses Portly on this PC
    once you have paired the browser with it
-   ([Pages site with Homebase on this PC](setup/pages-local-server.md)). The extension's options
+   ([Pages site with Portly on this PC](setup/pages-local-server.md)). The extension's options
    can pin either page.
-2. **[Turn on autostart](setup/autostart.md)** so the browser starts Homebase for you — when
+2. **[Turn on autostart](setup/autostart.md)** so the browser starts Portly for you — when
    Chrome or Edge opens, and from a new tab if it still isn't running. This registers the
-   **Homebase Server** scheduled task and the small launcher the extension uses to run it (add
-   `-Trigger Logon` to start Homebase at every sign-in instead):
+   **Portly Server** scheduled task and the small launcher the extension uses to run it (add
+   `-Trigger Logon` to start Portly at every sign-in instead):
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1
@@ -140,7 +140,7 @@ calendar subscriptions in **Settings → Calendars**.
 | Todoist | — | — | [todoist.md](setup/todoist.md) — personal API token |
 | Weather | — | — | nothing to set up (Open-Meteo, no key); pick a location in the widget |
 
-Google and Microsoft require a one-time registration in their developer consoles because Homebase
+Google and Microsoft require a one-time registration in their developer consoles because Portly
 has no central server: the app is yours, used only by you. The guides walk through every screen.
 
 ## Configuration
@@ -150,24 +150,24 @@ environment variables so autostart sees them too):
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `HOMEBASE_PORT` | `5757` | Port. Also change it in the extension options, and add the matching Google redirect URI. |
-| `HOMEBASE_DATA_DIR` | `%LOCALAPPDATA%\Homebase` | Database, vault key, logs, backups. |
-| `HOMEBASE_BIND` | `127.0.0.1,::1` | Listen addresses (loopback only). |
-| `HOMEBASE_ORIGIN` | `http://localhost:<port>` | The URL you open Homebase at. |
-| `HOMEBASE_PAGES_URL` | *(unset: off)* | Your Homebase Pages site's address, e.g. `https://<user>.github.io/`. Browsers paired with Homebase may then use it from that site ([Pages site with Homebase on this PC](setup/pages-local-server.md)). |
-| `HOMEBASE_LOG_LEVEL` | `info` | How much the log keeps normally: `debug`, `info` or `warn`. For a while, **Settings → Diagnostics** can switch to Verbose instead ([Diagnostics page and logs](setup/troubleshooting.md#diagnostics-page-and-logs)). |
+| `PORTLY_PORT` | `5757` | Port. Also change it in the extension options, and add the matching Google redirect URI. |
+| `PORTLY_DATA_DIR` | `%LOCALAPPDATA%\Portly` | Database, vault key, logs, backups. |
+| `PORTLY_BIND` | `127.0.0.1,::1` | Listen addresses (loopback only). |
+| `PORTLY_ORIGIN` | `http://localhost:<port>` | The URL you open Portly at. |
+| `PORTLY_PAGES_URL` | *(unset: off)* | Your Portly Pages site's address, e.g. `https://<user>.github.io/`. Browsers paired with Portly may then use it from that site ([Pages site with Portly on this PC](setup/pages-local-server.md)). |
+| `PORTLY_LOG_LEVEL` | `info` | How much the log keeps normally: `debug`, `info` or `warn`. For a while, **Settings → Diagnostics** can switch to Verbose instead ([Diagnostics page and logs](setup/troubleshooting.md#diagnostics-page-and-logs)). |
 
 ## Your data
 
-Everything lives in `%LOCALAPPDATA%\Homebase`:
+Everything lives in `%LOCALAPPDATA%\Portly`:
 
 | Path | Contents |
 | --- | --- |
-| `homebase.db` | Settings, layouts, bookmarks, account list, cached calendar events, encrypted secrets |
+| `portly.db` | Settings, layouts, bookmarks, account list, cached calendar events, encrypted secrets |
 | `vault.key` | The key that encrypts stored credentials, protected by Windows for your user |
 | `logs\server.log` | Server log, one JSON record per line (no passwords, tokens, message contents or full addresses); **Settings → Diagnostics** shows it |
 | `logs\supervisor.log` | Autostart supervisor log (server starts, restarts and stops, and why) |
-| `native-host\` | The launcher Chrome and Edge use to start Homebase, and its `launcher.log` (written by `install-autostart.ps1`; always here, even with `HOMEBASE_DATA_DIR`) |
+| `native-host\` | The launcher Chrome and Edge use to start Portly, and its `launcher.log` (written by `install-autostart.ps1`; always here, even with `PORTLY_DATA_DIR`) |
 | `backups\` | Daily database backups (last 7) |
 
 Mail is never stored on disk. **Settings → Import & export** exports your settings, layouts and
@@ -175,7 +175,7 @@ bookmarks (never accounts or credentials) to move them to another PC.
 
 ## Updating
 
-A release install: `homebase --update` (see [Install](#install)).
+A release install: `portly --update` (see [Install](#install)).
 
 From the source code:
 
@@ -187,31 +187,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.
 ```
 
 The installer also refreshes the launcher; add `-Trigger Logon` if that is the mode you use.
-Without autostart, stop Homebase (Ctrl+C) and start it again instead of the last line. Then click
+Without autostart, stop Portly (Ctrl+C) and start it again instead of the last line. Then click
 **Reload** on the extension in `chrome://extensions` / `edge://extensions`. If you use the Pages
 site, publish it again too (`scripts\publish-static.ps1`, see
-[static-build.md](setup/static-build.md#publish-to-github-pages)) so the site and Homebase stay on
+[static-build.md](setup/static-build.md#publish-to-github-pages)) so the site and Portly stay on
 the same version.
 
 ## Uninstalling
 
 1. `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall-autostart.ps1`
    (removes the task and the launcher's registry keys and folder; in a release install the script
-   is in `%LOCALAPPDATA%\Programs\Homebase\app\scripts`), and the `homebase` command:
+   is in `%LOCALAPPDATA%\Programs\Portly\app\scripts`), and the `portly` command:
    the same folder's `install-cli.ps1 -Uninstall`.
-2. Remove **Homebase New Tab** from `chrome://extensions` / `edge://extensions`.
+2. Remove **Portly New Tab** from `chrome://extensions` / `edge://extensions`.
 3. Revoke access at the providers you connected (Google:
    <https://myaccount.google.com/connections>; Microsoft:
    <https://account.live.com/consent/Manage>; delete Yahoo/iCloud/Fastmail app passwords), and
    delete the Google Cloud project / Entra app registration if you no longer need them.
-4. Delete `%LOCALAPPDATA%\Homebase` and the Homebase folder (a release install:
-   `%LOCALAPPDATA%\Programs\Homebase`), and remove any `HOMEBASE_*` user
-   environment variables you set (such as `HOMEBASE_PAGES_URL`).
+4. Delete `%LOCALAPPDATA%\Portly` and the Portly folder (a release install:
+   `%LOCALAPPDATA%\Programs\Portly`), and remove any `PORTLY_*` user
+   environment variables you set (such as `PORTLY_PAGES_URL`).
 
 ## More
 
 - [Troubleshooting](setup/troubleshooting.md) — the Diagnostics page and the logs, what each health
   code means, port in use, vault locked, reconnecting accounts, extension and autostart problems.
-- [Browser-only build](setup/static-build.md) and [Pages site with Homebase on this
-  PC](setup/pages-local-server.md) — the GitHub Pages site and pairing it with Homebase.
-- [Architecture](ARCHITECTURE.md) — how Homebase is built and why.
+- [Browser-only build](setup/static-build.md) and [Pages site with Portly on this
+  PC](setup/pages-local-server.md) — the GitHub Pages site and pairing it with Portly.
+- [Architecture](ARCHITECTURE.md) — how Portly is built and why.

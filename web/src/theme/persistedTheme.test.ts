@@ -1,10 +1,10 @@
 /**
  * The first-paint theme from the persisted query cache: read from the snapshot of this page
- * load's backend only, whatever its age, and checked against its buster only on the Homebase
+ * load's backend only, whatever its age, and checked against its buster only on the Portly
  * server on this PC in the Pages build (another server instance's theme is never shown).
  */
 import { describe, expect, it } from 'vitest';
-import { ThemeSchema, type Theme } from '@homebase/shared';
+import { ThemeSchema, type Theme } from '@portly/shared';
 import { APP_VERSION, QUERY_CACHE_MAX_AGE_MS, persistOptionsFor } from '../app/providers.tsx';
 import { applyPersistedTheme, firstPaintSnapshot } from './persistedTheme.ts';
 
@@ -33,14 +33,14 @@ function accent(): string {
 describe('applyPersistedTheme', () => {
   it("reads the named backend's snapshot, not the other one", () => {
     const storage = storageWith({
-      'homebase:query-cache:static:/': snapshot(theme({ mode: 'light', accent: '#111111' })),
-      'homebase:query-cache:local-server:/': snapshot(theme({ mode: 'dark', accent: '#222222' }), 'v1+local-server:abc'),
+      'portly:query-cache:static:/': snapshot(theme({ mode: 'light', accent: '#111111' })),
+      'portly:query-cache:local-server:/': snapshot(theme({ mode: 'dark', accent: '#222222' }), 'v1+local-server:abc'),
     });
-    expect(applyPersistedTheme({ key: 'homebase:query-cache:local-server:/', buster: 'v1+local-server:abc' }, storage)).toBe(true);
+    expect(applyPersistedTheme({ key: 'portly:query-cache:local-server:/', buster: 'v1+local-server:abc' }, storage)).toBe(true);
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expect(accent()).toBe('#222222');
 
-    expect(applyPersistedTheme('homebase:query-cache:static:/', storage)).toBe(true);
+    expect(applyPersistedTheme('portly:query-cache:static:/', storage)).toBe(true);
     expect(accent()).toBe('#111111');
   });
 
@@ -87,7 +87,7 @@ describe('firstPaintSnapshot', () => {
     expect(accent()).toBe('#666666');
   });
 
-  it('on the Homebase server on this PC (Pages build), paints only that instance’s theme, however old', () => {
+  it('on the Portly server on this PC (Pages build), paints only that instance’s theme, however old', () => {
     const persist = persistOptionsFor('server', 'instance-1', { pagesBuild: true, storage: window.localStorage });
     const ref = firstPaintSnapshot(persist, 'server', { pagesBuild: true });
     expect(ref).toEqual({ key: persist.key, buster: `${APP_VERSION}+local-server:instance-1` });

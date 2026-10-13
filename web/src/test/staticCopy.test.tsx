@@ -3,13 +3,13 @@
  * 'browser'))`): About describes browser storage instead of a data folder, log file and vault;
  * Import & export promises the in-browser backup and no longer mentions accounts; the
  * empty-profile hint and the Add-widget example name only widgets this page load has. On the
- * Homebase server (hybrid mode) the same page load reads like the server's own page: no in-browser
+ * Portly server (hybrid mode) the same page load reads like the server's own page: no in-browser
  * backup, server-made backups, every widget.
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ImportPreviewResponse } from '@homebase/shared';
+import type { ImportPreviewResponse } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { AddWidgetDialog } from '../grid/AddWidgetDialog.tsx';
 import { Grid } from '../grid/Grid.tsx';
@@ -55,7 +55,7 @@ describe('static build copy', () => {
     expect(screen.queryByText(/a backup is made first/)).not.toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.upload(screen.getByLabelText('Homebase export file'), new File(['{}'], 'homebase-export.json', { type: 'application/json' }));
+    await user.upload(screen.getByLabelText('Portly export file'), new File(['{}'], 'portly-export.json', { type: 'application/json' }));
     const preview = await screen.findByRole('region', { name: 'Import preview' });
     await user.click(within(preview).getByRole('button', { name: 'Import…' }));
     const confirm = await screen.findByRole('dialog', { name: 'Replace your configuration?' });
@@ -68,12 +68,12 @@ describe('static build copy', () => {
   it('offers the backup taken before the last import for download', async () => {
     const backup = { id: 'b1', at: '2026-09-20T12:00:00.000Z', bytes: 1234 };
     const { requestsTo } = renderWithProviders(<ImportExportSettings />, {
-      apiMocks: { 'GET /api/backups': [backup, { ...backup, id: 'b0', at: '2026-09-01T12:00:00.000Z' }], 'GET /api/backups/b1': { format: 'homebase-export' } },
+      apiMocks: { 'GET /api/backups': [backup, { ...backup, id: 'b0', at: '2026-09-01T12:00:00.000Z' }], 'GET /api/backups/b1': { format: 'portly-export' } },
     });
     expect(await screen.findByText('Backup before the last import')).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Download backup' }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(saveBlob).mock.calls[0]?.[1]).toBe('homebase-backup-2026-09-20.json');
+    expect(vi.mocked(saveBlob).mock.calls[0]?.[1]).toBe('portly-backup-2026-09-20.json');
     expect(requestsTo('GET /api/backups/b1')).toHaveLength(1);
     expect(await screen.findByText('Backup downloaded.')).toBeInTheDocument();
   });
@@ -91,7 +91,7 @@ describe('static build copy', () => {
   });
 });
 
-describe('Pages build copy on the Homebase server on this PC', () => {
+describe('Pages build copy on the Portly server on this PC', () => {
   beforeEach(() => setCapabilitiesForTests(capabilitiesFor(true, 'server')));
 
   it('Import & export: the server backs up, accounts are left alone, and there is no in-browser backup card', async () => {
@@ -100,11 +100,11 @@ describe('Pages build copy on the Homebase server on this PC', () => {
     expect(screen.queryByText(/kept in this browser/)).not.toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.upload(screen.getByLabelText('Homebase export file'), new File(['{}'], 'homebase-export.json', { type: 'application/json' }));
+    await user.upload(screen.getByLabelText('Portly export file'), new File(['{}'], 'portly-export.json', { type: 'application/json' }));
     const preview = await screen.findByRole('region', { name: 'Import preview' });
     await user.click(within(preview).getByRole('button', { name: 'Import…' }));
     const confirm = await screen.findByRole('dialog', { name: 'Replace your configuration?' });
-    expect(confirm).toHaveTextContent('Homebase saves a backup of the current data first. Accounts are not affected.');
+    expect(confirm).toHaveTextContent('Portly saves a backup of the current data first. Accounts are not affected.');
     // The in-browser backups are never asked for (the server mode transport answers them 404 anyway).
     expect(screen.queryByText('Backup before the last import')).not.toBeInTheDocument();
     expect(requestsTo('GET /api/backups')).toHaveLength(0);

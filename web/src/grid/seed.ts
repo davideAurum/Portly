@@ -6,7 +6,7 @@
  * re-checks the server first. Tabs opened at the same moment (e.g. a browser restoring several
  * new tabs on first run) are serialized with a Web Lock, so only the first creates "Home" and
  * the others find it when they re-check. The lock is per backend: a Pages tab on the in-browser
- * backend and one on the Homebase server seed different datasets.
+ * backend and one on the Portly server seed different datasets.
  *
  * First run also sets the week start and units from the browser's locale (localeDefaults.ts)
  * while they are still the schema defaults, and writes the server's answers (the new profile,
@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import type { QueryClient, UseQueryResult } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
-import { newId, type Profile, type Settings, type WidgetPosition } from '@homebase/shared';
+import { newId, type Profile, type Settings, type WidgetPosition } from '@portly/shared';
 import { qk } from '../api/keys.ts';
 import { getCapabilities } from '../capabilities.ts';
 import { activateProfile, addWidget, createProfile, fetchProfiles, savePositions } from '../api/profiles.ts';
@@ -29,7 +29,7 @@ const attempted = new WeakSet<QueryClient>();
  * Base of the Web Lock name shared by every tab of this origin. The static build namespaces it by
  * base path, like its database: several deployments can share one `<user>.github.io` origin.
  */
-export const SEED_LOCK_NAME = __HOMEBASE_STATIC__ ? `homebase:first-run-seed:${import.meta.env.BASE_URL}` : 'homebase:first-run-seed';
+export const SEED_LOCK_NAME = __PORTLY_STATIC__ ? `portly:first-run-seed:${import.meta.env.BASE_URL}` : 'portly:first-run-seed';
 
 /**
  * The seed lock of this page load's backend (`${SEED_LOCK_NAME}:${backend}`): a Pages tab seeding

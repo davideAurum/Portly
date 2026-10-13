@@ -4,7 +4,7 @@
  * validation) plus the in-memory `writeImport` rules (group reuse, caps, title fallbacks, icons).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { MAX_BOOKMARKS, MAX_BOOKMARK_GROUPS, type BookmarkGroup, type BookmarkImportReport, type BookmarksResponse } from '@homebase/shared';
+import { MAX_BOOKMARKS, MAX_BOOKMARK_GROUPS, type BookmarkGroup, type BookmarkImportReport, type BookmarksResponse } from '@portly/shared';
 import { NETSCAPE_HTML } from '../lib/__fixtures__/netscape.ts';
 import { getBookmarks, getSettings, SLICE } from '../slices.ts';
 import { createTestBackend, fileForm, type TestBackend } from '../test/harness.ts';

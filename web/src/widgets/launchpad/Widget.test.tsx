@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Bookmark, BookmarkGroup, BookmarksResponse, Settings } from '@homebase/shared';
+import type { Bookmark, BookmarkGroup, BookmarksResponse, Settings } from '@portly/shared';
 import { moveInGroups } from '../../api/bookmarks.ts';
 import { mockError, mockResponse, renderWithProviders, type MockRequest } from '../../test/render.tsx';
 import { settings as makeSettings } from '../../test/fixtures.ts';

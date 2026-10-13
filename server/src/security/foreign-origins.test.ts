@@ -53,9 +53,9 @@ describe('isNamedForeignOrigin', () => {
 
   it('never names other sites on a shared host or under a country suffix the Pages site lives on', () => {
     // Shared static hosts: every site there is someone else's, only the Pages site's own subdomains count.
-    expect(isNamedForeignOrigin('https://other.pages.dev', 'https://homebase.pages.dev')).toBe(false);
-    expect(isNamedForeignOrigin('https://pages.dev', 'https://homebase.pages.dev')).toBe(false);
-    expect(isNamedForeignOrigin('https://preview.homebase.pages.dev', 'https://homebase.pages.dev')).toBe(true);
+    expect(isNamedForeignOrigin('https://other.pages.dev', 'https://portly.pages.dev')).toBe(false);
+    expect(isNamedForeignOrigin('https://pages.dev', 'https://portly.pages.dev')).toBe(false);
+    expect(isNamedForeignOrigin('https://preview.portly.pages.dev', 'https://portly.pages.dev')).toBe(true);
     expect(isNamedForeignOrigin('https://someone.netlify.app', 'https://home.netlify.app')).toBe(false);
     expect(isNamedForeignOrigin('https://someone.gitlab.io', 'https://me.gitlab.io')).toBe(false);
     // Country suffixes: the registrable domain takes a third label.

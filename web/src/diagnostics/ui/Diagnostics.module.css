@@ -17,7 +17,7 @@
   min-width: 0;
 }
 
-/* Settings values (HOMEBASE_PAGES_URL=https://…) wrap on narrow screens. */
+/* Settings values (PORTLY_PAGES_URL=https://…) wrap on narrow screens. */
 .panel code {
   overflow-wrap: anywhere;
 }

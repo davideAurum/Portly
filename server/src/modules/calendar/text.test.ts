@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EVENT_TEXT_LIMITS } from '@homebase/shared';
+import { EVENT_TEXT_LIMITS } from '@portly/shared';
 import { descriptionText, looksLikeHtml, multiLine, singleLine } from './text.ts';
 
 const MAX = EVENT_TEXT_LIMITS.description;

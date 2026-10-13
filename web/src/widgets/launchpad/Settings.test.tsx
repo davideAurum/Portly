@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { BookmarkGroup } from '@homebase/shared';
+import type { BookmarkGroup } from '@portly/shared';
 import { renderWithProviders } from '../../test/render.tsx';
 import { launchpadConfigSchema, type LaunchpadConfig } from './index.ts';
 import LaunchpadSettings from './Settings.tsx';

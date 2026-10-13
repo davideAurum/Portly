@@ -48,7 +48,7 @@ describe('manifest.json', () => {
     assert.ok(compareVersions(manifest.version, '0.2.0') >= 0, 'launcher (native messaging) support starts at 0.2.0');
     assert.ok(compareVersions(manifest.version, '0.3.0') >= 0, 'the Pages site target (and warm-up messages) start at 0.3.0');
     assert.ok(compareVersions(manifest.version, '0.4.0') >= 0, 'the "Add this page" toolbar button starts at 0.4.0');
-    assert.ok(compareVersions(manifest.version, '0.5.0') >= 0, 'following Homebase on this PC (the "auto" target) starts at 0.5.0');
+    assert.ok(compareVersions(manifest.version, '0.5.0') >= 0, 'following Portly on this PC (the "auto" target) starts at 0.5.0');
     assert.ok(
       compareVersions(manifest.version, rootPackage.version.replace(/[-+].*$/, '')) >= 0,
       'the extension version is never older than the app version in package.json',
@@ -75,7 +75,7 @@ describe('manifest.json', () => {
     }
   });
 
-  it('has a toolbar button ("Add this page to Homebase") with no popup', () => {
+  it('has a toolbar button ("Add this page to Portly") with no popup', () => {
     assert.deepEqual(manifest.action, {
       default_title: ACTION_TITLE,
       default_icon: { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png' },
@@ -159,7 +159,7 @@ describe('extension pages', () => {
       'options.js',
       'lib/newtab-page.js',
       'lib/options-page.js',
-      'lib/homebase.js',
+      'lib/portly.js',
       'lib/launcher.js',
       'lib/warm-up.js',
     ]) {

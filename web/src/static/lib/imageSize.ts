@@ -4,7 +4,7 @@
  * `width`. Returns the larger of width and height, or null when unknown (SVG, AVIF, truncated
  * data). Verbatim copy of server/src/modules/bookmarks/image-size.ts (pure).
  */
-import type { ImageContentType } from '@homebase/shared';
+import type { ImageContentType } from '@portly/shared';
 
 function u16be(b: Uint8Array, o: number): number {
   return ((b[o] ?? 0) << 8) | (b[o + 1] ?? 0);

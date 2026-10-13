@@ -504,7 +504,7 @@ describe('manual scheduler', () => {
     expect(await s.idle(0)).toBe(true);
   });
 
-  it('jobs() keeps the message of Homebase errors', async () => {
+  it('jobs() keeps the message of Portly errors', async () => {
     const s = createManualScheduler();
     s.every('mod:b', 1000, () => {
       throw new HttpError(502, 'provider_error', 'example.com answered 500');

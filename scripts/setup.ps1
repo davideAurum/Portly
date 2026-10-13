@@ -1,26 +1,26 @@
 <#
 .SYNOPSIS
-    Sets up Homebase on a new Windows PC in one go: prerequisites, code, dependencies, build,
-    autostart and the `homebase` command.
+    Sets up Portly on a new Windows PC in one go: prerequisites, code, dependencies, build,
+    autostart and the `portly` command.
 
 .DESCRIPTION
     1. Installs what is missing with winget: Git (only when the code must be cloned) and Node.js
        LTS (24 or newer). Upgrades npm when it is older than 11.10 (package.json requires it).
-    2. Gets the code: when this script runs from a Homebase checkout it uses that checkout;
+    2. Gets the code: when this script runs from a Portly checkout it uses that checkout;
        otherwise (for example `irm <url> | iex`) it clones -RepoUrl into -InstallDir and runs
        that checkout's copy of this script, so the rest always
        matches the code being installed. An existing checkout in -InstallDir is reused as it is.
     3. With -PagesUrl: saves the Pages site's address as the user environment variable
-       HOMEBASE_PAGES_URL (or removes it with -PagesUrl off) before Homebase is started.
+       PORTLY_PAGES_URL (or removes it with -PagesUrl off) before Portly is started.
     4. npm ci (exactly the locked dependencies; install scripts stay disabled by .npmrc).
     5. npm run build (web\dist, the page the server serves).
-    6. scripts\install-autostart.ps1: the Homebase Server scheduled task and the native host the
-       new-tab extension uses to start it; starts Homebase and waits for /api/health.
-    7. scripts\install-cli.ps1: the `homebase` command (homebase --status, --rebuild, ...).
+    6. scripts\install-autostart.ps1: the Portly Server scheduled task and the native host the
+       new-tab extension uses to start it; starts Portly and waits for /api/health.
+    7. scripts\install-cli.ps1: the `portly` command (portly --status, --rebuild, ...).
     8. The new-tab extension cannot be installed by a script (Chrome and Edge only load unpacked
        extensions by hand): prints the steps, copies the extension folder's path to the clipboard
-       and opens the browser's extensions page. New tabs follow Homebase on this PC: its Pages
-       site when HOMEBASE_PAGES_URL is set, otherwise Homebase itself.
+       and opens the browser's extensions page. New tabs follow Portly on this PC: its Pages
+       site when PORTLY_PAGES_URL is set, otherwise Portly itself.
 
     Self-contained (it does not use lib\Common.ps1) so it also runs on its own, before any
     checkout exists. Safe to run again: every step skips or repeats harmlessly.
@@ -28,30 +28,30 @@
     them again in Settings. Layout and settings move with Settings -> Export / Import.
 
 .PARAMETER InstallDir
-    Where to clone Homebase when this script is not run from a checkout
-    (default %USERPROFILE%\Coding\Homebase).
+    Where to clone Portly when this script is not run from a checkout
+    (default %USERPROFILE%\Coding\Portly).
 
 .PARAMETER RepoUrl
-    Repository to clone (default https://github.com/davideAurum/Homebase.git).
+    Repository to clone (default https://github.com/davideAurum/Portly.git).
 
 .PARAMETER Branch
     Branch to clone (default main).
 
 .PARAMETER PagesUrl
-    The address of your Homebase Pages site, for example https://<user>.github.io/ (hybrid mode,
-    docs\setup\pages-local-server.md). Saved as the user environment variable HOMEBASE_PAGES_URL
-    before Homebase is started, so it answers that site, and new tabs open it. 'off' removes the
-    variable: new tabs then open Homebase on this PC. Without -PagesUrl the variable is left as it
+    The address of your Portly Pages site, for example https://<user>.github.io/ (hybrid mode,
+    docs\setup\pages-local-server.md). Saved as the user environment variable PORTLY_PAGES_URL
+    before Portly is started, so it answers that site, and new tabs open it. 'off' removes the
+    variable: new tabs then open Portly on this PC. Without -PagesUrl the variable is left as it
     is (unset on a new PC).
 
 .PARAMETER Trigger
-    Passed to install-autostart.ps1: Browser (default; the extension starts Homebase) or Logon.
+    Passed to install-autostart.ps1: Browser (default; the extension starts Portly) or Logon.
 
 .PARAMETER SkipAutostart
-    Do not register the scheduled task and native host (start Homebase with scripts\start.ps1).
+    Do not register the scheduled task and native host (start Portly with scripts\start.ps1).
 
 .PARAMETER SkipCli
-    Do not install the `homebase` command.
+    Do not install the `portly` command.
 
 .PARAMETER NoBrowser
     Do not open the browser's extensions page or copy to the clipboard.
@@ -63,7 +63,7 @@
     powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 
 .EXAMPLE
-    & ([scriptblock]::Create((irm <url of this file>))) -InstallDir D:\Homebase
+    & ([scriptblock]::Create((irm <url of this file>))) -InstallDir D:\Portly
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -PagesUrl https://me.github.io/
@@ -71,8 +71,8 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$InstallDir = (Join-Path $env:USERPROFILE 'Coding\Homebase'),
-    [string]$RepoUrl = 'https://github.com/davideAurum/Homebase.git',
+    [string]$InstallDir = (Join-Path $env:USERPROFILE 'Coding\Portly'),
+    [string]$RepoUrl = 'https://github.com/davideAurum/Portly.git',
     [string]$Branch = 'main',
     [string]$PagesUrl,
     [ValidateSet('Browser', 'Logon')][string]$Trigger = 'Browser',
@@ -203,7 +203,7 @@ function Install-SetupGit {
 function Test-SetupPagesOff { return "$PagesUrl".Trim() -eq 'off' }
 
 # The -PagesUrl address normalised by the rules server/src/config.ts applies to
-# HOMEBASE_PAGES_URL (https, or http on localhost/127.0.0.1/[::1]; no user name, password, query
+# PORTLY_PAGES_URL (https, or http on localhost/127.0.0.1/[::1]; no user name, password, query
 # or fragment; a "/" is added at the end), so a typo fails before anything is installed. The server
 # checks it again when install-autostart.ps1 starts it.
 function ConvertTo-SetupPagesUrl {
@@ -222,12 +222,12 @@ function ConvertTo-SetupPagesUrl {
     return "$($uri.GetLeftPart([System.UriPartial]::Authority))$path"
 }
 
-# -PagesUrl: saves the address as the user environment variable HOMEBASE_PAGES_URL ('off' removes
+# -PagesUrl: saves the address as the user environment variable PORTLY_PAGES_URL ('off' removes
 # it), and in this process too, so install-autostart.ps1 checks and starts the server with it.
 function Set-SetupPagesUrl {
     if ([string]::IsNullOrWhiteSpace($PagesUrl)) { return }
     $prefix = if ($DryRun) { '[dry run] ' } else { '' }
-    $name = 'HOMEBASE_PAGES_URL'
+    $name = 'PORTLY_PAGES_URL'
     if (Test-SetupPagesOff) {
         Write-SetupStep "${prefix}Pages site off: removing the user environment variable $name"
         if (-not $DryRun) {
@@ -237,7 +237,7 @@ function Set-SetupPagesUrl {
         if (-not [string]::IsNullOrWhiteSpace([System.Environment]::GetEnvironmentVariable($name, 'Machine'))) {
             Write-Warning "$name is also set for the whole PC (machine environment variable); remove it there too (needs an administrator)."
         }
-        Write-SetupInfo 'New tabs open Homebase on this PC.'
+        Write-SetupInfo 'New tabs open Portly on this PC.'
         return
     }
     $url = ConvertTo-SetupPagesUrl -Value $PagesUrl
@@ -246,7 +246,7 @@ function Set-SetupPagesUrl {
         [System.Environment]::SetEnvironmentVariable($name, $url, 'User')
         Set-Item -LiteralPath "Env:$name" -Value $url
     }
-    Write-SetupInfo 'New tabs open that site; pair each browser with Homebase there once (docs\setup\pages-local-server.md).'
+    Write-SetupInfo 'New tabs open that site; pair each browser with Portly there once (docs\setup\pages-local-server.md).'
 }
 
 function Test-SetupCheckout {
@@ -273,9 +273,9 @@ function Invoke-SetupFromClone {
         if (-not (Test-Path -LiteralPath (Join-Path $target 'scripts\setup.ps1') -PathType Leaf)) {
             throw "The checkout in $target is older than this script. Update it (git -C ""$target"" pull) and run this again."
         }
-        Write-SetupOk "Using the existing checkout in $target as it is (to update it later: git -C ""$target"" pull, then homebase --rebuild)"
+        Write-SetupOk "Using the existing checkout in $target as it is (to update it later: git -C ""$target"" pull, then portly --rebuild)"
     } elseif ((Test-Path -LiteralPath $target) -and @(Get-ChildItem -LiteralPath $target -Force).Count -gt 0) {
-        throw "$target exists and is not an empty folder or a Homebase checkout. Pass -InstallDir with another folder."
+        throw "$target exists and is not an empty folder or a Portly checkout. Pass -InstallDir with another folder."
     } else {
         Write-SetupStep "Cloning $RepoUrl ($Branch) into $target"
         if ($DryRun) {
@@ -335,11 +335,11 @@ function Show-SetupExtensionSteps {
 function Invoke-SetupHere {
     param([Parameter(Mandatory)][string]$RepoRoot)
     if ($RepoRoot -match '\\\.claude\\worktrees\\' -and -not $DryRun) {
-        throw ("This is a temporary worktree ($RepoRoot); autostart and the homebase command must not point into it. " +
+        throw ("This is a temporary worktree ($RepoRoot); autostart and the portly command must not point into it. " +
             'Run scripts\setup.ps1 from the main checkout instead.')
     }
     $prefix = if ($DryRun) { '[dry run] ' } else { '' }
-    Write-SetupStep "${prefix}Setting up Homebase in $RepoRoot"
+    Write-SetupStep "${prefix}Setting up Portly in $RepoRoot"
     Set-SetupPagesUrl
     Install-SetupNode
     $npm = if ($DryRun) { $null } else { (Get-SetupCommand 'npm.cmd').Source }
@@ -358,7 +358,7 @@ function Invoke-SetupHere {
 
     $failed = @()
     if ($SkipAutostart) {
-        Write-SetupInfo 'Autostart skipped. Start Homebase with: scripts\start.ps1'
+        Write-SetupInfo 'Autostart skipped. Start Portly with: scripts\start.ps1'
     } else {
         Write-SetupStep "${prefix}Autostart: scripts\install-autostart.ps1 -Trigger $Trigger"
         $autostartArgs = @('-Trigger', $Trigger)
@@ -369,7 +369,7 @@ function Invoke-SetupHere {
     }
 
     if (-not $SkipCli) {
-        Write-SetupStep "${prefix}The homebase command: scripts\install-cli.ps1"
+        Write-SetupStep "${prefix}The portly command: scripts\install-cli.ps1"
         $cliArgs = @()
         if ($DryRun) { $cliArgs += '-DryRun' }
         if ((Invoke-SetupScript -RepoRoot $RepoRoot -Script 'install-cli.ps1' -Arguments $cliArgs) -ne 0) {
@@ -384,9 +384,9 @@ function Invoke-SetupHere {
         return 1
     }
     if ($DryRun) { Write-SetupOk 'Dry run finished; nothing was changed.'; return 0 }
-    Write-SetupOk 'Homebase is set up: http://localhost:5757'
+    Write-SetupOk 'Portly is set up: http://localhost:5757'
     Write-SetupInfo 'Then connect your accounts in Settings (docs\SETUP.md#connect-your-accounts).'
-    Write-SetupInfo 'Open a new terminal to use the homebase command (homebase --status).'
+    Write-SetupInfo 'Open a new terminal to use the portly command (portly --status).'
     return 0
 }
 
@@ -394,7 +394,7 @@ function Invoke-Setup {
     Set-StrictMode -Version 3.0
     $ErrorActionPreference = 'Stop'
     if ([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) {
-        throw 'Homebase runs on Windows (DPAPI vault, Task Scheduler).'
+        throw 'Portly runs on Windows (DPAPI vault, Task Scheduler).'
     }
     $checkout = Get-SetupOwnCheckout
     if ($null -eq $checkout) { return Invoke-SetupFromClone }

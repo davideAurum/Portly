@@ -4,7 +4,7 @@
  * like the query key (qk.weather) and the server cache, so a cached report always matches.
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import type { GeoPlace, SettingsPatch, WeatherReport } from '@homebase/shared';
+import type { GeoPlace, SettingsPatch, WeatherReport } from '@portly/shared';
 import { useUpdateSettings } from './settings.ts';
 import { apiGet } from './client.ts';
 import { qk } from './keys.ts';

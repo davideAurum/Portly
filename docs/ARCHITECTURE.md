@@ -1,6 +1,6 @@
-# Homebase — Architecture (v1, rev 2)
+# Portly — Architecture (v1, rev 2)
 
-Homebase is a single-user, highly customizable browser home page ("portal to the internet").
+Portly is a single-user, highly customizable browser home page ("portal to the internet").
 v1 runs entirely on one Windows 11 PC: a small Node server on loopback serves the UI and holds all
 credentials; a tiny browser extension makes it the New Tab page. The same app also builds as a
 browser-only site for GitHub Pages, which can use the server on the PC it runs on once a browser is
@@ -46,11 +46,11 @@ personal Microsoft accounts only and the `/consumers` authority is hard-coded).
 /package-lock.json     committed; installs use `npm ci`
 /tsconfig.base.json
 /vitest.config.ts      test.projects: server (node env: server/**, shared/**), web (jsdom env: web/src/**)
-/shared                @homebase/shared — TS contract types + zod schemas; package.json "exports": {".": "./src/index.ts"}
-/server                @homebase/server — Node 24, Hono, node:sqlite; runs from TS source (no bundle)
-/web                   @homebase/web — Vite 8 + React 19 + TypeScript
+/shared                @portly/shared — TS contract types + zod schemas; package.json "exports": {".": "./src/index.ts"}
+/server                @portly/server — Node 24, Hono, node:sqlite; runs from TS source (no bundle)
+/web                   @portly/web — Vite 8 + React 19 + TypeScript
 /extension             Manifest V3 new-tab extension (plain JS, no build; pinned ID via manifest "key")
-/native-host           native messaging host com.homebase.launcher (launcher.mjs + launcher.cmd template, §12)
+/native-host           native messaging host com.portly.launcher (launcher.mjs + launcher.cmd template, §12)
 /scripts               PowerShell: install-autostart.ps1, uninstall-autostart.ps1, status.ps1, start.ps1; node test runners
 /docs                  ARCHITECTURE.md, SETUP.md, setup/*.md
 ```
@@ -80,7 +80,7 @@ server/shared: `module: nodenext`, `types: ["node"]`. web: `module: esnext`, `mo
 namespaces or parameter properties (use `as const` objects). Type-only imports use `import type`.
 
 ### 2c. Scripts (root package.json)
-- `dev` — `concurrently` of `node --watch server/src/index.ts` (HOMEBASE_DEV=1) and `vite` (web).
+- `dev` — `concurrently` of `node --watch server/src/index.ts` (PORTLY_DEV=1) and `vite` (web).
 - `build` — builds web to `web/dist` (server needs no build).
 - `start` — `node server/src/index.ts` (serves `web/dist`; fails with a clear message and exit code 4 if missing).
 - `typecheck` — `tsc --noEmit -p` for shared, server, web.
@@ -90,13 +90,13 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
 
 ## 3. Runtime
 
-- **Config (`server/src/config.ts`)**, all from env with defaults: `HOMEBASE_PORT` (5757),
-  `HOMEBASE_BIND` (`127.0.0.1,::1`), `HOMEBASE_ORIGIN` (`http://localhost:<port>`), `HOMEBASE_DATA_DIR`
-  (`%LOCALAPPDATA%\Homebase`), `HOMEBASE_DEV` (0/1), `HOMEBASE_VITE_PORT` (5173), `HOMEBASE_LOG_LEVEL`
+- **Config (`server/src/config.ts`)**, all from env with defaults: `PORTLY_PORT` (5757),
+  `PORTLY_BIND` (`127.0.0.1,::1`), `PORTLY_ORIGIN` (`http://localhost:<port>`), `PORTLY_DATA_DIR`
+  (`%LOCALAPPDATA%\Portly`), `PORTLY_DEV` (0/1), `PORTLY_VITE_PORT` (5173), `PORTLY_LOG_LEVEL`
   (`debug`|`info`|`warn`; default `info`, `debug` in dev; see Logging). Host allowlist, origin
   checks, OAuth redirect URIs and the app origin used for redirects are **derived from config** — never
   hard-coded. In dev, `appOrigin` = `http://localhost:<VITE_PORT>` and it is added to the host/origin allowlists.
-  `HOMEBASE_PAGES_URL` (unset = hybrid mode off) → `pagesUrl` (path ends with `/`) and `pagesOrigin`: absolute,
+  `PORTLY_PAGES_URL` (unset = hybrid mode off) → `pagesUrl` (path ends with `/`) and `pagesOrigin`: absolute,
   `https:` (or `http:` on `localhost`/`127.0.0.1`/`[::1]`, with a startup warning naming the origin), no credentials,
   query or fragment, not `*`/`null`, and not one of the server's own origins. Kept apart from the origin allowlist
   and never part of `Settings`.
@@ -106,10 +106,10 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   An `/api/*` JSON 404 handler is mounted before the SPA fallback. The SPA fallback serves `index.html`
   only for GET requests whose path is not under `/api/` or `/assets/` and has no file extension.
   Hashed `/assets/*` get `Cache-Control: public, max-age=31536000, immutable`; `index.html` gets `no-cache`.
-- **Data dir:** `homebase.db`, `vault.key`, `logs/`, `backups/`.
+- **Data dir:** `portly.db`, `vault.key`, `logs/`, `backups/`.
 - **Supervisor (`server/src/supervisor.ts`):** spawns `process.execPath --no-warnings server/src/index.ts` with
-  `windowsHide: true`, stdin/stdout ignored, **stderr piped** and an IPC channel, and adds `HOMEBASE_SUPERVISED=1`
-  to the child's environment (on a restart also `HOMEBASE_SUPERVISOR_ATTEMPT` and `HOMEBASE_SUPERVISOR_LAST_EXIT`
+  `windowsHide: true`, stdin/stdout ignored, **stderr piped** and an IPC channel, and adds `PORTLY_SUPERVISED=1`
+  to the child's environment (on a restart also `PORTLY_SUPERVISOR_ATTEMPT` and `PORTLY_SUPERVISOR_LAST_EXIT`
   = JSON `{code, signal, failure?}`, shown in Settings → Diagnostics). A supervised server has no console and writes
   to stderr only for fatal output (bootstrap failure, `startup failed`, uncaught exception), so the supervisor keeps
   the last 40 lines / 16 KB of it, scrubbed, as the crash cause; Node's own warnings stay off stderr
@@ -128,11 +128,11 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   checkpoints.
 - **Start-up, process, shutdown (`index.ts`, `lib/startup.ts`, `lib/exit-codes.ts`):** phases `config → logger →
   web-dist check → port-probe → db → migrate → health → pairing → vault → settings → accounts → modules → listen`,
-  each timed (`debug 'startup phase' {phase, ms}`); right after the logger `info 'starting Homebase' {version, dev,
-  dataDir, port, pid, boot, node, supervised, restart}`, at the end `info 'Homebase ready' {url, app, startupMs,
+  each timed (`debug 'startup phase' {phase, ms}`); right after the logger `info 'starting Portly' {version, dev,
+  dataDir, port, pid, boot, node, supervised, restart}`, at the end `info 'Portly ready' {url, app, startupMs,
   phases}` (`boot` = a random id per process start, in every report and summary). A timed Verbose
   period saved by Settings → Diagnostics is switched back on right after `migrate`. The port is probed before the
-  database and vault are touched; a taken port logs `port already in use — is Homebase already running?` and exits 3.
+  database and vault are touched; a taken port logs `port already in use — is Portly already running?` and exits 3.
   An invalid configuration (no logger yet) appends one JSON line `startup failed {phase: 'config', errName,
   errMessage}` to `<data dir>/logs/server.log` and writes it to stderr (ConfigError messages echo URL-valued
   variables as their origin only), exit 1. Any later throw, and any uncaught exception or rejection before the
@@ -151,8 +151,8 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   Lines**, one object per record: `{"t","lvl","msg","src"?,"area","tags","rid"?,"tEvent"?,...fields}` (`src`
   omitted for `server`); rotated at 10 MB, 5 kept (`.1`…`.5`; a file another process rotated is reopened, not
   rotated again). **Console** (not under the supervisor): text `<ISO> <LEVEL> <msg> {json}`, warn/error on stderr.
-  **Levels:** *Normal* is the boot level `HOMEBASE_LOG_LEVEL` (`debug`|`info`|`warn`; default `info`, `debug` with
-  `HOMEBASE_DEV`; anything else → *invalid configuration*): state changes, failures with hosts, statuses and
+  **Levels:** *Normal* is the boot level `PORTLY_LOG_LEVEL` (`debug`|`info`|`warn`; default `info`, `debug` with
+  `PORTLY_DEV`; anything else → *invalid configuration*): state changes, failures with hosts, statuses and
   provider reason codes, one line per health transition. *Verbose* is `debug` for every area or the chosen ones
   (`DIAGNOSTIC_AREAS`, matched against a record's tags), switched on in Settings → Diagnostics for a time (persisted
   in `server_meta`, survives a restart) or until turned off (ends at the next restart).
@@ -195,7 +195,7 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
     text and filters, bookmark/page/feed titles, search terms, geocode text, coordinates, browser profile names, user
     names typed into forms; full URLs (hosts plus a `purpose` for outbound calls, route patterns and query-less
     paths for our API; ICS URLs never leave the vault). imapflow always `logger: false`.
-- **Backups:** daily `VACUUM INTO backups/homebase-<YYYY-MM-DD>.db`, keep the last 7; also before import.
+- **Backups:** daily `VACUUM INTO backups/portly-<YYYY-MM-DD>.db`, keep the last 7; also before import.
 - **Orphaned uploads:** daily core job deletes `uploads` rows older than 24 h whose id appears in neither the stored
   settings JSON (appearance background) nor any profile layout/theme JSON.
 
@@ -212,11 +212,11 @@ exhaustion or credential capture.
 
 **Accepted risks (v1):** everything running as this Windows user, other local Windows accounts, and
 installed browser extensions are trusted — the API does not defend against them. The vault protects
-secrets at rest against copies of the data dir only. Port squatting on 5757 while Homebase is down is
+secrets at rest against copies of the data dir only. Port squatting on 5757 while Portly is down is
 accepted (OAuth codes are PKCE-bound; Google codes also need the client secret). No service worker in the web app
 (the extension has one, §11).
 
-**Hybrid mode (§16) adds one trusted origin:** with `HOMEBASE_PAGES_URL` set, browsers paired on Homebase's own page
+**Hybrid mode (§16) adds one trusted origin:** with `PORTLY_PAGES_URL` set, browsers paired on Portly's own page
 may call the routes declared `paired()` from that origin. Trust is per **origin**, and `https://<user>.github.io` is
 shared by every Pages site of the account: any script on any page of that origin, in a paired browser, can read the
 pairing token (localStorage) and the persisted copy of server data, call every paired route, and use the browser's
@@ -246,19 +246,19 @@ authentication — the token is.
    counts as paired only if every registration it matches is `paired()`. The 503 handlers of failed modules are
    tagged `paired()`. A test pins the access of every registered route.
 
-   **Pages branch** (only with `HOMEBASE_PAGES_URL` and a pairing store): an `/api` request whose `Origin` equals the
+   **Pages branch** (only with `PORTLY_PAGES_URL` and a pairing store): an `/api` request whose `Origin` equals the
    configured `pagesOrigin` exactly skips step 4 and is marked for CORS (refusals included, so the page can read them):
    - preflight (`OPTIONS` + `Access-Control-Request-Method`): method ∈ GET/HEAD/POST/PUT/PATCH/DELETE and every
-     requested header ∈ {content-type, x-homebase, x-homebase-token} → 204, else 403; never passed on;
+     requested header ∈ {content-type, x-portly, x-portly-token} → 204, else 403; never passed on;
    - `GET /api/health` passes as for anyone (no token);
-   - anything else: route access must be `paired` (else 403 `local_only`), `X-Homebase: 1`, `Sec-Fetch-Site`
+   - anything else: route access must be `paired` (else 403 `local_only`), `X-Portly: 1`, `Sec-Fetch-Site`
      `cross-site`/`same-site`/absent (the exact Origin match is the real check), a pairing token
-     (`X-Homebase-Token`) that verifies **and** was issued for that origin (else 401 `pairing_required`), and the
+     (`X-Portly-Token`) that verifies **and** was issued for that origin (else 401 `pairing_required`), and the
      Content-Type rules of step 4 (image routes too: the page fetches images with the token). The pairing's
      last-used time is touched (at most every 10 min).
 
    Any other `Origin` (or none) goes through step 4 unchanged.
-4. Non-exempt `/api` requests must have: `X-Homebase: 1`; `Origin` absent or in the origin allowlist;
+4. Non-exempt `/api` requests must have: `X-Portly: 1`; `Origin` absent or in the origin allowlist;
    `Sec-Fetch-Site` absent or `same-origin` (reject `same-site`, `cross-site`, `none`); for bodies,
    `Content-Type: application/json`, except routes declared multipart (uploads, imports).
    Apart from the configured Pages origin (step 3), the server **never** sends CORS headers and never answers
@@ -280,7 +280,7 @@ authentication — the token is.
 - **CORS (hybrid mode only):** any `Access-Control-*` header a handler sets is stripped. Answers to requests the gate
   marked as Pages requests get `Access-Control-Allow-Origin: <pagesOrigin>` (from config, never echoed),
   `Access-Control-Expose-Headers: Retry-After, Content-Disposition, X-Request-Id` (§17); preflights also `Access-Control-Allow-Methods`
-  (the requested one), `Access-Control-Allow-Headers: Content-Type, X-Homebase, X-Homebase-Token`,
+  (the requested one), `Access-Control-Allow-Headers: Content-Type, X-Portly, X-Portly-Token`,
   `Access-Control-Max-Age: 600`, `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers` and
   `Access-Control-Allow-Private-Network: true` only when requested. **Never** `Access-Control-Allow-Credentials`
   (the page authenticates with its token; cookies are never involved). With a Pages URL configured every `/api`
@@ -374,7 +374,7 @@ ingest; invalid → null.
   resolve only to, private addresses on **every** connection (a LAN-only lookup guard; IP literals checked per hop),
   so a name that later resolves publicly never receives the Basic credentials in cleartext.
 - Size caps count **decoded** bytes while streaming and abort past the cap (never trust Content-Length):
-  HTML 2 MB, image 1 MB, ICS 10 MB, JSON 5 MB. Honest `User-Agent: Homebase/<version> (personal dashboard)`.
+  HTML 2 MB, image 1 MB, ICS 10 MB, JSON 5 MB. Honest `User-Agent: Portly/<version> (personal dashboard)`.
 - `data:` icon hrefs are decoded locally, sniffed and size-capped. The DuckDuckGo/Google favicon fallbacks
   are skipped for IP-literal, single-label, `.local`, `.lan`, `.home.arpa`, `.internal` hosts.
 
@@ -554,8 +554,8 @@ Errors: `throw new HttpError(status, code, message, details?)` → `{error: {cod
 
 All JSON, camelCase. Non-exempt routes require the §4.2 gate. IDs in paths are always `encodeURIComponent`-ed by clients.
 
-**Core** — `GET /api/health` → `{ok, version, vault: 'ready'|'locked', app: 'homebase', apiVersion, instanceId,
-appUrl: '<appOrigin>/', pagesUrl: <HOMEBASE_PAGES_URL>|null}` (the last five optional in the schema: older servers lack
+**Core** — `GET /api/health` → `{ok, version, vault: 'ready'|'locked', app: 'portly', apiVersion, instanceId,
+appUrl: '<appOrigin>/', pagesUrl: <PORTLY_PAGES_URL>|null}` (the last five optional in the schema: older servers lack
 them; the new-tab extension follows `pagesUrl`, §11) · `GET /api/settings` → full `Settings`
 (defaults applied) · `PATCH /api/settings` — RFC 7396 JSON Merge Patch applied to a `structuredClone`; objects
 merge, arrays replace, `null` resets the key to its default; any `__proto__`/`constructor`/`prototype` key at
@@ -568,7 +568,7 @@ any depth → 400; result validated with `SettingsSchema.parse`; returns full `S
 `POST /api/import/commit {previewId}` · `POST /api/vault/reset` · `GET /api/about` → `{version, dataDir, logPath, vault}`
 (`dataDir` and `logPath` are `''` for a paired Pages request: they contain the Windows user name).
 
-Export file: `{format:'homebase-export', version:1, exportedAt, data:{settings, profiles, bookmarkGroups,
+Export file: `{format:'portly-export', version:1, exportedAt, data:{settings, profiles, bookmarkGroups,
 bookmarks, uploads[base64], customIcons[base64]}}` built by an explicit per-entity allowlist serializer.
 Excluded: accounts, secrets, oauth_*, the Todoist token, calendars/ICS URLs, events, cache, fetched favicons.
 Import preview validates with a strict versioned `ExportSchema` reusing the create/update schemas
@@ -634,7 +634,7 @@ now (30 min before start to 8 h after). Team lists cached 1 day; the static buil
 (ESPN's `/teams` sends no CORS header). Plain text only; links https; logos from `a.espncdn.com` only.
 
 **Pairing** (hybrid mode, §16; `shared/src/pairing.ts`) — `GET /api/pairing` [paired] → `PairingStatusResponse
-{paired, pairingId, instanceId, label, createdAt}` for the presenting `X-Homebase-Token` (none → 409 `not_configured`,
+{paired, pairingId, instanceId, label, createdAt}` for the presenting `X-Portly-Token` (none → 409 `not_configured`,
 unknown → 401 `pairing_required`) · `DELETE /api/pairing` [paired] → 204 (the browser unpairs itself) ·
 `GET /api/pairings` [paired] → `{pagesUrl|null, instanceId, pairings: {id, label, origin, createdAt, lastUsedAt|null,
 current}[]}` (`current` = made for the configured origin) · `POST /api/pairings {nonce}` [local] → 201 `{redirectUrl}`
@@ -690,8 +690,8 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
   `CalendarSettings {syncIntervalMin: 5–60, defaultCalendarId: string|null}`.
 - **mail.ts** — `MailMessage {id, accountId, from: {name, address}, subject, snippet|null, date, unread, webUrl|null}`;
   `MailAccountSummary {accountId, label, email, color, unread, messages, webmailUrl|null, canArchive, canTrash?, error?}`.
-- **pairing.ts** (hybrid mode) — `HOMEBASE_API_VERSION` (core.ts; bumped on any change the other side cannot
-  ignore), `PAIRING_TOKEN_HEADER = 'X-Homebase-Token'`, `MAX_PAIRINGS`, token/nonce schemas (43-char base64url),
+- **pairing.ts** (hybrid mode) — `PORTLY_API_VERSION` (core.ts; bumped on any change the other side cannot
+  ignore), `PAIRING_TOKEN_HEADER = 'X-Portly-Token'`, `MAX_PAIRINGS`, token/nonce schemas (43-char base64url),
   `InstanceIdSchema`, the request/response schemas of §7 Pairing, and the URL helpers `buildPairingRequestUrl` /
   `parsePairingRequest` (`<appUrl>#/pair?nonce=…`) and `buildPairingReturnUrl` / `parsePairingReturn`
   (`<pagesUrl>#/paired?token&nonce&instance`). Response schemas are strict on the server; the Pages site reads
@@ -700,7 +700,7 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
 - **diagnostics.ts** (§17) — log levels, `DIAGNOSTIC_AREAS`, `HEALTH_CODES`, `REQUEST_ID_HEADER`, the scrubbers
   (`scrub`, `maskUserPaths`, `scrubFields`, `redactForSharing`) shared by the server and the browser, and the DTOs of
   `/api/diagnostics/*` (log records and queries, health entries and outcome rows, jobs, log level, summary, browser
-  events). Additive: `HOMEBASE_API_VERSION` was not bumped.
+  events). Additive: `PORTLY_API_VERSION` was not bumped.
 - **Conventions:** API camelCase; DB snake_case; booleans ↔ 0/1; DB timestamps epoch ms, API ISO strings.
 - **web/src/api/keys.ts** exports one `qk` object with every query key (settings, profiles, accounts, oauthClients,
   bookmarks, icons, search.suggest, weather, geocode, todoist.token/tasks/projects, calendar.calendars/events,
@@ -790,7 +790,7 @@ icons, hrefs resolved against the final response URL, prefer largest ≥ 32 px r
 `https://icons.duckduckgo.com/ip3/<host>.ico` → `https://www.google.com/s2/favicons?domain=<host>&sz=128`
 (non-2xx = miss; skip for local-looking hosts, §4.8) → client-side letter tile. Stored in `icons`; refreshed after 30 days.
 
-**Search suggestions** (all return `[query, string[], ...]`; take index 1; send the Homebase User-Agent):
+**Search suggestions** (all return `[query, string[], ...]`; take index 1; send the Portly User-Agent):
 google `https://suggestqueries.google.com/complete/search?client=firefox&q=` · youtube
 `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=` · ddg `https://duckduckgo.com/ac/?type=list&q=` ·
 bing `https://api.bing.com/osjson.aspx?query=` · wikipedia
@@ -819,7 +819,7 @@ over 512 KB, site-meta lookups and unobserved calendar ranges are not persisted,
 oldest queries; the Pages build keeps one snapshot per backend, §16); hand-rolled hash router (`web/src/app/router.ts`:
 home, `#/settings/<section>`, `#/pair?nonce=…`);
 CSS custom properties (tokens) + CSS Modules for feature styles; `lucide-react`; `date-fns` + `@date-fns/tz`;
-Radix primitives; sonner toasts. Vite dev proxy: `/api` → `HOMEBASE_PORT`, `changeOrigin: false`; never set
+Radix primitives; sonner toasts. Vite dev proxy: `/api` → `PORTLY_PORT`, `changeOrigin: false`; never set
 `server.host` or `server.cors: true`.
 
 ### 10.2 Grid
@@ -871,11 +871,11 @@ Hybrid mode (§16): About in the server build ends with **Paired browsers** (`Pa
 address or how to set it, every pairing with label, created and last used, "Old address" when not made for the
 current origin, Revoke); in the Pages build it shows the local server panel as a card instead. `#/pair?nonce=…`
 renders `PairPage` on its own (no shell, loaded on demand): in the server build the consent page — fetches
-`GET /api/pairings`; no Pages URL → setup steps; invalid nonce → error; else "Allow **<origin>** to use Homebase on
+`GET /api/pairings`; no Pages URL → setup steps; invalid nonce → error; else "Allow **<origin>** to use Portly on
 this PC?" with the warning that every page of that origin gets the access and what it can and cannot do.
 **Approve** is enabled only after the page has been visible and focused for 1 s (re-armed on blur / hidden); it
 posts the pairing and follows the redirect only when it is exactly `<pagesUrl>#/paired?…` with the same nonce.
-Cancel → `#/`. In the Pages build the route only says that pairing happens on Homebase's own page.
+Cancel → `#/`. In the Pages build the route only says that pairing happens on Portly's own page.
 
 ### 10.6 Hotkeys & focus
 `useHotkey` ignores events from input/textarea/select/contenteditable. `/` focus search; `e` toggle edit mode;
@@ -952,46 +952,46 @@ pinned ID needs a one-time **Remove + Load unpacked** (which also clears `chrome
 the pages detect an extension still running under another ID (`isStaleExtensionId`) and say so. No content scripts, no
 `externally_connectable`; CSP `script-src 'self'`, `connect-src http://localhost:*`; no inline scripts/handlers.
 
-- **Settings** (`chrome.storage.local`, `lib/homebase.js`): `target` (`auto`, the default since 0.5.0, `pages` or
+- **Settings** (`chrome.storage.local`, `lib/portly.js`): `target` (`auto`, the default since 0.5.0, `pages` or
   `local`), `pagesUrl` (none by default — no owner's site is built in; `https:`, or `http:` on localhost/127.0.0.1/[::1];
   no credentials, `?` or `#`; normalized with a trailing `/`), `port` (default 5757). Invalid stored values read as
-  the default. Next to them, `serverSite` = `{port, pagesUrl|null}`: what Homebase last reported as `pagesUrl` in
-  `/api/health` (its `HOMEBASE_PAGES_URL`), written by every healthy check (worker warm-up, new tab, options Test
+  the default. Next to them, `serverSite` = `{port, pagesUrl|null}`: what Portly last reported as `pagesUrl` in
+  `/api/health` (its `PORTLY_PAGES_URL`), written by every healthy check (worker warm-up, new tab, options Test
   connection) only when it changed, and counted only for the port it was said on. It trusts whatever answers on the
   port exactly as the redirect to `localhost:<port>` does (§4.1 accepts port squatting); the address still passes the
   `pagesUrl` rules.
-- **Where a new tab goes** (`resolveNewTab`): `local` → Homebase on this PC; `pages` → the stored `pagesUrl`, else
-  `serverSite`'s; `auto` → `serverSite`'s. No address (`auto` before Homebase has ever answered, or a server without a
-  Pages site) → Homebase on this PC, whose healthy answer still sends the tab on to the `pagesUrl` it names unless the
-  target is `local`. So a fresh install needs no extension settings: the server's `HOMEBASE_PAGES_URL`
+- **Where a new tab goes** (`resolveNewTab`): `local` → Portly on this PC; `pages` → the stored `pagesUrl`, else
+  `serverSite`'s; `auto` → `serverSite`'s. No address (`auto` before Portly has ever answered, or a server without a
+  Pages site) → Portly on this PC, whose healthy answer still sends the tab on to the `pagesUrl` it names unless the
+  target is `local`. So a fresh install needs no extension settings: the server's `PORTLY_PAGES_URL`
   (`scripts/setup.ps1 -PagesUrl`) decides.
 - **Service worker** (`background.js` → `lib/warm-up.js`): `runtime.onStartup` (once per profile start, not
   incognito), `runtime.onInstalled` and `runtime.onMessage` listeners are registered synchronously at the top level
   and share one in-flight warm-up: read the port (default 5757) from `chrome.storage.local`, one `GET /api/health`
   (1.5 s timeout; a healthy answer updates `serverSite`), and only if that fails one `{action:"start", port}` to the
   launcher. `onMessage` accepts only
-  `{type:'homebase:warm-up'}` from the extension itself (`sender.id === runtime.id`), answers `{ok:true}` at once,
+  `{type:'portly:warm-up'}` from the extension itself (`sender.id === runtime.id`), answers `{ok:true}` at once,
   then warms up at most once per 60 s (`chrome.storage.session` key `lastWarmUpAt`, in-memory fallback); browser
-  start and install always run. No polling; results are only logged (`[Homebase] …`).
-- **New tab, Pages site**: sends `{type:'homebase:warm-up'}`, waits ≤ 300 ms for the answer
+  start and install always run. No polling; results are only logged (`[Portly] …`).
+- **New tab, Pages site**: sends `{type:'portly:warm-up'}`, waits ≤ 300 ms for the answer
   (failures ignored), then `location.replace(pagesUrl)` — no query parameters, and no request to this PC from the
-  tab itself. The Pages site finds Homebase on its own (§16).
-- **New tab, Homebase on this PC** (`newtab.html` → `newtab.js` → `lib/newtab-page.js`): health check; on success
+  tab itself. The Pages site finds Portly on its own (§16).
+- **New tab, Portly on this PC** (`newtab.html` → `newtab.js` → `lib/newtab-page.js`): health check; on success
   record `serverSite`, then `location.replace(<its pagesUrl>)` when it names one and the target isn't `local`, else
   `location.replace('http://localhost:<port>/?src=newtab')`. Otherwise, with native messaging available, one
-  `start` request, a "Starting Homebase…" card, and `/api/health` polled 400 ms after each check finishes until it
+  `start` request, a "Starting Portly…" card, and `/api/health` polled 400 ms after each check finishes until it
   answers (redirect), the launcher reports something that cannot succeed, or 30 s pass ("Still starting…" after
-  10 s). Then the fallback: "Homebase isn't running", why, the matching help (install the launcher, re-install it
+  10 s). Then the fallback: "Portly isn't running", why, the matching help (install the launcher, re-install it
   for this ID, Remove + Load unpacked, or start manually), **Try starting again**, Retry with automatic re-checks
   every 5 s (12×), and a Google search box built with `encodeURIComponent`. Each attempt sends at most one launcher
   request; host text is shown via `textContent` only, one line, ≤ 200 characters.
-- **Options page** (`options.html` → `lib/options-page.js`): **New tab opens** (whatever Homebase on this PC is set
-  up for — showing what that currently is | the Pages site | Homebase on this PC; saved on change), **Pages site
-  address** (Save; empty or **Use the address Homebase reports** removes it), integer port 1024–65535, Test
+- **Options page** (`options.html` → `lib/options-page.js`): **New tab opens** (whatever Portly on this PC is set
+  up for — showing what that currently is | the Pages site | Portly on this PC; saved on change), **Pages site
+  address** (Save; empty or **Use the address Portly reports** removes it), integer port 1024–65535, Test
   connection (also records and shows the reported Pages site), the extension ID (with a warning for a stale one)
   and **Test launcher** (`ping`, 10 s timeout). No new permissions: messages between the extension's pages and its
   worker need none, and opening the Pages site is a plain navigation.
-- **Launcher contract** (`lib/launcher.js` ↔ `native-host/launcher.mjs`, host name `com.homebase.launcher`, one
+- **Launcher contract** (`lib/launcher.js` ↔ `native-host/launcher.mjs`, host name `com.portly.launcher`, one
   message each way via `runtime.sendNativeMessage` (callback form, `lastError` read in the callback)):
 
   | Request | Response |
@@ -1006,7 +1006,7 @@ the pages detect an extension still running under another ID (`isStaleExtensionI
   task anyway, keep polling. `task_missing` / `bad_origin` / `schtasks_failed` / `bad_request` stop the attempt.
 - Omnibox focus after redirect is a known Chrome limitation; docs/setup/extension.md records the tested behaviour
   and the alternative (`chrome.tabs.getCurrent` → `chrome.tabs.update`), and how to set Homepage/Startup page (the
-  New Tab page is preferred for startup, because it waits while Homebase starts).
+  New Tab page is preferred for startup, because it waits while Portly starts).
 - Tests: `extension/test/*.test.mjs` with `node --test` (`npm run test:extension`), mocked fetch, storage and
   native messaging.
 
@@ -1014,14 +1014,14 @@ the pages detect an extension still running under another ID (`isStaleExtensionI
 
 ## 12. Autostart (Windows)
 
-Homebase does **not** start at logon by default. It starts when Chrome or Edge opens (service-worker warm-up) and
+Portly does **not** start at logon by default. It starts when Chrome or Edge opens (service-worker warm-up) and
 from a new tab that finds it not running (§11). The server is only ever started by **Task Scheduler**, never as a
 child of the browser or the native host: Chrome's isolated-browser mode runs native hosts in a kill-on-job-close job
 object, and libuv puts Node's own children in such a job too, so anything the host spawned would die with it. The task
 service creates the process outside both. Duplicate starts are harmless: the task has `MultipleInstances IgnoreNew`,
 and a second server exits with code 3 when the port is taken (the supervisor then exits too).
 
-**Scheduled task** — `scripts/install-autostart.ps1` registers the per-user task `\Homebase Server`:
+**Scheduled task** — `scripts/install-autostart.ps1` registers the per-user task `\Portly Server`:
 - `-Trigger Browser` (default): **no trigger** — runs only on demand (`schtasks /run` from the native host, or
   `Start-ScheduledTask`). `-Trigger Logon` (`-LogonDelaySeconds 0–3600`): AtLogOn of the current user (the previous
   behaviour; the native host is still registered as a fallback).
@@ -1032,34 +1032,34 @@ and a second server exits with code 3 when the port is taken (the supervisor the
   -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)` (RestartOnFailure only covers launch failures; crashes are
   handled by the supervisor). On-demand start stays allowed (`AllowDemandStart`).
 
-**Native messaging host `com.homebase.launcher`** (registered in both modes unless `-NoNativeHost`), per user, no
+**Native messaging host `com.portly.launcher`** (registered in both modes unless `-NoNativeHost`), per user, no
 administrator rights:
-- Files in `%LOCALAPPDATA%\Homebase\native-host\` (fixed, so the registry never points into the repository):
+- Files in `%LOCALAPPDATA%\Portly\native-host\` (fixed, so the registry never points into the repository):
   `launcher.mjs` (byte copy of `native-host/launcher.mjs`), `launcher.cmd` (from the `native-host/launcher.cmd`
   template: `@echo off` + `"<absolute node.exe>" "%~dp0launcher.mjs" %*`, `%` doubled, CRLF, ASCII or the OEM code
-  page; never `start`), `com.homebase.launcher.json` and `config.json` (ASCII, no BOM).
-- Host manifest: `{"name":"com.homebase.launcher","description":"Homebase launcher (starts the Homebase Server scheduled task)","path":"<absolute path of launcher.cmd>","type":"stdio","allowed_origins":["chrome-extension://nbaolbakegefnefgojdokagajincnfjj/"]}`.
+  page; never `start`), `com.portly.launcher.json` and `config.json` (ASCII, no BOM).
+- Host manifest: `{"name":"com.portly.launcher","description":"Portly launcher (starts the Portly Server scheduled task)","path":"<absolute path of launcher.cmd>","type":"stdio","allowed_origins":["chrome-extension://nbaolbakegefnefgojdokagajincnfjj/"]}`.
   The ID is computed from the manifest `key` (or `-ExtensionId`); the installer refuses a manifest without `key`.
   `config.json` = `{"version":1,"allowedOrigins":[same origin],"installedFrom":"<repo>"}`.
-- Registry: default (REG_SZ) value of `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher` and
-  `HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher` = absolute path of the host manifest
+- Registry: default (REG_SZ) value of `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher` and
+  `HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher` = absolute path of the host manifest
   (user-level hosts are allowed unless policy `NativeMessagingUserLevelHosts` forbids them).
 - Runtime: the browser starts `%ComSpec% /d /s /c ""<launcher.cmd>" chrome-extension://<id>/ --parent-window=<n>"`
   with a hidden console. `launcher.mjs` checks the origin argument against `config.json` before reading stdin
   (`bad_origin`), reads one frame (4-byte little-endian length + UTF-8 JSON, ≤ 64 KB, 5 s), validates it
   (`bad_request`), answers `ping`, probes `/api/health` on 127.0.0.1 and localhost (700 ms), and otherwise runs
-  `%SystemRoot%\System32\schtasks.exe /run /tn "\Homebase Server"` by absolute path, no shell, fixed arguments,
+  `%SystemRoot%\System32\schtasks.exe /run /tn "\Portly Server"` by absolute path, no shell, fixed arguments,
   hidden window, 10 s timeout. "already running"/`0x8004131F` → `starting`; "cannot find the file specified"/`0x80070002` → `task_missing` (English Windows;
   other languages report `schtasks_failed` with the translated first line); other failures → `schtasks_failed`.
   It writes exactly one frame, appends one line to `launcher.log` (rotated at 64 KB) and exits 0. Nothing from the
-  message reaches a command line; the worst a caller can do is start Homebase.
+  message reaches a command line; the worst a caller can do is start Portly.
 
-**Install flow:** validate (Node 24+, dependencies, `HOMEBASE_*` via `server/src/config.ts`, manifest key), print
+**Install flow:** validate (Node 24+, dependencies, `PORTLY_*` via `server/src/config.ts`, manifest key), print
 everything with `-DryRun` (task, every file with content, both registry values; exit 1 if something must be fixed),
 `npm run build` if `web/dist` is missing, register the task, write the host files and keys, stop processes started from
 this repo's supervisor, then (unless `-NoStart`) start the task and wait for `/api/health` (`-TimeoutSeconds`, default
 90). On `Access is denied` (0x80070005) it tells the user to rerun from an elevated PowerShell. Running it again updates
-everything (also to switch modes or after updating Homebase/Node.js). `uninstall-autostart.ps1` removes the host keys
+everything (also to switch modes or after updating Portly/Node.js). `uninstall-autostart.ps1` removes the host keys
 and folder **first** (so no browser can restart the task meanwhile), then stops the task and its node processes and
 unregisters it; the data folder is never touched. `status.ps1` reports the task (mode, last result), both host
 registrations (manifest, files, `allowed_origins`, `node.exe`, stale `launcher.mjs` copy), the last `launcher.log`
@@ -1083,7 +1083,7 @@ fake registry, and the `-DryRun` outputs, and asserts the real task, keys and fo
   DB (migrations applied), in-memory vault (fixed key, no DPAPI), fake fetch, `FakeAccountService` (canned tokens and
   secrets), manual scheduler (`runDue()`), a test logger (`createTestLogger()`: rings and `lines()`, no file or
   console) as both `log` and `logs`, the real health tracker on that database and a fresh `runtime`. `test-request.ts` — `testRequest(app, method, path, {body?, headers?})`
-  sets `Host: localhost:5757`, `X-Homebase: 1`, `Sec-Fetch-Site: same-origin`, JSON content type. `fake-fetch.ts` —
+  sets `Host: localhost:5757`, `X-Portly: 1`, `Sec-Fetch-Site: same-origin`, JSON content type. `fake-fetch.ts` —
   `createFakeFetch([{match: string|RegExp, method?, respond: {status, json?|text?|body?, headers?}}])`; unmatched URL
   fails the test. `web/src/test/render.tsx` — `renderWithProviders(ui, {apiMocks})`. Fixtures in `<module>/__fixtures__/`.
 - Required server tests: gate (host, header, origin, sec-fetch-site, path normalization, exemptions), headers, vault
@@ -1107,8 +1107,8 @@ D calendar, E mail) → review + fixes → 3 integration verification.
    orchestrator applies it between waves.
 2. No `npm install/uninstall/update` and no package.json edits. Report missing dependencies instead.
 3. No git write commands (add, commit, stash, checkout, restore, reset, clean, rebase).
-4. Manual runs use per-builder env: `HOMEBASE_PORT` and `HOMEBASE_VITE_PORT` from your assignment and
-   `HOMEBASE_DATA_DIR=<your scratch dir>\data`. Never use port 5757/5173 or `%LOCALAPPDATA%\Homebase`.
+4. Manual runs use per-builder env: `PORTLY_PORT` and `PORTLY_VITE_PORT` from your assignment and
+   `PORTLY_DATA_DIR=<your scratch dir>\data`. Never use port 5757/5173 or `%LOCALAPPDATA%\Portly`.
    Stop any server you start before finishing.
 5. Verify with scoped commands (`npx vitest run <your paths>`, `npm run typecheck`) and fix only errors in owned paths.
 6. Migrations only in your reserved range (§5).
@@ -1156,10 +1156,10 @@ Shared contract files (`shared/src/*`) are frozen after wave 1a; changes go thro
 
 ---
 
-## 16. Hybrid mode (Pages site + Homebase on this PC)
+## 16. Hybrid mode (Pages site + Portly on this PC)
 
 The browser-only build (`npm run build:static`, published on GitHub Pages; in-browser backend in `web/src/static/`,
-user guide `docs/setup/static-build.md`) can use the Homebase server running on the same PC. Decisions: when this
+user guide `docs/setup/static-build.md`) can use the Portly server running on the same PC. Decisions: when this
 browser is paired with that server and the server answers, the Pages site uses the server for **everything**, exactly
 like the server's own page; otherwise it uses its in-browser copy. The two datasets are separate (no sync). Pairing
 happens once, on the server's own page. Everything else, account sign-in, OAuth client setup and the vault reset
@@ -1173,9 +1173,9 @@ guide: `docs/setup/pages-local-server.md`.
 **One backend per page load.** In the Pages build each page load picks `browser` or `server` before the first render
 and keeps it, so no request of one dataset can reach the other and capabilities are per-load constants. When the right
 backend changes, the page persists what the next load needs and **reloads**: a hidden tab at once; a visible idle tab
-at once, with a toast after the reload (sessionStorage `homebase:mode-switch-toast` = `<target>:<reason>`); a busy tab
+at once, with a toast after the reload (sessionStorage `portly:mode-switch-toast` = `<target>:<reason>`); a busy tab
 — a modal dialog open (`[role="dialog"][aria-modal="true"]`, which `ui/Dialog.tsx` sets, or `dialog[open]`), edit
-mode (`<html data-homebase-editing="true">`, set by `grid/editMode.tsx`) or a focused text field with text in it (an
+mode (`<html data-portly-editing="true">`, set by `grid/editMode.tsx`) or a focused text field with text in it (an
 empty, autofocused search box is not busy) — exposes `pendingSwitch` (banner with **Switch now**) and re-checks every
 2 s. A switch reloads by itself only when the hints it writes make the next load pick its target: if storage refuses
 them (quota), it stays pending (**Switch now**) and retries every 2 s instead of reloading into the same backend. The
@@ -1184,7 +1184,7 @@ switch takes effect; the next load drops a toast that names the other backend. T
 and never reloads for this.
 
 **Boot (`main.tsx` → `localServer/boot.ts`, Pages build):**
-1. `consumePairingReturn()` first: on `#/paired?…` the nonce must equal sessionStorage `homebase:pairing-nonce` (one
+1. `consumePairingReturn()` first: on `#/paired?…` the nonce must equal sessionStorage `portly:pairing-nonce` (one
    use); the record is saved, `lastServerSeenAt = now`, the address is replaced with `#/`.
 2. No pairing record → remove the server snapshot key and the mode hints (revoke/disconnect leftovers, including late
    throttled cache writes).
@@ -1202,7 +1202,7 @@ and never reloads for this.
 `backend`, `remoteServer` (Pages + server), `accounts|calendar|mail|feeds|vault|browserBookmarkImport|siteMetaFetch|
 serverSearchSuggestions` (server backend), `browserBackups` (browser backend), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives
 in this browser" is `backend === 'browser'`, not the build flag. Server-only widgets on a browser-backend page show
-`ServerOnlyNotice` ("needs Homebase running on this PC" + Look for it / Pair this browser / Switch now / Check again).
+`ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this browser / Switch now / Check again).
 Account setup works the same on the server backend from either build (one page).
 
 **Controller (`localServer/controller.ts`, every side effect injected, unit-tested under fake timers).** State
@@ -1218,11 +1218,11 @@ build and tests). Statuses: `disabled` (hybrid off), `framed`, `idle` (not check
   only as an http(s) loopback root page (`localServer/urls.ts`). After a failed CORS probe with the permission
   `granted` (or no permission API), one `GET /api/health` with `mode: 'no-cors'` (same `targetAddressSpace`, carries
   nothing): an opaque answer means something answers on the port but not to this site — state
-  `unreachableReason: 'answers-without-cors'` (its `HOMEBASE_PAGES_URL` names another site, or it predates hybrid
+  `unreachableReason: 'answers-without-cors'` (its `PORTLY_PAGES_URL` names another site, or it predates hybrid
   mode); the status stays `absent`/`reconnecting` and Settings → Diagnostics explains it (§17).
 - *When*: never while disabled/framed; not paired → only after the Local Network Access permission (`loopback-network`,
   older `local-network-access`) is `granted`/unsupported, on boot, focus and visibility, or when the user clicks
-  **Look for Homebase on this PC**; paired → on boot, then every 30 s while connected (skipped while requests got
+  **Look for Portly on this PC**; paired → on boot, then every 30 s while connected (skipped while requests got
   answers in the last 30 s), every 2 s while reconnecting, else backoff 5→10→20→30→60 s, reset by visibility, focus,
   `online`, permission or pairing changes and **Check again**. One probe at a time; with the permission at `prompt`
   only while visible.
@@ -1249,9 +1249,9 @@ build and tests). Statuses: `disabled` (hybrid off), `framed`, `idle` (not check
 so the server bundle never contains it). Browser backend → `staticFetch`. Server backend → wait for
 `whenServerReady(signal)` (resolves when connected, waits while checking/reconnecting/waiting for the permission,
 rejects with `ServerModeEndedError extends TypeError` once a switch to the browser is requested — `api()` maps it to
-`network_error`), then `fetch(<origin><path>)` with `mode: 'cors'`, `credentials: 'omit'`, `X-Homebase: 1`,
-`X-Homebase-Token` and `targetAddressSpace: 'loopback'`, with no extra timeout. Any response reports liveness; a
-`TypeError` from that fetch makes the controller probe; so does 401 `pairing_required`, since another Homebase may
+`network_error`), then `fetch(<origin><path>)` with `mode: 'cors'`, `credentials: 'omit'`, `X-Portly: 1`,
+`X-Portly-Token` and `targetAddressSpace: 'loopback'`, with no extra timeout. Any response reports liveness; a
+`TypeError` from that fetch makes the controller probe; so does 401 `pairing_required`, since another Portly may
 answer on the port now: only the paired instance refusing the token (`revoked`) clears the record, another instance
 gives `other-server` and keeps it. `/api/backups*` (the
 browser backend's own pre-import backups) answer 404 without a request.
@@ -1268,16 +1268,16 @@ retried (by the next request and by the cache itself, until the page leaves the 
 
 | Where | Key | Content |
 | --- | --- | --- |
-| localStorage | `homebase:pairing:<base>` | `{token, instanceId, pairedAt}` |
-| localStorage | `homebase:backend-mode:<base>` | `lastMode`: the backend the last decision chose |
-| localStorage | `homebase:server-seen:<base>` | `lastServerSeenAt` (epoch ms) |
-| localStorage | `homebase:query-cache:static:<base>` | browser backend snapshot, buster `<version>+static`, 24 h |
-| localStorage | `homebase:query-cache:local-server:<base>` | server backend snapshot, buster `<version>+local-server:<instanceId>`, 7 days; never `accounts`, `oauth-clients` or mail |
-| sessionStorage | `homebase:pairing-nonce` | the nonce of this tab's pairing request (one use) |
-| sessionStorage | `homebase:mode-switch-toast` | the switch to announce after the reload |
-| IndexedDB | `homebase-static:<base>` | the browser backend's data (never opened by a server-backend page) |
-| localStorage | `homebase:diagnostics:events:<base>` | this browser's diagnostic events (§17; the server build: `homebase:diagnostics:events`) |
-| localStorage | `homebase:diagnostics:events:<base>:upload-pacing` | the event uploads of the last minute, shared by every tab |
+| localStorage | `portly:pairing:<base>` | `{token, instanceId, pairedAt}` |
+| localStorage | `portly:backend-mode:<base>` | `lastMode`: the backend the last decision chose |
+| localStorage | `portly:server-seen:<base>` | `lastServerSeenAt` (epoch ms) |
+| localStorage | `portly:query-cache:static:<base>` | browser backend snapshot, buster `<version>+static`, 24 h |
+| localStorage | `portly:query-cache:local-server:<base>` | server backend snapshot, buster `<version>+local-server:<instanceId>`, 7 days; never `accounts`, `oauth-clients` or mail |
+| sessionStorage | `portly:pairing-nonce` | the nonce of this tab's pairing request (one use) |
+| sessionStorage | `portly:mode-switch-toast` | the switch to announce after the reload |
+| IndexedDB | `portly-static:<base>` | the browser backend's data (never opened by a server-backend page) |
+| localStorage | `portly:diagnostics:events:<base>` | this browser's diagnostic events (§17; the server build: `portly:diagnostics:events`) |
+| localStorage | `portly:diagnostics:events:<base>:upload-pacing` | the event uploads of the last minute, shared by every tab |
 
 The query client's persist options are per client and decided by the first restore or render; on a quota error the
 *other* backend's snapshot is dropped before trimming the active one. The first-run seed lock is per backend.
@@ -1286,24 +1286,24 @@ The query client's persist options are per client and decided by the first resto
 keeps it, and a failed request's `api` event keeps it as `rid`, so the browser's event and the server's lines of that
 request share one id (`transport: 'pages-server'`). The controller (`diag` dependency, wired by `boot.ts`) records
 `hybrid` events: `hybrid status changed {from, to, reason}`, probe results `{kind, httpStatus, ms, timedOut, errName,
-permission}`, pairing-check failures and `pairing revoked by Homebase on this PC`, reconnect grace started/ended,
+permission}`, pairing-check failures and `pairing revoked by Portly on this PC`, reconnect grace started/ended,
 backend switch requested/deferred/performed/withdrawn `{target, reason}`, permission changes; a page load's first
 status is debug when it repeats the one last reported in this browser. The events survive the reload of a switch
 (localStorage) and are uploaded only by a page load whose backend is the server; a browser-backend page keeps them
 (This browser, the report). The server logs a Pages request's lines with `from: 'pages'` and its `pairingId`, a refused
 token with its sub-reason (`token_revoked {pairingId, removedBy}` …), and a GitHub Pages, loopback or same-domain site
 it does not answer as a foreign origin (`health check from another site (no CORS answer)`). All diagnostics routes are
-`paired()`, so a paired site shows the full Diagnostics page; `#/settings/diagnostics` on Homebase's own page never
+`paired()`, so a paired site shows the full Diagnostics page; `#/settings/diagnostics` on Portly's own page never
 forwards, and the site links to it ("Open diagnostics on this PC", `<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`).
 
-**Build.** `HOMEBASE_STATIC_SERVER` (default `http://127.0.0.1:5757`; `off` disables; only http(s) origins on
-`localhost`, `*.localhost`, `127.0.0.1` or `[::1]`, anything else fails the build) → `__HOMEBASE_LOCAL_SERVER__`
+**Build.** `PORTLY_STATIC_SERVER` (default `http://127.0.0.1:5757`; `off` disables; only http(s) origins on
+`localhost`, `*.localhost`, `127.0.0.1` or `[::1]`, anything else fails the build) → `__PORTLY_LOCAL_SERVER__`
 (`''` in the server build and in both vitest web projects). The hybrid-only UI (footer indicator, local server panel,
 pairing page) is loaded on demand, so the server build's main chunk does not carry it.
 
 **Extension** (§11): by default new tabs open the Pages site the server reports (`pagesUrl` in `/api/health`) and
-only ask the service worker to warm Homebase up; the site finds the server itself. A server without `HOMEBASE_PAGES_URL`
-gets Homebase's own page instead.
+only ask the service worker to warm Portly up; the site finds the server itself. A server without `PORTLY_PAGES_URL`
+gets Portly's own page instead.
 
 ---
 
@@ -1345,10 +1345,10 @@ only source of failure, recovery and reminder lines for them (modules record out
   `rate_limited`, `timeout`, `not_configured`, `not_found`, `too_large`, provider errors by upstream status:
   `not_found`, `rate_limited`, `http_4xx`, `http_5xx`) → named errors (`not_a_feed`, `parse_error`, `too_large`,
   `worker_failed`, `auth_failed`, `timeout`) → transport codes → `internal`; `status` = upstream HTTP status;
-  `message` = Homebase's own text (HttpError/ExpandError/DavParseError), else the error name; `detail` = the loggable
+  `message` = Portly's own text (HttpError/ExpandError/DavParseError), else the error name; `detail` = the loggable
   error fields; `nextAttemptAt` from Retry-After. Codes are `HEALTH_CODES` (each has a remedy in the UI and a section
   in troubleshooting.md) or another machine token (`REASON_TOKEN`; e.g. a provider's
-  reason). Content rules, enforced by `record`: message Homebase-authored, scrubbed, ≤ 300; code a token;
+  reason). Content rules, enforced by `record`: message Portly-authored, scrubbed, ≤ 300; code a token;
   detail values numbers, booleans, or ≤ 64-character tokens, hostnames or media types; anything else is dropped and
   the dropped names debug-logged. A subject that fails because its account is unusable records
   `account_unavailable` with `causeKey: 'account:<id>'` at severity info. Skipped work (`touch`: `backoff`,
@@ -1383,7 +1383,7 @@ only source of failure, recovery and reminder lines for them (modules record out
 context). Success → `debug 'job finished' {job, ms}` and `job:<name>` ok; failure → `job:<name>` failing at error with
 the next attempt (`debug 'job failed'` with the error fields). `jobs()` → per job: `intervalMs, nextRunAt, running,
 runningSince, runs, failures, consecutiveFailures, lastStartedAt, lastFinishedAt, lastMs, lastOk, lastError {name,
-code, message}` (message = Homebase's own text or the error name), `overdue` (not running and the next run is late by
+code, message}` (message = Portly's own text or the error name), `overdue` (not running and the next run is late by
 more than max(60 s, interval / 10)) and `stuckForMs` (running longer than max(2 min, interval)). Watchdog:
 `warn 'job still running' {job, run, runningForMs, lastRecord}` after 2 min, then every 10 min (`lastRecord` = the
 last line that run logged). `idle(ms)` waits for every run in flight (shutdown); `trigger(name)` runs a job now.
@@ -1403,7 +1403,7 @@ last line that run logged). `idle(ms)` waits for every run in flight (shutdown);
   (first 5 field paths, never values), errReason?, upstreamStatus?}`.
 - **Gate refusals** (`security/gate.ts`): `info 'request refused by gate' {method, path, status, reason, origin?,
   secFetchSite?}`, repeat-collapsed per reason and origin. `reason`: `bad_path`, `host_not_allowed`,
-  `preflight_refused`, `local_only`, `x_homebase_missing`, `cross_site`, `content_type`, `origin_not_allowed`,
+  `preflight_refused`, `local_only`, `x_portly_missing`, `cross_site`, `content_type`, `origin_not_allowed`,
   `bad_content_length`, `too_large`, and for a Pages token `token_missing`, `token_malformed`, `token_unknown`
   (never issued by this server), `token_revoked {pairingId, removedBy}`, `token_origin_mismatch {pairingId}` (made
   for another Pages address) — never the token. Origins are logged only when they are ours, the Pages site's or a
@@ -1417,10 +1417,10 @@ last line that run logged). `idle(ms)` waits for every run in flight (shutdown);
   `instance id created {replacedInvalid}`.
 - **Foreign origins** (`security/foreign-origins.ts`): an `/api` request (health included) whose `Origin` is an
   http(s) origin that is neither allowed nor the configured Pages origin. *Named* — a `*.github.io` site, a loopback
-  origin, or one under the registrable domain of `HOMEBASE_PAGES_URL` — it is kept (≤ 5, least recently seen dropped)
+  origin, or one under the registrable domain of `PORTLY_PAGES_URL` — it is kept (≤ 5, least recently seen dropped)
   and logged `warn 'request from a site that is not the configured Pages site' {origin, pagesOrigin}`, for
   `/api/health` `warn 'health check from another site (no CORS answer)'` (repeat-collapsed per origin): how a
-  missing or wrong `HOMEBASE_PAGES_URL` shows. Any other origin is only counted (`foreignOriginRequests`), never
+  missing or wrong `PORTLY_PAGES_URL` shows. Any other origin is only counted (`foreignOriginRequests`), never
   named.
 - **Outbound** (`security/safe-fetch.ts`): callers pass a `purpose` (`<provider>.<op>`: `gcal.events.list`,
   `graph.calendars`, `gmail.get`, `oauth.refresh`, `ics.fetch`, `todoist.filter`, `weather.forecast`,
@@ -1432,7 +1432,7 @@ last line that run logged). `idle(ms)` waits for every run in flight (shutdown);
   reset, TLS and not-LAN failures apart. `inflightOutbound()` lists calls in progress with their run or request id.
 - **Modules** add only specific lines: `account status changed {accountId, kind, from, to, reason, source}`,
   `provider rejected a freshly refreshed token`, `calendar event written {op, source, accountId, calendarId, status,
-  ms, …}`, `event written by Homebase is missing from the provider listing`, `calendar worker failed`, `mail action
+  ms, …}`, `event written by Portly is missing from the provider listing`, `calendar worker failed`, `mail action
   {op, accountId, ms}`, debug `favicon resolved`/`favicon miss`; everything else is health transitions and debug
   detail.
 
@@ -1446,17 +1446,17 @@ all of it).**
 | `GET /api/diagnostics/health/:key/history?limit=` | the subject's outcome rows, newest first (default 50, at most 500) |
 | `PUT /api/diagnostics/level` | `{verbose, minutes: 1–10080 \| null, areas: [...] \| null}` → `LogLevelState {level, verbose, until, areas, bootLevel, persisted}`. Timed → `server_meta` `diagnostics.verbose` `{until, areas}`, switched back on after a restart; `minutes: null` (until turned off) → only the marker `diagnostics.verbose.untilOff`, so the next start logs `verbose logging ended {reason: 'restart'}`; `verbose: false` deletes both. The logger logs `log level changed {verbose, until, areas}` and `verbose logging ended {reason: 'expired'}` |
 | `POST /api/diagnostics/jobs/:name/run` | 202 `{started: true}` (not awaited; the job records its own outcome); 404 for an unknown job |
-| `GET /api/diagnostics/report?redact=0\|1` | JSON attachment `homebase-diagnostics-YYYYMMDD-HHmm.json` (below); `info 'diagnostic report created' {redact, bytes, ms}` |
+| `GET /api/diagnostics/report?redact=0\|1` | JSON attachment `portly-diagnostics-YYYYMMDD-HHmm.json` (below); `info 'diagnostic report created' {redact, bytes, ms}` |
 | `POST /api/diagnostics/client-events` | `{sentAt, events (1–100)}` → `{accepted, dropped, acceptDebug}` (below) |
 
 A server from before diagnostics answers the Pages site `403 local_only` (its own page `404`); the page then says
-"Update Homebase on this PC to see its diagnostics".
+"Update Portly on this PC to see its diagnostics".
 
 **Report.** `{generatedAt, summary (full; paths masked), accounts [{id, kind, label, status, statusMessage}], calendars
 [{id, accountId, name, source}], health, history (the newest 500 outcome rows), logs {main: the last 3,000 info+
 records, flight: the whole flight recorder, client: the whole browser ring, files: the last 2,000 server.log records},
 supervisorLog (the last 300 records), launcherLog (the last 100 lines of the extension launcher's log, or null),
-config {port, bindAddresses, dev, pagesOrigin, logLevel, envSet: the names of the HOMEBASE_* variables set, never their
+config {port, bindAddresses, dev, pagesOrigin, logLevel, envSet: the names of the PORTLY_* variables set, never their
 values}}`, everything through `scrubFields` and the home-directory mask. The page adds `browser {build, version,
 backend, pagesOrigin, userAgent, session, hybrid, events}`. **Redaction** ("Hide hosts, emails and names", off by
 default): the server applies `redactForSharing` with a dictionary of account labels, emails and user names, IMAP,
@@ -1480,7 +1480,7 @@ through `scrub`/`scrubFields`:
 | `widget` | the mail widget when an account's error changes | `accountId, code, status, widget` |
 | `app` | `window` `error`/`unhandledrejection`, the error boundary | `errName, errMessage, source, stack (≤ 5 frames, file names only)` |
 
-- **Kept:** a ring of the last 300 events mirrored to localStorage (`homebase:diagnostics:events`, Pages build
+- **Kept:** a ring of the last 300 events mirrored to localStorage (`portly:diagnostics:events`, Pages build
   `…:<base>`; merged across tabs, ≤ 256 KB, entries older than 7 days dropped). **Debug events are never stored**
   (the last 100 stay in memory). Each event carries a session id (random per page load) and `page {build, backend,
   version}`; every storage access is guarded and everything read back is validated.
@@ -1490,7 +1490,7 @@ through `scrub`/`scrubFields`:
   backend, and `api` events carrying a `rid` (the server logged that request itself). Debug events go only while the
   server says `acceptDebug` (otherwise one a minute, to ask). 400, 403, 404, 409, 413 and a 422 that names no event
   stop the uploads for the page load (a server older than the page); no answer, 5xx and 429 are retried.
-- **Intake** (`client-events.ts`): per caller (`pairingId`, or `local` for Homebase's own page) at most 120 events and
+- **Intake** (`client-events.ts`): per caller (`pairingId`, or `local` for Portly's own page) at most 120 events and
   64 KB of fields a minute — the rest is dropped and counted, with one `warn 'client events dropped' {caller,
   dropped, perMinute, bytesPerMinute}` a minute; debug events are dropped unless Verbose covers `client`. Clock skew:
   `tEvent = t + (receivedAt − sentAt)`, `late` when it happened more than 5 min before it arrived. Each event is
@@ -1503,10 +1503,10 @@ through `scrub`/`scrubFields`:
 - **Overview** — version (warning when the page runs another), uptime and boot, process, supervisor and its last
   restart (`lastExit` with the start-up failure), modules down, vault, warnings/errors of the last hour (server and
   browser), log level, requests and outbound calls in progress, Pages site and pairings; a banner when a named
-  foreign origin tried to use this server ("A page at <origin> tried to use this server, but HOMEBASE_PAGES_URL is
+  foreign origin tried to use this server ("A page at <origin> tried to use this server, but PORTLY_PAGES_URL is
   not set / is set to …"). Pages build: a "This site" card (version, backend, hybrid status, local network
-  permission, this browser's counts, **Open diagnostics on this PC**) and, for `answers-without-cors`, "Homebase
-  runs on this PC but does not accept this site: set `HOMEBASE_PAGES_URL=<this site's address>` and restart it".
+  permission, this browser's counts, **Open diagnostics on this PC**) and, for `answers-without-cors`, "Portly
+  runs on this PC but does not accept this site: set `PORTLY_PAGES_URL=<this site's address>` and restart it".
 - **Connections & sync** — health grouped by account (account, calendar list, calendars, mail) and then by area (ICS
   calendars, feeds, Todoist, weather, search suggestions, sports, scheduled jobs — jobs also from the job stats, so a
   job that never ran shows), needing attention first; status pill (OK / Degraded / Failing since … / Stale — last
@@ -1528,10 +1528,10 @@ through `scrub`/`scrubFields`:
   largest of its repeats' running `repeats` and its summary's `count` — the last 5 browser ones), both with "Hide hosts,
   emails and names (for sharing publicly)".
 
-Availability follows the page load's backend: the server (Homebase's own page, or the Pages site using it) → every
-tab; a server whose summary answers `403 local_only`/`404` → "Update Homebase on this PC to see its diagnostics" with
+Availability follows the page load's backend: the server (Portly's own page, or the Pages site using it) → every
+tab; a server whose summary answers `403 local_only`/`404` → "Update Portly on this PC to see its diagnostics" with
 Overview and This browser; the in-browser backend → Overview (the "This site" card) and This browser
-(`static/handlers/unavailable.ts` answers `/api/diagnostics/*` as unavailable). `#/settings/diagnostics` on Homebase's
+(`static/handlers/unavailable.ts` answers `/api/diagnostics/*` as unavailable). `#/settings/diagnostics` on Portly's
 own page never forwards to the Pages site (`app/pagesForward.ts`, like `#/pair`), and the Pages build always links to
 it (`<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`, `http://127.0.0.1:5757` when hybrid mode is built off). Every
 diagnostics query is unpersisted (`qk.diagnostics` in `NON_PERSISTED_ROOTS`); errors render notices, never a broken
@@ -1544,31 +1544,31 @@ section.
 User guide and release steps: `docs/setup/releases.md`. A Git checkout (`scripts/setup.ps1`) stays the development
 path; a **release install** runs the same server code from a zip that needs no Git, npm or separate Node.js.
 
-- **Package** (`scripts/build-release.ps1` → `dist-release/homebase-<version>-win-x64.zip` + `homebase-release.json`
+- **Package** (`scripts/build-release.ps1` → `dist-release/portly-<version>-win-x64.zip` + `portly-release.json`
   `{name, version, platform, package, sha256, size, node, commit, builtAt}`): root `package.json` (the version the server
-  reports), `release.json` `{name: 'homebase', version, platform: 'win-x64', node, nodeSource, extensionVersion, commit,
+  reports), `release.json` `{name: 'portly', version, platform: 'win-x64', node, nodeSource, extensionVersion, commit,
   dirty, builtAt, releaseRepo}`, `server/` and `shared/` TypeScript sources without `*.test.ts`, `__fixtures__/` and
   `server/src/testing/`, `node_modules/` = `npm ci --omit=dev` of the server and shared workspaces only (no workspace
   links), `web/dist`, `extension/` without `test/` and `tools/`, `native-host/`, the user scripts with `scripts/lib`,
   `docs/`, and `runtime/node.exe` + `LICENSE` from the nodejs.org zip pinned with its SHA-256 in
   `scripts/release/node-runtime.json` (`-NodeExe` substitutes a local one for test builds; `publish-release.ps1`
   refuses those and dirty builds). No bundling: Node runs the sources as in a checkout.
-- **`@homebase/shared` link:** a zip holds no junction, so `node_modules/@homebase/shared` → `<app>/shared` is created
+- **`@portly/shared` link:** a zip holds no junction, so `node_modules/@portly/shared` → `<app>/shared` is created
   after the package reaches its final folder (`install.ps1`; `Initialize-HbReleaseLinks` in `install-autostart.ps1` and
   `start.ps1` restores it). Node resolves it to the real path outside `node_modules`, where type stripping is allowed.
   Before a release folder is moved or deleted its junctions are removed first (non-recursive `Directory.Delete`), since
   a moved junction keeps its absolute target.
 - **Scripts in a release install** (`Get-HbReleaseInfo` = `release.json` present): `Resolve-HbNode` prefers
-  `<root>/runtime/node.exe` over PATH (task action, `launcher.cmd`, config check); `homebase --update` runs a temporary
+  `<root>/runtime/node.exe` over PATH (task action, `launcher.cmd`, config check); `portly --update` runs a temporary
   copy of `install.ps1` with `-InstallDir` = the parent of `app`, `--rebuild` refuses (it is `update.ps1`, checkout
-  only), `--version` names the install kind; `install-cli.ps1` skips the `HOMEBASE_PAGES_REPO` warning; `status.ps1`
+  only), `--version` names the install kind; `install-cli.ps1` skips the `PORTLY_PAGES_REPO` warning; `status.ps1`
   shows the release version.
 - **Install/update** (`scripts/install.ps1`, self-contained, also `irm | iex`): latest =
-  `github.com/<releaseRepo>/releases/latest/download/homebase-release.json` (validated: name, platform, version syntax,
+  `github.com/<releaseRepo>/releases/latest/download/portly-release.json` (validated: name, platform, version syntax,
   package name pattern, 64-hex SHA-256), package checked against that SHA-256 before unpacking into `<InstallDir>/app.new`
   and checked (release.json, platform, version, required files). Update: same version skipped unless `-Force`; stop the
   task when its action names `<app>/server/src/supervisor.ts`, stop every process whose executable lives under `<app>`,
-  copy `homebase.db` (+ `-wal`/`-shm`) to `<data>/backups/homebase-before-<old>-<time>.db` (newest 3 kept), `app` →
+  copy `portly.db` (+ `-wal`/`-shm`) to `<data>/backups/portly-before-<old>-<time>.db` (newest 3 kept), `app` →
   `app.previous`, `app.new` → `app`, link, `install-autostart.ps1 -Trigger <installed mode> -NodePath <app>/runtime/node.exe`
   (waits for `/api/health`); on failure `app` → `app.failed`, `app.previous` → `app`, and the old version's
   `install-autostart.ps1`. A task that runs another copy (a checkout) is left alone with a warning. The data folder is

@@ -4,7 +4,7 @@
  * provider's status when the error carries one; never the error's message.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { MailAccountSummary } from '@homebase/shared';
+import type { MailAccountSummary } from '@portly/shared';
 import { getClientEvents } from '../../diagnostics/clientLog.ts';
 import { reportMailAccountErrors } from './diagnostics.ts';
 

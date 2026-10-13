@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
-import { REQUEST_ID_REGEX } from '@homebase/shared';
+import { REQUEST_ID_REGEX } from '@portly/shared';
 import { getLogContext, newRequestId, newRunId, outsideLogContext, withLogContext } from './log-context.ts';
 import { createTestLogger } from './logger.ts';
 

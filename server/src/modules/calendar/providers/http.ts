@@ -7,7 +7,7 @@
  * reason codes, its HTTP status and its `Retry-After` are kept on {@link ProviderHttpError} for logs
  * and health only (`outcomeFromError`: `nextAttemptAt`, `http_4xx`/`http_5xx`/`not_found`).
  */
-import type { ErrorCode } from '@homebase/shared';
+import type { ErrorCode } from '@portly/shared';
 import { HttpError, ProviderUnauthorizedError } from '../../../lib/errors.ts';
 import {
   ProviderHttpError,
@@ -55,9 +55,9 @@ function denialMessage(name: string, denial: ProviderDenial, method: string): st
     case 'api_disabled':
       return `The ${name} API is not enabled for the Google Cloud project of your OAuth client; enable it in the Google Cloud console, then sync again`;
     case 'insufficient_scope':
-      return `${name} access was not granted to Homebase; reconnect the account and allow calendar access`;
+      return `${name} access was not granted to Portly; reconnect the account and allow calendar access`;
     case 'denied':
-      return method === 'GET' ? `${name} denied Homebase access to this calendar` : `${name} does not allow this change`;
+      return method === 'GET' ? `${name} denied Portly access to this calendar` : `${name} does not allow this change`;
   }
 }
 
@@ -136,7 +136,7 @@ export function listItems(data: unknown, key: 'items' | 'value', account: { id: 
 /** More pages than {@link MAX_PAGES}: a partial listing is refused (sync would delete the rest). */
 export function incompleteListing(account: { id: string }): HttpError {
   return new HttpError(502, 'provider_error', {
-    message: 'The provider returned more pages than Homebase reads',
+    message: 'The provider returned more pages than Portly reads',
     accountId: account.id,
     details: { reason: 'too_large' },
   });

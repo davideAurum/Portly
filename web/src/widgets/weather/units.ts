@@ -4,7 +4,7 @@
  * display (its own °C/°F override, or the current settings) so a cached report is always shown
  * correctly, even right after the settings changed.
  */
-import type { PrecipUnit, TemperatureUnit, WindUnit } from '@homebase/shared';
+import type { PrecipUnit, TemperatureUnit, WindUnit } from '@portly/shared';
 
 export type UnitsChoice = 'inherit' | TemperatureUnit;
 

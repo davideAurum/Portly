@@ -5,7 +5,7 @@
  * address at once).
  */
 import { describe, expect, it, vi } from 'vitest';
-import { buildPairingReturnUrl } from '@homebase/shared';
+import { buildPairingReturnUrl } from '@portly/shared';
 import { APP_URL, INSTANCE, NEW_TOKEN, START, TOKEN, memoryStorage, pairingRecord, throwingStorage } from './__fixtures__/fakes.ts';
 import {
   PAIRING_NONCE_KEY,
@@ -22,12 +22,12 @@ const NONCE = 'n'.repeat(43);
 
 describe('pairing store', () => {
   it('namespaces its keys by the Pages base path', () => {
-    expect(hybridStorageKeys('/homebase/')).toEqual({
-      pairing: 'homebase:pairing:/homebase/',
-      mode: 'homebase:backend-mode:/homebase/',
-      seen: 'homebase:server-seen:/homebase/',
+    expect(hybridStorageKeys('/portly/')).toEqual({
+      pairing: 'portly:pairing:/portly/',
+      mode: 'portly:backend-mode:/portly/',
+      seen: 'portly:server-seen:/portly/',
     });
-    expect(hybridStorageKeys().pairing).toBe('homebase:pairing:/');
+    expect(hybridStorageKeys().pairing).toBe('portly:pairing:/');
   });
 
   it('saves and reads the record, the last mode and when the server was last seen', () => {
@@ -42,8 +42,8 @@ describe('pairing store', () => {
     expect(store.lastServerSeenAt()).toBe(START);
     store.setLastMode(null);
     store.setLastServerSeenAt(null);
-    expect(local.items.has('homebase:backend-mode:/')).toBe(false);
-    expect(local.items.has('homebase:server-seen:/')).toBe(false);
+    expect(local.items.has('portly:backend-mode:/')).toBe(false);
+    expect(local.items.has('portly:server-seen:/')).toBe(false);
   });
 
   it('tells which backend the next page load would start on, from what it holds now', () => {
@@ -71,8 +71,8 @@ describe('pairing store', () => {
       JSON.stringify({ token: TOKEN, instanceId: INSTANCE, pairedAt: 'yesterday' }),
       JSON.stringify({ token: TOKEN, instanceId: INSTANCE }),
     ];
-    for (const raw of bad) expect(createPairingStore(memoryStorage({ 'homebase:pairing:/': raw }), '/').read()).toBeNull();
-    const hints = createPairingStore(memoryStorage({ 'homebase:backend-mode:/': 'remote', 'homebase:server-seen:/': 'soon' }), '/');
+    for (const raw of bad) expect(createPairingStore(memoryStorage({ 'portly:pairing:/': raw }), '/').read()).toBeNull();
+    const hints = createPairingStore(memoryStorage({ 'portly:backend-mode:/': 'remote', 'portly:server-seen:/': 'soon' }), '/');
     expect(hints.lastMode()).toBeNull();
     expect(hints.lastServerSeenAt()).toBeNull();
   });
@@ -145,7 +145,7 @@ describe('startPairing', () => {
 
 describe('consumePairingReturn', () => {
   function env(hash: string, overrides: Partial<PairingReturnEnv> = {}) {
-    const local = memoryStorage({ 'homebase:backend-mode:/': 'browser' });
+    const local = memoryStorage({ 'portly:backend-mode:/': 'browser' });
     const session = memoryStorage({ [PAIRING_NONCE_KEY]: NONCE });
     const replaceState = vi.fn();
     const value: PairingReturnEnv = {
@@ -200,9 +200,9 @@ describe('consumePairingReturn', () => {
   });
 
   it('keeps the path and query of the page when cleaning the address', () => {
-    const { env: e, replaceState } = env(returned(), { location: { hash: returned(), pathname: '/homebase/', search: '?x=1' } });
+    const { env: e, replaceState } = env(returned(), { location: { hash: returned(), pathname: '/portly/', search: '?x=1' } });
     consumePairingReturn(e);
-    expect(replaceState).toHaveBeenCalledWith({ kept: true }, '', '/homebase/?x=1#/');
+    expect(replaceState).toHaveBeenCalledWith({ kept: true }, '', '/portly/?x=1#/');
   });
 
   it('refuses when the record cannot be saved', () => {

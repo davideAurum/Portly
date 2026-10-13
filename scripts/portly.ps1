@@ -1,25 +1,25 @@
 <#
 .SYNOPSIS
-    The `homebase` command (installed on PATH by scripts\install-cli.ps1).
+    The `portly` command (installed on PATH by scripts\install-cli.ps1).
 
 .DESCRIPTION
-    homebase --update [--version <x>] [--dry-run] [--force]
+    portly --update [--version <x>] [--dry-run] [--force]
         In a release install: download and install the newest release (or <x>) with
         scripts\install.ps1, run from a temporary copy. In a Git checkout: the same as --rebuild.
-    homebase --rebuild [--dry-run] [--skip-publish] [--skip-server]
+    portly --rebuild [--dry-run] [--skip-publish] [--skip-server]
         Git checkout: update everything from the code checked out: dependencies, the local page,
         the server and the GitHub Pages site (scripts\update.ps1). A release install says to use
         --update instead.
-    homebase --version
+    portly --version
         The installed version, and whether it is a release install or a Git checkout.
-    homebase --status [--logs]
-        Is Homebase running and healthy? (scripts\status.ps1 -View Status; --logs adds the log
+    portly --status [--logs]
+        Is Portly running and healthy? (scripts\status.ps1 -View Status; --logs adds the log
         tails)
-    homebase --settings
+    portly --settings
         How it is set up: port, folders, logs, autostart, extension, Pages (status.ps1 -View Settings).
-    homebase --start
-        Start the Homebase Server scheduled task.
-    homebase --help
+    portly --start
+        Start the Portly Server scheduled task.
+    portly --help
         This text.
 
     Each command runs its script in this PowerShell with the matching parameters and passes its
@@ -30,8 +30,8 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 
-$HomebaseCliUsage = @'
-Usage: homebase <command> [options]
+$PortlyCliUsage = @'
+Usage: portly <command> [options]
 
   --update      Install the newest release (release installs; in a Git
                 checkout the same as --rebuild).
@@ -44,10 +44,10 @@ Usage: homebase <command> [options]
                   --skip-publish  leave the GitHub Pages site alone
                   --skip-server   do not restart the server
   --version     Show the installed version.
-  --status      Is Homebase running and healthy?  (--logs adds the log tails)
-  --settings    How Homebase is set up: port, folders, logs, autostart,
+  --status      Is Portly running and healthy?  (--logs adds the log tails)
+  --settings    How Portly is set up: port, folders, logs, autostart,
                 browser extension and GitHub Pages.
-  --start      Start the Homebase server.
+  --start      Start the Portly server.
   --help        Show this text.
 '@
 
@@ -75,7 +75,7 @@ function Invoke-HbCliScript {
     return $global:LASTEXITCODE
 }
 
-# homebase --update in a release install: runs a temporary copy of scripts\install.ps1 against
+# portly --update in a release install: runs a temporary copy of scripts\install.ps1 against
 # the install folder (the parent of this copy's app folder), so nothing in app\ is in use while
 # it is replaced.
 function Invoke-HbReleaseUpdate {
@@ -100,7 +100,7 @@ function Invoke-HbReleaseUpdate {
     }
     $releaseRepo = "$(Get-HbProperty $Info 'releaseRepo')"
     if ($releaseRepo) { $arguments.Add('-ReleaseRepo'); $arguments.Add($releaseRepo) }
-    $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('homebase-update-' + [guid]::NewGuid().ToString('N'))
+    $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('portly-update-' + [guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $temp -Force
     try {
         $installer = Join-Path $temp 'install.ps1'
@@ -123,7 +123,7 @@ function Write-HbVersion {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $info = Get-HbReleaseInfo -RepoRoot $RepoRoot
     if ($null -ne $info) {
-        Write-Host "Homebase $($info.version) (release install, Node.js $(Get-HbProperty $info 'node'), $RepoRoot)"
+        Write-Host "Portly $($info.version) (release install, Node.js $(Get-HbProperty $info 'node'), $RepoRoot)"
         return 0
     }
     $package = [System.IO.File]::ReadAllText((Join-Path $RepoRoot 'package.json')) | ConvertFrom-Json
@@ -134,14 +134,14 @@ function Write-HbVersion {
         $commit = "$(& $git.Source -C $RepoRoot rev-parse --short HEAD 2>$null)".Trim()
         if ($commit) { $where = "Git checkout, $branch $commit, $RepoRoot" }
     }
-    Write-Host "Homebase $($package.version) ($where)"
+    Write-Host "Portly $($package.version) ($where)"
     return 0
 }
 
 function Invoke-HbCli {
     param([AllowEmptyCollection()][string[]]$CliArgs)
     if ($CliArgs.Count -eq 0) {
-        Write-Host $HomebaseCliUsage
+        Write-Host $PortlyCliUsage
         return 2
     }
     $command = $CliArgs[0].ToLowerInvariant().TrimStart('-')
@@ -157,7 +157,7 @@ function Invoke-HbCli {
         }
         'rebuild' {
             if ($null -ne $release) {
-                Write-HbFailure "This is a release install (Homebase $($release.version)), not a Git checkout: use homebase --update."
+                Write-HbFailure "This is a release install (Portly $($release.version)), not a Git checkout: use portly --update."
                 return 1
             }
             $mapped = ConvertTo-HbCliParameters -Options $rest -Map @{
@@ -183,14 +183,14 @@ function Invoke-HbCli {
         'start' {
             if ($rest.Count -gt 0) { Write-HbFailure '--start takes no options.'; return 2 }
             if ($null -eq (Get-HbTask)) {
-                Write-HbFailure "The '$HomebaseTaskName' task is not installed. Run scripts\install-autostart.ps1 first."
+                Write-HbFailure "The '$PortlyTaskName' task is not installed. Run scripts\install-autostart.ps1 first."
                 return 1
             }
-            Start-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+            Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
             $port = (Get-HbPortSetting -Scope Task).Port
             $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
-            if ($health.Ok) { Write-HbOk "Homebase is $(Format-HbHealth $health)"; return 0 }
-            Write-HbFailure "Homebase did not start: $(Format-HbHealth $health). Try: homebase --status --logs"
+            if ($health.Ok) { Write-HbOk "Portly is $(Format-HbHealth $health)"; return 0 }
+            Write-HbFailure "Portly did not start: $(Format-HbHealth $health). Try: portly --status --logs"
             return 1
         }
         'version' {
@@ -198,12 +198,12 @@ function Invoke-HbCli {
             return Write-HbVersion -RepoRoot $repoRoot
         }
         { $_ -in 'help', 'h', '?' } {
-            Write-Host $HomebaseCliUsage
+            Write-Host $PortlyCliUsage
             return 0
         }
         default {
             Write-HbFailure "Unknown command '$($CliArgs[0])'."
-            Write-Host $HomebaseCliUsage
+            Write-Host $PortlyCliUsage
             return 2
         }
     }

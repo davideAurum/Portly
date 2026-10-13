@@ -6,7 +6,7 @@
  */
 import type { CSSProperties } from 'react';
 import { Droplets, LocateFixed, MapPin, MapPinOff, Navigation2, RefreshCw, Sunrise, Sunset, Umbrella, Wind } from 'lucide-react';
-import { weatherCodeInfo, type GeneralSettings, type WeatherDay, type WeatherHour, type WeatherReport } from '@homebase/shared';
+import { weatherCodeInfo, type GeneralSettings, type WeatherDay, type WeatherHour, type WeatherReport } from '@portly/shared';
 import { useSettings } from '../../api/settings.ts';
 import { useWeather } from '../../api/weather.ts';
 import { WidgetActions, useWidgetFrame } from '../../grid/WidgetContext.tsx';
@@ -74,7 +74,7 @@ export default function WeatherWidget({ config, setConfig, size }: WidgetProps<W
           icon={MapPin}
           compact={compact}
           title="Set a location"
-          body="Search for a city, or let Homebase use this device's location."
+          body="Search for a city, or let Portly use this device's location."
           action={
             <>
               {setLocationAction}
@@ -100,7 +100,7 @@ export default function WeatherWidget({ config, setConfig, size }: WidgetProps<W
           icon={MapPinOff}
           compact={compact}
           title="Location access is blocked"
-          body="Allow location access for Homebase in your browser, or choose a place instead."
+          body="Allow location access for Portly in your browser, or choose a place instead."
           action={
             <>
               {setLocationAction}

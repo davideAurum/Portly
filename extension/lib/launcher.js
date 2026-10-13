@@ -1,12 +1,12 @@
 // @ts-check
 /**
- * Client for the Homebase launcher, the native-messaging host `com.homebase.launcher` that
+ * Client for the Portly launcher, the native-messaging host `com.portly.launcher` that
  * scripts\install-autostart.ps1 registers for Chrome and Edge (ARCHITECTURE §11–§12). The host
- * never runs Homebase itself: it asks Task Scheduler to run the "Homebase Server" task, so the
+ * never runs Portly itself: it asks Task Scheduler to run the "Portly Server" task, so the
  * server is not tied to the browser's process tree.
  *
  * Contract (extension → host → extension, one message each way):
- *   {"action":"start","port":5757} → {"ok":true,"state":"running"}   Homebase already answers
+ *   {"action":"start","port":5757} → {"ok":true,"state":"running"}   Portly already answers
  *                                  → {"ok":true,"state":"starting"}  the task was started
  *                                  → {"ok":false,"state":"error","error":"task_missing"|"schtasks_failed"|"bad_request"|"bad_origin","detail":"…"}
  *   {"action":"ping"}              → {"ok":true,"state":"pong","version":1}
@@ -18,9 +18,9 @@
  *
  * Every function here resolves; none rejects. Dependencies are injected for `node --test`.
  */
-import { isValidPort } from './homebase.js';
+import { isValidPort } from './portly.js';
 
-export const LAUNCHER_HOST = 'com.homebase.launcher';
+export const LAUNCHER_HOST = 'com.portly.launcher';
 export const LAUNCHER_PROTOCOL_VERSION = 1;
 /**
  * The ID Chrome and Edge derive from manifest.json's "key" — the only ID the launcher accepts
@@ -33,12 +33,12 @@ const MAX_DETAIL_LENGTH = 200;
 
 /**
  * What a start request achieved.
- * - running / starting: the host answered; Homebase answers or is on its way.
+ * - running / starting: the host answered; Portly answers or is on its way.
  * - maybe: no usable answer (host exited, failed to start, odd reply). It may still have started
  *   the task, so callers keep checking /api/health.
  * - not_installed: the host is not registered for this browser.
  * - mismatch: the host does not accept this extension's origin (forbidden / bad_origin).
- * - task_missing: the host runs, but the "Homebase Server" task is not registered.
+ * - task_missing: the host runs, but the "Portly Server" task is not registered.
  * - failed: the host answered with an error (schtasks_failed, bad_request or an unknown code).
  */
 export const START_KIND = Object.freeze({

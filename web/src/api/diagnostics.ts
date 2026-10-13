@@ -29,7 +29,7 @@ import {
   type LogsQuery,
   type LogsResponse,
   type SetLogLevelInput,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { apiGet, apiPath, apiPost, apiPut, apiResponse } from './client.ts';
 import { qk } from './keys.ts';
 
@@ -45,7 +45,7 @@ export interface DiagnosticsReportFile {
 /** The summary refreshes while the page shows it (paused while the tab is hidden). */
 export const DIAGNOSTICS_SUMMARY_REFRESH_MS = 30_000;
 /** File name of a report whose `Content-Disposition` names none (or nothing plain). */
-export const DEFAULT_REPORT_FILENAME = 'homebase-diagnostics.json';
+export const DEFAULT_REPORT_FILENAME = 'portly-diagnostics.json';
 
 // ---------------------------------------------------------------------------
 // Readers

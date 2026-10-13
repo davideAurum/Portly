@@ -6,7 +6,7 @@
  * XML declaration, comments and whitespace) the root element is `<svg`. SVG documents with a
  * DOCTYPE are refused (no entity declarations).
  */
-import type { ImageContentType } from '@homebase/shared';
+import type { ImageContentType } from '@portly/shared';
 
 /** How much of an SVG is scanned for its root element. */
 const SVG_SCAN_BYTES = 64 * 1024;

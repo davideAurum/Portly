@@ -1,21 +1,21 @@
 // @ts-check
 /**
- * Service-worker warm-up (ARCHITECTURE §11): check /api/health once and, if Homebase isn't
+ * Service-worker warm-up (ARCHITECTURE §11): check /api/health once and, if Portly isn't
  * answering, ask the launcher to start it. One request, no polling. A healthy answer also records
- * what Homebase says about its Pages site, which the "auto" new tab follows. It runs
+ * what Portly says about its Pages site, which the "auto" new tab follows. It runs
  *
  * - when the browser starts (runtime.onStartup) or the extension is installed, updated or
  *   reloaded (runtime.onInstalled);
- * - when a new tab that opens the Pages site asks for it ({type: 'homebase:warm-up'} through
+ * - when a new tab that opens the Pages site asks for it ({type: 'portly:warm-up'} through
  *   runtime.onMessage, only from this extension's own pages). The worker acknowledges at once,
  *   so the tab can navigate away, and then warms up at most once per WARM_UP_THROTTLE_MS: the
  *   time of the last warm-up is kept in chrome.storage.session, which outlives a stopped worker
  *   (and in memory when that storage area is unavailable).
  *
  * Errors are logged and swallowed — a failed warm-up only means the first new tab does the
- * starting (local target), or the Pages site uses this browser's copy until Homebase runs.
+ * starting (local target), or the Pages site uses this browser's copy until Portly runs.
  */
-import { checkHealth, isWarmUpMessage, readPort, rememberServerSite } from './homebase.js';
+import { checkHealth, isWarmUpMessage, readPort, rememberServerSite } from './portly.js';
 import { PINNED_EXTENSION_ID, START_KIND, createLauncher, isStaleExtensionId } from './launcher.js';
 
 /** A new tab's warm-up request is ignored when a warm-up started less than this long ago. */
@@ -29,7 +29,7 @@ export const WARM_UP_ACK = Object.freeze({ ok: true });
  * @typedef {(level: 'info' | 'warn', message: string) => void} Log
  *
  * @typedef {object} WarmUpDeps
- * @property {import('./homebase.js').StorageAreaLike | null | undefined} storage
+ * @property {import('./portly.js').StorageAreaLike | null | undefined} storage
  * @property {typeof fetch} fetch
  * @property {import('./launcher.js').Launcher | null} launcher
  * @property {Log} [log]
@@ -64,12 +64,12 @@ export async function warmUp(deps) {
       clearTimeout: deps.clearTimeout,
     });
     if (health.ok) {
-      log('info', `Homebase already answers on port ${port}${trigger}.`);
+      log('info', `Portly already answers on port ${port}${trigger}.`);
       await rememberServerSite(deps.storage, port, health);
       return { port, action: 'already-running', outcome: null };
     }
     if (!deps.launcher) {
-      log('warn', `Homebase isn't answering on port ${port} and native messaging is unavailable${trigger}.`);
+      log('warn', `Portly isn't answering on port ${port} and native messaging is unavailable${trigger}.`);
       return { port, action: 'no-launcher', outcome: null };
     }
     const outcome = await deps.launcher.start(port);
@@ -79,7 +79,7 @@ export async function warmUp(deps) {
       (outcome.kind === START_KIND.mismatch || outcome.kind === START_KIND.notInstalled) && isStaleExtensionId(deps.extensionId)
         ? ` (this extension still runs under its old ID ${deps.extensionId}, not ${PINNED_EXTENSION_ID}: Remove it and Load unpacked again)`
         : '';
-    log(level, `Asked the launcher to start Homebase on port ${port}${trigger} → ${outcome.kind}${detail}${stale}`);
+    log(level, `Asked the launcher to start Portly on port ${port}${trigger} → ${outcome.kind}${detail}${stale}`);
     return { port, action: 'requested-start', outcome };
   } catch (err) {
     log('warn', `Warm-up failed${trigger}: ${err instanceof Error ? err.message : String(err)}`);
@@ -107,7 +107,7 @@ export function isRecentWarmUp(stamp, now) {
  *
  * @typedef {object} ChromeLike
  * @property {import('./launcher.js').RuntimeLike & { onStartup: EventLike, onInstalled: EventLike, onMessage?: EventLike }} runtime
- * @property {{ local?: import('./homebase.js').StorageAreaLike, session?: import('./homebase.js').StorageAreaLike }} [storage]
+ * @property {{ local?: import('./portly.js').StorageAreaLike, session?: import('./portly.js').StorageAreaLike }} [storage]
  */
 
 /**

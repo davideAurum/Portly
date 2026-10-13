@@ -1,6 +1,6 @@
 /**
  * Server-only routes in the static build. App-password accounts (Yahoo, CalDAV, IMAP), the
- * credential vault, calendars, mail and the server's diagnostics need the Homebase server
+ * credential vault, calendars, mail and the server's diagnostics need the Portly server
  * (secrets, provider APIs, sync, its logs), and their UI is hidden behind `src/capabilities.ts`
  * (Settings → Diagnostics shows this browser's events and the hybrid state instead). (Outlook.com accounts and their sign-in
  * are handled in the browser by handlers/accounts.ts.) Every route the web app's API modules know is still

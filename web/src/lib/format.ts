@@ -4,7 +4,7 @@
  * current settings. Intl formatters are cached because widgets format on every tick.
  */
 import { useMemo } from 'react';
-import type { GeneralSettings } from '@homebase/shared';
+import type { GeneralSettings } from '@portly/shared';
 import { useSettings } from '../api/settings.ts';
 
 export type TimeFormat = GeneralSettings['timeFormat'];

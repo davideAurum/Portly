@@ -5,13 +5,13 @@
  * come from, the add dialog says the title came from the address, the refresh button never claims
  * an icon was found, a DuckDuckGo icon that loads (even its placeholder for unknown sites) stays
  * shown, and `expectNewIcons` refreshes the list without starting the icon poll (icons are
- * assigned synchronously there). On the Homebase server on this PC (hybrid mode) the server's
+ * assigned synchronously there). On the Portly server on this PC (hybrid mode) the server's
  * behaviour comes back: browser-profile import, page titles, server-fetched icons and the poll.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Bookmark, BookmarkGroup, BookmarksResponse } from '@homebase/shared';
+import type { Bookmark, BookmarkGroup, BookmarksResponse } from '@portly/shared';
 import { ICON_POLL_INTERVAL_MS, expectNewIcons, useBookmarks } from '../../api/bookmarks.ts';
 import { qk } from '../../api/keys.ts';
 import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
@@ -171,7 +171,7 @@ describe('expectNewIcons (static build)', () => {
   });
 });
 
-describe('Bookmarks UI on the Homebase server on this PC (Pages build, hybrid mode)', () => {
+describe('Bookmarks UI on the Portly server on this PC (Pages build, hybrid mode)', () => {
   beforeEach(() => setCapabilitiesForTests(capabilitiesFor(true, 'server')));
 
   it('offers the browser-profile import and describes the server’s icon fetching', async () => {
@@ -181,7 +181,7 @@ describe('Bookmarks UI on the Homebase server on this PC (Pages build, hybrid mo
     });
     expect(await screen.findByText('From a browser on this PC')).toBeInTheDocument();
     await waitFor(() => expect(requestsTo('GET /api/bookmarks/import/sources')).toHaveLength(1));
-    expect(await screen.findByText(/Homebase downloads each site’s icon once \(refreshed monthly\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/Portly downloads each site’s icon once \(refreshed monthly\)/)).toBeInTheDocument();
     expect(screen.queryByText(/DuckDuckGo’s icon service/)).not.toBeInTheDocument();
   });
 

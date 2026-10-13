@@ -32,7 +32,7 @@ import {
   type WidgetFramePatch,
   type WidgetInstance,
   type WidgetUpdate,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { Db } from '../../db/open.ts';
 import { parseJsonColumn } from '../../db/helpers.ts';
 import { HttpError } from '../../lib/errors.ts';

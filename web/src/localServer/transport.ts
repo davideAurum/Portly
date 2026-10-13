@@ -3,10 +3,10 @@
  * of it reaches the server build's bundle). This page load's backend decides:
  *
  * - `browser`: the in-browser backend (`static/backend.ts`), as in the browser-only build;
- * - `server` (hybrid mode): the Homebase server on this PC. A request first waits until the
+ * - `server` (hybrid mode): the Portly server on this PC. A request first waits until the
  *   controller is connected (`whenServerReady`: through a reconnect, or until the permission prompt
  *   is answered), then goes to `<LOCAL_SERVER_ORIGIN><path>` as a CORS request without credentials
- *   that carries `X-Homebase` and the pairing token. It has no timeout of its own (the server has its upstream
+ *   that carries `X-Portly` and the pairing token. It has no timeout of its own (the server has its upstream
  *   ones). Every response tells the controller the server is alive; a network `TypeError` makes it
  *   probe; a 401 `pairing_required` means the pairing was revoked. The in-browser pre-import
  *   backups (`/api/backups*`) do not exist on this backend: they answer 404 without a request.
@@ -34,7 +34,7 @@ function isAbortError(err: unknown): boolean {
 }
 
 export interface ServerTransportDeps {
-  /** Origin of the Homebase server on this PC. */
+  /** Origin of the Portly server on this PC. */
   origin: string;
   fetch: FetchLike;
   /** The page's controller (null: hybrid mode is not running, so there is no server to call). */
@@ -46,11 +46,11 @@ export function createServerFetch(deps: ServerTransportDeps): (path: string, ini
   return async (path, init = {}) => {
     if (BACKUPS_PATH.test(path)) return notFound();
     const controller = deps.controller();
-    if (controller === null) throw new ServerModeEndedError('Homebase on this PC is not set up for this page');
+    if (controller === null) throw new ServerModeEndedError('Portly on this PC is not set up for this page');
     await controller.whenServerReady(init.signal);
     const token = controller.token();
     if (token === null) throw new ServerModeEndedError();
-    // `X-Homebase` as on every API call (the image cache calls this directly), plus the token.
+    // `X-Portly` as on every API call (the image cache calls this directly), plus the token.
     const request: LoopbackRequestInit = { ...init, ...LOOPBACK_REQUEST_INIT, headers: pairedHeaders(token, init.headers) };
     let res: Response;
     try {

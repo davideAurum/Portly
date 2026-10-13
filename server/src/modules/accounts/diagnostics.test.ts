@@ -5,7 +5,7 @@
  * verdicts from the probes' real errors, purposes and log context of outbound calls, forgetting a
  * deleted account's subjects — and no secret or provider text in any of it.
  */
-import type { AccountCreateResult, AccountTestResult, OAuthStartResponse } from '@homebase/shared';
+import type { AccountCreateResult, AccountTestResult, OAuthStartResponse } from '@portly/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { HttpError, ProviderUnauthorizedError } from '../../lib/errors.ts';
 import { getLogContext, withLogContext } from '../../lib/log-context.ts';
@@ -308,7 +308,7 @@ describe('connect, save, test and delete', () => {
     const started = await testRequest(h.app, 'POST', '/api/oauth/google/start', { body });
     const state = new URL(((await started.json()) as OAuthStartResponse).authorizeUrl).searchParams.get('state') ?? '';
     const res = await testRequest(h.app, 'GET', `/api/oauth/google/callback?code=c1&state=${state}`, {
-      headers: { 'X-Homebase': null, 'Sec-Fetch-Site': 'cross-site' },
+      headers: { 'X-Portly': null, 'Sec-Fetch-Site': 'cross-site' },
     });
     return res.headers.get('location');
   }

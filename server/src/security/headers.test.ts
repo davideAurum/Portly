@@ -74,8 +74,8 @@ describe('security headers', () => {
   let app: Hono<AppEnv>;
 
   beforeAll(() => {
-    dist = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-dist-'));
-    fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><html><head><title>Homebase</title></head><body></body></html>');
+    dist = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-dist-'));
+    fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><html><head><title>Portly</title></head><body></body></html>');
     fs.mkdirSync(path.join(dist, 'assets'));
     fs.writeFileSync(path.join(dist, 'assets', 'index-abc123.js'), 'console.log(1)');
   });
@@ -97,7 +97,7 @@ describe('security headers', () => {
 
   it('gate refusals, errors and API 404s carry the headers too', async () => {
     for (const res of [
-      await testRequest(app, 'GET', '/api/data', { headers: { 'X-Homebase': null } }),
+      await testRequest(app, 'GET', '/api/data', { headers: { 'X-Portly': null } }),
       await testRequest(app, 'GET', '/api/data', { headers: { Host: 'evil.example' } }),
       await testRequest(app, 'GET', '/api/nope'),
       await testRequest(app, 'GET', '/api/boom'),
@@ -137,7 +137,7 @@ describe('security headers', () => {
 
   it('image routes: sandbox CSP and private caching on success', async () => {
     for (const p of ['/api/icons/abc', '/api/uploads/def']) {
-      const res = await testRequest(app, 'GET', p, { headers: { 'X-Homebase': null } });
+      const res = await testRequest(app, 'GET', p, { headers: { 'X-Portly': null } });
       expect(res.status).toBe(200);
       expectBaseHeaders(res);
       expect(res.headers.get('content-security-policy')).toBe(IMAGE_CSP);
@@ -146,7 +146,7 @@ describe('security headers', () => {
   });
 
   it('image route errors are not cached', async () => {
-    const res = await testRequest(app, 'GET', '/api/icons/missing', { headers: { 'X-Homebase': null } });
+    const res = await testRequest(app, 'GET', '/api/icons/missing', { headers: { 'X-Portly': null } });
     expect(res.status).toBe(404);
     expect(res.headers.get('content-security-policy')).toBe(IMAGE_CSP);
     expect(res.headers.get('cache-control')).toBe('no-store');
@@ -181,8 +181,8 @@ describe('security headers: Pages site (hybrid mode)', () => {
   let token: string;
 
   beforeAll(() => {
-    dist = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-dist-'));
-    fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><html><head><title>Homebase</title></head><body></body></html>');
+    dist = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-dist-'));
+    fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><html><head><title>Portly</title></head><body></body></html>');
   });
   afterAll(() => fs.rmSync(dist, { recursive: true, force: true }));
 
@@ -213,13 +213,13 @@ describe('security headers: Pages site (hybrid mode)', () => {
     expect(corsHeaders(own)).toEqual([]);
   });
 
-  it('adds Vary: Origin to every /api answer (also for Homebase\'s own page), keeping the handler\'s Vary', async () => {
+  it('adds Vary: Origin to every /api answer (also for Portly\'s own page), keeping the handler\'s Vary', async () => {
     const own = await testRequest(app, 'GET', '/api/data');
     expect(own.headers.get('vary')).toBe('Origin');
     expect(corsHeaders(own)).toEqual([]);
     const varied = await testRequest(app, 'GET', '/api/varied', { headers: pagesHeaders(token) });
     expect(varied.headers.get('vary')).toBe('Accept-Language, Origin');
-    const refused = await testRequest(app, 'GET', '/api/data', { headers: { 'X-Homebase': null } });
+    const refused = await testRequest(app, 'GET', '/api/data', { headers: { 'X-Portly': null } });
     expect(refused.headers.get('vary')).toBe('Origin');
     const html = await testRequest(app, 'GET', '/', { headers: pagesHeaders(token) });
     expect(html.headers.get('vary')).toBeNull();
@@ -230,17 +230,17 @@ describe('security headers: Pages site (hybrid mode)', () => {
     const res = await testRequest(app, 'OPTIONS', '/api/data', {
       headers: {
         Origin: TEST_PAGES_ORIGIN,
-        'X-Homebase': null,
+        'X-Portly': null,
         'Sec-Fetch-Site': 'cross-site',
         'Access-Control-Request-Method': 'PATCH',
-        'Access-Control-Request-Headers': 'content-type,x-homebase-token',
+        'Access-Control-Request-Headers': 'content-type,x-portly-token',
         'Access-Control-Request-Private-Network': 'true',
       },
     });
     expect(res.status).toBe(204);
     expect(res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
     expect(res.headers.get('access-control-allow-methods')).toBe('PATCH');
-    expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type, X-Homebase, X-Homebase-Token');
+    expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type, X-Portly, X-Portly-Token');
     expect(res.headers.get('access-control-max-age')).toBe('600');
     expect(res.headers.get('access-control-allow-private-network')).toBe('true');
     expect(res.headers.get('vary')).toBe('Origin, Access-Control-Request-Method, Access-Control-Request-Headers');

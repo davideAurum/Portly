@@ -26,7 +26,7 @@ import {
   type Account,
   type AccountDraft,
   type CaldavConnection,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AccountProbe, AppContext } from '../../../context.ts';
 import { HttpError } from '../../../lib/errors.ts';
 import { SIZE_CAPS, type SafeFetch } from '../../../security/safe-fetch.ts';

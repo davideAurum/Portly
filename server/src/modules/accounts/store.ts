@@ -16,7 +16,7 @@ import {
   type AccountStatus,
   type Capability,
   type VaultState,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { z } from 'zod';
 import { msToIso } from '../../db/helpers.ts';
 import type { Db } from '../../db/open.ts';
@@ -303,7 +303,7 @@ function token(value: string | null | undefined, re: RegExp): string | null {
  * values and, on a change, logs `info 'account status changed' {accountId, kind, from, to, reason,
  * source}` (never the message: the health entry keeps it, scrubbed). Every call is also an outcome
  * of `account:<id>`: `ok` → ok, `reauth`/`error` → failing with `code = reason` (a reauth without
- * one: `reauth_required`) and the status message as its Homebase-authored message.
+ * one: `reauth_required`) and the status message as its Portly-authored message.
  *
  * Unknown ids (e.g. deleted meanwhile) are ignored: null, nothing logged or recorded, so a late
  * failure never recreates a forgotten subject. Call it after the caller's own transaction, so the

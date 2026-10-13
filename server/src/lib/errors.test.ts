@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { ERROR_CODES, ERROR_STATUS } from '@homebase/shared';
+import { ERROR_CODES, ERROR_STATUS } from '@portly/shared';
 import { HttpError, PayloadTooLargeError, createErrorHandler, errorBody, errorResponse, mapError } from './errors.ts';
 import { createMemoryLogger } from './logger.ts';
 import { parseBody, parseParams, parseQuery, validate } from './validate.ts';

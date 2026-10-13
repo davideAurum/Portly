@@ -15,7 +15,7 @@
  * - `POST /api/diagnostics/jobs/:name/run` → 202 `{started: true}` (the run is not awaited), 404
  *   `not_found` for an unknown job
  * - `GET /api/diagnostics/report?redact=0|1` → the report as a JSON attachment
- *   `homebase-diagnostics-YYYYMMDD-HHmm.json` (report.ts)
+ *   `portly-diagnostics-YYYYMMDD-HHmm.json` (report.ts)
  * - `POST /api/diagnostics/client-events` `ClientEventsRequest` → `ClientEventsResponse`
  *   (client-events.ts)
  *
@@ -30,7 +30,7 @@ import {
   SetLogLevelSchema,
   redactForSharing,
   type HealthHistoryResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { getLogContext } from '../../lib/log-context.ts';

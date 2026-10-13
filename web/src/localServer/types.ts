@@ -1,10 +1,10 @@
 /**
- * Types of the local server controller (hybrid mode): the Pages build looks for the Homebase
+ * Types of the local server controller (hybrid mode): the Pages build looks for the Portly
  * server on this PC, pairs with it once, and uses it as this page load's backend while it answers.
  * The controller (`controller.ts`) owns the state; the UI reads it through `store.ts`
  * (`useLocalServer()`) and acts through `localServerActions`.
  */
-import type { VaultState } from '@homebase/shared';
+import type { VaultState } from '@portly/shared';
 import type { Backend } from '../capabilities.ts';
 
 /**
@@ -13,12 +13,12 @@ import type { Backend } from '../capabilities.ts';
  * - `framed`: the page runs inside a frame, which never uses the local server;
  * - `idle`: not checked yet (not paired and the browser's local network permission not granted);
  * - `checking`: a probe is in flight;
- * - `absent`: nothing (or not Homebase) answers on this PC;
+ * - `absent`: nothing (or not Portly) answers on this PC;
  * - `blocked`: the browser's local network permission is denied;
  * - `waiting-permission`: a probe waits for the user to answer the browser's permission prompt;
- * - `unpaired`: Homebase answers but this browser is not paired with it;
+ * - `unpaired`: Portly answers but this browser is not paired with it;
  * - `revoked`: the server no longer accepts this browser's pairing;
- * - `other-server`: a different Homebase than the one this browser paired with answers;
+ * - `other-server`: a different Portly than the one this browser paired with answers;
  * - `incompatible`: the server speaks another API version (one of them needs an update);
  * - `connected`: the paired server answers;
  * - `reconnecting`: the paired server stopped answering on a server-backend page (grace period).
@@ -54,7 +54,7 @@ export interface LocalServerInfo {
  * What the last probe learned beyond "nothing usable answers" (`absent`, or `reconnecting` on a
  * server-backend page):
  * - `answers-without-cors`: something answers on the port, but not to this site's CORS requests —
- *   Homebase on this PC does not have this site as its `HOMEBASE_PAGES_URL` (or is too old for
+ *   Portly on this PC does not have this site as its `PORTLY_PAGES_URL` (or is too old for
  *   hybrid mode). Settings → Diagnostics explains how to fix it.
  */
 export type LocalServerUnreachableReason = 'answers-without-cors';
@@ -97,7 +97,7 @@ export interface LocalServerState {
 export interface LocalServerActions {
   /** Probes now (Check again); resets the backoff. */
   checkNow(): void;
-  /** Probes now even before the permission is granted (a user gesture: Look for Homebase on this PC). */
+  /** Probes now even before the permission is granted (a user gesture: Look for Portly on this PC). */
   lookForServer(): void;
   /** Sends this tab to the server's own page to approve pairing. */
   startPairing(): void;

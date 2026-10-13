@@ -8,15 +8,15 @@ declare const __APP_UPDATED__: string;
 
 /**
  * True in the browser-only (Pages) build (`vite build --mode static`): the API is answered by the
- * in-browser static backend (`src/static/`), or by the Homebase server on this PC in hybrid mode.
+ * in-browser static backend (`src/static/`), or by the Portly server on this PC in hybrid mode.
  * Injected by Vite `define`; UI code reads `getCapabilities()` from `src/capabilities.ts` instead,
  * so tests can drive it with `setCapabilitiesForTests`.
  */
-declare const __HOMEBASE_STATIC__: boolean;
+declare const __PORTLY_STATIC__: boolean;
 
 /**
- * Origin of the Homebase server on this PC that the Pages build may use instead of its in-browser
+ * Origin of the Portly server on this PC that the Pages build may use instead of its in-browser
  * backend (hybrid mode), e.g. `http://127.0.0.1:5757`; `''` turns hybrid mode off and is always
  * `''` in the server build. Injected by Vite `define`; read it through `src/localServer/config.ts`.
  */
-declare const __HOMEBASE_LOCAL_SERVER__: string;
+declare const __PORTLY_LOCAL_SERVER__: string;

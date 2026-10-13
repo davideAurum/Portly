@@ -3,7 +3,7 @@
  * settings.test.ts on the server side) over the settings slice.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defaultSettings, type Settings } from '@homebase/shared';
+import { defaultSettings, type Settings } from '@portly/shared';
 import { createTestBackend, type TestBackend } from '../test/harness.ts';
 import * as profiles from './profiles.ts';
 import * as settings from './settings.ts';

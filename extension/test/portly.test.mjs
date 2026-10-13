@@ -27,7 +27,7 @@ import {
   writePagesUrl,
   writePort,
   writeTarget,
-} from '../lib/homebase.js';
+} from '../lib/portly.js';
 import { HEALTHY, createFetch, createStorage, createTimers, down, jsonResponse, ok } from './helpers.mjs';
 
 describe('parsePort / isValidPort', () => {
@@ -95,7 +95,7 @@ describe('readPort / writePort', () => {
 });
 
 describe('target (what a new tab opens)', () => {
-  it('defaults to following Homebase on this PC', async () => {
+  it('defaults to following Portly on this PC', async () => {
     assert.equal(DEFAULT_TARGET, TARGET.auto);
     assert.equal(await readTarget(createStorage()), 'auto');
     assert.equal(await readTarget(null), 'auto');
@@ -126,12 +126,12 @@ describe('parsePagesUrl', () => {
   const valid = [
     ['https://davideaurum.github.io/', 'https://davideaurum.github.io/'],
     ['https://davideaurum.github.io', 'https://davideaurum.github.io/'],
-    ['  https://davideaurum.github.io/homebase-pages/  ', 'https://davideaurum.github.io/homebase-pages/'],
-    ['https://davideaurum.github.io/homebase-pages', 'https://davideaurum.github.io/homebase-pages/'],
+    ['  https://davideaurum.github.io/portly-pages/  ', 'https://davideaurum.github.io/portly-pages/'],
+    ['https://davideaurum.github.io/portly-pages', 'https://davideaurum.github.io/portly-pages/'],
     ['HTTPS://Home.Example.ORG:443/Base/', 'https://home.example.org/Base/'],
     ['https://home.example.org:8443/', 'https://home.example.org:8443/'],
     ['http://localhost:4173/', 'http://localhost:4173/'],
-    ['http://127.0.0.1:4173/homebase-pages/', 'http://127.0.0.1:4173/homebase-pages/'],
+    ['http://127.0.0.1:4173/portly-pages/', 'http://127.0.0.1:4173/portly-pages/'],
     ['http://[::1]:4173', 'http://[::1]:4173/'],
     ['https://example.org/a/../b/', 'https://example.org/b/'],
   ];
@@ -149,7 +149,7 @@ describe('parsePagesUrl', () => {
     'http://192.168.1.10/',
     'http://localhost.:4173/',
     'ftp://example.org/',
-    'file:///C:/homebase/index.html',
+    'file:///C:/portly/index.html',
     'chrome-extension://nbaolbakegefnefgojdokagajincnfjj/newtab.html',
     'javascript:alert(1)',
     'data:text/html,hi',
@@ -193,8 +193,8 @@ describe('readPagesUrl / writePagesUrl / clearPagesUrl', () => {
 
   it('writes validated, normalised addresses only', async () => {
     const storage = createStorage();
-    assert.equal(await writePagesUrl(storage, ' https://me.github.io/homebase-pages '), 'https://me.github.io/homebase-pages/');
-    assert.deepEqual(storage.data, { pagesUrl: 'https://me.github.io/homebase-pages/' });
+    assert.equal(await writePagesUrl(storage, ' https://me.github.io/portly-pages '), 'https://me.github.io/portly-pages/');
+    assert.deepEqual(storage.data, { pagesUrl: 'https://me.github.io/portly-pages/' });
     await assert.rejects(writePagesUrl(storage, 'http://me.github.io/'), RangeError);
     assert.equal(storage.calls.set.length, 1);
   });
@@ -209,7 +209,7 @@ describe('readPagesUrl / writePagesUrl / clearPagesUrl', () => {
   });
 });
 
-describe('server site (what Homebase on this PC says about its Pages site)', () => {
+describe('server site (what Portly on this PC says about its Pages site)', () => {
   it('parses a stored record and refuses junk', () => {
     assert.deepEqual(parseServerSite({ port: 5757, pagesUrl: 'https://me.github.io/x' }), { port: 5757, pagesUrl: 'https://me.github.io/x/' });
     assert.deepEqual(parseServerSite({ port: 5757, pagesUrl: null }), { port: 5757, pagesUrl: null });
@@ -258,7 +258,7 @@ describe('server site (what Homebase on this PC says about its Pages site)', () 
     assert.equal(storage.calls.set.length, 1);
   });
 
-  it('changes nothing when Homebase said nothing, failed, or storage fails', async () => {
+  it('changes nothing when Portly said nothing, failed, or storage fails', async () => {
     const storage = createStorage({ serverSite: { port: 5757, pagesUrl: 'https://me.github.io/' } });
     const known = { port: 5757, pagesUrl: 'https://me.github.io/' };
     assert.equal(await rememberServerSite(storage, 5757, { ok: true, version: '1', vault: 'ready' }, known), known);
@@ -276,7 +276,7 @@ describe('resolveNewTab', () => {
   const site = (pagesUrl, port = 5757) => ({ port, pagesUrl });
   const settings = (overrides) => ({ target: 'auto', pagesUrl: null, port: 5757, serverSite: null, ...overrides });
 
-  it('auto: the Pages site Homebase reported, else Homebase on this PC', () => {
+  it('auto: the Pages site Portly reported, else Portly on this PC', () => {
     assert.deepEqual(resolveNewTab(settings({ serverSite: site('https://me.github.io/') })), { opens: 'pages', url: 'https://me.github.io/' });
     assert.deepEqual(resolveNewTab(settings({ serverSite: site(null) })), { opens: 'local', url: null });
     assert.deepEqual(resolveNewTab(settings({})), { opens: 'local', url: null }, 'not known yet');
@@ -288,7 +288,7 @@ describe('resolveNewTab', () => {
     );
   });
 
-  it('pages: the stored address, else the reported one, else Homebase on this PC', () => {
+  it('pages: the stored address, else the reported one, else Portly on this PC', () => {
     const pages = (overrides) => settings({ target: 'pages', ...overrides });
     assert.deepEqual(resolveNewTab(pages({ pagesUrl: 'https://other.example/', serverSite: site('https://me.github.io/') })), {
       opens: 'pages',
@@ -298,7 +298,7 @@ describe('resolveNewTab', () => {
     assert.deepEqual(resolveNewTab(pages({})), { opens: 'local', url: null });
   });
 
-  it('local: always Homebase on this PC', () => {
+  it('local: always Portly on this PC', () => {
     assert.deepEqual(
       resolveNewTab(settings({ target: 'local', pagesUrl: 'https://other.example/', serverSite: site('https://me.github.io/') })),
       { opens: 'local', url: null },
@@ -329,10 +329,10 @@ describe('readSettings', () => {
 });
 
 describe('isWarmUpMessage', () => {
-  it('recognises only {type: "homebase:warm-up"}', () => {
-    assert.equal(WARM_UP_MESSAGE_TYPE, 'homebase:warm-up');
-    assert.equal(isWarmUpMessage({ type: 'homebase:warm-up' }), true);
-    for (const message of [null, undefined, 'homebase:warm-up', {}, { type: 'homebase:start' }, { kind: 'homebase:warm-up' }]) {
+  it('recognises only {type: "portly:warm-up"}', () => {
+    assert.equal(WARM_UP_MESSAGE_TYPE, 'portly:warm-up');
+    assert.equal(isWarmUpMessage({ type: 'portly:warm-up' }), true);
+    for (const message of [null, undefined, 'portly:warm-up', {}, { type: 'portly:start' }, { kind: 'portly:warm-up' }]) {
       assert.equal(isWarmUpMessage(message), false, JSON.stringify(message));
     }
   });
@@ -351,7 +351,7 @@ describe('URL builders', () => {
 });
 
 describe('checkHealth', () => {
-  it('succeeds on a Homebase health body and sends a credential-less, no-cache GET', async () => {
+  it('succeeds on a Portly health body and sends a credential-less, no-cache GET', async () => {
     const fetch = createFetch(ok);
     const timers = createTimers();
     const result = await checkHealth(5757, { fetch, ...timers });
@@ -392,7 +392,7 @@ describe('checkHealth', () => {
     assert.deepEqual(result, { ok: false, reason: 'http', status: 503 });
   });
 
-  it('rejects bodies that are not Homebase health JSON', async () => {
+  it('rejects bodies that are not Portly health JSON', async () => {
     for (const body of ['<html>hi</html>', 'null', '[]', '{"ok":"true"}', '{"status":"ok"}']) {
       const fetch = createFetch(() => new Response(body, { status: 200 }));
       assert.deepEqual(await checkHealth(5757, { fetch }), { ok: false, reason: 'unexpected' }, body);
@@ -438,6 +438,6 @@ describe('describeFailure', () => {
       "Couldn't reach http://localhost:5757 (no answer within 1.5 seconds).",
     );
     assert.match(describeFailure({ ok: false, reason: 'http', status: 404 }, 6000), /localhost:6000.*HTTP 404/);
-    assert.match(describeFailure({ ok: false, reason: 'unexpected' }, 5757), /doesn't look like Homebase/);
+    assert.match(describeFailure({ ok: false, reason: 'unexpected' }, 5757), /doesn't look like Portly/);
   });
 });

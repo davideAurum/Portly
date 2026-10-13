@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GeoPlace, Settings, WeatherReport } from '@homebase/shared';
+import type { GeoPlace, Settings, WeatherReport } from '@portly/shared';
 import { defaultLocationPatch, roundCoord, weatherPath } from '../../api/weather.ts';
 import { qk } from '../../api/keys.ts';
 import { WidgetFrameContext, type WidgetFrameContextValue } from '../../grid/WidgetContext.tsx';

@@ -5,7 +5,7 @@
  * error only while it lasts), the last distinct server warnings/errors with their counts, the last
  * browser warnings/errors — and redactable with the sharing dictionary.
  */
-import { redactForSharing } from '@homebase/shared';
+import { redactForSharing } from '@portly/shared';
 import { describe, expect, it } from 'vitest';
 import { getClientEvents, recordClientEvent } from '../clientLog.ts';
 import { sharingDictionary } from './report.ts';
@@ -55,9 +55,9 @@ describe('buildSummaryText', () => {
     recordClientEvent('warn', 'api', 'request failed', { method: 'GET', path: '/api/mail/summary', status: 503, code: 'module_unavailable' });
     recordClientEvent('info', 'hybrid', 'probe result', { kind: 'healthy' });
     const lines = buildSummaryText(input({ browserEvents: getClientEvents() })).split('\n');
-    expect(lines[0]).toMatch(/^Homebase diagnostics, 2026-10-11 14:32:05 UTC[+-]\d{2}:\d{2}$/);
+    expect(lines[0]).toMatch(/^Portly diagnostics, 2026-10-11 14:32:05 UTC[+-]\d{2}:\d{2}$/);
     expect(lines[1]).toBe('Server: 0.2.0 · boot b1x2 · up 3 h 12 min · Node v24.21.0 · win32 · supervised, restart 2 (exit code 1, start-up failed (db): Error: database is locked)');
-    expect(lines[2]).toBe('Page: Pages site 0.0.0-test · data from Homebase on this PC · hybrid: connected (permission: granted) · version differs from the server (0.2.0)');
+    expect(lines[2]).toBe('Page: Pages site 0.0.0-test · data from Portly on this PC · hybrid: connected (permission: granted) · version differs from the server (0.2.0)');
     expect(lines[3]).toBe('Log level: Verbose (debug) until turned off, areas: calendar, mail');
     expect(lines[4]).toBe('Vault: ready');
     expect(lines[5]).toBe('Modules down: mail');
@@ -119,11 +119,11 @@ describe('buildSummaryText', () => {
   });
 
   it('says why there is no server part', () => {
-    const text = buildSummaryText(input({ summary: null, summaryProblem: 'Update Homebase on this PC to see its diagnostics', serverRecords: null, hybrid: null }));
+    const text = buildSummaryText(input({ summary: null, summaryProblem: 'Update Portly on this PC to see its diagnostics', serverRecords: null, hybrid: null }));
     expect(text.split('\n')).toEqual([
-      expect.stringMatching(/^Homebase diagnostics, /),
-      'Server: Update Homebase on this PC to see its diagnostics',
-      'Page: Pages site 0.0.0-test · data from Homebase on this PC',
+      expect.stringMatching(/^Portly diagnostics, /),
+      'Server: Update Portly on this PC to see its diagnostics',
+      'Page: Pages site 0.0.0-test · data from Portly on this PC',
       'Recent browser warnings and errors: none',
     ]);
   });

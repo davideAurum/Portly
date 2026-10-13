@@ -18,7 +18,7 @@ import { NATIVE_ERRORS, createNativeRuntime, createTimers, flush } from './helpe
 
 describe('requests', () => {
   it('match the shared contract exactly', () => {
-    assert.equal(LAUNCHER_HOST, 'com.homebase.launcher');
+    assert.equal(LAUNCHER_HOST, 'com.portly.launcher');
     assert.deepEqual(startRequest(5757), { action: 'start', port: 5757 });
     assert.throws(() => startRequest(80), RangeError);
     assert.throws(() => startRequest('5757'), RangeError);
@@ -30,7 +30,7 @@ describe('sendNative', () => {
     const runtime = createNativeRuntime({ response: { ok: true, state: 'pong', version: 1 } });
     const reply = await sendNative(runtime, { action: 'ping' });
     assert.deepEqual(reply, { response: { ok: true, state: 'pong', version: 1 } });
-    assert.deepEqual(runtime.calls, [{ host: 'com.homebase.launcher', message: { action: 'ping' } }]);
+    assert.deepEqual(runtime.calls, [{ host: 'com.portly.launcher', message: { action: 'ping' } }]);
   });
 
   it('reads runtime.lastError inside the callback', async () => {
@@ -81,8 +81,8 @@ describe('interpretStartReply', () => {
     [{ response: { ok: true, state: 'running' } }, { kind: 'running', code: null, detail: '' }],
     [{ response: { ok: true, state: 'starting' } }, { kind: 'starting', code: null, detail: '' }],
     [
-      { response: { ok: false, state: 'error', error: 'task_missing', detail: 'The task "\\Homebase Server" does not exist.' } },
-      { kind: 'task_missing', code: 'task_missing', detail: 'The task "\\Homebase Server" does not exist.' },
+      { response: { ok: false, state: 'error', error: 'task_missing', detail: 'The task "\\Portly Server" does not exist.' } },
+      { kind: 'task_missing', code: 'task_missing', detail: 'The task "\\Portly Server" does not exist.' },
     ],
     [
       { response: { ok: false, state: 'error', error: 'schtasks_failed', detail: 'exit code 1' } },
@@ -169,7 +169,7 @@ describe('createLauncher', () => {
     const runtime = createNativeRuntime({ response: { ok: true, state: 'starting' } });
     const launcher = createLauncher(runtime);
     assert.deepEqual(await launcher.start(6001), { kind: 'starting', code: null, detail: '' });
-    assert.deepEqual(runtime.calls, [{ host: 'com.homebase.launcher', message: { action: 'start', port: 6001 } }]);
+    assert.deepEqual(runtime.calls, [{ host: 'com.portly.launcher', message: { action: 'start', port: 6001 } }]);
   });
 
   it('start() never sends an invalid port', async () => {
@@ -184,7 +184,7 @@ describe('createLauncher', () => {
     const runtime = createNativeRuntime('hang');
     const timers = createTimers();
     const pending = createLauncher(runtime, timers).ping();
-    assert.deepEqual(runtime.calls, [{ host: 'com.homebase.launcher', message: { action: 'ping' } }]);
+    assert.deepEqual(runtime.calls, [{ host: 'com.portly.launcher', message: { action: 'ping' } }]);
     await timers.advance(10000);
     assert.deepEqual(await pending, {
       status: PING_STATUS.broken,

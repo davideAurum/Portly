@@ -130,7 +130,7 @@ function quotaStorage(quota: number) {
 describe('persisted cache per backend (hybrid mode)', () => {
   it("keeps the server build's snapshot as it was", () => {
     const persist = persistOptionsFor('server', null, { pagesBuild: false, storage: quotaStorage(1e6).storage });
-    expect(persist.key).toBe('homebase:query-cache');
+    expect(persist.key).toBe('portly:query-cache');
     expect(persist.buster).toBe(APP_VERSION);
     expect(persist.maxAge).toBe(QUERY_CACHE_MAX_AGE_MS);
     expect(persist.dehydrateOptions).toBe(PERSIST_DEHYDRATE_OPTIONS);
@@ -139,13 +139,13 @@ describe('persisted cache per backend (hybrid mode)', () => {
   it("gives the Pages build's two backends their own keys, busters and lifetimes", () => {
     const { storage } = quotaStorage(1e6);
     const browser = persistOptionsFor('browser', null, { pagesBuild: true, storage });
-    expect(browser.key).toBe('homebase:query-cache:static:/');
+    expect(browser.key).toBe('portly:query-cache:static:/');
     expect(browser.buster).toBe(`${APP_VERSION}+static`);
     expect(browser.maxAge).toBe(QUERY_CACHE_MAX_AGE_MS);
 
     const server = persistOptionsFor('server', 'instance-1', { pagesBuild: true, storage });
     expect(server.key).toBe(LOCAL_SERVER_QUERY_CACHE_KEY);
-    expect(server.key).toBe('homebase:query-cache:local-server:/');
+    expect(server.key).toBe('portly:query-cache:local-server:/');
     expect(server.buster).toBe(`${APP_VERSION}+local-server:instance-1`);
     expect(server.maxAge).toBe(LOCAL_SERVER_QUERY_CACHE_MAX_AGE_MS);
     // Another server instance's snapshot is discarded on restore.
@@ -174,7 +174,7 @@ describe('persisted cache per backend (hybrid mode)', () => {
   it("on a quota error drops the other backend's snapshot before trimming its own", async () => {
     vi.useFakeTimers();
     const { storage, items } = quotaStorage(3_000);
-    items.set('homebase:query-cache:static:/', 'b'.repeat(2_000));
+    items.set('portly:query-cache:static:/', 'b'.repeat(2_000));
     const remote = persistOptionsFor('server', 'instance-1', { pagesBuild: true, storage });
 
     const client = createQueryClient();
@@ -184,7 +184,7 @@ describe('persisted cache per backend (hybrid mode)', () => {
     // The persister writes at most once a second.
     await vi.advanceTimersByTimeAsync(1_000);
 
-    expect(items.has('homebase:query-cache:static:/')).toBe(false);
+    expect(items.has('portly:query-cache:static:/')).toBe(false);
     const saved = JSON.parse(items.get(LOCAL_SERVER_QUERY_CACHE_KEY)!) as { clientState: { queries: { queryKey: unknown[] }[] } };
     // Both queries kept: freeing the other snapshot was enough.
     expect(saved.clientState.queries.map((q) => q.queryKey)).toEqual([['older'], qk.settings()]);
@@ -200,6 +200,6 @@ describe('persisted cache per backend (hybrid mode)', () => {
     await restorePersistedCache(client, persistOptionsFor('browser', null, { pagesBuild: true, storage }));
     expect(persistOptionsOf(client)).toBe(remote);
     // A client nobody restored uses the build's default (the server build here).
-    expect(persistOptionsOf(createQueryClient()).key).toBe('homebase:query-cache');
+    expect(persistOptionsOf(createQueryClient()).key).toBe('portly:query-cache');
   });
 });

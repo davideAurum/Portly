@@ -1,5 +1,5 @@
 /**
- * Runs IMAP sessions (§8 Generic IMAP) where a hostile server cannot stall Homebase.
+ * Runs IMAP sessions (§8 Generic IMAP) where a hostile server cannot stall Portly.
  *
  * imapflow tokenizes every server response synchronously, and its tokenizer is super-linear on
  * some inputs (e.g. long runs of `[`), reachable from the greeting — before authentication and,
@@ -15,7 +15,7 @@
  * so its lifecycle lines carry the request/job and account. A worker that cannot start, crashes
  * (`error`, e.g. ERR_WORKER_OUT_OF_MEMORY) or exits without a result is logged as a warning with
  * the phase it was in and the error's name/code only (never its message or stack: server text,
- * user paths), and rejects with an {@link ImapWorkerError} — Homebase's failure, not the server's.
+ * user paths), and rejects with an {@link ImapWorkerError} — Portly's failure, not the server's.
  */
 import { Worker } from 'node:worker_threads';
 import { errorFields, type Logger } from '../../../lib/logger.ts';

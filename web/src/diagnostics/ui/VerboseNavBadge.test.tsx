@@ -10,7 +10,7 @@ import { settings } from '../../test/fixtures.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import { diagnosticsSummary } from './testing.ts';
 
-const ABOUT = { version: '0.0.0-test', dataDir: 'C:\\Data\\Homebase', logPath: 'C:\\Data\\Homebase\\logs\\server.log', vault: 'ready' };
+const ABOUT = { version: '0.0.0-test', dataDir: 'C:\\Data\\Portly', logPath: 'C:\\Data\\Portly\\logs\\server.log', vault: 'ready' };
 
 function renderShell(summary: unknown) {
   return renderWithProviders(<SettingsShell section="about" />, {

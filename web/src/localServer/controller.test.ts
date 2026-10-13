@@ -188,15 +188,15 @@ describe('when it probes', () => {
 });
 
 describe('outcomes on a browser-backend page', () => {
-  it('unreachable or not Homebase → absent', async () => {
-    const notHomebase: Handler[] = [
+  it('unreachable or not Portly → absent', async () => {
+    const notPortly: Handler[] = [
       down,
       () => new Response('<html>hi</html>', { headers: { 'Content-Type': 'text/html' } }),
       () => jsonResponse({ ...{ ok: true, version: '1', vault: 'ready' }, app: 'other' }),
       () => jsonResponse({ unrelated: true }),
       () => jsonResponse({ error: 'nope' }, 500),
     ];
-    for (const health of notHomebase) {
+    for (const health of notPortly) {
       const h = harness({ paired: true });
       h.server.health = health;
       await start(h);
@@ -225,7 +225,7 @@ describe('outcomes on a browser-backend page', () => {
     expect(h.controller.getState()).toMatchObject({ status: 'blocked', permission: 'denied' });
   });
 
-  it('another API version (or a Homebase from before hybrid mode) → incompatible', async () => {
+  it('another API version (or a Portly from before hybrid mode) → incompatible', async () => {
     for (const overrides of [{ apiVersion: 2 }, { app: undefined, apiVersion: undefined, instanceId: undefined, appUrl: undefined }]) {
       const h = harness({ paired: true });
       h.server.health = healthy(overrides);
@@ -266,8 +266,8 @@ describe('outcomes on a browser-backend page', () => {
     const h = await start(harness({ paired: true }));
     expect(status(h)).toBe('connected');
     const [, init] = h.server.fetch.mock.calls[1]!;
-    expect(new Headers(init?.headers).get('X-Homebase-Token')).toBe(TOKEN);
-    expect(new Headers(init?.headers).get('X-Homebase')).toBe('1');
+    expect(new Headers(init?.headers).get('X-Portly-Token')).toBe(TOKEN);
+    expect(new Headers(init?.headers).get('X-Portly')).toBe('1');
     expect(h.reload).toHaveBeenCalledTimes(1);
     expect(toast(h)).toBe('server:connected');
     expect(h.store.lastMode()).toBe('server');
@@ -512,7 +512,7 @@ describe('the permission prompt', () => {
 
     // The user allows: the request goes through.
     h.permission.set('granted');
-    slow.resolve(jsonResponse({ ok: true, version: '0.1.0', vault: 'ready', app: 'homebase', apiVersion: 1, instanceId: INSTANCE, appUrl: APP_URL }));
+    slow.resolve(jsonResponse({ ok: true, version: '0.1.0', vault: 'ready', app: 'portly', apiVersion: 1, instanceId: INSTANCE, appUrl: APP_URL }));
     await flush();
     expect(status(h)).toBe('connected');
     expect(h.reload).toHaveBeenCalledTimes(1);
@@ -706,7 +706,7 @@ describe('reload policy', () => {
 });
 
 describe('when storage refuses the hints (full)', () => {
-  const keys = { pairing: 'homebase:pairing:/', mode: 'homebase:backend-mode:/', seen: 'homebase:server-seen:/' };
+  const keys = { pairing: 'portly:pairing:/', mode: 'portly:backend-mode:/', seen: 'portly:server-seen:/' };
   /** A full localStorage that already holds this browser's pairing. */
   const full = (items: Record<string, string> = {}) => fullStorage({ [keys.pairing]: JSON.stringify(pairingRecord()), ...items });
 
@@ -802,7 +802,7 @@ describe('whenServerReady', () => {
     await advance(RECONNECT_INTERVAL_MS + PERMISSION_WAIT_MS);
     expect(status(h)).toBe('waiting-permission');
     expect(ready).not.toHaveBeenCalled();
-    slow.resolve(jsonResponse({ ok: true, version: '0.1.0', vault: 'ready', app: 'homebase', apiVersion: 1, instanceId: INSTANCE, appUrl: APP_URL }));
+    slow.resolve(jsonResponse({ ok: true, version: '0.1.0', vault: 'ready', app: 'portly', apiVersion: 1, instanceId: INSTANCE, appUrl: APP_URL }));
     await flush();
     expect(ready).toHaveBeenCalledTimes(1);
     expect(failed).not.toHaveBeenCalled();
@@ -907,7 +907,7 @@ describe('what requests report', () => {
     expect(h.store.lastMode()).toBe('browser');
   });
 
-  it('a 401 pairing_required from another Homebase now on the port keeps the pairing (and the token stays home)', async () => {
+  it('a 401 pairing_required from another Portly now on the port keeps the pairing (and the token stays home)', async () => {
     const h = await start(harness({ paired: true, backend: 'server' }));
     const calls = h.server.fetch.mock.calls.length;
     h.server.health = healthy({ instanceId: OTHER_INSTANCE });
@@ -940,7 +940,7 @@ describe('what requests report', () => {
     expect(h.reload).not.toHaveBeenCalled();
     expect(h.server.fetch.mock.calls.length).toBe(calls + 2);
     const [, init] = h.server.fetch.mock.calls.at(-1)!;
-    expect(new Headers(init?.headers).get('X-Homebase-Token')).toBe(NEW_TOKEN);
+    expect(new Headers(init?.headers).get('X-Portly-Token')).toBe(NEW_TOKEN);
   });
 });
 
@@ -1125,8 +1125,8 @@ describe('actions', () => {
     const [url, init] = h.server.fetch.mock.calls.at(-1)!;
     expect(url).toBe(`${ORIGIN}/api/pairing`);
     expect(init?.method).toBe('DELETE');
-    expect(new Headers(init?.headers).get('X-Homebase-Token')).toBe(TOKEN);
-    expect(new Headers(init?.headers).get('X-Homebase')).toBe('1');
+    expect(new Headers(init?.headers).get('X-Portly-Token')).toBe(TOKEN);
+    expect(new Headers(init?.headers).get('X-Portly')).toBe('1');
     expect(h.store.read()).toBeNull();
     expect(h.local.getItem(SERVER_CACHE_KEY)).toBeNull();
     expect(h.store.lastMode()).toBe('browser');
@@ -1148,7 +1148,7 @@ describe('actions', () => {
     expect(h.reload).not.toHaveBeenCalled();
   });
 
-  it('disconnect never sends the token to another Homebase on the port (it forgets the pairing here only)', async () => {
+  it('disconnect never sends the token to another Portly on the port (it forgets the pairing here only)', async () => {
     // Known as another one, or another one took the port since the last probe.
     for (const known of [true, false]) {
       const h = harness({ paired: true, busy: true });
@@ -1159,7 +1159,7 @@ describe('actions', () => {
       const calls = h.server.fetch.mock.calls.length;
       await h.controller.actions.disconnect();
       expect(h.server.calls().slice(calls)).not.toContain('DELETE /api/pairing');
-      for (const [, init] of h.server.fetch.mock.calls.slice(calls)) expect(new Headers(init?.headers).has('X-Homebase-Token')).toBe(false);
+      for (const [, init] of h.server.fetch.mock.calls.slice(calls)) expect(new Headers(init?.headers).has('X-Portly-Token')).toBe(false);
       expect(h.store.read()).toBeNull();
       expect(h.controller.getState()).toMatchObject({ paired: false, status: 'unpaired' });
       h.controller.stop();
@@ -1216,7 +1216,7 @@ describe('the no-cors fallback (a server that does not accept this site)', () =>
     await start(h);
     expect(h.controller.getState()).toMatchObject({ status: 'reconnecting', unreachableReason: 'answers-without-cors' });
     for (const [, init] of h.server.fetch.mock.calls) {
-      expect(init?.headers === undefined || !new Headers(init.headers).has('X-Homebase-Token')).toBe(true);
+      expect(init?.headers === undefined || !new Headers(init.headers).has('X-Portly-Token')).toBe(true);
     }
     const noCors = h.server.fetch.mock.calls.filter(([, init]) => init?.mode === 'no-cors');
     expect(noCors).toHaveLength(1);
@@ -1261,7 +1261,7 @@ describe('the no-cors fallback (a server that does not accept this site)', () =>
     prompt.controller.stop();
   });
 
-  it('not after a timeout or a non-Homebase answer', async () => {
+  it('not after a timeout or a non-Portly answer', async () => {
     const h = harness({ noCors: true, paired: true });
     h.server.health = hang;
     await start(h);
@@ -1375,7 +1375,7 @@ describe('diagnostic events', () => {
     const h = harness({ paired: true, backend: 'server', busy: true });
     h.server.pairing = () => pairingRequired();
     await start(h);
-    expect(find(h, 'pairing revoked by Homebase on this PC')).toEqual([expect.objectContaining({ level: 'warn', fields: expect.objectContaining({ httpStatus: 401 }) })]);
+    expect(find(h, 'pairing revoked by Portly on this PC')).toEqual([expect.objectContaining({ level: 'warn', fields: expect.objectContaining({ httpStatus: 401 }) })]);
     expect(find(h, 'backend switch deferred')).toEqual([expect.objectContaining({ fields: { target: 'browser', reason: 'revoked', kind: 'busy' } })]);
   });
 

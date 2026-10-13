@@ -1,72 +1,72 @@
 <#
 .SYNOPSIS
-    Installs Homebase from a release package, or updates an installed copy. Needs no Git, Node.js,
+    Installs Portly from a release package, or updates an installed copy. Needs no Git, Node.js,
     npm or administrator rights: the package carries its own Node.js runtime.
 
 .DESCRIPTION
-    1. Finds the release: the latest one published in -ReleaseRepo (its homebase-release.json names
+    1. Finds the release: the latest one published in -ReleaseRepo (its portly-release.json names
        the package and its SHA-256), the one named by -Version, or a package already on this PC
-       (-ZipPath; checked against -Sha256, or the homebase-release.json next to it).
+       (-ZipPath; checked against -Sha256, or the portly-release.json next to it).
     2. Downloads the package into a temporary folder and checks its SHA-256.
-    3. Unpacks it into <InstallDir>\app.new and checks it is a Homebase release for Windows x64.
+    3. Unpacks it into <InstallDir>\app.new and checks it is a Portly release for Windows x64.
     4. New install: moves it to <InstallDir>\app.
-       Update: stops the Homebase processes running from <InstallDir>\app, copies the database to
-       <data folder>\backups\homebase-before-<version>-<time>.db, keeps the old version as
+       Update: stops the Portly processes running from <InstallDir>\app, copies the database to
+       <data folder>\backups\portly-before-<version>-<time>.db, keeps the old version as
        <InstallDir>\app.previous and moves the new one to <InstallDir>\app. If the new version
        does not start, the old one is put back and started again.
-    5. Links node_modules\@homebase\shared to the package's shared folder (a junction).
-    6. With -PagesUrl: saves the Pages site's address as HOMEBASE_PAGES_URL (as setup.ps1 does).
+    5. Links node_modules\@portly\shared to the package's shared folder (a junction).
+    6. With -PagesUrl: saves the Pages site's address as PORTLY_PAGES_URL (as setup.ps1 does).
     7. Runs app\scripts\install-autostart.ps1 with app\runtime\node.exe (the scheduled task and the
-       launcher the new-tab extension uses; starts Homebase and waits for it), then
-       app\scripts\install-cli.ps1 (the homebase command).
+       launcher the new-tab extension uses; starts Portly and waits for it), then
+       app\scripts\install-cli.ps1 (the portly command).
     8. New install: shows how to load the new-tab extension from <InstallDir>\app\extension.
        Update: says when the extension changed and needs a Reload.
 
-    Your data (%LOCALAPPDATA%\Homebase, or HOMEBASE_DATA_DIR) is never moved or deleted.
+    Your data (%LOCALAPPDATA%\Portly, or PORTLY_DATA_DIR) is never moved or deleted.
     Self-contained, so it also runs as `irm <url> | iex` before anything is installed; installed
-    copies run it for `homebase --update`. See docs\setup\releases.md.
+    copies run it for `portly --update`. See docs\setup\releases.md.
 
 .PARAMETER InstallDir
-    Where Homebase is installed (default %LOCALAPPDATA%\Programs\Homebase). The program lives in
+    Where Portly is installed (default %LOCALAPPDATA%\Programs\Portly). The program lives in
     <InstallDir>\app.
 
 .PARAMETER ReleaseRepo
     The public GitHub repository the releases are published in, as owner/name
-    (default davideAurum/Homebase).
+    (default davideAurum/Portly).
 
 .PARAMETER Version
     Install this published version (for example 0.2.0-alpha.1) instead of the latest one.
 
 .PARAMETER ZipPath
-    Install this package (homebase-<version>-win-x64.zip) instead of downloading one.
+    Install this package (portly-<version>-win-x64.zip) instead of downloading one.
 
 .PARAMETER Sha256
     The SHA-256 the package must have. Without it, -ZipPath is checked against the
-    homebase-release.json in the same folder when there is one.
+    portly-release.json in the same folder when there is one.
 
 .PARAMETER PagesUrl
-    The address of your Homebase Pages site (saved as HOMEBASE_PAGES_URL), or 'off' to remove it.
+    The address of your Portly Pages site (saved as PORTLY_PAGES_URL), or 'off' to remove it.
     Without it, the setting is left as it is.
 
 .PARAMETER Trigger
-    Passed to install-autostart.ps1: Browser (the extension starts Homebase) or Logon. Default: the
+    Passed to install-autostart.ps1: Browser (the extension starts Portly) or Logon. Default: the
     mode the installed task already has, Browser for a new install.
 
 .PARAMETER Force
     Install even when this version is already installed.
 
 .PARAMETER SkipAutostart
-    Do not run install-autostart.ps1 (start Homebase with app\scripts\start.ps1).
+    Do not run install-autostart.ps1 (start Portly with app\scripts\start.ps1).
 
 .PARAMETER SkipCli
-    Do not install the homebase command.
+    Do not install the portly command.
 
 .PARAMETER NoBrowser
     Do not open the browser's extensions page or copy to the clipboard.
 
 .PARAMETER DryRun
     Say which release would be installed and where, and change nothing (nothing is downloaded
-    but the small homebase-release.json).
+    but the small portly-release.json).
 
 .EXAMPLE
     irm https://davideaurum.github.io/install.ps1 | iex
@@ -75,13 +75,13 @@
     & ([scriptblock]::Create((irm https://davideaurum.github.io/install.ps1))) -PagesUrl https://me.github.io/
 
 .EXAMPLE
-    powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -ZipPath .\homebase-0.2.0-alpha.1-win-x64.zip
+    powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -ZipPath .\portly-0.2.0-alpha.1-win-x64.zip
 #>
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'Programs\Homebase'),
-    [string]$ReleaseRepo = 'davideAurum/Homebase',
+    [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'Programs\Portly'),
+    [string]$ReleaseRepo = 'davideAurum/Portly',
     [string]$Version,
     [string]$ZipPath,
     [string]$Sha256,
@@ -95,9 +95,9 @@ param(
 )
 
 $InstTriggerGiven = $PSBoundParameters.ContainsKey('Trigger')
-$InstManifestName = 'homebase-release.json'
+$InstManifestName = 'portly-release.json'
 $InstPlatform = 'win-x64'
-$InstTaskName = 'Homebase Server'
+$InstTaskName = 'Portly Server'
 $InstKeepBackups = 3
 
 function Write-InstStep { param([string]$Message) Write-Host "==> $Message" -ForegroundColor Cyan }
@@ -128,8 +128,8 @@ function Read-InstRelease {
     param([Parameter(Mandatory)][string]$Dir)
     $info = Read-InstJson -Path (Join-Path $Dir 'release.json')
     if ($null -eq $info) { return $null }
-    if ((Get-InstProperty $info 'name') -ne 'homebase' -or "$(Get-InstProperty $info 'version')" -eq '') {
-        throw "$Dir\release.json does not describe a Homebase release."
+    if ((Get-InstProperty $info 'name') -ne 'portly' -or "$(Get-InstProperty $info 'version')" -eq '') {
+        throw "$Dir\release.json does not describe a Portly release."
     }
     return $info
 }
@@ -198,9 +198,9 @@ function Resolve-InstRelease {
     $version = "$(Get-InstProperty $manifest 'version')"
     $package = "$(Get-InstProperty $manifest 'package')"
     $hash = "$(Get-InstProperty $manifest 'sha256')".ToLowerInvariant()
-    if ((Get-InstProperty $manifest 'name') -ne 'homebase' -or (Get-InstProperty $manifest 'platform') -ne $InstPlatform -or
-        -not (Test-InstVersion $version) -or $package -notmatch '^homebase-[0-9A-Za-z.-]+-win-x64\.zip$' -or $hash -notmatch '^[0-9a-f]{64}$') {
-        throw "$manifestUrl is not a valid Homebase release description."
+    if ((Get-InstProperty $manifest 'name') -ne 'portly' -or (Get-InstProperty $manifest 'platform') -ne $InstPlatform -or
+        -not (Test-InstVersion $version) -or $package -notmatch '^portly-[0-9A-Za-z.-]+-win-x64\.zip$' -or $hash -notmatch '^[0-9a-f]{64}$') {
+        throw "$manifestUrl is not a valid Portly release description."
     }
     if (-not [string]::IsNullOrWhiteSpace($Version) -and $version -ne $Version) {
         throw "$manifestUrl describes version $version, not $Version."
@@ -217,11 +217,11 @@ function Get-InstAttributes {
     try { return [System.IO.File]::GetAttributes($Path) } catch { return $null }
 }
 
-# Removes the junctions under node_modules\@homebase (never what they point to), so the folder
+# Removes the junctions under node_modules\@portly (never what they point to), so the folder
 # can be moved or deleted without touching another copy's files.
 function Remove-InstLinks {
     param([Parameter(Mandatory)][string]$AppDir)
-    $scope = Join-Path $AppDir 'node_modules\@homebase'
+    $scope = Join-Path $AppDir 'node_modules\@portly'
     if ($null -eq (Get-InstAttributes -Path $scope)) { return }
     foreach ($entry in @([System.IO.Directory]::GetFileSystemEntries($scope))) {
         $attributes = Get-InstAttributes -Path $entry
@@ -231,12 +231,12 @@ function Remove-InstLinks {
     }
 }
 
-# node_modules\@homebase\shared -> <AppDir>\shared (Common.ps1 Initialize-HbReleaseLinks does the
+# node_modules\@portly\shared -> <AppDir>\shared (Common.ps1 Initialize-HbReleaseLinks does the
 # same for the scripts in the package).
 function Initialize-InstLinks {
     param([Parameter(Mandatory)][string]$AppDir)
     Remove-InstLinks -AppDir $AppDir
-    $scope = Join-Path $AppDir 'node_modules\@homebase'
+    $scope = Join-Path $AppDir 'node_modules\@portly'
     if (-not (Test-Path -LiteralPath $scope)) { $null = New-Item -ItemType Directory -Path $scope -Force }
     $null = New-Item -ItemType Junction -Path (Join-Path $scope 'shared') -Target (Join-Path $AppDir 'shared')
 }
@@ -283,7 +283,7 @@ function Stop-InstAppProcesses {
     return $processes.Count
 }
 
-# The Homebase Server task: whether it exists, whether it runs this copy (its action names
+# The Portly Server task: whether it exists, whether it runs this copy (its action names
 # <AppDir>\server\src\supervisor.ts) and its mode (a logon trigger or none).
 function Get-InstTask {
     param([Parameter(Mandatory)][string]$AppDir)
@@ -296,40 +296,40 @@ function Get-InstTask {
     return [pscustomobject]@{ Exists = $true; Ours = $arguments.ToLowerInvariant().Contains($needle); Mode = $mode; Runs = $arguments }
 }
 
-# Where the server keeps its data: HOMEBASE_DATA_DIR (this process, then the user's and the PC's
-# setting), else %LOCALAPPDATA%\Homebase. $null for a relative setting (resolved by the server).
+# Where the server keeps its data: PORTLY_DATA_DIR (this process, then the user's and the PC's
+# setting), else %LOCALAPPDATA%\Portly. $null for a relative setting (resolved by the server).
 function Get-InstDataDir {
     foreach ($scope in @('Process', 'User', 'Machine')) {
-        $value = [System.Environment]::GetEnvironmentVariable('HOMEBASE_DATA_DIR', $scope)
+        $value = [System.Environment]::GetEnvironmentVariable('PORTLY_DATA_DIR', $scope)
         if (-not [string]::IsNullOrWhiteSpace($value)) {
             $value = $value.Trim()
             if ([System.IO.Path]::IsPathRooted($value)) { return $value }
             return $null
         }
     }
-    return (Join-Path $env:LOCALAPPDATA 'Homebase')
+    return (Join-Path $env:LOCALAPPDATA 'Portly')
 }
 
-# Copies homebase.db (and its -wal/-shm files) into backups\ while Homebase is stopped, and keeps
+# Copies portly.db (and its -wal/-shm files) into backups\ while Portly is stopped, and keeps
 # the newest $InstKeepBackups of these copies. Returns the copy's path, or $null.
 function Backup-InstDatabase {
     param([Parameter(Mandatory)][string]$Label)
     $dataDir = Get-InstDataDir
     if ($null -eq $dataDir) {
-        Write-Warning 'HOMEBASE_DATA_DIR is a relative path; no database copy was made before the update.'
+        Write-Warning 'PORTLY_DATA_DIR is a relative path; no database copy was made before the update.'
         return $null
     }
-    $db = Join-Path $dataDir 'homebase.db'
+    $db = Join-Path $dataDir 'portly.db'
     if (-not (Test-Path -LiteralPath $db -PathType Leaf)) { return $null }
     $backups = Join-Path $dataDir 'backups'
     if (-not (Test-Path -LiteralPath $backups)) { $null = New-Item -ItemType Directory -Path $backups -Force }
-    $name = "homebase-before-$Label-$((Get-Date).ToString('yyyyMMdd-HHmmss')).db"
+    $name = "portly-before-$Label-$((Get-Date).ToString('yyyyMMdd-HHmmss')).db"
     $copy = Join-Path $backups $name
     Copy-Item -LiteralPath $db -Destination $copy
     foreach ($suffix in @('-wal', '-shm')) {
         if (Test-Path -LiteralPath "$db$suffix" -PathType Leaf) { Copy-Item -LiteralPath "$db$suffix" -Destination "$copy$suffix" }
     }
-    $old = @(Get-ChildItem -LiteralPath $backups -Filter 'homebase-before-*.db' -File | Sort-Object LastWriteTimeUtc -Descending |
+    $old = @(Get-ChildItem -LiteralPath $backups -Filter 'portly-before-*.db' -File | Sort-Object LastWriteTimeUtc -Descending |
             Select-Object -Skip $InstKeepBackups)
     foreach ($file in $old) {
         foreach ($path in @($file.FullName, "$($file.FullName)-wal", "$($file.FullName)-shm")) {
@@ -358,7 +358,7 @@ function ConvertTo-InstPagesUrl {
 
 function Set-InstPagesUrl {
     if ([string]::IsNullOrWhiteSpace($PagesUrl)) { return }
-    $name = 'HOMEBASE_PAGES_URL'
+    $name = 'PORTLY_PAGES_URL'
     if ($PagesUrl.Trim() -eq 'off') {
         Write-InstStep "Pages site off: removing the user environment variable $name"
         [System.Environment]::SetEnvironmentVariable($name, $null, 'User')
@@ -412,7 +412,7 @@ function Show-InstExtensionSteps {
 function Test-InstPackage {
     param([Parameter(Mandatory)][string]$Dir, [string]$ExpectedVersion)
     $info = Read-InstRelease -Dir $Dir
-    if ($null -eq $info) { throw 'The package has no release.json: it is not a Homebase release package.' }
+    if ($null -eq $info) { throw 'The package has no release.json: it is not a Portly release package.' }
     if ((Get-InstProperty $info 'platform') -ne $InstPlatform) {
         throw "The package is for $(Get-InstProperty $info 'platform'), not $InstPlatform."
     }
@@ -443,7 +443,7 @@ function Restore-InstPrevious {
     Initialize-InstLinks -AppDir $app
     if ($Task.Ours -and -not $SkipAutostart) {
         if ((Invoke-InstAutostart -AppDir $app -Mode $Mode) -ne 0) {
-            Write-InstFailure 'The previous version did not start either; see the output above (homebase --status --logs).'
+            Write-InstFailure 'The previous version did not start either; see the output above (portly --status --logs).'
             return
         }
     }
@@ -454,7 +454,7 @@ function Invoke-InstMain {
     Set-StrictMode -Version 3.0
     $ErrorActionPreference = 'Stop'
     if ([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) {
-        throw 'Homebase runs on Windows (DPAPI vault, Task Scheduler).'
+        throw 'Portly runs on Windows (DPAPI vault, Task Scheduler).'
     }
     $root = [System.IO.Path]::GetFullPath($InstallDir)
     $app = Join-Path $root 'app'
@@ -463,21 +463,21 @@ function Invoke-InstMain {
     if (-not [string]::IsNullOrWhiteSpace($PagesUrl) -and $PagesUrl.Trim() -ne 'off') { $null = ConvertTo-InstPagesUrl -Value $PagesUrl }
     $installed = Read-InstRelease -Dir $app
     if ($null -eq $installed -and (Test-Path -LiteralPath $app)) {
-        throw "$app exists but is not a Homebase release install. Pass -InstallDir with another folder."
+        throw "$app exists but is not a Portly release install. Pass -InstallDir with another folder."
     }
     $installedVersion = if ($null -ne $installed) { "$($installed.version)" } else { $null }
 
-    $work = Join-Path ([System.IO.Path]::GetTempPath()) ('homebase-install-' + [guid]::NewGuid().ToString('N'))
+    $work = Join-Path ([System.IO.Path]::GetTempPath()) ('portly-install-' + [guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $work -Force
     try {
         $release = Resolve-InstRelease -Work $work
         $label = if ($release.Version) { $release.Version } else { 'the package' }
         if ($null -ne $installedVersion -and $release.Version -eq $installedVersion -and -not $Force) {
-            Write-InstOk "Homebase $installedVersion is already installed in $app (-Force reinstalls it)."
+            Write-InstOk "Portly $installedVersion is already installed in $app (-Force reinstalls it)."
             return 0
         }
         if ($DryRun) {
-            $action = if ($null -ne $installedVersion) { "update Homebase $installedVersion to $label" } else { "install Homebase $label" }
+            $action = if ($null -ne $installedVersion) { "update Portly $installedVersion to $label" } else { "install Portly $label" }
             Write-InstStep "[dry run] Would $action in $app"
             Write-InstInfo "Package: $($release.Package)"
             Write-InstInfo "SHA-256: $(if ($release.Sha256) { $release.Sha256 } else { 'none to check against' })"
@@ -487,7 +487,7 @@ function Invoke-InstMain {
 
         $zip = $release.Package
         if (-not $release.Local) {
-            Write-InstStep "Downloading Homebase $label"
+            Write-InstStep "Downloading Portly $label"
             $zip = Join-Path $work ([System.IO.Path]::GetFileName($release.Package))
             Invoke-InstDownload -Url $release.Package -OutFile $zip -What "The package of release $label"
         }
@@ -498,7 +498,7 @@ function Invoke-InstMain {
             }
             Write-InstOk 'SHA-256 checked'
         } else {
-            Write-Warning 'No SHA-256 to check the package against (no -Sha256 and no homebase-release.json next to it).'
+            Write-Warning 'No SHA-256 to check the package against (no -Sha256 and no portly-release.json next to it).'
         }
 
         Write-InstStep "Unpacking into $staged"
@@ -510,39 +510,39 @@ function Invoke-InstMain {
         $newVersion = "$($new.version)"
         if ($null -ne $installedVersion -and $newVersion -eq $installedVersion -and -not $Force) {
             Remove-InstAppFolder -Path $staged
-            Write-InstOk "Homebase $installedVersion is already installed in $app (-Force reinstalls it)."
+            Write-InstOk "Portly $installedVersion is already installed in $app (-Force reinstalls it)."
             return 0
         }
 
         if ($null -eq $installed) {
             Move-InstFolder -From $staged -To $app
             Initialize-InstLinks -AppDir $app
-            Write-InstOk "Homebase $newVersion is in $app"
+            Write-InstOk "Portly $newVersion is in $app"
             Set-InstPagesUrl
             $failed = @()
             $mode = if ($InstTriggerGiven) { $Trigger } else { 'Browser' }
             if (-not $SkipAutostart -and (Invoke-InstAutostart -AppDir $app -Mode $mode) -ne 0) { $failed += 'install-autostart.ps1' }
             if (-not $SkipCli) {
-                Write-InstStep 'The homebase command: scripts\install-cli.ps1'
+                Write-InstStep 'The portly command: scripts\install-cli.ps1'
                 if ((Invoke-InstScript -AppDir $app -Script 'install-cli.ps1') -ne 0) { $failed += 'install-cli.ps1' }
             }
             Show-InstExtensionSteps -AppDir $app
             if ($failed.Count -gt 0) {
-                Write-InstFailure "Homebase is installed, but $($failed -join ' and ') failed (see above). Fix that and run this again."
+                Write-InstFailure "Portly is installed, but $($failed -join ' and ') failed (see above). Fix that and run this again."
                 return 1
             }
-            Write-InstOk 'Homebase is installed: http://localhost:5757'
-            Write-InstInfo 'Then connect your accounts in Settings. Open a new terminal to use the homebase command.'
+            Write-InstOk 'Portly is installed: http://localhost:5757'
+            Write-InstInfo 'Then connect your accounts in Settings. Open a new terminal to use the portly command.'
             return 0
         }
 
         # Update.
         $task = Get-InstTask -AppDir $app
         $mode = if ($InstTriggerGiven) { $Trigger } else { $task.Mode }
-        Write-InstStep "Updating Homebase $installedVersion to $newVersion"
+        Write-InstStep "Updating Portly $installedVersion to $newVersion"
         if ($task.Ours) { try { Stop-ScheduledTask -TaskName $InstTaskName -TaskPath '\' -ErrorAction Stop } catch { } }
         $stopped = Stop-InstAppProcesses -AppDir $app
-        if ($stopped -gt 0) { Write-InstInfo "Stopped $stopped Homebase process(es)." }
+        if ($stopped -gt 0) { Write-InstInfo "Stopped $stopped Portly process(es)." }
         $backup = Backup-InstDatabase -Label $installedVersion
         if ($null -ne $backup) { Write-InstInfo "Database copied to $backup" }
         Remove-InstAppFolder -Path $previous
@@ -568,26 +568,26 @@ function Invoke-InstMain {
         if (-not $SkipAutostart) {
             if ($task.Ours -or -not $task.Exists) {
                 if ((Invoke-InstAutostart -AppDir $app -Mode $mode) -ne 0) {
-                    Write-InstFailure "Homebase $newVersion did not start (see above)."
+                    Write-InstFailure "Portly $newVersion did not start (see above)."
                     Restore-InstPrevious -Root $root -Task $task -Mode $mode
                     return 1
                 }
             } else {
-                Write-Warning ("The '$InstTaskName' task runs another copy of Homebase ($($task.Runs)). To let it run this one, " +
+                Write-Warning ("The '$InstTaskName' task runs another copy of Portly ($($task.Runs)). To let it run this one, " +
                     "run: powershell -NoProfile -ExecutionPolicy Bypass -File ""$app\scripts\install-autostart.ps1""")
             }
         }
         if (-not $SkipCli) {
-            Write-InstStep 'The homebase command: scripts\install-cli.ps1'
+            Write-InstStep 'The portly command: scripts\install-cli.ps1'
             if ((Invoke-InstScript -AppDir $app -Script 'install-cli.ps1') -ne 0) { Write-Warning 'install-cli.ps1 failed (see above).' }
         }
         $oldExtension = "$(Get-InstProperty $installed 'extensionVersion')"
         $newExtension = "$(Get-InstProperty $new 'extensionVersion')"
         if ($oldExtension -ne $newExtension) {
             Write-InstStep "The new-tab extension changed ($oldExtension -> $newExtension)"
-            Write-InstInfo 'Click Reload on Homebase New Tab in chrome://extensions (or edge://extensions).'
+            Write-InstInfo 'Click Reload on Portly New Tab in chrome://extensions (or edge://extensions).'
         }
-        Write-InstOk "Updated Homebase $installedVersion -> $newVersion. The previous version is kept in $previous."
+        Write-InstOk "Updated Portly $installedVersion -> $newVersion. The previous version is kept in $previous."
         return 0
     } finally {
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue

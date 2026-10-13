@@ -25,7 +25,7 @@ export interface PersistedSnapshotRef {
 
 /**
  * The snapshot a page load paints its first theme from: its backend's key (`persist`, the page
- * load's persist options) and, only for the Homebase server on this PC in the Pages build, the
+ * load's persist options) and, only for the Portly server on this PC in the Pages build, the
  * buster too, so another server instance's theme is never shown. Never the restore's maxAge, and
  * no buster elsewhere: an old or previous-version theme is still the user's, not the defaults.
  */
@@ -34,7 +34,7 @@ export function firstPaintSnapshot(
   backend: Backend,
   options: { pagesBuild?: boolean } = {},
 ): PersistedSnapshotRef {
-  const pagesBuild = options.pagesBuild ?? __HOMEBASE_STATIC__;
+  const pagesBuild = options.pagesBuild ?? __PORTLY_STATIC__;
   return pagesBuild && backend === 'server' ? { key: persist.key, buster: persist.buster } : { key: persist.key };
 }
 

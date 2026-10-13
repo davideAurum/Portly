@@ -64,7 +64,7 @@ describe('ErrorState', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledOnce();
     rerender(<ErrorState error={new ApiError(0, 'network_error', 'x')} onRetry={onRetry} />);
-    expect(screen.getByText('Homebase is not reachable')).toBeInTheDocument();
+    expect(screen.getByText('Portly is not reachable')).toBeInTheDocument();
   });
 });
 

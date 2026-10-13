@@ -3,13 +3,13 @@
  * before it is saved; removable with confirmation), where to find the token, and the default
  * filter used by Todoist widgets without their own filter. The full guide is docs/setup/todoist.md;
  * without a vault (the in-browser backend) the page links Todoist's own help article instead (the
- * site cannot open a guide that lives in the Homebase folder on a PC). A locked vault is reset in
- * Settings → Accounts — on Homebase's own page when this page
- * is the Pages site using Homebase on this PC.
+ * site cannot open a guide that lives in the Portly folder on a PC). A locked vault is reset in
+ * Settings → Accounts — on Portly's own page when this page
+ * is the Pages site using Portly on this PC.
  */
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { KeyRound, RotateCcw, Save, Trash } from 'lucide-react';
-import { DEFAULT_TODOIST_FILTER, TodoistFilterSchema } from '@homebase/shared';
+import { DEFAULT_TODOIST_FILTER, TodoistFilterSchema } from '@portly/shared';
 import { isApiError } from '../../api/client.ts';
 import { useHealth } from '../../api/about.ts';
 import { useSettings, useUpdateSettings } from '../../api/settings.ts';
@@ -32,14 +32,14 @@ import styles from '../../widgets/todoist/Todoist.module.css';
 
 export const TODOIST_DEVELOPER_SETTINGS_URL = 'https://app.todoist.com/app/settings/integrations/developer';
 export const TODOIST_FILTER_HELP_URL = 'https://www.todoist.com/help/articles/introduction-to-filters-V98wIH';
-/** Todoist's own "Find your API token" help article, linked from the browser-only build (it has no Homebase folder). */
+/** Todoist's own "Find your API token" help article, linked from the browser-only build (it has no Portly folder). */
 export const TODOIST_TOKEN_HELP_URL = 'https://www.todoist.com/help/articles/find-your-api-token-Jpzx9IIlB';
 
 /** Where the token lives: the server keeps it in the encrypted vault, the in-browser backend in this browser's storage. */
 function tokenCardDescription(): string {
   return getCapabilities().vault
-    ? 'Homebase reads and completes your tasks with your personal API token. It is stored encrypted on this PC and never shown again.'
-    : 'Homebase reads and completes your tasks with your personal API token. It is stored only in this browser on this device, not encrypted, and is sent only to api.todoist.com; it is not included in exports.';
+    ? 'Portly reads and completes your tasks with your personal API token. It is stored encrypted on this PC and never shown again.'
+    : 'Portly reads and completes your tasks with your personal API token. It is stored only in this browser on this device, not encrypted, and is sent only to api.todoist.com; it is not included in exports.';
 }
 
 /** Same sanity check as the server (paste mistakes are caught before a round trip). */
@@ -63,7 +63,7 @@ export default function TodoistSettings() {
           title="Saved credentials are locked"
           actions={<OpenAccountsLink />}
         >
-          Homebase can't read its encryption key, so the Todoist token can't be used or replaced. Reset credentials in Settings →
+          Portly can't read its encryption key, so the Todoist token can't be used or replaced. Reset credentials in Settings →
           Accounts, then add your token here again.
         </Banner>
       ) : null}
@@ -165,13 +165,13 @@ function TokenCard({ locked }: { locked: boolean }) {
         <li>
           Click <strong>Copy API token</strong>.
         </li>
-        <li>Paste it below and click Save. Homebase checks it with Todoist before storing it.</li>
+        <li>Paste it below and click Save. Portly checks it with Todoist before storing it.</li>
       </ol>
       <p className={styles.hint}>
         The token gives full access to your Todoist account — treat it like a password.{' '}
         {getCapabilities().vault ? (
           <>
-            The step-by-step guide is <code className={styles.code}>docs/setup/todoist.md</code> in the Homebase folder.
+            The step-by-step guide is <code className={styles.code}>docs/setup/todoist.md</code> in the Portly folder.
           </>
         ) : (
           <>

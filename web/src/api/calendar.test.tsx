@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Calendar, EventsResponse } from '@homebase/shared';
+import type { Calendar, EventsResponse } from '@portly/shared';
 import { createTestQueryClient, stubApi, type MockRequest } from '../test/render.tsx';
 import { eventsPath, selectionKey, useCalendarEvents, useUpdateCalendar } from './calendar.ts';
 import { qk } from './keys.ts';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ClientEventsResponseSchema, LogRecordSchema, type ClientEventInput, type ClientEventsRequest } from '@homebase/shared';
+import { ClientEventsResponseSchema, LogRecordSchema, type ClientEventInput, type ClientEventsRequest } from '@portly/shared';
 import { withLogContext } from '../../lib/log-context.ts';
 import { createTestLogger } from '../../lib/logger.ts';
 import {

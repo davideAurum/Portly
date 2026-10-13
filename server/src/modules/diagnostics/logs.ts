@@ -5,7 +5,7 @@
  * request id, the context fields `job`/`run`/`accountId`/`calendarId`/`feed`/`pairingId`, a
  * health `key` (mapped to the field its unit of work sets, `contextFieldForKey`) and a text search.
  */
-import type { LogsQuery, LogsResponse } from '@homebase/shared';
+import type { LogsQuery, LogsResponse } from '@portly/shared';
 import { contextFieldForKey } from '../../lib/health.ts';
 import type { LogHub, LogQuery, LogRecordOut } from '../../lib/logger.ts';
 import { readLogRecords, type RecordFilter, type ScanOptions } from './log-files.ts';

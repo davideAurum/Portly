@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { InstanceIdSchema, MAX_PAIRINGS, PairingTokenSchema } from '@homebase/shared';
+import { InstanceIdSchema, MAX_PAIRINGS, PairingTokenSchema } from '@portly/shared';
 import { migrate } from '../db/migrate.ts';
 import { openDb, type Db } from '../db/open.ts';
 import { createMemoryLogger } from '../lib/logger.ts';

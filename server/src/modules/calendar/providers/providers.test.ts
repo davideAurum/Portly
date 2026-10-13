@@ -114,14 +114,14 @@ describe('provider error mapping (403 classification)', () => {
     });
     await expect(call(403, googleScopeInsufficient)).rejects.toMatchObject({
       denial: 'insufficient_scope',
-      message: 'Google Calendar access was not granted to Homebase; reconnect the account and allow calendar access',
+      message: 'Google Calendar access was not granted to Portly; reconnect the account and allow calendar access',
     });
     await expect(call(403, googleForbidden)).rejects.toMatchObject({ denial: 'denied', providerReason: 'forbidden' });
     await expect(call(403, 'not json')).rejects.toMatchObject({ denial: 'denied', providerReason: null });
   });
 
   it('only writes are "not allowed changes"; reads say access was denied', async () => {
-    await expect(call(403, googleForbidden, 'GET')).rejects.toMatchObject({ message: 'Google Calendar denied Homebase access to this calendar' });
+    await expect(call(403, googleForbidden, 'GET')).rejects.toMatchObject({ message: 'Google Calendar denied Portly access to this calendar' });
     for (const method of ['POST', 'PATCH', 'DELETE']) {
       await expect(call(403, googleForbidden, method)).rejects.toMatchObject({ message: 'Google Calendar does not allow this change' });
     }

@@ -2,7 +2,7 @@
  * Every TanStack Query key in the app (§7a). Keys are hierarchical so that a prefix invalidates a
  * whole family, e.g. account create/delete/reconnect invalidates ['accounts'], ['calendar'], ['mail'].
  */
-import type { LogsQuery, OAuthProvider, SuggestProvider } from '@homebase/shared';
+import type { LogsQuery, OAuthProvider, SuggestProvider } from '@portly/shared';
 import type { QueryClient } from '@tanstack/react-query';
 
 /** Rounds coordinates the same way the server's weather cache does (2 decimals). */

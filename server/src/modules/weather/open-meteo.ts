@@ -26,7 +26,7 @@ import {
   type WeatherReport,
   type WeatherUnits,
   type WindUnit,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { HttpError } from '../../lib/errors.ts';
 
 export const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -62,7 +62,7 @@ export const DAILY_VARIABLES = [
   'sunset',
 ] as const;
 
-/** Homebase unit → Open-Meteo query value. */
+/** Portly unit → Open-Meteo query value. */
 export const OPEN_METEO_UNITS = {
   temperature: { C: 'celsius', F: 'fahrenheit' } satisfies Record<TemperatureUnit, string>,
   wind: { kmh: 'kmh', mph: 'mph', ms: 'ms' } satisfies Record<WindUnit, string>,

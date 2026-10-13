@@ -20,7 +20,7 @@ import {
   Sun,
   type LucideIcon,
 } from 'lucide-react';
-import { weatherCodeInfo, type WeatherIconName } from '@homebase/shared';
+import { weatherCodeInfo, type WeatherIconName } from '@portly/shared';
 import styles from './Widget.module.css';
 
 export const WEATHER_ICONS: Record<WeatherIconName, LucideIcon> = {

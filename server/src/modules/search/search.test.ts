@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SUGGEST_PROVIDERS, type SuggestProvider } from '@homebase/shared';
+import { SUGGEST_PROVIDERS, type SuggestProvider } from '@portly/shared';
 import { createApp } from '../../app.ts';
 import { createMemoryLogger } from '../../lib/logger.ts';
 import type { FakeFetchRoute } from '../../testing/fake-fetch.ts';
@@ -81,7 +81,7 @@ describe('search: GET /api/search/suggest', () => {
     expect(res.body).toEqual((fixture.body as [string, string[]])[1]);
     expect(res.res.headers.get('cache-control')).toBe('no-store');
     const call = ctx.fakeFetch!.calls[0]!;
-    expect(call.headers.get('user-agent')).toMatch(/^Homebase\//);
+    expect(call.headers.get('user-agent')).toMatch(/^Portly\//);
   });
 
   it('caches answers for 5 minutes per provider and query', async () => {
@@ -178,7 +178,7 @@ describe('search: GET /api/search/suggest', () => {
   it('requires the gate headers like every API route', async () => {
     setup([]);
     const { app } = createApp(ctx, { modules: [{ name: 'search', prefixes, register }], webDist: null });
-    const res = await testRequest(app, 'GET', '/api/search/suggest?provider=google&q=x', { headers: { 'X-Homebase': null } });
+    const res = await testRequest(app, 'GET', '/api/search/suggest?provider=google&q=x', { headers: { 'X-Portly': null } });
     expect(res.status).toBe(403);
   });
 });

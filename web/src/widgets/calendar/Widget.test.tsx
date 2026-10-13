@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Calendar, CalendarEvent, EventsResponse } from '@homebase/shared';
+import type { Calendar, CalendarEvent, EventsResponse } from '@portly/shared';
 import { WidgetFrameContext, type WidgetFrameContextValue } from '../../grid/WidgetContext.tsx';
 import { account, settings } from '../../test/fixtures.ts';
 import { mockResponse, renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';

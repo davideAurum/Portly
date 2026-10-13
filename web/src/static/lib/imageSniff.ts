@@ -12,7 +12,7 @@
  * `new TextDecoder('latin1')` would not be byte-exact). The SVG scan decodes UTF-8 with TextDecoder,
  * keeping the BOM so the explicit strip below behaves like the server.
  */
-import type { ImageContentType } from '@homebase/shared';
+import type { ImageContentType } from '@portly/shared';
 
 /** How much of an SVG is scanned for its root element. */
 const SVG_SCAN_BYTES = 64 * 1024;

@@ -3,7 +3,7 @@
  * The client secret (Google only) lives in the vault and is never returned: the API reports
  * `{clientId, hasSecret, redirectUri}` where `redirectUri` is the exact value to register.
  */
-import type { OAuthClientInfo, OAuthClientUpdate, OAuthProvider, ValidationIssue } from '@homebase/shared';
+import type { OAuthClientInfo, OAuthClientUpdate, OAuthProvider, ValidationIssue } from '@portly/shared';
 import type { Config } from '../../../config.ts';
 import type { Db } from '../../../db/open.ts';
 import { HttpError } from '../../../lib/errors.ts';

@@ -26,7 +26,7 @@ import {
   SportsTeamsQuerySchema,
   sportsLeague,
   type SportsLeagueInfo,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { outcomeFromError, type DetailValue, type HealthSubject, type Outcome } from '../../lib/health.ts';

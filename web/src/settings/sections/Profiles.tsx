@@ -4,7 +4,7 @@
  */
 import { useState, type FormEvent } from 'react';
 import { ArrowDown, ArrowUp, Check, Layers, Pencil, Plus, Trash } from 'lucide-react';
-import { ProfileNameSchema, newId, type Profile, type ProfileCreate } from '@homebase/shared';
+import { ProfileNameSchema, newId, type Profile, type ProfileCreate } from '@portly/shared';
 import {
   pickActiveProfile,
   sortProfiles,

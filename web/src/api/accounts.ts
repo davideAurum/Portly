@@ -18,7 +18,7 @@ import {
   type OAuthStart,
   type OAuthStartResponse,
   type YahooAccountCreate,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { assignLocation, isAppRoute } from '../lib/openUrl.ts';
 import { toastError } from '../ui/toast.ts';
 import { apiDelete, apiGet, apiPatch, apiPath, apiPost, apiPut } from './client.ts';

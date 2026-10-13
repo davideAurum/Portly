@@ -52,7 +52,7 @@ describe('openVault (persistent vault, §4.6)', () => {
   const quarantined = (): string[] => fs.readdirSync(dir).filter((n) => n.startsWith('vault.key.unreadable-'));
 
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-vault-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-vault-'));
     keyFile = path.join(dir, 'vault.key');
     db = openDb(':memory:');
     migrate(db);
@@ -202,7 +202,7 @@ describe('openVault (persistent vault, §4.6)', () => {
 
   it('locks when the canary does not decrypt (key file from another vault)', async () => {
     (await open()).put('account:a', 'alpha');
-    const otherDir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-vault-other-'));
+    const otherDir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-vault-other-'));
     const otherDb = openDb(':memory:');
     migrate(otherDb);
     await openVault({ config: { paths: { vaultKey: path.join(otherDir, 'vault.key') } }, db: otherDb, log, protector: fakeProtector() });

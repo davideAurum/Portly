@@ -23,8 +23,8 @@ export default defineConfig({
           __APP_VERSION__: JSON.stringify('0.0.0-test'),
           __APP_UPDATED__: JSON.stringify('2026-01-15T14:30:00Z'),
           // UI tests call `setCapabilitiesForTests` (src/capabilities.ts) when they need the Pages build.
-          __HOMEBASE_STATIC__: 'false',
-          __HOMEBASE_LOCAL_SERVER__: JSON.stringify(''),
+          __PORTLY_STATIC__: 'false',
+          __PORTLY_LOCAL_SERVER__: JSON.stringify(''),
         },
         test: {
           name: 'web',
@@ -39,8 +39,8 @@ export default defineConfig({
         define: {
           __APP_VERSION__: JSON.stringify('0.0.0-test'),
           __APP_UPDATED__: JSON.stringify('2026-01-15T14:30:00Z'),
-          __HOMEBASE_STATIC__: 'true',
-          __HOMEBASE_LOCAL_SERVER__: JSON.stringify(''),
+          __PORTLY_STATIC__: 'true',
+          __PORTLY_LOCAL_SERVER__: JSON.stringify(''),
         },
         test: {
           name: 'static',

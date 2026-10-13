@@ -15,7 +15,7 @@ import {
   type OAuthProvider,
   type OAuthResult,
   type OAuthStart,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { HttpError } from '../../../lib/errors.ts';
 import { newId } from '../../../lib/ids.ts';
 import { withLogContext } from '../../../lib/log-context.ts';

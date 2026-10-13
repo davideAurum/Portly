@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Bookmark, BookmarkGroup, SiteMeta } from '@homebase/shared';
+import type { Bookmark, BookmarkGroup, SiteMeta } from '@portly/shared';
 import { IMAGE_SAMPLES } from '../../lib/__fixtures__/images.ts';
 import { IMAGE_CACHE_CONTROL, IMAGE_CSP } from '../../security/headers.ts';
 import { withLogContext } from '../../lib/log-context.ts';
@@ -348,8 +348,8 @@ describe('favicons: storage, dedupe, site-meta and the icon route', () => {
     await t.favicons.idle();
     const iconId = t.ctx.db.get<{ id: string }>('SELECT id FROM icons')!.id;
 
-    // An <img> load: no X-Homebase header.
-    const res = await t.req('GET', `/api/icons/${iconId}`, { headers: { 'X-Homebase': null, 'Sec-Fetch-Site': 'same-origin' } });
+    // An <img> load: no X-Portly header.
+    const res = await t.req('GET', `/api/icons/${iconId}`, { headers: { 'X-Portly': null, 'Sec-Fetch-Site': 'same-origin' } });
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
     expect(res.headers.get('content-security-policy')).toBe(IMAGE_CSP);

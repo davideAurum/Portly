@@ -1,5 +1,5 @@
 /* The pairing page (#/pair): one centered panel over the user's backdrop, in the same glass as the
-   settings panel, and the HOMEBASE_PAGES_URL setup steps it shares with Settings → About. */
+   settings panel, and the PORTLY_PAGES_URL setup steps it shares with Settings → About. */
 
 .page {
   display: grid;

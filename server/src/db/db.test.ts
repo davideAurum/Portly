@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { LayoutSchema, emptyLayout } from '@homebase/shared';
+import { LayoutSchema, emptyLayout } from '@portly/shared';
 import { createMemoryLogger } from '../lib/logger.ts';
 import { camelize, fromBool, msToIso, parseJsonColumn, toBool } from './helpers.ts';
 import { listMigrations, migrate } from './migrate.ts';
@@ -22,8 +22,8 @@ describe('openDb', () => {
   });
 
   it('uses WAL for file databases', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-db-'));
-    const fileDb = openDb(path.join(dir, 'nested', 'homebase.db'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-db-'));
+    const fileDb = openDb(path.join(dir, 'nested', 'portly.db'));
     try {
       expect(fileDb.get<{ journal_mode: string }>('PRAGMA journal_mode')?.journal_mode).toBe('wal');
     } finally {
@@ -202,7 +202,7 @@ describe('migrations', () => {
   });
 
   it('applies module migrations in filename order and rejects bad names/duplicates', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-mig-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-mig-'));
     const a = path.join(root, 'a');
     const b = path.join(root, 'b');
     fs.mkdirSync(a);
@@ -226,7 +226,7 @@ describe('migrations', () => {
   });
 
   it('rolls back every pending migration when one fails', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-mig-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-mig-'));
     fs.writeFileSync(path.join(dir, '001_ok.sql'), 'CREATE TABLE ok (x INTEGER);');
     fs.writeFileSync(path.join(dir, '002_bad.sql'), 'CREATE TABLE broken (;');
     try {

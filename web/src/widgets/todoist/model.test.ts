@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Task, TaskDue } from '@homebase/shared';
+import type { Task, TaskDue } from '@portly/shared';
 import { createFormatters } from '../../lib/format.ts';
 import {
   DESCRIPTION_PREVIEW_CHARS,

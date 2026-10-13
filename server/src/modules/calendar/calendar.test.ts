@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isCalendarWarning, type Calendar, type CalendarEvent, type EventsResponse } from '@homebase/shared';
+import { isCalendarWarning, type Calendar, type CalendarEvent, type EventsResponse } from '@portly/shared';
 import { HttpError } from '../../lib/errors.ts';
 import { sha1Hex } from '../../lib/ids.ts';
 import { createMemoryLogger, createTestLogger } from '../../lib/logger.ts';
@@ -318,7 +318,7 @@ describe('sync failures: 403 classification, one health line per failure, back o
     const familyId = calendarIdByName('Family');
     const key = `calendar:${familyId}`;
     const lines = (message: string, level: string) => log.lines.filter((l) => l.message === message && l.level === level && l.fields?.key === key);
-    expect(getCalendarRow(tb.ctx.db, familyId)?.last_error).toBe('Google Calendar denied Homebase access to this calendar');
+    expect(getCalendarRow(tb.ctx.db, familyId)?.last_error).toBe('Google Calendar denied Portly access to this calendar');
     expect(lines('calendar failing', 'warn')).toHaveLength(1);
     expect(lines('calendar failing', 'warn')[0]!.fields).toMatchObject({
       accountId: 'g1',
@@ -1467,7 +1467,7 @@ describe('health and diagnostics', () => {
     expect(tb.ctx.health.get(key)).toBeNull();
   });
 
-  it('logs event writes (no content), write failures, and an event written by Homebase that a later listing drops', async () => {
+  it('logs event writes (no content), write failures, and an event written by Portly that a later listing drops', async () => {
     const log = createMemoryLogger();
     let refuse = false;
     let listing: unknown[] = googleEventsPage1.items;
@@ -1534,13 +1534,13 @@ describe('health and diagnostics', () => {
     listing = googleEventsPage1.items.filter((i) => i.id !== 'allday456');
     tb.clock.now += 2_000;
     await tb.module.service.syncAccounts();
-    const missing = log.lines.filter((l) => l.message === 'event written by Homebase is missing from the provider listing');
+    const missing = log.lines.filter((l) => l.message === 'event written by Portly is missing from the provider listing');
     expect(missing).toEqual([
       expect.objectContaining({ level: 'warn', fields: { calendarId: calId, eventId: created.body.id, op: 'create', agoMs: 2_000, module: 'calendar' } }),
     ]);
     tb.clock.now += 2_000;
     await tb.module.service.syncAccounts();
-    expect(log.lines.filter((l) => l.message === 'event written by Homebase is missing from the provider listing')).toHaveLength(1);
+    expect(log.lines.filter((l) => l.message === 'event written by Portly is missing from the provider listing')).toHaveLength(1);
   });
 
   it('does not report an event written outside the synced window as missing (listings never return it)', async () => {
@@ -1574,7 +1574,7 @@ describe('health and diagnostics', () => {
 
     tb.clock.now += 2_000;
     await tb.module.service.syncAccounts();
-    expect(log.lines.filter((l) => l.message === 'event written by Homebase is missing from the provider listing')).toEqual([]);
+    expect(log.lines.filter((l) => l.message === 'event written by Portly is missing from the provider listing')).toEqual([]);
     expect(tb.ctx.health.get(`calendar:${calendarId}`)?.status).toBe('ok');
   });
 });

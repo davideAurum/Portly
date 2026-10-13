@@ -15,7 +15,7 @@ import { HTTPException } from 'hono/http-exception';
 import { routePath } from 'hono/route';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { z } from 'zod';
-import { ERROR_STATUS, type ApiErrorBody, type ErrorCode, type ValidationIssue } from '@homebase/shared';
+import { ERROR_STATUS, type ApiErrorBody, type ErrorCode, type ValidationIssue } from '@portly/shared';
 import { errorFields, pathForLog, type LogFields, type Logger } from './logger.ts';
 
 export interface HttpErrorOptions {
@@ -89,8 +89,8 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   payload_too_large: 'Payload too large',
   module_unavailable: 'Module unavailable',
   internal: 'Internal server error',
-  pairing_required: 'This browser is not paired with Homebase on this PC',
-  local_only: "Only available on Homebase's own page on this PC",
+  pairing_required: 'This browser is not paired with Portly on this PC',
+  local_only: "Only available on Portly's own page on this PC",
 };
 
 function defaultMessage(code: ErrorCode): string {

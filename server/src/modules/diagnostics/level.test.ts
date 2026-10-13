@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { LogLevelStateSchema } from '@homebase/shared';
+import { LogLevelStateSchema } from '@portly/shared';
 import { migrate } from '../../db/migrate.ts';
 import { openDb, type Db } from '../../db/open.ts';
 import { createTestLogger } from '../../lib/logger.ts';

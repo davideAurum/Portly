@@ -6,7 +6,7 @@
  * `gmail.list`, `gmail.get`, `gmail.modify`, `gmail.trash`.
  */
 import { z } from 'zod';
-import type { Account, MailMessage } from '@homebase/shared';
+import type { Account, MailMessage } from '@portly/shared';
 import { HttpError } from '../../../lib/errors.ts';
 import { cleanSubject, decodeSnippet, parseFromHeader, toIsoDate } from '../text.ts';
 import { gmailMessageUrl } from '../weburl.ts';

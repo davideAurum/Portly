@@ -1,13 +1,13 @@
 /**
  * Paired browsers (hybrid mode), a card in Settings → About wherever the server answers: the Pages
- * address Homebase trusts (or how to set one), the browsers paired with it — when each was paired
+ * address Portly trusts (or how to set one), the browsers paired with it — when each was paired
  * and last used, and an "Old address" badge for pairings made for a Pages address that is no
  * longer configured (they no longer work) — and Revoke. Pairing itself starts on the Pages site
  * and is approved on `#/pair` (`app/PairPage.tsx`).
  */
 import { useState, type ReactNode } from 'react';
 import { MonitorSmartphone, Unlink } from 'lucide-react';
-import type { PairingSummary } from '@homebase/shared';
+import type { PairingSummary } from '@portly/shared';
 import { usePairings, useRevokePairing } from '../../api/pairing.ts';
 import { PairingSetupSteps } from '../../app/PairPage.tsx';
 import { Badge } from '../../ui/Badge.tsx';
@@ -50,7 +50,7 @@ export function PairedBrowsersCard() {
           </ul>
         ) : data.pagesUrl !== null ? (
           <p className={styles.intro}>
-            No browser is paired yet. Open your Pages site and choose <strong>Pair this browser</strong> in the Homebase status at the bottom of the
+            No browser is paired yet. Open your Pages site and choose <strong>Pair this browser</strong> in the Portly status at the bottom of the
             dashboard.
           </p>
         ) : null}
@@ -64,8 +64,8 @@ export function PairedBrowsersCard() {
       title="Paired browsers"
       description={
         data !== undefined && data.pagesUrl === null
-          ? 'Pairing is off: your Pages site can’t use Homebase on this PC until you tell Homebase its address.'
-          : 'Browsers that may use Homebase on this PC from your Pages site. Every page on that site’s address gets the same access in a paired browser.'
+          ? 'Pairing is off: your Pages site can’t use Portly on this PC until you tell Portly its address.'
+          : 'Browsers that may use Portly on this PC from your Pages site. Every page on that site’s address gets the same access in a paired browser.'
       }
     >
       {body}
@@ -113,7 +113,7 @@ function PairingRow({ pairing }: { pairing: PairingSummary }) {
         open={confirming}
         onOpenChange={setConfirming}
         title={`Revoke ${pairing.label}?`}
-        description="That browser can no longer use Homebase on this PC. Its Pages site goes back to the copy stored in the browser until it is paired again."
+        description="That browser can no longer use Portly on this PC. Its Pages site goes back to the copy stored in the browser until it is paired again."
         confirmLabel="Revoke"
         destructive
         onConfirm={async () => {

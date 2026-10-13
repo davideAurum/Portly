@@ -2,12 +2,12 @@
  * Diagnostics (ARCHITECTURE §17): why something does not connect, sync or update. What a page load
  * shows follows its backend:
  *
- * - **the server** (Homebase's own page, or the Pages site using Homebase on this PC — every
+ * - **the server** (Portly's own page, or the Pages site using Portly on this PC — every
  *   diagnostics route is paired): Overview, Connections & sync, Logging level, Server log, This
  *   browser and Report (panels in `diagnostics/ui/`). "Show related log lines" in Connections
  *   switches to the Server log, filtered to that subject around its last failure.
  * - **a server without diagnostics** (older than this page: the summary answers `403 local_only`
- *   or `404`): the Overview says "Update Homebase on this PC to see its diagnostics", plus This
+ *   or `404`): the Overview says "Update Portly on this PC to see its diagnostics", plus This
  *   browser.
  * - **the in-browser backend**: the Overview of this site (hybrid status, permission, "Open
  *   diagnostics on this PC") and This browser.
@@ -16,7 +16,7 @@
  * broken section.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
-import type { DiagnosticsSummary } from '@homebase/shared';
+import type { DiagnosticsSummary } from '@portly/shared';
 import { useAccounts } from '../../api/accounts.ts';
 import { useDiagnosticsSummary } from '../../api/diagnostics.ts';
 import { getCapabilities } from '../../capabilities.ts';
@@ -27,7 +27,7 @@ import { relatedLogWindow, type HealthItem } from '../../diagnostics/ui/health.t
 import { LogLevelPanel } from '../../diagnostics/ui/LogLevelPanel.tsx';
 import { DEFAULT_LOG_FILTERS, logNameSource, logNamesFrom, type LogFilters } from '../../diagnostics/ui/logs.ts';
 import { OverviewPanel } from '../../diagnostics/ui/OverviewPanel.tsx';
-import { UPDATE_HOMEBASE_NOTICE } from '../../diagnostics/ui/parts.tsx';
+import { UPDATE_PORTLY_NOTICE } from '../../diagnostics/ui/parts.tsx';
 import { ReportPanel } from '../../diagnostics/ui/ReportPanel.tsx';
 import { ServerLogPanel } from '../../diagnostics/ui/ServerLogPanel.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
@@ -148,7 +148,7 @@ function ServerDiagnostics() {
       <SkeletonList rows={4} />
     );
 
-  const summaryProblem = summary.data !== undefined ? null : summary.isError ? (unavailable ? UPDATE_HOMEBASE_NOTICE : errorMessage(summary.error)) : 'still loading';
+  const summaryProblem = summary.data !== undefined ? null : summary.isError ? (unavailable ? UPDATE_PORTLY_NOTICE : errorMessage(summary.error)) : 'still loading';
 
   return (
     <div className={styles.stack}>

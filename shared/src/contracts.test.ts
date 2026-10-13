@@ -9,7 +9,7 @@ import {
   EventUpdateSchema,
   EventsQuerySchema,
   ExportSchema,
-  HOMEBASE_API_VERSION,
+  PORTLY_API_VERSION,
   HealthResponseSchema,
   buildPairingRequestUrl,
   buildPairingReturnUrl,
@@ -395,7 +395,7 @@ describe('errors', () => {
 describe('ExportSchema', () => {
   const upload = '3f1c2b6e-8a0d-4c55-9b1e-2f7a9d1c0e42';
   const file = (): ExportFileInput => ({
-    format: 'homebase-export',
+    format: 'portly-export',
     version: 1,
     exportedAt: '2026-09-25T10:00:00.000Z',
     data: {
@@ -464,7 +464,7 @@ describe('pairing', () => {
   it('accepts the identity fields on health and keeps them optional', () => {
     expect(HealthResponseSchema.safeParse({ ok: true, version: '1', vault: 'ready' }).success).toBe(true);
     expect(
-      HealthResponseSchema.safeParse({ ok: true, version: '1', vault: 'ready', app: 'homebase', apiVersion: HOMEBASE_API_VERSION, instanceId: 'x', appUrl: 'http://localhost:5757/' }).success,
+      HealthResponseSchema.safeParse({ ok: true, version: '1', vault: 'ready', app: 'portly', apiVersion: PORTLY_API_VERSION, instanceId: 'x', appUrl: 'http://localhost:5757/' }).success,
     ).toBe(true);
     expect(HealthResponseSchema.safeParse({ ok: true, version: '1', vault: 'ready', app: 'other' }).success).toBe(false);
   });

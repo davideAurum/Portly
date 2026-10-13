@@ -9,7 +9,7 @@
 import { Suspense, useCallback, useId, useMemo, useState, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { CircleAlert, GripVertical, RefreshCw, Settings2, Trash } from 'lucide-react';
-import type { WidgetInstance } from '@homebase/shared';
+import type { WidgetInstance } from '@portly/shared';
 import { getCachedWidget, saveWidget } from '../api/profiles.ts';
 import { isWidgetTypeAvailable } from '../capabilities.ts';
 import { Button, IconButton } from '../ui/Button.tsx';
@@ -132,7 +132,7 @@ export function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onR
             <EmptyState
               icon={CircleAlert}
               title="Unknown widget"
-              body={`This version of Homebase has no "${instance.type}" widget.${editMode ? '' : ' Remove it in edit mode.'}`}
+              body={`This version of Portly has no "${instance.type}" widget.${editMode ? '' : ' Remove it in edit mode.'}`}
               compact={instance.h <= 2}
             />
           )}

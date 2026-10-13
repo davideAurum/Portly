@@ -20,7 +20,7 @@ import {
   urlHost,
   type BookmarkImportReport,
   type BrowserImport,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { Db } from '../../db/open.ts';
 import { newId } from '../../lib/ids.ts';
 import { cleanTitle } from './html.ts';

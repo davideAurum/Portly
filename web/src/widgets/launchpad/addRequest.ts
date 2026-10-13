@@ -1,6 +1,6 @@
 /**
  * "Add this page" requests: `#/add-bookmark?url=<page>&title=<title>` opens the Add bookmark dialog
- * filled in with that page. The browser extension's toolbar button opens Homebase this way
+ * filled in with that page. The browser extension's toolbar button opens Portly this way
  * (extension/lib/add-page.js). The route renders the dashboard; the dialog is mounted by the shell,
  * so it works whether or not the active profile has a launch pad.
  */

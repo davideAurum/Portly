@@ -2,7 +2,7 @@
  * Pure view logic of the mail widget: grouping (merged by date / by account), unread totals,
  * sender labels and the link a row opens (message link, else the account's webmail inbox).
  */
-import type { MailAccountSummary, MailAddress, MailMessage } from '@homebase/shared';
+import type { MailAccountSummary, MailAddress, MailMessage } from '@portly/shared';
 import { safeHref } from '../../lib/openUrl.ts';
 
 export interface MailRow {

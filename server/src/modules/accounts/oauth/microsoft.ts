@@ -4,7 +4,7 @@
  * and the id_token must come from the consumer tenant. Refresh tokens rotate; the service
  * persists each rotation.
  */
-import { MICROSOFT_CONSUMER_TENANT_ID, type Capability } from '@homebase/shared';
+import { MICROSOFT_CONSUMER_TENANT_ID, type Capability } from '@portly/shared';
 import { audienceMatches, notExpired, stringClaim } from './id-token.ts';
 import type { OAuthProviderSpec } from './types.ts';
 

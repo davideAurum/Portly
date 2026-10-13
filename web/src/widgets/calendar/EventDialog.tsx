@@ -6,7 +6,7 @@
  */
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import { Repeat } from 'lucide-react';
-import type { Calendar, CalendarEvent } from '@homebase/shared';
+import type { Calendar, CalendarEvent } from '@portly/shared';
 import { Banner } from '../../ui/Banner.tsx';
 import { Button } from '../../ui/Button.tsx';
 import { Dialog } from '../../ui/Dialog.tsx';

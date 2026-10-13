@@ -3,7 +3,7 @@
  * with Monday as the first day, which is wrong for, e.g., a US user. Only applied while the
  * general settings are still exactly the schema defaults (see seed.ts).
  */
-import type { GeneralSettings } from '@homebase/shared';
+import type { GeneralSettings } from '@portly/shared';
 
 /** Regions using °F, mph and inches (plus US territories). */
 const IMPERIAL_REGIONS = new Set(['US', 'LR', 'MM', 'PR', 'GU', 'VI', 'AS', 'MP', 'UM']);

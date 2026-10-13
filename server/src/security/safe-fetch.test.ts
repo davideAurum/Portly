@@ -666,7 +666,7 @@ describe('safeFetch: diagnostics', () => {
       reason: 'blocked',
       hops: ['cdn.example'],
       blockedHost: '192.168.1.1',
-      cause: 'BlockedAddressError[EHOMEBASE_BLOCKED]',
+      cause: 'BlockedAddressError[EPORTLY_BLOCKED]',
     });
   });
 

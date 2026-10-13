@@ -4,7 +4,7 @@
  * profiles, and used to seed the first "Home" profile (see seed.ts). Built for this page load's
  * capabilities: the in-browser backend has no calendar or mail widgets.
  */
-import type { KnownWidgetType, Layout, WidgetFrame, WidgetInstance } from '@homebase/shared';
+import type { KnownWidgetType, Layout, WidgetFrame, WidgetInstance } from '@portly/shared';
 import { getCapabilities } from '../capabilities.ts';
 
 export const DEFAULT_PROFILE_NAME = 'Home';

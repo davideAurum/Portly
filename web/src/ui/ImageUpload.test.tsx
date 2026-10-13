@@ -1,12 +1,12 @@
 /**
  * ImageUpload's preview through `useAssetUrl`: `/api/uploads/<id>` in the server build; on the
- * Pages build's server backend (hybrid mode) the empty drop zone until the Homebase server on this
+ * Pages build's server backend (hybrid mode) the empty drop zone until the Portly server on this
  * PC has delivered the image, then the loaded URL; a preview that fails to load gives way to the
  * drop zone until the URL changes.
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { uploadUrl } from '@homebase/shared';
+import { uploadUrl } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { setServerAssetSource } from '../static/assets.ts';
 import { manualAssetSource } from '../test/hybrid.ts';
@@ -28,7 +28,7 @@ describe('ImageUpload preview', () => {
     expect(screen.getByText('Replace image').parentElement).toHaveAttribute('data-over-image', 'true');
   });
 
-  it('Pages build on the Homebase server: the drop zone until the image is loaded, then the loaded URL', () => {
+  it('Pages build on the Portly server: the drop zone until the image is loaded, then the loaded URL', () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     const fake = manualAssetSource();
     setServerAssetSource(fake.source);

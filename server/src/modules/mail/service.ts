@@ -27,7 +27,7 @@ import {
   type ItemError,
   type MailAccountSummary,
   type MailMessage,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { AppContext } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { outcomeFromError, type HealthSubject, type Outcome } from '../../lib/health.ts';

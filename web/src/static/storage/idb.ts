@@ -1,5 +1,5 @@
 /**
- * IndexedDB {@link StaticStorage}: database `homebase-static:<base path>` (one per deployment,
+ * IndexedDB {@link StaticStorage}: database `portly-static:<base path>` (one per deployment,
  * since every project site under one `<user>.github.io` origin shares IndexedDB), object stores
  * `kv` (JSON documents by key) and `blobs` (images by id). One short transaction per call, and one
  * transaction over both stores for {@link IndexedDbStorage.applyBatch}; no schema beyond the two
@@ -8,7 +8,7 @@
 import type { StaticStorage, StorageBatch, StoredBlob } from './types.ts';
 
 /** Namespaced by the build's base path (the literal `import.meta.env.BASE_URL` is replaced by Vite). */
-export const STATIC_DB_NAME = `homebase-static:${import.meta.env.BASE_URL}`;
+export const STATIC_DB_NAME = `portly-static:${import.meta.env.BASE_URL}`;
 export const STATIC_DB_VERSION = 1;
 const KV = 'kv';
 const BLOBS = 'blobs';
@@ -71,10 +71,10 @@ export class IndexedDbStorage implements StaticStorage {
     // connection (every later call fails with a clear error and the app asks for a reload).
     db.onversionchange = () => {
       db.close();
-      this.markClosed('Homebase was updated or its data was cleared in another tab; reload this page');
+      this.markClosed('Portly was updated or its data was cleared in another tab; reload this page');
     };
     // The browser closed the connection itself (site data cleared, storage failure).
-    db.onclose = () => this.markClosed("The browser closed Homebase's storage; reload this page");
+    db.onclose = () => this.markClosed("The browser closed Portly's storage; reload this page");
   }
 
   static async open(factory?: IDBFactory, name?: string): Promise<IndexedDbStorage> {

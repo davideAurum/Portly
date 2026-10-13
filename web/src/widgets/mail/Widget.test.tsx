@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { MailAccountSummary, MailMessage } from '@homebase/shared';
+import type { MailAccountSummary, MailMessage } from '@portly/shared';
 import { WidgetFrameContext, type WidgetFrameContextValue } from '../../grid/WidgetContext.tsx';
 import { account, settings } from '../../test/fixtures.ts';
 import type { QueryClient } from '@tanstack/react-query';
@@ -164,7 +164,7 @@ describe('MailWidget', () => {
 
     const summaryRequest = requests.find((r) => r.path === '/api/mail/summary') as MockRequest;
     expect(summaryRequest.search).toBe('?maxMessages=10&unreadOnly=false');
-    expect(summaryRequest.headers.get('X-Homebase')).toBe('1');
+    expect(summaryRequest.headers.get('X-Portly')).toBe('1');
   });
 
   it('rows open the message (or webmail) in a new tab and never render unsafe links', async () => {

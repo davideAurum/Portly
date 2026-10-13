@@ -4,7 +4,7 @@
  * there (the "+" button is the keyboard path).
  */
 import { useEffect, useRef, type CSSProperties } from 'react';
-import type { CalendarEvent } from '@homebase/shared';
+import type { CalendarEvent } from '@portly/shared';
 import { useCalendarWidget } from './context.tsx';
 import { EventTrigger } from './EventPopover.tsx';
 import { dayNumber, eventColorStyle, fullDay, timeRange, weekdayNarrow, weekdayShort } from './labels.ts';

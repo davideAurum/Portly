@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSearchEngines, type BookmarkGroup, type SearchSettings } from '@homebase/shared';
+import { defaultSearchEngines, type BookmarkGroup, type SearchSettings } from '@portly/shared';
 import { defaultEngine, engineForKeyword, matchBookmarks, suggestProviderFor, widgetEngines } from './engines.ts';
 import { addressCandidate, detectUrl, normalizeTypedUrl } from './url.ts';
 

@@ -24,7 +24,7 @@
  * `redirect: 'manual'` followed by hand (≤ 5 hops), `Authorization`/`Cookie` never forwarded
  * across origins (except between `user-server` allowed origins). Size caps count **decoded**
  * bytes while streaming and abort past the cap (Content-Length is never trusted). Honest
- * `User-Agent: Homebase/<version> (personal dashboard)`.
+ * `User-Agent: Portly/<version> (personal dashboard)`.
  *
  * Non-2xx statuses are returned, not thrown. Transport problems throw {@link SafeFetchError}
  * (an HttpError: 504 `upstream_timeout` or 502 `provider_error`) with a machine `reason` and the
@@ -46,7 +46,7 @@ import dns from 'node:dns';
 import type { LookupAddress, LookupOptions } from 'node:dns';
 import net from 'node:net';
 import { Agent, fetch as undiciFetch } from 'undici';
-import type { ImageContentType } from '@homebase/shared';
+import type { ImageContentType } from '@portly/shared';
 import { HttpError } from '../lib/errors.ts';
 import { sniffImageType } from '../lib/image-sniff.ts';
 import { getLogContext } from '../lib/log-context.ts';
@@ -122,7 +122,7 @@ export const SIZE_CAPS = Object.freeze({
 });
 
 export function userAgent(version: string): string {
-  return `Homebase/${version} (personal dashboard)`;
+  return `Portly/${version} (personal dashboard)`;
 }
 
 const CREDENTIAL_HEADERS = ['authorization', 'cookie', 'proxy-authorization'];
@@ -228,7 +228,7 @@ export function isBlockedAddress(address: string): boolean {
 /** Raised for a plain-http `user-server` host that is not (or no longer) a local-network address. */
 export class NotPrivateAddressError extends Error {
   override name = 'NotPrivateAddressError';
-  readonly code = 'EHOMEBASE_NOT_LAN';
+  readonly code = 'EPORTLY_NOT_LAN';
   readonly hostname: string;
   constructor(hostname: string) {
     super(`${hostname} does not resolve to a local network address`);
@@ -239,7 +239,7 @@ export class NotPrivateAddressError extends Error {
 /** Error raised by the guarded lookup when a hostname resolves to a denied address. */
 export class BlockedAddressError extends Error {
   override name = 'BlockedAddressError';
-  readonly code = 'EHOMEBASE_BLOCKED';
+  readonly code = 'EPORTLY_BLOCKED';
   readonly hostname: string;
   constructor(hostname: string) {
     super(`${hostname} resolves to a private or reserved address`);
@@ -306,7 +306,7 @@ export const BAD_PORTS: ReadonlySet<number> = new Set([
 function notLanError(host: string, cause: unknown = new NotPrivateAddressError(host)): SafeFetchError {
   return new SafeFetchError(
     'blocked',
-    `${host} is no longer a local network address, so Homebase will not send the password to it over plain http`,
+    `${host} is no longer a local network address, so Portly will not send the password to it over plain http`,
     host,
     cause,
   );

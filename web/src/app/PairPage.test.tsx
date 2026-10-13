@@ -1,5 +1,5 @@
 /**
- * The pairing page (`#/pair?nonce=…`): its states on Homebase's own page (pairing off, a bad link,
+ * The pairing page (`#/pair?nonce=…`): its states on Portly's own page (pairing off, a bad link,
  * the approval), the one-second arming of Approve (re-armed after blur or a hidden tab), approving
  * (POST, then back to the Pages site only through an accepted redirect), Cancel, the Pages build's
  * note, and App routing to it.
@@ -7,7 +7,7 @@
 import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { buildPairingReturnUrl, type PairingsResponse } from '@homebase/shared';
+import { buildPairingReturnUrl, type PairingsResponse } from '@portly/shared';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { settings } from '../test/fixtures.ts';
 import { mockError, renderWithProviders } from '../test/render.tsx';
@@ -15,7 +15,7 @@ import { App } from './App.tsx';
 import { APPROVE_ARM_DELAY_MS, PairPage, useAttendedFor } from './PairPage.tsx';
 
 const NONCE = 'n'.repeat(43);
-const PAGES_URL = 'https://user.github.io/homebase/';
+const PAGES_URL = 'https://user.github.io/portly/';
 const REDIRECT = buildPairingReturnUrl(PAGES_URL, { token: 't'.repeat(43), nonce: NONCE, instanceId: 'instance-1' });
 
 function pairings(overrides: Partial<PairingsResponse> = {}): PairingsResponse {
@@ -136,11 +136,11 @@ describe('useAttendedFor', () => {
   });
 });
 
-describe('PairPage on Homebase’s own page', () => {
+describe('PairPage on Portly’s own page', () => {
   it('explains how to turn pairing on when no Pages address is configured', async () => {
     const { requestsTo } = renderWithProviders(<PairPage nonce={NONCE} />, { apiMocks: { 'GET /api/pairings': pairings({ pagesUrl: null }) } });
     expect(await screen.findByRole('heading', { name: 'Pairing is turned off' })).toBeInTheDocument();
-    expect(screen.getByText('HOMEBASE_PAGES_URL')).toBeInTheDocument();
+    expect(screen.getByText('PORTLY_PAGES_URL')).toBeInTheDocument();
     expect(screen.getByText('scripts/install-autostart.ps1')).toBeInTheDocument();
     // The installer replaces the task, in Browser mode unless told otherwise.
     expect(screen.getByText('-Trigger Logon')).toBeInTheDocument();
@@ -166,7 +166,7 @@ describe('PairPage on Homebase’s own page', () => {
 
   it('names the origin being trusted, warns that it covers every page there, and lists what it can and cannot do', async () => {
     renderWithProviders(<PairPage nonce={NONCE} />, { apiMocks: { 'GET /api/pairings': pairings() } });
-    expect(await screen.findByRole('heading', { level: 1, name: 'Allow this site to use Homebase on this PC?' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Allow this site to use Portly on this PC?' })).toBeInTheDocument();
     expect(screen.getByText('https://user.github.io', { selector: 'p' })).toBeInTheDocument();
     expect(screen.getByText(PAGES_URL)).toBeInTheDocument();
     const warning = screen.getByRole('alert');
@@ -180,7 +180,7 @@ describe('PairPage on Homebase’s own page', () => {
       'Connect accounts or set up OAuth clients',
       'Reset the credential vault',
       'Pair or unpair browsers',
-      'See where Homebase keeps its files on this PC',
+      'See where Portly keeps its files on this PC',
     ]);
     expect(screen.getByRole('link', { name: 'Settings → About' })).toHaveAttribute('href', '#/settings/about');
   });
@@ -256,12 +256,12 @@ describe('PairPage in the Pages build', () => {
   it.each(['browser', 'server'] as const)('only explains where pairing happens, with a way back to the dashboard (%s backend)', (backend) => {
     setCapabilitiesForTests(capabilitiesFor(true, backend));
     const { requests } = renderWithProviders(<PairPage nonce={NONCE} />);
-    expect(screen.getByRole('heading', { name: 'Pairing happens on Homebase’s own page' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pairing happens on Portly’s own page' })).toBeInTheDocument();
     expect(screen.getByText(/Pair this browser/)).toBeInTheDocument();
     // The only link is back to the dashboard: no link out to a page on this PC.
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['Back to the dashboard']);
     expect(screen.getByRole('link', { name: 'Back to the dashboard' })).toHaveAttribute('href', '#/');
-    expect(screen.queryByText(/Open Homebase on this PC/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Open Portly on this PC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
     expect(requests).toEqual([]);
   });
@@ -273,7 +273,7 @@ describe('App', () => {
       route: `#/pair?nonce=${NONCE}`,
       apiMocks: { 'GET /api/pairings': pairings(), 'GET /api/settings': settings() },
     });
-    expect(await screen.findByRole('heading', { name: 'Allow this site to use Homebase on this PC?' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Allow this site to use Portly on this PC?' })).toBeInTheDocument();
     // No dashboard chrome around the consent screen.
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('main')).toHaveLength(1);

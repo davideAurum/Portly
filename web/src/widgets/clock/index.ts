@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Clock } from 'lucide-react';
 import { z } from 'zod';
-import { IanaTimeZone } from '@homebase/shared';
+import { IanaTimeZone } from '@portly/shared';
 import { lazyWithPreload } from '../lazyWidget.ts';
 import type { WidgetDefinition } from '../types.ts';
 

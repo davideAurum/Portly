@@ -47,7 +47,7 @@ import {
   type OAuthStartResponse,
   type ProbeResult,
   type ValidationIssue,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { recordClientEvent } from '../../diagnostics/clientLog.ts';
 import type { StaticContext } from '../context.ts';
 import { newToken } from '../lib/ids.ts';
@@ -267,7 +267,7 @@ export async function completeAuthorization(ctx: StaticContext, query: CallbackQ
     );
     await ctx.state.commit(SLICE.oauthStates);
   } catch (err) {
-    console.error('[Homebase] Could not read the pending sign-in', err);
+    console.error('[Portly] Could not read the pending sign-in', err);
     recordSignInCrash('could not read the pending Microsoft sign-in', err);
     return fallback;
   }
@@ -289,7 +289,7 @@ export async function completeAuthorization(ctx: StaticContext, query: CallbackQ
     // A quiet renewal of the same account needs no message; anything else is worth one.
     return consumed.silent && result === 'reconnected' ? { result: null, returnTo } : { result, returnTo };
   } catch (err) {
-    console.error('[Homebase] The Microsoft sign-in could not be completed', err);
+    console.error('[Portly] The Microsoft sign-in could not be completed', err);
     recordSignInCrash('the Microsoft sign-in could not be completed', err);
     return quiet('error');
   }
@@ -312,7 +312,7 @@ async function connect(ctx: StaticContext, code: string, codeVerifier: string, r
     scope: MICROSOFT_STATIC_SCOPES.join(' '),
   });
   if (!exchange.ok) {
-    console.warn('[Homebase] Microsoft refused the sign-in code', { failure: exchange.failure, status: exchange.status });
+    console.warn('[Portly] Microsoft refused the sign-in code', { failure: exchange.failure, status: exchange.status });
     return 'error';
   }
   const tokens = exchange.tokens;
@@ -321,7 +321,7 @@ async function connect(ctx: StaticContext, code: string, codeVerifier: string, r
   const now = ctx.now();
   const verdict = microsoftIdentity(claims, clientId, now);
   if (!verdict.ok) {
-    console.warn('[Homebase] The Microsoft sign-in was rejected', { reason: verdict.reason });
+    console.warn('[Portly] The Microsoft sign-in was rejected', { reason: verdict.reason });
     recordProviderFailure('microsoft', SIGN_IN_HOST, { code: `id_token_${verdict.reason}` });
     return 'error';
   }
@@ -436,7 +436,7 @@ export function withAccountLock<T>(name: string, fn: () => Promise<T>): Promise<
 }
 
 function lockName(accountId: string): string {
-  return `homebase-static:${import.meta.env.BASE_URL}:microsoft-token:${accountId}`;
+  return `portly-static:${import.meta.env.BASE_URL}:microsoft-token:${accountId}`;
 }
 
 function freshToken(record: StoredAccountTokens, now: number): string | null {

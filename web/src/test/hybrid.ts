@@ -1,5 +1,5 @@
 /**
- * Test doubles for hybrid mode (the Pages build using the Homebase server on this PC), for UI tests
+ * Test doubles for hybrid mode (the Pages build using the Portly server on this PC), for UI tests
  * that run as `setCapabilitiesForTests(capabilitiesFor(true, 'server'))` or that show what the
  * local server controller says:
  *

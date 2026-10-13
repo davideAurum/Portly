@@ -4,14 +4,14 @@
  * redirect), and the tolerant readers.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { buildPairingReturnUrl } from '@homebase/shared';
+import { buildPairingReturnUrl } from '@portly/shared';
 import { mockError, mockResponse, stubApi } from '../test/render.tsx';
 import { ApiError } from './client.ts';
 import { PairingRedirectError, approvePairing, fetchPairings, pairingRedirectTarget, revokePairing } from './pairing.ts';
 
 const NONCE = 'n'.repeat(43);
 const TOKEN = 't'.repeat(43);
-const PAGES_URL = 'https://user.github.io/homebase/';
+const PAGES_URL = 'https://user.github.io/portly/';
 const REDIRECT = buildPairingReturnUrl(PAGES_URL, { token: TOKEN, nonce: NONCE, instanceId: 'instance-1' });
 
 function stubAssign() {
@@ -36,12 +36,12 @@ describe('pairingRedirectTarget', () => {
       '',
       answer,
       `https://user.github.io/other/${answer}`,
-      `https://user.github.io/homebase/sub/${answer}`,
-      `https://user.github.io/homebase/?x=1${answer}`,
-      `https://user.github.io.evil.example/homebase/${answer}`,
-      `https://evil.example/homebase/${answer}`,
-      `http://user.github.io/homebase/${answer}`,
-      `https://me@user.github.io/homebase/${answer}`,
+      `https://user.github.io/portly/sub/${answer}`,
+      `https://user.github.io/portly/?x=1${answer}`,
+      `https://user.github.io.evil.example/portly/${answer}`,
+      `https://evil.example/portly/${answer}`,
+      `http://user.github.io/portly/${answer}`,
+      `https://me@user.github.io/portly/${answer}`,
       `javascript:alert(1)//${answer}`,
       PAGES_URL,
       `${PAGES_URL}#/`,
@@ -51,7 +51,7 @@ describe('pairingRedirectTarget', () => {
     // Another tab's nonce.
     expect(pairingRedirectTarget(REDIRECT, PAGES_URL, 'm'.repeat(43))).toBeNull();
     // A Pages address that is not a folder cannot anchor the prefix check.
-    expect(pairingRedirectTarget(REDIRECT, 'https://user.github.io/homebase', NONCE)).toBeNull();
+    expect(pairingRedirectTarget(REDIRECT, 'https://user.github.io/portly', NONCE)).toBeNull();
     expect(pairingRedirectTarget(REDIRECT, 'not a url', NONCE)).toBeNull();
   });
 });
@@ -63,7 +63,7 @@ describe('approvePairing', () => {
     await approvePairing(NONCE, PAGES_URL);
     expect(requests).toHaveLength(1);
     expect(requests[0]?.body).toEqual({ nonce: NONCE });
-    expect(requests[0]?.headers.get('X-Homebase')).toBe('1');
+    expect(requests[0]?.headers.get('X-Portly')).toBe('1');
     expect(assign).toHaveBeenCalledWith(REDIRECT);
   });
 

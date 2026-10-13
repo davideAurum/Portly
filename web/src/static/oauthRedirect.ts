@@ -10,7 +10,7 @@
  * or is about to, the address of a `prompt=none` sign-in to send the page to (Microsoft answers at
  * once, without a page of its own, while the browser is still signed in to the account).
  */
-import { OAUTH_RETURN_TO_REGEX } from '@homebase/shared';
+import { OAUTH_RETURN_TO_REGEX } from '@portly/shared';
 import type { StaticContext } from './context.ts';
 import { completeAuthorization, planSilentReauth, type CallbackOutcome, type CallbackQuery } from './handlers/accounts.ts';
 

@@ -1,7 +1,7 @@
 /**
  * Widget registry (§10.3): every widget definition, in "Add widget" order.
  */
-import { WIDGET_TYPES, type KnownWidgetType } from '@homebase/shared';
+import { WIDGET_TYPES, type KnownWidgetType } from '@portly/shared';
 import { getCapabilities, isWidgetTypeAvailable, unavailableWidgetTypes, type Capabilities } from '../capabilities.ts';
 import { definition as calendar } from './calendar/index.ts';
 import { definition as clock } from './clock/index.ts';

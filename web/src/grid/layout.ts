@@ -4,7 +4,7 @@
  * stacking order for narrow screens, and keyboard move/resize for the drag handle.
  */
 import { cloneLayout, getCompactor, moveElement, type Layout as GridLayout, type LayoutItem } from 'react-grid-layout';
-import { GRID_COLUMNS, MAX_GRID_ROW, MAX_WIDGET_HEIGHT, type WidgetInstance, type WidgetPosition } from '@homebase/shared';
+import { GRID_COLUMNS, MAX_GRID_ROW, MAX_WIDGET_HEIGHT, type WidgetInstance, type WidgetPosition } from '@portly/shared';
 import { getWidgetDefinition } from '../widgets/registry.ts';
 
 export const ROW_HEIGHT = 40;

@@ -1,6 +1,6 @@
 # Connect Outlook.com (Microsoft personal account)
 
-Homebase reads and writes your Outlook.com calendar and mail through Microsoft Graph, using an app
+Portly reads and writes your Outlook.com calendar and mail through Microsoft Graph, using an app
 registration that **you** own. It works with personal Microsoft accounts (Outlook.com, Hotmail,
 Live, MSN). Work or school accounts are not supported.
 
@@ -30,7 +30,7 @@ one is an Azure account:
 5. When the portal opens, you are the Global Administrator of a new directory (tenant) called
    *Default Directory*.
 
-App registrations live in the directory, not in the Azure subscription, so Homebase keeps working
+App registrations live in the directory, not in the Azure subscription, so Portly keeps working
 after the free credit period. Do not create any Azure resources.
 
 ## 2. Register the app
@@ -38,9 +38,9 @@ after the free credit period. Do not create any Azure resources.
 1. Go to the Microsoft Entra admin center: <https://entra.microsoft.com/>. If you have several
    directories, use the **Settings** (gear) icon in the top bar to switch to the new one.
 2. Open **Entra ID → App registrations** and click **New registration**.
-3. **Name:** `Homebase`.
+3. **Name:** `Portly`.
 4. **Supported account types:** **Personal accounts only** (older portal versions call it
-   *Personal Microsoft accounts only*). Homebase signs in through the `/consumers` endpoint and
+   *Personal Microsoft accounts only*). Portly signs in through the `/consumers` endpoint and
    refuses work/school accounts.
 5. If the form also shows an optional **Redirect URI** section, you can leave it empty — the next
    step adds it.
@@ -60,14 +60,14 @@ after the free credit period. Do not create any Azure resources.
    ```
 
    No port: Microsoft ignores the port for `localhost` redirect URIs, so this works for
-   `http://localhost:5757` and any other port. (Homebase shows the same value to copy in
+   `http://localhost:5757` and any other port. (Portly shows the same value to copy in
    **Settings → Accounts**.)
 5. Click **Configure**.
 6. Make sure the same URL is **not** also registered under **Web** or **Single-page application** —
    Microsoft picks one platform per redirect URI and the others break the sign-in.
 
 Leave **Allow public client flows** (on the **Settings** tab of the same page in newer layouts) at
-**No** / off — Homebase uses the authorization-code flow with PKCE, which does not need it.
+**No** / off — Portly uses the authorization-code flow with PKCE, which does not need it.
 
 ## 4. Add the Graph permissions
 
@@ -80,18 +80,18 @@ Leave **Allow public client flows** (on the **Settings** tab of the same page in
 3. Click **Add permissions**.
 
 No admin consent is needed; with a personal account you consent for yourself when you connect.
-Homebase uses `Mail.ReadWrite` for mark read/unread, archive and moving mail to Deleted Items —
+Portly uses `Mail.ReadWrite` for mark read/unread, archive and moving mail to Deleted Items —
 it never sends mail and never permanently deletes it.
 
 ## 5. No client secret
 
-Do **not** create anything under **Certificates & secrets**. Homebase is a *public client*: it
+Do **not** create anything under **Certificates & secrets**. Portly is a *public client*: it
 proves itself with PKCE instead of a secret, which is how desktop apps are meant to work. Refresh
-tokens for this kind of app last 90 days and renew every time Homebase uses them.
+tokens for this kind of app last 90 days and renew every time Portly uses them.
 
-## 6. Enter the client in Homebase
+## 6. Enter the client in Portly
 
-1. Open Homebase → **Settings → Accounts** (`http://localhost:5757/#/settings/accounts`).
+1. Open Portly → **Settings → Accounts** (`http://localhost:5757/#/settings/accounts`).
 2. In the **Outlook.com** card (under *Google and Outlook.com*), paste the
    **Application (client) ID** and click **Save**. There is no secret to enter.
 
@@ -100,7 +100,7 @@ tokens for this kind of app last 90 days and renew every time Homebase uses them
 1. In the same card, click **Connect Outlook.com** and sign in with your Outlook.com account.
 2. Microsoft shows **Let this app access your info?** with the permissions above and your app's
    name marked as unverified. That is expected for your own app. Click **Accept**.
-3. You land back in Homebase with a "connected" message. Your calendars appear under
+3. You land back in Portly with a "connected" message. Your calendars appear under
    **Settings → Calendars** and the Mail widget shows your inbox.
 
 You can connect several personal Microsoft accounts with the same registration.
@@ -108,7 +108,7 @@ You can connect several personal Microsoft accounts with the same registration.
 ## Good to know
 
 - **Staying connected.** A refresh token unused for 90 days expires, and changing your password
-  or removing the app at <https://account.live.com/consent/Manage> revokes it. Homebase then shows
+  or removing the app at <https://account.live.com/consent/Manage> revokes it. Portly then shows
   **Reconnect** for the account.
 - **Mail archive** uses your mailbox's *Archive* folder; **delete** moves messages to
   *Deleted Items*.
@@ -121,9 +121,9 @@ No Azure account needed; you get the calendar read-only and no mail.
    **Shared calendars**.
 2. Under **Publish a calendar**, pick the calendar and **Can view all details**, then **Publish**.
 3. Copy the **ICS** link (not the HTML one).
-4. In Homebase open **Settings → Calendars**, add an ICS calendar and paste the link.
+4. In Portly open **Settings → Calendars**, add an ICS calendar and paste the link.
 
-Treat the ICS link like a password: anyone who has it can read that calendar. Homebase stores it
+Treat the ICS link like a password: anyone who has it can read that calendar. Portly stores it
 encrypted and only ever shows its host name. To revoke it, choose **Unpublish** (or **Reset links**)
 in the same Outlook settings page.
 

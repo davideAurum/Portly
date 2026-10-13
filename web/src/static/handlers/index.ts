@@ -78,7 +78,7 @@ export async function onBackendReady(ctx: StaticContext, modules: readonly Handl
     try {
       await module.ready?.(ctx);
     } catch (err) {
-      console.error('[Homebase] A part of the in-browser backend could not finish starting', err);
+      console.error('[Portly] A part of the in-browser backend could not finish starting', err);
       recordClientEvent('error', 'backend', 'a part of the in-browser backend could not finish starting', { errName: errorName(err), op: `ready ${MODULE_NAMES.get(module) ?? 'module'}` });
     }
   }

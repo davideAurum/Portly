@@ -2,7 +2,7 @@
  * Test data for the Diagnostics panels (tests only): a diagnostics summary, health entries, jobs
  * and log records in the shapes the server sends, each overridable.
  */
-import type { DiagnosticsSummary, HealthEntry, JobInfo, LogRecord, LogsResponse, OutcomeRow } from '@homebase/shared';
+import type { DiagnosticsSummary, HealthEntry, JobInfo, LogRecord, LogsResponse, OutcomeRow } from '@portly/shared';
 
 export const T0 = '2026-10-11T12:00:00.000Z';
 
@@ -66,8 +66,8 @@ export function diagnosticsSummary(patch: Partial<DiagnosticsSummary> = {}): Dia
       memory: { rssBytes: 120 * 1024 * 1024, heapUsedBytes: 60 * 1024 * 1024 },
       supervised: false,
       restart: null,
-      dataDir: 'C:\\Users\\~\\AppData\\Local\\Homebase',
-      logDir: 'C:\\Users\\~\\AppData\\Local\\Homebase\\logs',
+      dataDir: 'C:\\Users\\~\\AppData\\Local\\Portly',
+      logDir: 'C:\\Users\\~\\AppData\\Local\\Portly\\logs',
     },
     logLevel: { level: 'info', verbose: false, until: null, areas: null, bootLevel: 'info', persisted: false },
     modules: [

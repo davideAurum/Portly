@@ -10,7 +10,7 @@ import type {
   AccountDraft,
   AccountKind,
   Capability,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { Config } from './config.ts';
 import type { Db } from './db/open.ts';
 import type { Cache, MemoryCache } from './lib/cache.ts';
@@ -63,9 +63,9 @@ export interface RuntimeInfo {
   boot: string;
   /** Epoch ms. */
   startedAt: number;
-  /** Started by the supervisor (`HOMEBASE_SUPERVISED=1`). */
+  /** Started by the supervisor (`PORTLY_SUPERVISED=1`). */
   supervised: boolean;
-  /** Supervisor restart facts (`HOMEBASE_SUPERVISOR_ATTEMPT` / `_LAST_EXIT`, JSON or text); null when not restarted by it. */
+  /** Supervisor restart facts (`PORTLY_SUPERVISOR_ATTEMPT` / `_LAST_EXIT`, JSON or text); null when not restarted by it. */
   restart: { attempt: number; lastExit: string | null } | null;
   /** Requests in progress (request middleware). */
   inflight: InFlightRequests;

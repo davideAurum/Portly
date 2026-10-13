@@ -3,18 +3,18 @@
  * this page runs another version), uptime and boot, process, supervisor and its last restart,
  * modules that are down, the vault, warnings and errors of the last hour (server and browser),
  * the log level, what is in progress, the Pages site and paired browsers — and banners for what
- * needs a fix: a site that tried to use this server although `HOMEBASE_PAGES_URL` names another
- * (or none), and (Pages build) Homebase answering on this PC but not to this site.
+ * needs a fix: a site that tried to use this server although `PORTLY_PAGES_URL` names another
+ * (or none), and (Pages build) Portly answering on this PC but not to this site.
  *
  * The Pages build adds "This site": its version and backend, the local server status and the
  * browser's local network permission, and "Open diagnostics on this PC", which always works on
- * Homebase's own page. On the in-browser backend that card (with this browser's counts) is the
+ * Portly's own page. On the in-browser backend that card (with this browser's counts) is the
  * whole overview.
  */
 import type { ReactNode } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { KeyRound, LockKeyhole } from 'lucide-react';
-import type { DiagnosticsSummary } from '@homebase/shared';
+import type { DiagnosticsSummary } from '@portly/shared';
 import { localServerStatusView, useDisplayedLocalServerStatus } from '../../app/LocalServerPanel.tsx';
 import { APP_VERSION } from '../../app/providers.tsx';
 import { getCapabilities } from '../../capabilities.ts';
@@ -94,7 +94,7 @@ function hybridFact(summary: DiagnosticsSummary): ReactNode {
   const { pagesOrigin, pairings, lastPairedRequestAt } = summary.hybrid;
   return (
     <span className={styles.inlineRow}>
-      {pagesOrigin === null ? <span>Not set (HOMEBASE_PAGES_URL)</span> : <span className={styles.mono}>{pagesOrigin}</span>}
+      {pagesOrigin === null ? <span>Not set (PORTLY_PAGES_URL)</span> : <span className={styles.mono}>{pagesOrigin}</span>}
       <span>· {plural(pairings, 'paired browser')}</span>
       {lastPairedRequestAt === null ? null : (
         <span>
@@ -182,16 +182,16 @@ function serverFacts(summary: DiagnosticsSummary, pagesBuild: boolean): Fact[] {
 }
 
 /**
- * How a new `HOMEBASE_PAGES_URL` takes effect: Homebase reads it when it starts, from the
+ * How a new `PORTLY_PAGES_URL` takes effect: Portly reads it when it starts, from the
  * environment it was started with — the autostart task and the supervisor keep the old one, so a
  * plain restart is not enough (docs/setup/pages-local-server.md, step 2).
  */
 function PagesUrlSteps() {
   return (
     <p className={styles.text}>
-      Set it as a Windows user environment variable. Homebase reads it only when it starts, and a plain restart keeps the old value: re-run{' '}
-      <code>scripts/install-autostart.ps1</code> from your Homebase folder (add <code>-Trigger Logon</code> if you use Logon mode), or sign out of Windows
-      and back in; if you start Homebase yourself, start it from a new PowerShell window. Step by step: <code>docs/setup/pages-local-server.md</code>.
+      Set it as a Windows user environment variable. Portly reads it only when it starts, and a plain restart keeps the old value: re-run{' '}
+      <code>scripts/install-autostart.ps1</code> from your Portly folder (add <code>-Trigger Logon</code> if you use Logon mode), or sign out of Windows
+      and back in; if you start Portly yourself, start it from a new PowerShell window. Step by step: <code>docs/setup/pages-local-server.md</code>.
     </p>
   );
 }
@@ -201,11 +201,11 @@ function ForeignOriginsBanner({ summary }: { summary: DiagnosticsSummary }) {
   const { foreignOrigins, pagesOrigin } = summary.hybrid;
   if (foreignOrigins.length === 0) return null;
   const latest = [...foreignOrigins].sort((a, b) => Date.parse(b.lastAt) - Date.parse(a.lastAt))[0]!;
-  const setting = pagesOrigin === null ? 'HOMEBASE_PAGES_URL is not set' : `HOMEBASE_PAGES_URL is set to ${pagesOrigin}`;
+  const setting = pagesOrigin === null ? 'PORTLY_PAGES_URL is not set' : `PORTLY_PAGES_URL is set to ${pagesOrigin}`;
   return (
     <Banner tone="warning" title={`A page at ${latest.origin} tried to use this server, but ${setting}`}>
       <p className={styles.text}>
-        If that is your Pages site, set <code>HOMEBASE_PAGES_URL</code> to its full address (it starts with <code>{latest.origin}/</code>; a project site adds its
+        If that is your Pages site, set <code>PORTLY_PAGES_URL</code> to its full address (it starts with <code>{latest.origin}/</code>; a project site adds its
         path).
       </p>
       <PagesUrlSteps />
@@ -226,11 +226,11 @@ function ForeignOriginsBanner({ summary }: { summary: DiagnosticsSummary }) {
 function VersionSkewBanner({ summary, pagesBuild }: { summary: DiagnosticsSummary; pagesBuild: boolean }) {
   if (summary.server.version === APP_VERSION) return null;
   return pagesBuild ? (
-    <Banner tone="warning" title={`This site is version ${APP_VERSION}; Homebase on this PC is ${summary.server.version}`}>
-      Update Homebase on this PC (or reload this site) so both run the same version; until then some details may be missing or not shown.
+    <Banner tone="warning" title={`This site is version ${APP_VERSION}; Portly on this PC is ${summary.server.version}`}>
+      Update Portly on this PC (or reload this site) so both run the same version; until then some details may be missing or not shown.
     </Banner>
   ) : (
-    <Banner tone="warning" title={`This page is version ${APP_VERSION}; Homebase is ${summary.server.version}`}>
+    <Banner tone="warning" title={`This page is version ${APP_VERSION}; Portly is ${summary.server.version}`}>
       Reload the page to get the app that matches the server.
     </Banner>
   );
@@ -238,7 +238,7 @@ function VersionSkewBanner({ summary, pagesBuild }: { summary: DiagnosticsSummar
 
 /** The server card: the summary, or why there is none. */
 function ServerCard({ query, pagesBuild }: { query: SummaryQuery; pagesBuild: boolean }) {
-  const title = pagesBuild ? 'Homebase on this PC' : 'Homebase server';
+  const title = pagesBuild ? 'Portly on this PC' : 'Portly server';
   if (query.data === undefined) {
     return (
       <SettingsCard id="diagnostics-server" title={title}>
@@ -289,9 +289,9 @@ function ThisSiteCard({ summary }: { summary: DiagnosticsSummary | null }) {
   const counts = recentBrowserCounts(events, now.getTime());
   const facts: Fact[] = [
     { label: 'This site', value: <span className={styles.mono}>{APP_VERSION}</span> },
-    { label: 'Data', value: caps.backend === 'server' ? 'From Homebase on this PC' : 'Saved in this browser' },
+    { label: 'Data', value: caps.backend === 'server' ? 'From Portly on this PC' : 'Saved in this browser' },
     {
-      label: 'Homebase on this PC',
+      label: 'Portly on this PC',
       value: (
         <span className={styles.inlineRow}>
           <Badge tone={view.tone}>{view.label}</Badge>
@@ -309,15 +309,15 @@ function ThisSiteCard({ summary }: { summary: DiagnosticsSummary | null }) {
   return (
     <>
       {answersWithoutCors(state) ? (
-        <Banner tone="warning" title="Homebase runs on this PC but does not accept this site">
+        <Banner tone="warning" title="Portly runs on this PC but does not accept this site">
           <p className={styles.text}>
-            Something answers on Homebase’s port, but not to this site. Homebase answers this site only when it is the address in{' '}
-            <code>HOMEBASE_PAGES_URL</code>: set <code>HOMEBASE_PAGES_URL={thisSiteAddress()}</code>.
+            Something answers on Portly’s port, but not to this site. Portly answers this site only when it is the address in{' '}
+            <code>PORTLY_PAGES_URL</code>: set <code>PORTLY_PAGES_URL={thisSiteAddress()}</code>.
           </p>
           <PagesUrlSteps />
           <p className={styles.text}>
-            If it already is this address, what answers is probably a Homebase older than this site (or another program on its port): update Homebase
-            with <code>scripts/update.ps1</code> in your Homebase folder.
+            If it already is this address, what answers is probably a Portly older than this site (or another program on its port): update Portly
+            with <code>scripts/update.ps1</code> in your Portly folder.
           </p>
         </Banner>
       ) : null}
@@ -326,8 +326,8 @@ function ThisSiteCard({ summary }: { summary: DiagnosticsSummary | null }) {
         title="This site"
         description={
           summary === null
-            ? 'Full diagnostics (connections, server log, report) are on Homebase’s own page on this PC.'
-            : 'Homebase’s own page on this PC shows the same diagnostics, and works even when this site can’t reach it.'
+            ? 'Full diagnostics (connections, server log, report) are on Portly’s own page on this PC.'
+            : 'Portly’s own page on this PC shows the same diagnostics, and works even when this site can’t reach it.'
         }
         actions={<LocalDiagnosticsLink />}
       >

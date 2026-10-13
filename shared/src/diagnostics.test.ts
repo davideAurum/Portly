@@ -46,7 +46,7 @@ describe('scrub: secret patterns', () => {
     ['https://user:pw@host/x', 'pw'],
     ['#/paired?token=TTT&nonce=NNN', 'TTT'],
     ['#/paired?token=TTT&nonce=NNN', 'NNN'],
-    ['X-Homebase-Token: abcdef', 'abcdef'],
+    ['X-Portly-Token: abcdef', 'abcdef'],
     ['{"token":"abc"}', 'abc'],
     ['$deltatoken=DLT', 'DLT'],
     ['err ya29.SOMETOKEN here', 'SOMETOKEN'],
@@ -155,7 +155,7 @@ describe('scrub: paths, JSON.parse snippets, webcal URLs', () => {
 describe('maskUserPaths', () => {
   // All cases of the regex prototype (scratchpad/prototype-paths.mjs).
   it.each([
-    ['C:\\Users\\riley\\AppData\\Local\\Homebase', 'C:\\Users\\~\\AppData\\Local\\Homebase'],
+    ['C:\\Users\\riley\\AppData\\Local\\Portly', 'C:\\Users\\~\\AppData\\Local\\Portly'],
     ['C:\\\\Users\\\\riley\\\\AppData', 'C:\\\\Users\\\\~\\\\AppData'],
     ['c:/users/riley/x', 'c:/users/~/x'],
     ['/c/Users/riley/x', '/c/Users/~/x'],
@@ -255,7 +255,7 @@ describe('scrubFields', () => {
         icsUrl: 'webcal://p01-caldav.icloud.com/published/2/SECRET',
         location: '/api/oauth/callback?code=abc',
         note: 'wss://push.example.com/socket?ticket=1',
-        dir: 'file:///C:/Users/riley/AppData/Local/Homebase?x=1',
+        dir: 'file:///C:/Users/riley/AppData/Local/Portly?x=1',
         plain: 'see https://example.com/a?b for details',
       }),
     ).toEqual({
@@ -264,7 +264,7 @@ describe('scrubFields', () => {
       icsUrl: 'webcal://p01-caldav.icloud.com/…',
       location: '/api/oauth/callback',
       note: 'wss://push.example.com/…',
-      dir: 'file:///C:/Users/~/AppData/Local/Homebase',
+      dir: 'file:///C:/Users/~/AppData/Local/Portly',
       plain: 'see https://example.com/a?b for details',
     });
     expect(scrubFields({ link: 'https://[::1]:5757/x' })).toEqual({ link: 'https://[::1]:5757/…' });
@@ -356,12 +356,12 @@ describe('redactForSharing', () => {
   const report = {
     accounts: [{ id: 'a1', label: 'Family Google', email: 'Riley.H@example.com', status: 'ok' }],
     calendars: [{ id: 'c1', name: 'Soccer team' }, { id: 'c2', name: 'Calendar' }],
-    summary: { hybrid: { pagesOrigin: 'https://rileyh.github.io' }, server: { dataDir: 'C:\\Users\\~\\AppData\\Local\\Homebase' } },
+    summary: { hybrid: { pagesOrigin: 'https://rileyh.github.io' }, server: { dataDir: 'C:\\Users\\~\\AppData\\Local\\Portly' } },
     logs: [
       { msg: 'outbound', fields: { host: 'nas.home.arpa', finalHost: 'cdn.example.net', status: 200 } },
       { msg: 'calendar synced', fields: { calendar: 'soccer TEAM', note: 'mail to riley.h@example.com and bob@corp.example' } },
       { msg: 'request from a site', fields: { origin: 'https://evil.example.org', ips: '192.168.1.20 and 127.0.0.1 and fe80::1' } },
-      { msg: 'ics', fields: { text: 'GET https://p01-caldav.icloud.com/… → http://localhost:5757/x and https://rileyh.github.io/homebase/' } },
+      { msg: 'ics', fields: { text: 'GET https://p01-caldav.icloud.com/… → http://localhost:5757/x and https://rileyh.github.io/portly/' } },
       { msg: 'DESKTOP-9QX on rileyh pages' },
     ],
     [`nas.home.arpa`]: 'key too',

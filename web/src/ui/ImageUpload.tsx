@@ -2,11 +2,11 @@
  * ImageUpload (§10.4): pick or drop an image, upload it (`POST /api/uploads`) and report the
  * upload id. The preview is always `/api/uploads/<id>` (never a URL from elsewhere), resolved
  * through `useAssetUrl`: while the image is not loaded yet (a Pages page load backed by the
- * Homebase server on this PC) or when it fails to load, the empty drop zone stands in for it.
+ * Portly server on this PC) or when it fails to load, the empty drop zone stands in for it.
  */
 import { useId, useRef, useState, type DragEvent } from 'react';
 import { ImagePlus, Trash } from 'lucide-react';
-import { uploadUrl } from '@homebase/shared';
+import { uploadUrl } from '@portly/shared';
 import { UPLOAD_ACCEPT, checkImageFile, uploadImage } from '../api/uploads.ts';
 import { useAssetUrl } from '../static/assets.ts';
 import { Button } from './Button.tsx';

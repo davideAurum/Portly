@@ -27,11 +27,11 @@ import {
   type LogLevel,
   type LogRecord,
   type LogSource,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { getLogContext, outsideLogContext } from './log-context.ts';
 
-export { SCRUB_PATTERNS, scrub } from '@homebase/shared';
-export type { LogLevel, LogSource } from '@homebase/shared';
+export { SCRUB_PATTERNS, scrub } from '@portly/shared';
+export type { LogLevel, LogSource } from '@portly/shared';
 
 export type LogFields = Record<string, unknown>;
 

@@ -51,7 +51,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('[Homebase] Part of the page failed to render', error, info.componentStack);
+    console.error('[Portly] Part of the page failed to render', error, info.componentStack);
     recordAppError('render', error);
   }
 

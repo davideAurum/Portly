@@ -13,7 +13,7 @@ describe('validateAppUrl', () => {
     ['http://127.0.0.1:5757/', 'http://127.0.0.1:5757/'],
     ['http://[::1]:5757/', 'http://[::1]:5757/'],
     ['https://localhost:8443/', 'https://localhost:8443/'],
-    ['http://homebase.localhost:5757/', 'http://homebase.localhost:5757/'],
+    ['http://portly.localhost:5757/', 'http://portly.localhost:5757/'],
     ['http://localhost/', 'http://localhost/'],
     // Normalized the way the browser would navigate.
     ['HTTP://LOCALHOST:5757/', 'http://localhost:5757/'],

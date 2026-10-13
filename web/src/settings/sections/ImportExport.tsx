@@ -9,7 +9,7 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileUp, TriangleAlert } from 'lucide-react';
-import type { ImportPreviewResponse } from '@homebase/shared';
+import type { ImportPreviewResponse } from '@portly/shared';
 import { expectNewIcons } from '../../api/bookmarks.ts';
 import { apiGet, apiPath } from '../../api/client.ts';
 import { checkImportFile, commitImport, downloadExport, previewImport } from '../../api/importExport.ts';
@@ -42,11 +42,11 @@ interface BackupInfo {
 
 const BACKUPS_KEY = ['backups'] as const;
 
-/** `homebase-backup-2026-09-25.json` (local date of the import that replaced the data). */
+/** `portly-backup-2026-09-25.json` (local date of the import that replaced the data). */
 function backupFilename(at: string): string {
   const date = new Date(at);
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `homebase-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`;
+  return `portly-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`;
 }
 
 function BackupCard() {
@@ -123,7 +123,7 @@ function importDescription(): string {
 function confirmDescription(): string {
   return getCapabilities().browserBackups
     ? 'Settings, profiles, widgets and bookmarks are replaced with the contents of the file. A backup of the current data is kept in this browser.'
-    : 'Settings, profiles, widgets and bookmarks are replaced with the contents of the file. Homebase saves a backup of the current data first. Accounts are not affected.';
+    : 'Settings, profiles, widgets and bookmarks are replaced with the contents of the file. Portly saves a backup of the current data first. Accounts are not affected.';
 }
 
 const COUNT_LABELS: [keyof ImportPreviewResponse['summary']['counts'], string][] = [
@@ -201,7 +201,7 @@ function ImportCard() {
           accept=".json,application/json"
           className="hb-visually-hidden"
           tabIndex={-1}
-          aria-label="Homebase export file"
+          aria-label="Portly export file"
           onChange={(event) => void onFile(event)}
         />
         <Button icon={FileUp} loading={loading} onClick={() => inputRef.current?.click()}>

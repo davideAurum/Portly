@@ -4,14 +4,14 @@
  * weather, search suggestions, sports and the scheduled jobs (`health.ts` groups them), whatever
  * needs attention first. Each one shows a status pill (OK / Degraded / Failing since … / Stale —
  * last checked … / Not checked yet), when it last worked, its error while it lasts (code, HTTP
- * status, Homebase's message) with what to do about it (`remedies.ts`), why it fails when that is another
- * subject ("because <account> needs attention", which moves to that subject), and when Homebase
+ * status, Portly's message) with what to do about it (`remedies.ts`), why it fails when that is another
+ * subject ("because <account> needs attention", which moves to that subject), and when Portly
  * tries again. Details add the outcome history, "Show related log lines" (the server log around
  * the last failure) and, for jobs and the subjects a job syncs, "Run now".
  */
 import { useId, useState } from 'react';
 import { ChevronDown, Play, ScrollText } from 'lucide-react';
-import type { DiagnosticsSummary, HealthEntry, JobInfo, OutcomeRow } from '@homebase/shared';
+import type { DiagnosticsSummary, HealthEntry, JobInfo, OutcomeRow } from '@portly/shared';
 import { useHealthHistory, useRunJob } from '../../api/diagnostics.ts';
 import { useFormatters, type Formatters } from '../../lib/format.ts';
 import { useNow } from '../../lib/useNow.ts';
@@ -109,7 +109,7 @@ interface ProblemProps {
 }
 
 /**
- * The current problem: the last error (code, HTTP status, Homebase's message) with its remedy
+ * The current problem: the last error (code, HTTP status, Portly's message) with its remedy
  * while it lasts — not an error the subject recovered from before it went stale — and the subject
  * it depends on.
  */
@@ -392,12 +392,12 @@ export function ConnectionsPanel({ summary, accountLabel, onShowLogs, canRunJobs
       title="Connections & sync"
       description={
         groups.length === 0
-          ? 'Every account, calendar, feed and job Homebase keeps in sync.'
+          ? 'Every account, calendar, feed and job Portly keeps in sync.'
           : `${counts.ok} OK · ${counts.failing} failing · ${counts.stale} stale · ${counts.degraded} degraded · ${counts.unknown} not checked yet. What needs attention comes first.`
       }
     >
       {groups.length === 0 ? (
-        <EmptyState title="Nothing checked yet" body="Accounts, calendars, feeds and jobs appear here once Homebase has synced them." />
+        <EmptyState title="Nothing checked yet" body="Accounts, calendars, feeds and jobs appear here once Portly has synced them." />
       ) : (
         <div className={styles.groups}>
           {groups.map((group) => (

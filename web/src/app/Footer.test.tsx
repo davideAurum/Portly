@@ -10,7 +10,7 @@ describe('Footer', () => {
     const time = screen.getByText('Oct 11, 2026');
     expect(time.tagName).toBe('TIME');
     expect(time).toHaveAttribute('datetime', '2026-10-11');
-    expect(screen.getByText('© 2026 Homebase')).toBeInTheDocument();
+    expect(screen.getByText('© 2026 Portly')).toBeInTheDocument();
   });
 
   it('defaults to the build-time timestamp, with the time of day', () => {

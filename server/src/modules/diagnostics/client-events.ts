@@ -6,7 +6,7 @@
  *
  * - Clock skew: `skewMs = receivedAt − sentAt`; each event's `tEvent = t + skewMs` (clamped to a
  *   representable time) and `late` when it happened more than 5 minutes before it arrived.
- * - Rate limit per caller (pairing id, or `local` for Homebase's own page): 120 events and 64 KB of
+ * - Rate limit per caller (pairing id, or `local` for Portly's own page): 120 events and 64 KB of
  *   serialized fields per minute; the excess is dropped and counted, with at most one
  *   `warn 'client events dropped'` per caller and minute (repeat-collapsed beyond that).
  * - `debug` events are kept only while verbose logging covers `client` (`acceptDebug` tells the
@@ -26,7 +26,7 @@ import {
   type ClientEvent,
   type ClientEventsRequest,
   type ClientEventsResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { withLogContext } from '../../lib/log-context.ts';
 import { pathForLog, type LogHub, type Logger } from '../../lib/logger.ts';
 

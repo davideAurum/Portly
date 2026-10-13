@@ -1,11 +1,11 @@
 {
-  "name": "@homebase/server",
+  "name": "@portly/server",
   "version": "0.1.0",
   "private": true,
-  "description": "Homebase loopback server (Hono + node:sqlite), run directly from TypeScript source.",
+  "description": "Portly loopback server (Hono + node:sqlite), run directly from TypeScript source.",
   "type": "module",
   "dependencies": {
-    "@homebase/shared": "0.1.0",
+    "@portly/shared": "0.1.0",
     "@hono/node-server": "^2.1.1",
     "entities": "^8.1.0",
     "hono": "^4.13.8",

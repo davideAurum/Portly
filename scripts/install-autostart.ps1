@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    Sets up Homebase to start by itself: when Chrome or Edge opens (default), or at sign-in.
+    Sets up Portly to start by itself: when Chrome or Edge opens (default), or at sign-in.
 
 .DESCRIPTION
-    Registers the per-user scheduled task "Homebase Server" (ARCHITECTURE section 12):
+    Registers the per-user scheduled task "Portly Server" (ARCHITECTURE section 12):
 
       Trigger    -Trigger Browser (default): none - the task runs only on demand
                  -Trigger Logon: at log on of the current user (-LogonDelaySeconds)
@@ -13,31 +13,31 @@
                  priority 4, 3 restarts one minute apart (launch failures only - the
                  supervisor restarts the server itself if it crashes)
 
-    and, in both modes, the native messaging host "com.homebase.launcher" for Chrome and Edge:
+    and, in both modes, the native messaging host "com.portly.launcher" for Chrome and Edge:
 
-      Files      %LOCALAPPDATA%\Homebase\native-host\ launcher.cmd, launcher.mjs,
-                 com.homebase.launcher.json (host manifest), config.json
-      Registry   HKCU\Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher and
-                 HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher
-                 (default value = path of com.homebase.launcher.json; no administrator rights)
+      Files      %LOCALAPPDATA%\Portly\native-host\ launcher.cmd, launcher.mjs,
+                 com.portly.launcher.json (host manifest), config.json
+      Registry   HKCU\Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher and
+                 HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher
+                 (default value = path of com.portly.launcher.json; no administrator rights)
 
-    The new-tab extension asks that host to start Homebase when the browser opens and when a new
-    tab finds Homebase not running; the host runs "schtasks /run /tn \Homebase Server", so Task
-    Scheduler - not the browser - starts the server. Only the Homebase extension may use the host:
+    The new-tab extension asks that host to start Portly when the browser opens and when a new
+    tab finds Portly not running; the host runs "schtasks /run /tn \Portly Server", so Task
+    Scheduler - not the browser - starts the server. Only the Portly extension may use the host:
     its ID is computed from the "key" in extension\manifest.json.
 
     Then it builds web\dist if it is missing (npm run build), (re)starts the task and waits until
     http://localhost:<port>/api/health answers - this checks the installation end to end (use
     -NoStart to skip it). Running it again updates everything (also to switch modes).
 
-    The port and data folder come from the HOMEBASE_PORT / HOMEBASE_DATA_DIR user (or machine)
+    The port and data folder come from the PORTLY_PORT / PORTLY_DATA_DIR user (or machine)
     environment variables when set, exactly as the task will see them. Before changing anything,
-    the HOMEBASE_* variables are checked with the server's own configuration loader
+    the PORTLY_* variables are checked with the server's own configuration loader
     (server\src\config.ts): the background server's console output is not visible, so a value it
     would reject is reported here instead.
 
 .PARAMETER Trigger
-    Browser (default): no sign-in trigger; Homebase starts when Chrome/Edge opens or a new tab
+    Browser (default): no sign-in trigger; Portly starts when Chrome/Edge opens or a new tab
     needs it, through the extension and the native host. Logon: start at every sign-in (the
     previous behaviour); the native host is registered too, as a fallback.
 
@@ -46,7 +46,7 @@
 
 .PARAMETER NoNativeHost
     Do not register the native messaging host (with -Trigger Browser, nothing then starts
-    Homebase by itself).
+    Portly by itself).
 
 .PARAMETER ExtensionId
     Allow this extension ID (32 letters a-p) instead of the one computed from the "key" in
@@ -64,7 +64,7 @@
     How long to wait for /api/health after starting the task (10-600, default 90).
 
 .PARAMETER NoStart
-    Register everything but do not start Homebase now.
+    Register everything but do not start Portly now.
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1
@@ -124,7 +124,7 @@ function Invoke-Install {
     $problems = New-Object System.Collections.Generic.List[string]
 
     if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'server\src\index.ts') -PathType Leaf)) {
-        throw "This script must stay in the scripts folder of a Homebase checkout (no server\src\index.ts under $repoRoot)."
+        throw "This script must stay in the scripts folder of a Portly checkout (no server\src\index.ts under $repoRoot)."
     }
     $supervisor = Join-Path $repoRoot 'server\src\supervisor.ts'
     if (-not (Test-Path -LiteralPath $supervisor -PathType Leaf)) {
@@ -133,7 +133,7 @@ function Invoke-Install {
     if (-not (Test-HbDependenciesInstalled -RepoRoot $repoRoot)) {
         $problems.Add("Dependencies are not installed. In $repoRoot run: npm ci")
     }
-    # A release install links node_modules\@homebase\shared itself (install.ps1); put it back if
+    # A release install links node_modules\@portly\shared itself (install.ps1); put it back if
     # it went missing, before the configuration check below loads the server's code.
     if (-not $DryRun -and $null -ne (Get-HbReleaseInfo -RepoRoot $repoRoot)) { $null = Initialize-HbReleaseLinks -RepoRoot $repoRoot }
     $conhost = "$env:SystemRoot\System32\conhost.exe"
@@ -170,7 +170,7 @@ function Invoke-Install {
                 $idSource = 'from the "key" in extension\manifest.json'
             }
             $nativeHost = New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $node.Path -ExtensionId $allowedId
-            $nativeHostText = "$HomebaseNativeHostName for extension $allowedId ($idSource)"
+            $nativeHostText = "$PortlyNativeHostName for extension $allowedId ($idSource)"
         } catch {
             $problems.Add($_.Exception.Message)
             $nativeHostText = "CANNOT REGISTER: $($_.Exception.Message)"
@@ -190,7 +190,7 @@ function Invoke-Install {
     }
 
     Write-Host ''
-    Write-Host 'Homebase autostart' -ForegroundColor White
+    Write-Host 'Portly autostart' -ForegroundColor White
     Write-HbField 'Repository' $repoRoot
     Write-HbField 'Node.js' "$($node.Path) (v$($node.Version))"
     Write-HbField 'User' $userId
@@ -211,15 +211,15 @@ function Invoke-Install {
     if ($node.LooksTemporary) {
         Write-Warning "$($node.Path) looks like a temporary, per-shell path (fnm/nvm shims). Pass -NodePath with a permanent node.exe so the task and the native host still work after a reboot."
     }
-    if (Test-HbTruthy (Get-HbEnvValue -Name 'HOMEBASE_DEV' -Scope Task)) {
-        Write-Warning 'HOMEBASE_DEV is set for your user, so the autostarted server would run in development mode (it expects the Vite dev server). Remove that environment variable unless you mean it.'
+    if (Test-HbTruthy (Get-HbEnvValue -Name 'PORTLY_DEV' -Scope Task)) {
+        Write-Warning 'PORTLY_DEV is set for your user, so the autostarted server would run in development mode (it expects the Vite dev server). Remove that environment variable unless you mean it.'
     }
     if ($port -lt 1024) {
         Write-Warning "Port $port is below 1024; the new-tab extension only accepts ports 1024-65535."
     }
     if ($Trigger -eq 'Browser' -and $NoNativeHost) {
-        Write-Warning ('-Trigger Browser with -NoNativeHost: the task has no trigger and the browser cannot start it, so nothing starts Homebase by itself. ' +
-            "Start it with Start-ScheduledTask -TaskName '$HomebaseTaskName', or drop -NoNativeHost.")
+        Write-Warning ('-Trigger Browser with -NoNativeHost: the task has no trigger and the browser cannot start it, so nothing starts Portly by itself. ' +
+            "Start it with Start-ScheduledTask -TaskName '$PortlyTaskName', or drop -NoNativeHost.")
     }
     foreach ($mismatch in @(Get-HbEnvMismatches)) {
         $inWindow = if ($null -ne $mismatch.Process) { "'$($mismatch.Process)'" } else { 'not set' }
@@ -248,9 +248,9 @@ function Invoke-Install {
             Write-HbInfo '- build the web app: npm run build (web\dist is missing)'
         }
         if ($null -ne $existing) {
-            Write-HbInfo "- replace the existing task '$HomebaseTaskName' (state: $($existing.State), $(Get-HbTaskTriggerMode -Task $existing) mode) with the $Trigger mode task"
+            Write-HbInfo "- replace the existing task '$PortlyTaskName' (state: $($existing.State), $(Get-HbTaskTriggerMode -Task $existing) mode) with the $Trigger mode task"
         } else {
-            Write-HbInfo "- register the task '$HomebaseTaskName' for $userId ($Trigger mode)"
+            Write-HbInfo "- register the task '$PortlyTaskName' for $userId ($Trigger mode)"
         }
         if ($null -ne $nativeHost) {
             Write-HbInfo "- write the $(@($nativeHost.Files).Count) native host files to $($nativeHost.Destination)"
@@ -261,10 +261,10 @@ function Invoke-Install {
             Write-HbInfo '- leave the native messaging host alone (-NoNativeHost)'
         }
         if ($running.Count -gt 0) {
-            Write-HbInfo "- stop the Homebase processes started from this folder: $(Format-HbProcessList -Trees $running)"
+            Write-HbInfo "- stop the Portly processes started from this folder: $(Format-HbProcessList -Trees $running)"
         }
         if ($NoStart) {
-            Write-HbInfo '- leave Homebase stopped (-NoStart)'
+            Write-HbInfo '- leave Portly stopped (-NoStart)'
         } else {
             Write-HbInfo "- start the task and wait up to $TimeoutSeconds s for http://localhost:$port/api/health"
         }
@@ -291,9 +291,9 @@ function Invoke-Install {
         Write-HbOk 'Web app built'
     }
 
-    Write-HbStep "Registering scheduled task '$HomebaseTaskName' ($Trigger mode)"
+    Write-HbStep "Registering scheduled task '$PortlyTaskName' ($Trigger mode)"
     try {
-        $null = Register-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath -InputObject $definition -Force
+        $null = Register-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -InputObject $definition -Force
     } catch {
         if (Test-HbAccessDenied $_) {
             Write-HbAccessDeniedHint -ScriptPath $scriptPath -Arguments $hintArguments
@@ -302,13 +302,13 @@ function Invoke-Install {
         throw
     }
     if ($Trigger -eq 'Logon') {
-        Write-HbOk "Registered: it starts Homebase whenever $userId signs in"
+        Write-HbOk "Registered: it starts Portly whenever $userId signs in"
     } else {
         Write-HbOk 'Registered: no sign-in trigger; it runs when the browser extension asks for it'
     }
 
     if ($null -ne $nativeHost) {
-        Write-HbStep "Registering the native messaging host $HomebaseNativeHostName (Chrome and Edge)"
+        Write-HbStep "Registering the native messaging host $PortlyNativeHostName (Chrome and Edge)"
         Install-HbNativeHost -Plan $nativeHost
         Write-HbOk "Wrote $($nativeHost.Destination) and the registry keys for Chrome and Edge (allowed extension: $($nativeHost.ExtensionId))"
     }
@@ -318,37 +318,37 @@ function Invoke-Install {
     $current = Get-HbTask
     if ($null -ne $current -and "$($current.State)" -eq 'Running') {
         Write-HbStep 'Stopping the running task'
-        Stop-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+        Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
     }
     $stopped = @(Stop-HbSupervisorProcesses -RepoRoot $repoRoot)
     if ($stopped.Count -gt 0) {
-        Write-HbInfo "Stopped the previous Homebase processes (PID $($stopped -join ', '))"
+        Write-HbInfo "Stopped the previous Portly processes (PID $($stopped -join ', '))"
         Start-Sleep -Milliseconds 500
     }
 
     $nextStart = if ($Trigger -eq 'Logon') { 'at your next sign-in' } else { 'when Chrome or Edge next opens (or a new tab finds it not running)' }
     if ($NoStart) {
-        Write-HbOk "Not started now (-NoStart). It starts $nextStart, or any time with: Start-ScheduledTask -TaskName '$HomebaseTaskName'"
+        Write-HbOk "Not started now (-NoStart). It starts $nextStart, or any time with: Start-ScheduledTask -TaskName '$PortlyTaskName'"
         Write-HbExtensionReminder -Plan $nativeHost
         return 0
     }
 
     $already = Test-HbHealth -Port $port -TimeoutSeconds 2
     if ($already.Ok) {
-        Write-Warning ("Homebase is already $(Format-HbHealth $already), started outside the task (npm start or scripts\start.ps1?). " +
-            "The task will start Homebase $nextStart. To switch now, stop the other instance (Ctrl+C in its window) and run: " +
-            "Start-ScheduledTask -TaskName '$HomebaseTaskName'")
+        Write-Warning ("Portly is already $(Format-HbHealth $already), started outside the task (npm start or scripts\start.ps1?). " +
+            "The task will start Portly $nextStart. To switch now, stop the other instance (Ctrl+C in its window) and run: " +
+            "Start-ScheduledTask -TaskName '$PortlyTaskName'")
         Write-HbExtensionReminder -Plan $nativeHost
         return 0
     }
     if ($null -ne $already.Listeners -and $already.Listeners.Count -gt 0) {
-        Write-HbFailure "Port $port is in use by $(Format-HbPortOwners $already.Listeners), which does not answer as Homebase, so Homebase cannot start there."
-        Write-HbInfo "The task is registered. Stop that program (or set the HOMEBASE_PORT user environment variable to a free port and run this script again), then run: Start-ScheduledTask -TaskName '$HomebaseTaskName'"
+        Write-HbFailure "Port $port is in use by $(Format-HbPortOwners $already.Listeners), which does not answer as Portly, so Portly cannot start there."
+        Write-HbInfo "The task is registered. Stop that program (or set the PORTLY_PORT user environment variable to a free port and run this script again), then run: Start-ScheduledTask -TaskName '$PortlyTaskName'"
         return 1
     }
 
     Write-HbStep 'Starting the task (checks the installation end to end)'
-    Start-ScheduledTask -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+    Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
     $startedAt = [System.DateTime]::UtcNow
     Write-HbInfo "Waiting up to $TimeoutSeconds s for http://localhost:$port/api/health ..."
     $health = Wait-HbHealth -Port $port -TimeoutSeconds $TimeoutSeconds -ContinueWhile {
@@ -358,9 +358,9 @@ function Invoke-Install {
     }
 
     if ($health.Ok) {
-        Write-HbOk "Homebase is $(Format-HbHealth $health)"
+        Write-HbOk "Portly is $(Format-HbHealth $health)"
         if ($health.Vault -eq 'locked') {
-            Write-Warning 'The credential vault is locked: open Homebase > Settings > Accounts and follow the banner.'
+            Write-Warning 'The credential vault is locked: open Portly > Settings > Accounts and follow the banner.'
         }
         Write-Host ''
         Write-HbInfo "From now on it starts $nextStart."
@@ -370,10 +370,10 @@ function Invoke-Install {
         return 0
     }
 
-    Write-HbFailure "Homebase did not come up: $(Format-HbHealth $health)"
+    Write-HbFailure "Portly did not come up: $(Format-HbHealth $health)"
     $task = Get-HbTask
     if ($null -ne $task) {
-        $info = Get-ScheduledTaskInfo -TaskName $HomebaseTaskName -TaskPath $HomebaseTaskPath
+        $info = Get-ScheduledTaskInfo -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
         Write-HbField 'Task state' "$($task.State)"
         Write-HbField 'Last result' (Format-HbTaskResult -Code $info.LastTaskResult)
     }

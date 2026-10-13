@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { WIDGET_TYPES, type Layout } from '@homebase/shared';
+import { WIDGET_TYPES, type Layout } from '@portly/shared';
 import { Shell } from '../app/Shell.tsx';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { createFakeServer } from '../test/fakeServer.ts';
@@ -86,7 +86,7 @@ describe('first-run seeding', () => {
   });
 
   it('names the lock per backend: a Pages tab on the in-browser dataset never waits for one seeding the server', () => {
-    expect(seedLockName()).toBe('homebase:first-run-seed:server');
+    expect(seedLockName()).toBe('portly:first-run-seed:server');
     setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
     expect(seedLockName()).toBe(`${SEED_LOCK_NAME}:browser`);
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));

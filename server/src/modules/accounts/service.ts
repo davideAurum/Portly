@@ -30,7 +30,7 @@ import {
   type AccountConfigByKind,
   type AccountKind,
   type AccountStatus,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { Config } from '../../config.ts';
 import type { AccountChangeEvent, AccountService } from '../../context.ts';
 import type { Db } from '../../db/open.ts';

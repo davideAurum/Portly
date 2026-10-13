@@ -11,7 +11,7 @@
  * - Length caps (subject 500, snippet 500) count code points and never split a surrogate pair.
  */
 import { decodeHTML } from 'entities';
-import { MAIL_TEXT_LIMITS, type MailAddress } from '@homebase/shared';
+import { MAIL_TEXT_LIMITS, type MailAddress } from '@portly/shared';
 
 /** Cap for sender names and addresses (not in the contract; generous for real-world values). */
 export const MAX_NAME_LENGTH = 200;

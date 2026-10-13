@@ -3,10 +3,10 @@
  * shows follows this page load's backend:
  *
  * - the server build: the server's version, data folder, log file and vault, then the browsers
- *   paired with this Homebase (`PairedBrowsersCard`);
+ *   paired with this Portly (`PairedBrowsersCard`);
  * - the Pages build on its `browser` backend: no data folder, log file or vault — where its data
  *   lives (this browser's storage) instead;
- * - the Pages build on its `server` backend (Homebase on this PC): this site's and the server's
+ * - the Pages build on its `server` backend (Portly on this PC): this site's and the server's
  *   versions and the vault (the server does not tell this site's origin its paths), then the
  *   paired browsers.
  *
@@ -14,7 +14,7 @@
  */
 import type { ReactNode } from 'react';
 import { KeyRound, LockKeyhole } from 'lucide-react';
-import type { AboutResponse } from '@homebase/shared';
+import type { AboutResponse } from '@portly/shared';
 import { useAbout } from '../../api/about.ts';
 import { LocalServerPanel } from '../../app/LocalServerPanel.tsx';
 import { APP_VERSION } from '../../app/providers.tsx';
@@ -50,7 +50,7 @@ function versionFact(about: AboutResponse): Fact {
   };
 }
 
-/** The vault's state; `locked` links to where it is reset (Accounts here, or Homebase's own page). */
+/** The vault's state; `locked` links to where it is reset (Accounts here, or Portly's own page). */
 function vaultFact(about: AboutResponse, caps: Capabilities): Fact {
   return {
     label: 'Credential vault',
@@ -79,14 +79,14 @@ function serverFacts(about: AboutResponse, caps: Capabilities): Fact[] {
   ];
 }
 
-/** The Pages site using Homebase on this PC: both versions (published separately) and where the data lives. */
+/** The Pages site using Portly on this PC: both versions (published separately) and where the data lives. */
 function remoteServerFacts(about: AboutResponse, caps: Capabilities): Fact[] {
   return [
     { label: 'This site', value: <span className={styles.mono}>{APP_VERSION}</span> },
-    { label: 'Homebase on this PC', value: <span className={styles.mono}>{about.version}</span> },
+    { label: 'Portly on this PC', value: <span className={styles.mono}>{about.version}</span> },
     {
       label: 'Storage',
-      value: <span>Homebase on this PC, in its data folder.</span>,
+      value: <span>Portly on this PC, in its data folder.</span>,
     },
     vaultFact(about, caps),
   ];
@@ -110,7 +110,7 @@ function facts(about: AboutResponse, caps: Capabilities, storageKind: StaticStor
 
 function description(caps: Capabilities): string {
   if (caps.backend === 'browser') return 'Your personal start page, stored in this browser.';
-  return caps.remoteServer ? 'Your personal start page, with its data from Homebase on this PC.' : 'Your personal start page, served from this PC.';
+  return caps.remoteServer ? 'Your personal start page, with its data from Portly on this PC.' : 'Your personal start page, served from this PC.';
 }
 
 export default function AboutSettings() {
@@ -119,7 +119,7 @@ export default function AboutSettings() {
   const storageKind = useStaticStorageKind();
   return (
     <div className={styles.stack}>
-      <SettingsCard title="Homebase" description={description(caps)}>
+      <SettingsCard title="Portly" description={description(caps)}>
         {about.data === undefined ? (
           about.isError ? (
             <ErrorState error={about.error} onRetry={() => void about.refetch()} compact />

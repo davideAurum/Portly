@@ -59,7 +59,7 @@ describe('startSupervisor (spawns a fake child)', () => {
   let script: string;
 
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-supervisor-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-supervisor-'));
     counter = path.join(dir, 'runs.txt');
     script = path.join(dir, 'child.mjs');
     // Exits with the code for its run number; the last code repeats.
@@ -224,7 +224,7 @@ describe('createLineTail (the child stderr tail)', () => {
 
   it('scrubs secrets and user paths', () => {
     const tail = createLineTail();
-    tail.push('Authorization: Bearer abc.def.ghi\n    at run (C:\\Users\\someone\\Homebase\\server\\src\\index.ts:1:1)\n');
+    tail.push('Authorization: Bearer abc.def.ghi\n    at run (C:\\Users\\someone\\Portly\\server\\src\\index.ts:1:1)\n');
     const text = tail.lines().join('\n');
     expect(text).not.toContain('abc.def.ghi');
     expect(text).not.toContain('someone');
@@ -238,7 +238,7 @@ describe('startSupervisor: diagnostics (fake children)', () => {
   let script: string;
 
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-supervisor-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-supervisor-'));
     counter = path.join(dir, 'runs.txt');
     envFile = path.join(dir, 'env.jsonl');
     script = path.join(dir, 'child.mjs');
@@ -256,11 +256,11 @@ describe('startSupervisor: diagnostics (fake children)', () => {
        const failures = failure.split(',');
        const fails = failures[Math.min(runs, failures.length) - 1] === 'yes';
        fs.appendFileSync(envFile, JSON.stringify({
-         supervised: process.env.HOMEBASE_SUPERVISED ?? null,
-         attempt: process.env.HOMEBASE_SUPERVISOR_ATTEMPT ?? null,
-         lastExit: process.env.HOMEBASE_SUPERVISOR_LAST_EXIT ?? null,
+         supervised: process.env.PORTLY_SUPERVISED ?? null,
+         attempt: process.env.PORTLY_SUPERVISOR_ATTEMPT ?? null,
+         lastExit: process.env.PORTLY_SUPERVISOR_LAST_EXIT ?? null,
        }) + '\\n');
-       process.stderr.write('Homebase: startup failed (db): Error[SQLITE_BUSY]: database is locked\\n    at open (C:\\\\Users\\\\someone\\\\db.ts:1:1)\\n');
+       process.stderr.write('Portly: startup failed (db): Error[SQLITE_BUSY]: database is locked\\n    at open (C:\\\\Users\\\\someone\\\\db.ts:1:1)\\n');
        const exit = () => setTimeout(() => process.exit(code), 20);
        if (fails && process.send) {
          process.send({ type: 'startup-failed', phase: 'db', errName: 'Error', errCode: 'SQLITE_BUSY', message: 'database is locked' }, exit);
@@ -283,7 +283,7 @@ describe('startSupervisor: diagnostics (fake children)', () => {
       args: [script, counter, '1,1,3', envFile, 'yes'],
       cwd: dir,
       schedule: [10, 10],
-      env: { ...process.env, HOMEBASE_SUPERVISOR_ATTEMPT: '99', HOMEBASE_SUPERVISOR_LAST_EXIT: 'stale' },
+      env: { ...process.env, PORTLY_SUPERVISOR_ATTEMPT: '99', PORTLY_SUPERVISOR_LAST_EXIT: 'stale' },
     });
     expect(await supervisor.done).toBe(0);
     const runs = envs();
@@ -302,7 +302,7 @@ describe('startSupervisor: diagnostics (fake children)', () => {
     const restart = log.lines.find((l) => l.message === 'server exited; restarting');
     expect(restart?.fields).toMatchObject({ code: 1, attempt: 1, lastFailure: { phase: 'db', errCode: 'SQLITE_BUSY' } });
     const tail = restart?.fields?.stderrTail as string[];
-    expect(tail[0]).toBe('Homebase: startup failed (db): Error[SQLITE_BUSY]: database is locked');
+    expect(tail[0]).toBe('Portly: startup failed (db): Error[SQLITE_BUSY]: database is locked');
     expect(tail.join('\n')).not.toContain('someone');
   }, 20_000);
 
@@ -367,7 +367,7 @@ describe('startSupervisor: diagnostics (fake children)', () => {
 
 describe('exit-codes: start-up failure reports', () => {
   it('builds and re-validates the IPC message (codes and a scrubbed message only)', () => {
-    const err = Object.assign(new Error('cannot open C:\\Users\\someone\\AppData\\Local\\Homebase\\homebase.db (Bearer abc.def.ghi)'), {
+    const err = Object.assign(new Error('cannot open C:\\Users\\someone\\AppData\\Local\\Portly\\portly.db (Bearer abc.def.ghi)'), {
       code: 'ERR_SQLITE_ERROR',
       errcode: 5,
     });
@@ -384,10 +384,10 @@ describe('exit-codes: start-up failure reports', () => {
   });
 
   it('writes a bootstrap line in the log file format', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-bootstrap-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-bootstrap-'));
     try {
       const file = path.join(dir, 'logs', 'supervisor.log');
-      writeBootstrapFailure(file, 'config', new Error('HOMEBASE_PORT must be an integer 1-65535 (got "x")'), { src: 'supervisor' });
+      writeBootstrapFailure(file, 'config', new Error('PORTLY_PORT must be an integer 1-65535 (got "x")'), { src: 'supervisor' });
       const line = JSON.parse(fs.readFileSync(file, 'utf8').trim()) as Record<string, unknown>;
       expect(line).toMatchObject({ lvl: 'error', msg: 'startup failed', src: 'supervisor', area: 'server', phase: 'config', errName: 'Error' });
       expect(typeof line.t).toBe('string');
@@ -398,8 +398,8 @@ describe('exit-codes: start-up failure reports', () => {
 
   it('fatal stderr text: the error and its frame lines, never the stack header', () => {
     const err = new Error('secret token=abc123 in the message');
-    const text = fatalText('Homebase: startup failed (db)', err);
-    expect(text.split('\n')[0]).toMatch(/^Homebase: startup failed \(db\): Error: /);
+    const text = fatalText('Portly: startup failed (db)', err);
+    expect(text.split('\n')[0]).toMatch(/^Portly: startup failed \(db\): Error: /);
     expect(text).not.toContain('abc123');
     expect(text.split('\n').slice(1, -1).every((line) => line.startsWith('    at '))).toBe(true);
   });

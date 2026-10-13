@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <meta name="referrer" content="no-referrer" />
-    <title>Homebase New Tab options</title>
+    <title>Portly New Tab options</title>
     <link rel="icon" type="image/png" href="icons/icon-32.png" />
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="options.js"></script>
@@ -14,21 +14,21 @@
     <main class="card" aria-labelledby="options-title">
       <div class="brand">
         <img src="icons/icon-48.png" alt="" width="32" height="32" />
-        <span>Homebase</span>
+        <span>Portly</span>
       </div>
 
       <h1 id="options-title">New tab options</h1>
       <p class="muted" data-summary="auto">
-        New tabs open whatever Homebase on this PC is set up for: <span data-server-site>Homebase itself</span>.
+        New tabs open whatever Portly on this PC is set up for: <span data-server-site>Portly itself</span>.
       </p>
       <p class="muted" data-summary="pages" hidden>
-        New tabs open your Homebase Pages site, <span data-pages-url>the address below</span>. It uses Homebase on
+        New tabs open your Portly Pages site, <span data-pages-url>the address below</span>. It uses Portly on
         this PC when that is running and this browser is paired with it, and the copy kept in this browser otherwise.
-        The site looks for Homebase at the address it was built with (<code>http://127.0.0.1:5757</code> unless
-        <code>HOMEBASE_STATIC_SERVER</code> was set), not at the port below.
+        The site looks for Portly at the address it was built with (<code>http://127.0.0.1:5757</code> unless
+        <code>PORTLY_STATIC_SERVER</code> was set), not at the port below.
       </p>
       <p class="muted" data-summary="local" hidden>
-        New tabs open Homebase at <span data-homebase-url>http://localhost:5757</span> when it's running, and a
+        New tabs open Portly at <span data-portly-url>http://localhost:5757</span> when it's running, and a
         simple fallback page with a search box when it isn't.
       </p>
 
@@ -38,9 +38,9 @@
           <label class="choice">
             <input type="radio" name="target" value="auto" aria-describedby="target-auto-help" />
             <span>
-              Whatever Homebase on this PC is set up for
+              Whatever Portly on this PC is set up for
               <span id="target-auto-help" class="choice-help muted small">
-                Its Pages site when it has one (<code>HOMEBASE_PAGES_URL</code>), otherwise Homebase itself, with a
+                Its Pages site when it has one (<code>PORTLY_PAGES_URL</code>), otherwise Portly itself, with a
                 fallback page when it isn't running (the default).
               </span>
             </span>
@@ -50,16 +50,16 @@
             <span>
               The Pages site
               <span id="target-pages-help" class="choice-help muted small">
-                Homebase in the browser, at the address below.
+                Portly in the browser, at the address below.
               </span>
             </span>
           </label>
           <label class="choice">
             <input type="radio" name="target" value="local" aria-describedby="target-local-help" />
             <span>
-              Homebase on this PC
+              Portly on this PC
               <span id="target-local-help" class="choice-help muted small">
-                The page Homebase serves itself, on the port below, with a fallback page when it isn't running.
+                The page Portly serves itself, on the port below, with a fallback page when it isn't running.
               </span>
             </span>
           </label>
@@ -83,8 +83,8 @@
             <button type="submit" class="button primary">Save</button>
           </div>
           <p id="pages-url-help" class="muted small">
-            Where your Homebase Pages site is published — the address the server trusts as
-            <code>HOMEBASE_PAGES_URL</code>. Leave it empty to use the address Homebase on this PC reports. It starts
+            Where your Portly Pages site is published — the address the server trusts as
+            <code>PORTLY_PAGES_URL</code>. Leave it empty to use the address Portly on this PC reports. It starts
             with <code>https://</code>; <code>http://</code> only for a build served on this PC (<code>localhost</code>,
             <code>127.0.0.1</code> or <code>[::1]</code>).
           </p>
@@ -93,19 +93,19 @@
       </form>
 
       <div class="actions">
-        <button id="pages-reset" type="button" class="button">Use the address Homebase reports</button>
+        <button id="pages-reset" type="button" class="button">Use the address Portly reports</button>
       </div>
       <p id="newtab-status" class="small" role="status" aria-live="polite"></p>
 
       <section class="howto" aria-labelledby="local-title">
-        <h2 id="local-title">Homebase on this PC</h2>
+        <h2 id="local-title">Portly on this PC</h2>
         <p class="muted small">
-          Whichever page new tabs open, the extension uses this port to check whether Homebase is running and to start
+          Whichever page new tabs open, the extension uses this port to check whether Portly is running and to start
           it.
         </p>
         <form id="port-form" novalidate>
           <div class="field">
-            <label for="port">Homebase port</label>
+            <label for="port">Portly port</label>
             <div class="row">
               <input
                 id="port"
@@ -122,7 +122,7 @@
             </div>
             <p id="port-help" class="muted small">
               A whole number from 1024 to 65535 (default 5757). It must match the port the server uses
-              (<code>HOMEBASE_PORT</code>).
+              (<code>PORTLY_PORT</code>).
             </p>
             <p id="port-error" class="error" role="alert" hidden></p>
           </div>
@@ -136,9 +136,9 @@
       </section>
 
       <section class="howto" aria-labelledby="launcher-title">
-        <h2 id="launcher-title">Starting Homebase</h2>
+        <h2 id="launcher-title">Starting Portly</h2>
         <p class="muted small">
-          When Homebase isn't running, the extension asks the Homebase launcher to start it — when the browser
+          When Portly isn't running, the extension asks the Portly launcher to start it — when the browser
           starts and when you open a new tab. <code>scripts\install-autostart.ps1</code> installs the launcher for
           this extension's ID only.
         </p>

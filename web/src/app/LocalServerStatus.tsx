@@ -31,7 +31,7 @@ export function LocalServerStatus() {
     quiet: status === 'checking' && !state.manual,
   }));
   if (announcement.label !== view.label) {
-    setAnnouncement({ label: view.label, text: announcement.quiet ? '' : `Homebase on this PC: ${view.label}`, quiet: false });
+    setAnnouncement({ label: view.label, text: announcement.quiet ? '' : `Portly on this PC: ${view.label}`, quiet: false });
   }
 
   if (!getCapabilities().pagesBuild || status === 'disabled' || status === 'framed') return null;
@@ -40,12 +40,12 @@ export function LocalServerStatus() {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           {/* The name contains the visible label (WCAG 2.5.3) and says what it is the status of. */}
-          <button type="button" className={styles.trigger} data-tone={view.tone} data-status={status} aria-label={`Homebase on this PC: ${view.label}`}>
+          <button type="button" className={styles.trigger} data-tone={view.tone} data-status={status} aria-label={`Portly on this PC: ${view.label}`}>
             <span className={styles.dot} aria-hidden="true" />
             <span className={styles.label}>{view.label}</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent aria-label="Homebase on this PC" side="top" align="end">
+        <PopoverContent aria-label="Portly on this PC" side="top" align="end">
           <LocalServerPanel
             variant="popover"
             status={status}

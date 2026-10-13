@@ -1,5 +1,5 @@
 /** Test fixtures for the web shell. */
-import { defaultSettings, type Account, type HealthResponse, type Profile, type Settings, type WidgetInstance } from '@homebase/shared';
+import { defaultSettings, type Account, type HealthResponse, type Profile, type Settings, type WidgetInstance } from '@portly/shared';
 
 export function widget(id: string, type: string, x: number, y: number, w: number, h: number, extra: Partial<WidgetInstance> = {}): WidgetInstance {
   return { id, type, x, y, w, h, config: {}, frame: { showHeader: true, transparent: false }, ...extra };

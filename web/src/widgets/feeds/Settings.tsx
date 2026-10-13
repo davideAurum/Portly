@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, Rss, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { isSafeHttpUrl } from '@homebase/shared';
+import { isSafeHttpUrl } from '@portly/shared';
 import { feedCheckQuery, feedQuery } from '../../api/feeds.ts';
 import { Button, IconButton } from '../../ui/Button.tsx';
 import { Field } from '../../ui/Field.tsx';

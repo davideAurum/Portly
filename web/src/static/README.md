@@ -1,11 +1,11 @@
 # The static backend (`web/src/static/`)
 
-The browser-only build (`npm run build:static`, Vite mode `static`) has no Homebase server of its
+The browser-only build (`npm run build:static`, Vite mode `static`) has no Portly server of its
 own. This folder is the replacement: an in-browser backend that answers the same `/api/*` calls the
 web app makes, over IndexedDB instead of SQLite, with real `Response` objects, so the rest of the app
 is unchanged. User guide: [docs/setup/static-build.md](../../../docs/setup/static-build.md).
 
-In hybrid mode (`web/src/localServer/`) a page load of this build may use the Homebase server on
+In hybrid mode (`web/src/localServer/`) a page load of this build may use the Portly server on
 this PC instead — then this folder is never loaded (IndexedDB is not even opened). Each page load
 has one backend, `browser` (this folder) or `server`, fixed before the first render; switching
 reloads the page. Guide: [docs/setup/pages-local-server.md](../../../docs/setup/pages-local-server.md).
@@ -15,16 +15,16 @@ reloads the page. Guide: [docs/setup/pages-local-server.md](../../../docs/setup/
 ```text
 useQuery / useMutation
   -> web/src/api/*.ts            unchanged
-  -> api() in api/client.ts      if __HOMEBASE_STATIC__: pagesFetch(path, init) instead of fetch()
+  -> api() in api/client.ts      if __PORTLY_STATIC__: pagesFetch(path, init) instead of fetch()
   -> localServer/transport.ts    pagesFetch: this page load's backend decides
        browser backend:          staticFetch(path, init) from backend.ts (dynamic import)
-       server backend:           the Homebase server on this PC (paired CORS request; not this folder)
+       server backend:           the Portly server on this PC (paired CORS request; not this folder)
   -> backend.ts dispatch()       builds a Request, matches METHOD + pathname in the router
   -> handlers/<module>.ts        reads/writes slices on ctx.state, returns a Response (respond.ts)
   <- api()                       same error mapping, 204 handling and JSON parsing as the server build
 ```
 
-`__HOMEBASE_STATIC__` is a Vite `define` (true only in the static build). `client.ts` imports
+`__PORTLY_STATIC__` is a Vite `define` (true only in the static build). `client.ts` imports
 `localServer/transport.ts` dynamically, and the transport imports `backend.ts` dynamically, so
 neither the transport nor this folder lands in the server build's bundle, and a server-backend page
 of the static build never loads this folder. Everywhere else, UI code reads `getCapabilities()` from
@@ -40,12 +40,12 @@ browser" is `getCapabilities().backend === 'browser'`, not the build flag. Tests
 | `router.ts` | `StaticRouter`: `get/post/put/patch/delete('/api/path/:param', handler)`. Exact segment-count matching, `:param` segments percent-decoded, HEAD matches GET, no wildcards. `match()`, `hasPath()` (wrong method → `400`), `list()`. |
 | `respond.ts` | `json(body, status)`, `noContent()` (204), `apiError(code, message, details?)` with the status from `ERROR_STATUS`, `StaticApiError` (throw it from a handler), `validationError(zodError)` (422 with `{path, message, code}` details), `notFound()`, `unavailable(feature)` (409 `not_configured`), `readJson(req)`, `readFormData(req)`. |
 | `context.ts` | `StaticContext {state, assets, version, now(), newId()}` — always use `ctx.now()` / `ctx.newId()`; tests inject them. |
-| `state.ts` | `StaticState`: named JSON slices with write-through persistence. `get(name, init)` returns the live object (mutate it), `set`, `commit(...names)` (persists and tells other tabs over `BroadcastChannel('homebase-static:<base path>')`; on a failed write memory is restored from the last persisted copy), `commitWith` (slices + blob writes in one transaction), `settled()`, `remove`, `reload`, `clearAll`, blob helpers. |
+| `state.ts` | `StaticState`: named JSON slices with write-through persistence. `get(name, init)` returns the live object (mutate it), `set`, `commit(...names)` (persists and tells other tabs over `BroadcastChannel('portly-static:<base path>')`; on a failed write memory is restored from the last persisted copy), `commitWith` (slices + blob writes in one transaction), `settled()`, `remove`, `reload`, `clearAll`, blob helpers. |
 | `slices.ts` | The slice names (`SLICE.*`) and stored shapes shared by every handler, with accessors (`getSettings`, `getProfiles`, `getBookmarks`, `getUploads`, `getIcons`, `getTodoistToken`, `getBackups`) and limits (`ORPHAN_GRACE_MS`, `MAX_BACKUPS`). Do not invent other slice names. |
 | `storage/types.ts` | `StaticStorage` (JSON by key + `StoredBlob` by id) and `StoredBlob {id, kind: 'upload' \| 'icon', type, bytes: Uint8Array, width, createdAt}` — bytes, never `Blob` (Safari private mode, test realms); `blobOf(entry)` makes a Blob when needed. |
-| `storage/idb.ts` | IndexedDB implementation: database `homebase-static:<base path>` (e.g. `homebase-static:/`), stores `kv` and `blobs`; `applyBatch` writes JSON and blobs in one transaction. |
+| `storage/idb.ts` | IndexedDB implementation: database `portly-static:<base path>` (e.g. `portly-static:/`), stores `kv` and `blobs`; `applyBatch` writes JSON and blobs in one transaction. |
 | `storage/memory.ts` | In-memory implementation (tests; fallback when IndexedDB is unavailable). |
-| `assets.ts` | What an app image URL (`/api/icons/<id>`, `/api/uploads/<id>`) becomes on this page load: identity in the server build; on the browser backend the `AssetRegistry`'s `blob:` object URL (or an external https URL); on the server backend (hybrid mode) the image loaded from Homebase on this PC by the `ServerAssetSource` (`localServer/assets.ts`), and **no URL until it is loaded** (never the raw `/api/…` path). Components use `useAssetUrl(url)` (follows loading; null → show the placeholder), other code `getAssetUrl` / `loadAssetUrl`; `resolveAssetUrl` is for callers that need a string at once (a transparent pixel until loaded). `subscribeAssets` hears about every change. |
+| `assets.ts` | What an app image URL (`/api/icons/<id>`, `/api/uploads/<id>`) becomes on this page load: identity in the server build; on the browser backend the `AssetRegistry`'s `blob:` object URL (or an external https URL); on the server backend (hybrid mode) the image loaded from Portly on this PC by the `ServerAssetSource` (`localServer/assets.ts`), and **no URL until it is loaded** (never the raw `/api/…` path). Components use `useAssetUrl(url)` (follows loading; null → show the placeholder), other code `getAssetUrl` / `loadAssetUrl`; `resolveAssetUrl` is for callers that need a string at once (a transparent pixel until loaded). `subscribeAssets` hears about every change. |
 | `favicon.ts` | Synthetic bookmark icon ids `fav:<host>` → DuckDuckGo's icon service; local-looking hosts never get one. |
 | `handlers/index.ts` | `HandlerModule {register(router), ready?(ctx)}` and the `MODULES` list, in the server's route order. |
 | `handlers/core.ts` | `GET /api/health`, `GET /api/about` (the example module). |
@@ -102,13 +102,13 @@ export async function ready(ctx: StaticContext): Promise<void> {
 Then add the module to `MODULES` in `handlers/index.ts`. Rules of the house:
 
 - **Mirror the server.** Same status codes, error codes and messages, ordering, limits and the
-  shared zod schemas from `@homebase/shared`, so export files round-trip and the unchanged UI
+  shared zod schemas from `@portly/shared`, so export files round-trip and the unchanged UI
   behaves identically. Port pure server code by copying it into `lib/`; never import from
   `server/src` (it pulls in hono and node modules) and never edit `shared/src` (frozen contract).
 - **Browser-only code.** No `node:` imports, `Buffer` or `process`. `TextEncoder`/`TextDecoder`,
   `atob`/`btoa`, `ctx.newId()` for ids, `lib/fetch.ts` for outbound calls (timeouts, caps, and
   provider failures turned into `502 provider_error` / `504 upstream_timeout` / `429 rate_limited`
-  responses — a thrown `TypeError` would make the client show "Homebase is not reachable").
+  responses — a thrown `TypeError` would make the client show "Portly is not reachable").
 - **Responses.** JSON through `json()` (always `content-type: application/json`), deletes answer
   `204` through `noContent()`, errors through `apiError`/`StaticApiError`. Never set `accountId`
   on an error (ErrorState would fetch `/api/accounts`), never emit `reauth_required` (the UI
@@ -144,9 +144,9 @@ callback (`ctx.state.set(...)` + `commit`) or a pre-filled storage.
 
 ## Build and publish
 
-`web/vite.config.ts`: mode `static` sets `base` from `HOMEBASE_STATIC_BASE`, defines
-`__HOMEBASE_STATIC__` and `__HOMEBASE_LOCAL_SERVER__` (hybrid mode's server origin from
-`HOMEBASE_STATIC_SERVER`: default `http://127.0.0.1:5757`, `off` → `''`, loopback origins only —
+`web/vite.config.ts`: mode `static` sets `base` from `PORTLY_STATIC_BASE`, defines
+`__PORTLY_STATIC__` and `__PORTLY_LOCAL_SERVER__` (hybrid mode's server origin from
+`PORTLY_STATIC_SERVER`: default `http://127.0.0.1:5757`, `off` → `''`, loopback origins only —
 `localServer/origin.ts`; the server build always defines `''`), writes to `web/dist-static` and
 injects the Content-Security-Policy `<meta>` (`staticCsp(localServer)`; static hosts send no
 headers; `connect-src` gains the local server origin). `web/public/.nojekyll` ships in the output so GitHub

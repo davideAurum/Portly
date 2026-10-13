@@ -5,7 +5,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
-import { AboutResponseSchema, HealthResponseSchema, type AboutResponse, type HealthResponse } from '@homebase/shared';
+import { AboutResponseSchema, HealthResponseSchema, type AboutResponse, type HealthResponse } from '@portly/shared';
 import { apiGet } from './client.ts';
 import { qk } from './keys.ts';
 

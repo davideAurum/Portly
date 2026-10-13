@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Self-checks for the Homebase PowerShell scripts and the native host. Registers, starts and
+    Self-checks for the Portly PowerShell scripts and the native host. Registers, starts and
     stops nothing, and never writes the registry.
 
 .DESCRIPTION
@@ -15,7 +15,7 @@
        scripts\tests\schtasks-stub.mjs (so the real task is never run).
     4. Runs the native host's node tests (node scripts\check-native-host.mjs).
     5. Runs install-autostart.ps1 -DryRun (both modes), uninstall-autostart.ps1 -DryRun,
-       status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl, update.ps1 -DryRun, the homebase command, install-cli.ps1 -DryRun and publish-static.ps1 -DryRun (against throwaway
+       status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl, update.ps1 -DryRun, the portly command, install-cli.ps1 -DryRun and publish-static.ps1 -DryRun (against throwaway
        repositories in a temporary folder) in child processes of Windows PowerShell 5.1 and
        PowerShell 7 (when installed), and verifies that the scheduled task, the native host
        registry keys and the native host folder did not change.
@@ -66,7 +66,7 @@ function Get-FreePort {
 }
 
 $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
-$workDir = Join-Path ([System.IO.Path]::GetTempPath()) ("homebase-check-" + [guid]::NewGuid().ToString('N'))
+$workDir = Join-Path ([System.IO.Path]::GetTempPath()) ("portly-check-" + [guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $workDir -Force
 
 # ---------------------------------------------------------------------------------------------
@@ -149,16 +149,16 @@ Assert-That -Name 'Get-HbCommandLineProgram (quoted, unquoted, forward slashes, 
     (Get-HbCommandLineProgram 'node') -eq 'node' -and (Get-HbCommandLineProgram $null) -eq '')
 
 $t0 = Get-Date '2026-01-01T08:00:00'
-$fakeRoot = 'C:\Repo\Homebase'
+$fakeRoot = 'C:\Repo\Portly'
 $processes = @(
     # The scheduled task's host: its command line names supervisor.ts too, but it is not a supervisor.
-    [pscustomobject]@{ ProcessId = 5; ParentProcessId = 2; Name = 'conhost.exe'; CreationDate = $t0.AddSeconds(-1); CommandLine = '"C:\WINDOWS\System32\conhost.exe" --headless "C:\Program Files\nodejs\node.exe" "C:\Repo\Homebase\server\src\supervisor.ts"' }
-    [pscustomobject]@{ ProcessId = 6; ParentProcessId = 2; CreationDate = $t0.AddSeconds(-1); CommandLine = 'C:\WINDOWS\System32\conhost.exe --headless node C:\Repo\Homebase\server\src\supervisor.ts' }
-    [pscustomobject]@{ ProcessId = 10; ParentProcessId = 5; Name = 'node.exe'; CreationDate = $t0; CommandLine = '"C:\Program Files\nodejs\node.exe" "C:\Repo\Homebase\server\src\supervisor.ts"' }
-    [pscustomobject]@{ ProcessId = 11; ParentProcessId = 10; CreationDate = $t0.AddSeconds(1); CommandLine = '"C:\Program Files\nodejs\node.exe" C:\Repo\Homebase\server\src\index.ts' }
+    [pscustomobject]@{ ProcessId = 5; ParentProcessId = 2; Name = 'conhost.exe'; CreationDate = $t0.AddSeconds(-1); CommandLine = '"C:\WINDOWS\System32\conhost.exe" --headless "C:\Program Files\nodejs\node.exe" "C:\Repo\Portly\server\src\supervisor.ts"' }
+    [pscustomobject]@{ ProcessId = 6; ParentProcessId = 2; CreationDate = $t0.AddSeconds(-1); CommandLine = 'C:\WINDOWS\System32\conhost.exe --headless node C:\Repo\Portly\server\src\supervisor.ts' }
+    [pscustomobject]@{ ProcessId = 10; ParentProcessId = 5; Name = 'node.exe'; CreationDate = $t0; CommandLine = '"C:\Program Files\nodejs\node.exe" "C:\Repo\Portly\server\src\supervisor.ts"' }
+    [pscustomobject]@{ ProcessId = 11; ParentProcessId = 10; CreationDate = $t0.AddSeconds(1); CommandLine = '"C:\Program Files\nodejs\node.exe" C:\Repo\Portly\server\src\index.ts' }
     [pscustomobject]@{ ProcessId = 12; ParentProcessId = 10; CreationDate = $t0.AddHours(-1); CommandLine = 'node unrelated.js' }
-    [pscustomobject]@{ ProcessId = 20; ParentProcessId = 1; CreationDate = $t0; CommandLine = 'node C:/repo/homebase/server/src/supervisor.ts' }
-    [pscustomobject]@{ ProcessId = 30; ParentProcessId = 1; CreationDate = $t0; CommandLine = 'node C:\Other\Homebase\server\src\supervisor.ts' }
+    [pscustomobject]@{ ProcessId = 20; ParentProcessId = 1; CreationDate = $t0; CommandLine = 'node C:/repo/portly/server/src/supervisor.ts' }
+    [pscustomobject]@{ ProcessId = 30; ParentProcessId = 1; CreationDate = $t0; CommandLine = 'node C:\Other\Portly\server\src\supervisor.ts' }
     [pscustomobject]@{ ProcessId = 31; ParentProcessId = 1; CreationDate = $t0; CommandLine = $null }
 )
 $trees = @(Select-HbSupervisorProcesses -Processes $processes -RepoRoot $fakeRoot)
@@ -185,31 +185,31 @@ function Invoke-WithProcessEnv {
     }
 }
 
-$relativeDataDir = Invoke-WithProcessEnv @{ HOMEBASE_DATA_DIR = 'scratch\hb-data' } { Get-HbDataDir -Scope Process -RepoRoot $fakeRoot }
-Assert-That -Name 'Get-HbDataDir resolves a relative HOMEBASE_DATA_DIR against the repository (like the server)' -Condition (
-    $relativeDataDir -eq 'C:\Repo\Homebase\scratch\hb-data') -Detail $relativeDataDir
-$absoluteDataDir = Invoke-WithProcessEnv @{ HOMEBASE_DATA_DIR = 'D:\HB Data' } { Get-HbDataDir -Scope Process -RepoRoot $fakeRoot }
-Assert-That -Name 'Get-HbDataDir keeps an absolute HOMEBASE_DATA_DIR' -Condition ($absoluteDataDir -eq 'D:\HB Data') -Detail $absoluteDataDir
+$relativeDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'scratch\hb-data' } { Get-HbDataDir -Scope Process -RepoRoot $fakeRoot }
+Assert-That -Name 'Get-HbDataDir resolves a relative PORTLY_DATA_DIR against the repository (like the server)' -Condition (
+    $relativeDataDir -eq 'C:\Repo\Portly\scratch\hb-data') -Detail $relativeDataDir
+$absoluteDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'D:\HB Data' } { Get-HbDataDir -Scope Process -RepoRoot $fakeRoot }
+Assert-That -Name 'Get-HbDataDir keeps an absolute PORTLY_DATA_DIR' -Condition ($absoluteDataDir -eq 'D:\HB Data') -Detail $absoluteDataDir
 
 $marker = "check-$([guid]::NewGuid().ToString('N'))"
-$mismatches = @(Invoke-WithProcessEnv @{ HOMEBASE_VITE_PORT = $marker } { Get-HbEnvMismatches })
+$mismatches = @(Invoke-WithProcessEnv @{ PORTLY_VITE_PORT = $marker } { Get-HbEnvMismatches })
 Assert-That -Name 'Get-HbEnvMismatches reports a variable set only in this window' -Condition (
-    @($mismatches | Where-Object { $_.Name -eq 'HOMEBASE_VITE_PORT' -and $_.Process -eq $marker }).Count -eq 1)
+    @($mismatches | Where-Object { $_.Name -eq 'PORTLY_VITE_PORT' -and $_.Process -eq $marker }).Count -eq 1)
 
 $checkNode = (Resolve-HbNode).Path
-$badConfig = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ HOMEBASE_BIND = 'not-an-ip' }
+$badConfig = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_BIND = 'not-an-ip' }
 Assert-That -Name 'Test-HbServerConfig reports a value the server rejects' -Condition (
-    -not $badConfig.Ok -and $badConfig.Error -match 'HOMEBASE_BIND') -Detail "$($badConfig.Error)"
-$badDev = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ HOMEBASE_DEV = 'on' }
-Assert-That -Name 'Test-HbServerConfig reports HOMEBASE_DEV=on' -Condition (-not $badDev.Ok -and $badDev.Error -match 'HOMEBASE_DEV') -Detail "$($badDev.Error)"
-$badPages = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ HOMEBASE_PAGES_URL = 'http://pages.example/' }
-Assert-That -Name 'Test-HbServerConfig passes HOMEBASE_PAGES_URL on (plain http off loopback is refused)' -Condition (
-    -not $badPages.Ok -and $badPages.Error -match 'HOMEBASE_PAGES_URL') -Detail "$($badPages.Error)"
+    -not $badConfig.Ok -and $badConfig.Error -match 'PORTLY_BIND') -Detail "$($badConfig.Error)"
+$badDev = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_DEV = 'on' }
+Assert-That -Name 'Test-HbServerConfig reports PORTLY_DEV=on' -Condition (-not $badDev.Ok -and $badDev.Error -match 'PORTLY_DEV') -Detail "$($badDev.Error)"
+$badPages = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_PAGES_URL = 'http://pages.example/' }
+Assert-That -Name 'Test-HbServerConfig passes PORTLY_PAGES_URL on (plain http off loopback is refused)' -Condition (
+    -not $badPages.Ok -and $badPages.Error -match 'PORTLY_PAGES_URL') -Detail "$($badPages.Error)"
 $goodConfig = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{
-    HOMEBASE_PORT = '5999'; HOMEBASE_DATA_DIR = 'scratch\hb-data'; HOMEBASE_BIND = $null; HOMEBASE_ORIGIN = $null; HOMEBASE_DEV = $null
-    HOMEBASE_PAGES_URL = 'https://pages.example/homebase/'
+    PORTLY_PORT = '5999'; PORTLY_DATA_DIR = 'scratch\hb-data'; PORTLY_BIND = $null; PORTLY_ORIGIN = $null; PORTLY_DEV = $null
+    PORTLY_PAGES_URL = 'https://pages.example/portly/'
 }
-$expectedDataDir = Invoke-WithProcessEnv @{ HOMEBASE_DATA_DIR = 'scratch\hb-data' } { Get-HbDataDir -Scope Process -RepoRoot $repoRoot }
+$expectedDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'scratch\hb-data' } { Get-HbDataDir -Scope Process -RepoRoot $repoRoot }
 Assert-That -Name 'Test-HbServerConfig returns the port and data folder the server would use' -Condition (
     $goodConfig.Ok -and $goodConfig.Port -eq 5999 -and $goodConfig.DataDir -eq $expectedDataDir) -Detail "$($goodConfig.Error) $($goodConfig.Port) $($goodConfig.DataDir) (expected $expectedDataDir)"
 $missingNode = Test-HbServerConfig -NodeExe (Join-Path $repoRoot 'no-such-node.exe') -RepoRoot $repoRoot
@@ -229,12 +229,12 @@ if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
     $action = @($browserTask.Actions)[0]
     Assert-That -Name 'task action runs conhost --headless node supervisor.ts' -Condition (
         $action.Execute -eq "$env:SystemRoot\System32\conhost.exe" -and
-        $action.Arguments -eq '--headless "C:\Program Files\nodejs\node.exe" "C:\Repo\Homebase\server\src\supervisor.ts"' -and
+        $action.Arguments -eq '--headless "C:\Program Files\nodejs\node.exe" "C:\Repo\Portly\server\src\supervisor.ts"' -and
         $action.WorkingDirectory -eq $fakeRoot) -Detail "$($action.Execute) $($action.Arguments) [$($action.WorkingDirectory)]"
     Assert-That -Name 'Browser mode (the default): the task has no trigger at all' -Condition (
         @(@($browserTask.Triggers) | Where-Object { $null -ne $_ }).Count -eq 0 -and (Get-HbTaskTriggerMode -Task $browserTask) -eq 'Browser')
     Assert-That -Name 'Browser mode: description and trigger text name the native host' -Condition (
-        $browserTask.Description -match 'com\.homebase\.launcher' -and (Format-HbTaskTrigger -Task $browserTask) -match '^none - Browser mode')
+        $browserTask.Description -match 'com\.portly\.launcher' -and (Format-HbTaskTrigger -Task $browserTask) -match '^none - Browser mode')
     Assert-That -Name 'task principal is the current user, Interactive, Limited' -Condition (
         $browserTask.Principal.UserId -eq $userId -and "$($browserTask.Principal.LogonType)" -eq 'Interactive' -and
         "$($browserTask.Principal.RunLevel)" -eq 'Limited')
@@ -341,14 +341,14 @@ Assert-Throws -Name 'ConvertTo-HbBatchBytes fails clearly for characters the cod
 
 $hostId = 'abcdefghijklmnopabcdefghijklmnop'
 $hostOrigin = "chrome-extension://$hostId/"
-$hostDir = Join-Path $workDir 'profile with spaces\Homebase\native-host'
+$hostDir = Join-Path $workDir 'profile with spaces\Portly\native-host'
 $percentNode = 'C:\Tools 100%\node.exe'
 $plan = New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId $hostId -Destination $hostDir
 $planFiles = @{}
 foreach ($file in @($plan.Files)) { $planFiles[$file.Name] = $file }
 Assert-That -Name 'New-HbNativeHostPlan: launcher.cmd, launcher.mjs, host manifest and config.json in the folder' -Condition (
     @($plan.Files).Count -eq 4 -and $planFiles.ContainsKey('launcher.cmd') -and $planFiles.ContainsKey('launcher.mjs') -and
-    $planFiles.ContainsKey('com.homebase.launcher.json') -and $planFiles.ContainsKey('config.json') -and
+    $planFiles.ContainsKey('com.portly.launcher.json') -and $planFiles.ContainsKey('config.json') -and
     @(@($plan.Files) | Where-Object { (Split-Path -Parent $_.Path) -ne $hostDir }).Count -eq 0)
 $cmdText = $planFiles['launcher.cmd'].Text
 Assert-That -Name 'launcher.cmd: @echo off, absolute node.exe (percent doubled), %~dp0launcher.mjs %*, CRLF, no "start"' -Condition (
@@ -357,20 +357,20 @@ Assert-That -Name 'launcher.cmd: @echo off, absolute node.exe (percent doubled),
 Assert-That -Name 'launcher.mjs is copied byte for byte' -Condition (
     [System.Convert]::ToBase64String([byte[]]$planFiles['launcher.mjs'].Bytes) -ceq
     [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes((Join-Path $repoRoot 'native-host\launcher.mjs'))))
-$hostManifest = $planFiles['com.homebase.launcher.json'].Text | ConvertFrom-Json
+$hostManifest = $planFiles['com.portly.launcher.json'].Text | ConvertFrom-Json
 Assert-That -Name 'host manifest: name, non-empty description, absolute path to launcher.cmd, stdio, exact allowed origin' -Condition (
-    $hostManifest.name -ceq 'com.homebase.launcher' -and
-    $hostManifest.description -ceq 'Homebase launcher (starts the Homebase Server scheduled task)' -and
+    $hostManifest.name -ceq 'com.portly.launcher' -and
+    $hostManifest.description -ceq 'Portly launcher (starts the Portly Server scheduled task)' -and
     $hostManifest.path -ceq (Join-Path $hostDir 'launcher.cmd') -and $hostManifest.type -ceq 'stdio' -and
-    (@($hostManifest.allowed_origins) -join '|') -ceq $hostOrigin -and $plan.ManifestPath -ceq (Join-Path $hostDir 'com.homebase.launcher.json')) -Detail $planFiles['com.homebase.launcher.json'].Text
+    (@($hostManifest.allowed_origins) -join '|') -ceq $hostOrigin -and $plan.ManifestPath -ceq (Join-Path $hostDir 'com.portly.launcher.json')) -Detail $planFiles['com.portly.launcher.json'].Text
 $hostConfig = $planFiles['config.json'].Text | ConvertFrom-Json
 Assert-That -Name 'config.json allows exactly the extension origin' -Condition ((@($hostConfig.allowedOrigins) -join '|') -ceq $hostOrigin -and $hostConfig.version -eq 1)
 Assert-That -Name 'registry: HKCU Chrome and Edge NativeMessagingHosts keys -> the host manifest' -Condition (
     (@($plan.Registry | ForEach-Object { $_.SubKey }) -join '|') -ceq
-    'Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher|Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher' -and
+    'Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher|Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher' -and
     @($plan.Registry | Where-Object { $_.Value -cne $plan.ManifestPath }).Count -eq 0)
-Assert-That -Name 'the default folder is %LOCALAPPDATA%\Homebase\native-host' -Condition (
-    (Get-HbNativeHostDir) -eq (Join-Path ([System.Environment]::GetFolderPath('LocalApplicationData')) 'Homebase\native-host'))
+Assert-That -Name 'the default folder is %LOCALAPPDATA%\Portly\native-host' -Condition (
+    (Get-HbNativeHostDir) -eq (Join-Path ([System.Environment]::GetFolderPath('LocalApplicationData')) 'Portly\native-host'))
 Assert-Throws -Name 'New-HbNativeHostPlan rejects an upper-case extension ID' -Action { New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId $hostId.ToUpperInvariant() -Destination $hostDir } -Pattern 'Not an extension ID'
 Assert-Throws -Name 'New-HbNativeHostPlan rejects a short extension ID' -Action { New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId 'abc' -Destination $hostDir } -Pattern 'Not an extension ID'
 
@@ -385,8 +385,8 @@ $writtenOk = @(@($livePlan.Files) | Where-Object {
         [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($_.Path)) -cne [System.Convert]::ToBase64String([byte[]]$_.Bytes)
     }).Count -eq 0
 Assert-That -Name 'Install-HbNativeHost writes every file (twice: idempotent) and both registry values' -Condition (
-    $writtenOk -and $fakeRegistry.Count -eq 2 -and $fakeRegistry['Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher'] -ceq $livePlan.ManifestPath -and
-    $fakeRegistry['Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher'] -ceq $livePlan.ManifestPath)
+    $writtenOk -and $fakeRegistry.Count -eq 2 -and $fakeRegistry['Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher'] -ceq $livePlan.ManifestPath -and
+    $fakeRegistry['Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher'] -ceq $livePlan.ManifestPath)
 Assert-That -Name 'Get-HbLauncherNodePath reads node.exe back from launcher.cmd' -Condition ((Get-HbLauncherNodePath -LauncherCmd $livePlan.LauncherPath) -ceq $checkNode)
 $freshCopy = Test-HbInstalledLauncherCurrent -InstalledDir $hostDir -RepoRoot $repoRoot
 $staleCopyDir = Join-Path $workDir 'old-copy\native-host'
@@ -412,7 +412,7 @@ $partial = Get-HbNativeHostStatus -ExpectedId $hostId -RegistryReader {
 }
 Assert-That -Name 'Get-HbNativeHostStatus: a missing key is "not registered", an empty one is a problem' -Condition (
     -not $partial[0].Registered -and @($partial[0].Problems).Count -eq 0 -and $partial[1].Registered -and (@($partial[1].Problems) -join ' ') -match 'no default value')
-$missingManifest = Get-HbNativeHostStatus -ExpectedId $hostId -RegistryReader { param([string]$SubKey) Join-Path $workDir 'gone\com.homebase.launcher.json' }
+$missingManifest = Get-HbNativeHostStatus -ExpectedId $hostId -RegistryReader { param([string]$SubKey) Join-Path $workDir 'gone\com.portly.launcher.json' }
 Assert-That -Name 'Get-HbNativeHostStatus: reports a registered manifest that does not exist' -Condition (
     @($missingManifest | Where-Object { (@($_.Problems) -join ' ') -match 'does not exist' }).Count -eq 2)
 $staleDir = Join-Path $workDir 'stale\native-host'
@@ -425,7 +425,7 @@ Assert-That -Name 'Get-HbNativeHostStatus: reports a launcher whose node.exe no 
 # The generated launcher.cmd, run exactly as Chrome runs a native host. schtasks.exe is always
 # replaced by scripts\tests\schtasks-stub.mjs (preloaded through NODE_OPTIONS, which reaches node
 # through launcher.cmd like the browser's environment; it fails closed), so these checks can never
-# run the real "Homebase Server" task. The stub appends each call to $StubLog.
+# run the real "Portly Server" task. The stub appends each call to $StubLog.
 function Invoke-HbHostLikeChrome {
     param(
         [Parameter(Mandatory)][string]$LauncherCmd,
@@ -444,8 +444,8 @@ function Invoke-HbHostLikeChrome {
     $startInfo.RedirectStandardError = $true
     $stubUrl = ([System.Uri](Join-Path $PSScriptRoot 'tests\schtasks-stub.mjs')).AbsoluteUri
     $startInfo.EnvironmentVariables['NODE_OPTIONS'] = "--import=$stubUrl"
-    $startInfo.EnvironmentVariables['HOMEBASE_TEST_SCHTASKS'] = $Schtasks
-    $startInfo.EnvironmentVariables['HOMEBASE_TEST_SCHTASKS_LOG'] = $StubLog
+    $startInfo.EnvironmentVariables['PORTLY_TEST_SCHTASKS'] = $Schtasks
+    $startInfo.EnvironmentVariables['PORTLY_TEST_SCHTASKS_LOG'] = $StubLog
     if (Test-Path -LiteralPath $StubLog) { Remove-Item -LiteralPath $StubLog -Force }
     # Windows PowerShell 5.1 (.NET Framework) writes the console input encoding's preamble into a
     # redirected stdin when the process starts: with the UTF-8 code page (chcp 65001) that is a
@@ -525,10 +525,10 @@ Assert-That -Name 'the launcher logs each request to launcher.log next to it' -C
 $closedPort = Get-FreePort
 $starting = Invoke-HbHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $closedPort + '}')
 $startCall = @($starting.SchtasksCalls)
-Assert-That -Name 'launcher.cmd run like Chrome: start with nothing answering -> starting, via schtasks.exe /run /tn "\Homebase Server" (stubbed)' -Condition (
+Assert-That -Name 'launcher.cmd run like Chrome: start with nothing answering -> starting, via schtasks.exe /run /tn "\Portly Server" (stubbed)' -Condition (
     @($starting.Frames).Count -eq 1 -and $starting.Frames[0].ok -eq $true -and $starting.Frames[0].state -ceq 'starting' -and
     $startCall.Count -eq 1 -and $startCall[0].file -eq "$env:SystemRoot\System32\schtasks.exe" -and
-    (@($startCall[0].args) -join '|') -ceq '/run|/tn|\Homebase Server') -Detail "$($starting.Error) calls: $(@($startCall | ForEach-Object { "$($_.file) $(@($_.args) -join ' ')" }) -join '; ')"
+    (@($startCall[0].args) -join '|') -ceq '/run|/tn|\Portly Server') -Detail "$($starting.Error) calls: $(@($startCall | ForEach-Object { "$($_.file) $(@($_.args) -join ' ')" }) -join '; ')"
 $missingTask = Invoke-HbHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $closedPort + '}') -Schtasks missing
 Assert-That -Name 'launcher.cmd run like Chrome: start without the task -> task_missing' -Condition (
     @($missingTask.Frames).Count -eq 1 -and $missingTask.Frames[0].ok -eq $false -and $missingTask.Frames[0].error -ceq 'task_missing') -Detail "$($missingTask.Error)"
@@ -571,7 +571,7 @@ try {
 }
 Assert-That -Name 'Uninstall-HbNativeHost removes both registry keys and the folder, not what a link inside points to' -Detail $removeError -Condition (
     $removed -and -not (Test-Path -LiteralPath $hostDir) -and (Test-Path -LiteralPath (Join-Path $linkTarget 'keep.txt')) -and
-    ($removedKeys -join '|') -ceq 'Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher|Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher' -and
+    ($removedKeys -join '|') -ceq 'Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher|Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher' -and
     (Test-Path -LiteralPath (Split-Path -Parent $hostDir)))
 Assert-That -Name 'Uninstall-HbNativeHost is fine when nothing is installed' -Condition (-not (Uninstall-HbNativeHost -Destination $hostDir -RegistryRemover { param($SubKey) }))
 Assert-Throws -Name 'Remove-HbNativeHostFolder refuses any folder not named native-host' -Action { Remove-HbNativeHostFolder -Path (Split-Path -Parent $hostDir) } -Pattern 'Refusing'
@@ -607,13 +607,13 @@ try {
     Write-Host ''
     Write-Host 'Health checks' -ForegroundColor White
     $okHealth = Test-HbHealth -Port $ports.ok
-    Assert-That -Name 'Test-HbHealth reads a Homebase health answer' -Condition (
+    Assert-That -Name 'Test-HbHealth reads a Portly health answer' -Condition (
         $okHealth.Ok -and $okHealth.Version -eq '9.9.9-fixture' -and $okHealth.Vault -eq 'locked') -Detail "$($okHealth.Error)"
     Assert-That -Name 'Format-HbHealth (ok)' -Condition (
         (Format-HbHealth $okHealth) -eq "running at http://localhost:$($ports.ok) (version 9.9.9-fixture, vault locked)")
     $notJson = Test-HbHealth -Port $ports.notJson
-    Assert-That -Name 'Test-HbHealth rejects a non-Homebase answer' -Condition (
-        -not $notJson.Ok -and $notJson.Error -match 'not a Homebase health check') -Detail "$($notJson.Error)"
+    Assert-That -Name 'Test-HbHealth rejects a non-Portly answer' -Condition (
+        -not $notJson.Ok -and $notJson.Error -match 'not a Portly health check') -Detail "$($notJson.Error)"
     $error503 = Test-HbHealth -Port $ports.error
     Assert-That -Name 'Test-HbHealth reports HTTP errors' -Condition (
         -not $error503.Ok -and $error503.Error -match '^HTTP 503') -Detail "$($error503.Error)"
@@ -628,12 +628,12 @@ try {
     Assert-That -Name 'Format-HbPortOwners names the listening process' -Condition (
         (Format-HbPortOwners $notJson.Listeners) -eq "node (PID $($fixture.Id))") -Detail (Format-HbPortOwners $notJson.Listeners)
 
-    # The installed-like launcher answers "running" for a port where Homebase answers.
+    # The installed-like launcher answers "running" for a port where Portly answers.
     $runningDir = Join-Path $workDir 'running\native-host'
     $runningPlan = New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $checkNode -ExtensionId $hostId -Destination $runningDir
     Install-HbNativeHost -Plan $runningPlan -RegistryWriter { param($SubKey, $Value) }
     $alreadyUp = Invoke-HbHostLikeChrome -LauncherCmd $runningPlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $ports.ok + '}')
-    Assert-That -Name 'launcher.cmd run like Chrome: start on a port where Homebase answers -> running (task not touched)' -Condition (
+    Assert-That -Name 'launcher.cmd run like Chrome: start on a port where Portly answers -> running (task not touched)' -Condition (
         @($alreadyUp.Frames).Count -eq 1 -and $alreadyUp.Frames[0].ok -eq $true -and $alreadyUp.Frames[0].state -ceq 'running' -and
         @($alreadyUp.SchtasksCalls).Count -eq 0) -Detail "$($alreadyUp.Error)"
 
@@ -649,7 +649,7 @@ try {
         $snapshot = {
             $task = Get-HbTask
             $taskState = if ($null -ne $task) { "$($task.State)/$(Get-HbTaskTriggerMode -Task $task)" } else { 'absent' }
-            $keys = foreach ($entry in $HomebaseNativeHostRegistry) {
+            $keys = foreach ($entry in $PortlyNativeHostRegistry) {
                 $value = Get-HbRegistryDefaultValue -SubKey $entry.SubKey
                 "$($entry.Browser)=$(if ($null -eq $value) { '<absent>' } else { $value })"
             }
@@ -703,15 +703,15 @@ try {
                 'Native messaging host (dry run - nothing written)',
                 (Join-Path (Get-HbNativeHostDir) 'launcher.cmd'),
                 (Join-Path (Get-HbNativeHostDir) 'launcher.mjs'),
-                (Join-Path (Get-HbNativeHostDir) 'com.homebase.launcher.json'),
+                (Join-Path (Get-HbNativeHostDir) 'com.portly.launcher.json'),
                 (Join-Path (Get-HbNativeHostDir) 'config.json'),
                 '| @echo off',
                 '"%~dp0launcher.mjs" %*',
-                '|   "description": "Homebase launcher (starts the Homebase Server scheduled task)",',
+                '|   "description": "Portly launcher (starts the Portly Server scheduled task)",',
                 '|   "type": "stdio",',
-                'HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher',
-                'HKEY_CURRENT_USER\Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher',
-                ('(default) REG_SZ = ' + (Join-Path (Get-HbNativeHostDir) 'com.homebase.launcher.json'))
+                'HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher',
+                'HKEY_CURRENT_USER\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher',
+                ('(default) REG_SZ = ' + (Join-Path (Get-HbNativeHostDir) 'com.portly.launcher.json'))
             )
 
             # Browser mode (the default), with the ID from extension\manifest.json. The dry run says
@@ -719,8 +719,8 @@ try {
             # installed: expect the wording that fits this PC.
             if ($null -ne $repoExtensionId) {
                 $install = & $run 'install-autostart.ps1' @('-DryRun')
-                $installTaskStep = "- register the task '$HomebaseTaskName' for $(Get-HbCurrentUserId) (Browser mode)"
-                if ($null -ne (Get-HbTask)) { $installTaskStep = "- replace the existing task '$HomebaseTaskName' (state: " }
+                $installTaskStep = "- register the task '$PortlyTaskName' for $(Get-HbCurrentUserId) (Browser mode)"
+                if ($null -ne (Get-HbTask)) { $installTaskStep = "- replace the existing task '$PortlyTaskName' (state: " }
                 $expected = $common + $hostLines + @(
                     'none - Browser mode: runs on demand only',
                     "chrome-extension://$repoExtensionId/",
@@ -746,11 +746,11 @@ try {
                 $logon.ExitCode -eq 0 -and $missing.Count -eq 0) -Detail ('missing: ' + ($missing -join ' | ') + "`n" + $logon.Text)
 
             $noHost = & $run 'install-autostart.ps1' @('-DryRun', '-NoNativeHost')
-            Assert-That -Name 'install-autostart.ps1 -DryRun -NoNativeHost skips the host and warns that nothing starts Homebase' -Condition (
+            Assert-That -Name 'install-autostart.ps1 -DryRun -NoNativeHost skips the host and warns that nothing starts Portly' -Condition (
                 $noHost.ExitCode -eq 0 -and -not $noHost.Text.Contains('Native messaging host (dry run') -and
                 $noHost.Text.Contains('not registered (-NoNativeHost)') -and
                 # Windows PowerShell wraps warnings at the console width.
-                ($noHost.Text -replace '\s+', ' ').Contains('nothing starts Homebase by itself')) -Detail $noHost.Text
+                ($noHost.Text -replace '\s+', ' ').Contains('nothing starts Portly by itself')) -Detail $noHost.Text
 
             $delayWithoutLogon = & $run 'install-autostart.ps1' @('-DryRun', '-LogonDelaySeconds', '5')
             Assert-That -Name 'install-autostart.ps1 rejects -LogonDelaySeconds without -Trigger Logon' -Condition (
@@ -767,8 +767,8 @@ try {
             if ($taskStep -lt 0) { $taskStep = $uninstall.Text.IndexOf('- unregister the task') }
             Assert-That -Name 'uninstall-autostart.ps1 -DryRun exits 0, lists the host keys and folder, changes nothing' -Condition (
                 $uninstall.ExitCode -eq 0 -and $uninstall.Text.Contains('Dry run complete: nothing was stopped or removed.') -and
-                $uninstall.Text.Contains('Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher') -and
-                $uninstall.Text.Contains('Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher') -and
+                $uninstall.Text.Contains('Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher') -and
+                $uninstall.Text.Contains('Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher') -and
                 $uninstall.Text.Contains((Get-HbNativeHostDir))) -Detail $uninstall.Text
             Assert-That -Name 'uninstall-autostart.ps1 removes the native host before it stops and unregisters the task' -Condition (
                 $hostStep -ge 0 -and $taskStep -gt $hostStep) -Detail $uninstall.Text
@@ -780,20 +780,20 @@ try {
 
             if ($null -eq (Get-HbTask)) {
                 # Without the task, status checks the configuration this window would start with.
-                $statusBadConfig = Invoke-WithProcessEnv @{ HOMEBASE_BIND = 'not-an-ip' } { & $run 'status.ps1' @('-Port', "$(Get-FreePort)") }
-                Assert-That -Name 'status.ps1 reports an invalid HOMEBASE_* configuration' -Condition (
-                    $statusBadConfig.ExitCode -eq 1 -and $statusBadConfig.Text -match 'INVALID - HOMEBASE_BIND') -Detail $statusBadConfig.Text
+                $statusBadConfig = Invoke-WithProcessEnv @{ PORTLY_BIND = 'not-an-ip' } { & $run 'status.ps1' @('-Port', "$(Get-FreePort)") }
+                Assert-That -Name 'status.ps1 reports an invalid PORTLY_* configuration' -Condition (
+                    $statusBadConfig.ExitCode -eq 1 -and $statusBadConfig.Text -match 'INVALID - PORTLY_BIND') -Detail $statusBadConfig.Text
             }
 
             $statusOk = & $run 'status.ps1' @('-Port', "$($ports.ok)")
-            Assert-That -Name 'status.ps1 exits 0 when Homebase answers' -Condition (
+            Assert-That -Name 'status.ps1 exits 0 when Portly answers' -Condition (
                 $statusOk.ExitCode -eq 0 -and $statusOk.Text.Contains('OK - running at') -and $statusOk.Text.Contains('vault is locked')) -Detail $statusOk.Text
 
             $statusView = & $run 'status.ps1' @('-Port', "$($ports.ok)", '-View', 'Status')
             $healthAt = $statusView.Text.IndexOf('Health')
             Assert-That -Name 'status.ps1 -View Status starts with Health and leaves out the settings' -Condition (
                 $statusView.ExitCode -eq 0 -and $healthAt -ge 0 -and $healthAt -lt $statusView.Text.IndexOf('Processes') -and
-                -not $statusView.Text.Contains('Data folder') -and -not $statusView.Text.Contains('Homebase settings')) -Detail $statusView.Text
+                -not $statusView.Text.Contains('Data folder') -and -not $statusView.Text.Contains('Portly settings')) -Detail $statusView.Text
 
             $statusOther = & $run 'status.ps1' @('-Port', "$($ports.notJson)")
             Assert-That -Name 'status.ps1 names another program on the port' -Condition (
@@ -807,15 +807,15 @@ try {
                 $startConflict.ExitCode -eq 1 -and $startConflict.Text.Contains('cannot be used together')) -Detail $startConflict.Text
 
             # These two expect start.ps1 to refuse a port the fixture holds. Were the fixture gone,
-            # start.ps1 would start a real Homebase on that port (with the real data folder), so
+            # start.ps1 would start a real Portly on that port (with the real data folder), so
             # they only run while it is alive.
             if ($fixture.HasExited) {
                 Assert-That -Name 'start.ps1 port checks: the health fixture is still running' -Condition $false -Detail (
-                    "the fixture exited (code $($fixture.ExitCode)); start.ps1 was not run, so no real Homebase was started")
+                    "the fixture exited (code $($fixture.ExitCode)); start.ps1 was not run, so no real Portly was started")
             } else {
                 $startRunning = & $run 'start.ps1' @('-Port', "$($ports.ok)", '-NoBuild')
-                Assert-That -Name 'start.ps1 refuses to start a second Homebase' -Condition (
-                    $startRunning.ExitCode -eq 3 -and $startRunning.Text.Contains('Homebase is already running')) -Detail $startRunning.Text
+                Assert-That -Name 'start.ps1 refuses to start a second Portly' -Condition (
+                    $startRunning.ExitCode -eq 3 -and $startRunning.Text.Contains('Portly is already running')) -Detail $startRunning.Text
 
                 $startBusy = & $run 'start.ps1' @('-Port', "$($ports.notJson)", '-NoBuild')
                 Assert-That -Name 'start.ps1 refuses a port used by another program' -Condition (
@@ -825,22 +825,22 @@ try {
             # setup.ps1 -DryRun from this checkout: -PagesUrl is checked and only printed (the user
             # environment variable is compared before and after).
             $setupDryArgs = @('-DryRun', '-NoBrowser', '-SkipAutostart', '-SkipCli', '-PagesUrl')
-            $pagesBefore = [System.Environment]::GetEnvironmentVariable('HOMEBASE_PAGES_URL', 'User')
-            $setupDry = & $run 'setup.ps1' ($setupDryArgs + @('https://Me.GitHub.io/homebase'))
+            $pagesBefore = [System.Environment]::GetEnvironmentVariable('PORTLY_PAGES_URL', 'User')
+            $setupDry = & $run 'setup.ps1' ($setupDryArgs + @('https://Me.GitHub.io/portly'))
             Assert-That -Name 'setup.ps1 -DryRun -PagesUrl prints the normalised address and changes nothing' -Condition (
-                $setupDry.ExitCode -eq 0 -and $setupDry.Text.Contains('HOMEBASE_PAGES_URL = https://me.github.io/homebase/') -and
+                $setupDry.ExitCode -eq 0 -and $setupDry.Text.Contains('PORTLY_PAGES_URL = https://me.github.io/portly/') -and
                 $setupDry.Text.Contains('Dry run finished; nothing was changed.')) -Detail $setupDry.Text
             $setupOff = & $run 'setup.ps1' ($setupDryArgs + @('off'))
             Assert-That -Name 'setup.ps1 -DryRun -PagesUrl off says it removes the variable' -Condition (
-                $setupOff.ExitCode -eq 0 -and $setupOff.Text.Contains('removing the user environment variable HOMEBASE_PAGES_URL')) -Detail $setupOff.Text
+                $setupOff.ExitCode -eq 0 -and $setupOff.Text.Contains('removing the user environment variable PORTLY_PAGES_URL')) -Detail $setupOff.Text
             foreach ($badPages in @('http://me.github.io/', 'me.github.io', 'https://me.github.io/?x=1', 'https://user:pw@me.github.io/')) {
                 $setupBad = & $run 'setup.ps1' ($setupDryArgs + @($badPages))
                 Assert-That -Name "setup.ps1 refuses -PagesUrl '$badPages' before installing anything" -Condition (
                     $setupBad.ExitCode -eq 1 -and $setupBad.Text.Contains('-PagesUrl must be') -and
                     -not $setupBad.Text.Contains('Installing dependencies')) -Detail $setupBad.Text
             }
-            Assert-That -Name 'setup.ps1 -DryRun left the user environment variable HOMEBASE_PAGES_URL alone' -Condition (
-                [System.Environment]::GetEnvironmentVariable('HOMEBASE_PAGES_URL', 'User') -ceq $pagesBefore)
+            Assert-That -Name 'setup.ps1 -DryRun left the user environment variable PORTLY_PAGES_URL alone' -Condition (
+                [System.Environment]::GetEnvironmentVariable('PORTLY_PAGES_URL', 'User') -ceq $pagesBefore)
 
             # publish-static.ps1: argument checks and the dry run, against folders under $workDir only
             # (-DryRun never builds, commits or pushes).
@@ -850,8 +850,8 @@ try {
             Assert-That -Name 'publish-static.ps1 refuses a target that is not a git repository' -Condition (
                 $publishNotRepo.ExitCode -eq 1 -and $publishNotRepo.Text.Contains('is not a git repository')) -Detail $publishNotRepo.Text
             $publishSelf = & $run 'publish-static.ps1' @('-PublicRepoPath', $repoRoot, '-DryRun')
-            Assert-That -Name 'publish-static.ps1 refuses the Homebase repository itself' -Condition (
-                $publishSelf.ExitCode -eq 1 -and $publishSelf.Text.Contains('Homebase repository itself')) -Detail $publishSelf.Text
+            Assert-That -Name 'publish-static.ps1 refuses the Portly repository itself' -Condition (
+                $publishSelf.ExitCode -eq 1 -and $publishSelf.Text.Contains('Portly repository itself')) -Detail $publishSelf.Text
             $publishBadBase = & $run 'publish-static.ps1' @('-PublicRepoPath', $notRepo, '-Base', 'pages', '-DryRun')
             Assert-That -Name 'publish-static.ps1 validates -Base (must start and end with /)' -Condition (
                 $publishBadBase.ExitCode -eq 1 -and $publishBadBase.Text.Contains('must start and end with')) -Detail $publishBadBase.Text
@@ -887,17 +887,17 @@ try {
                 # (Windows PowerShell may wrap long lines; compare with whitespace collapsed.)
                 $flat = { param([string]$Text) $Text -replace '\s+', ' ' }
 
-                # An earlier Homebase publish (index.html with the build marker, assets\, .nojekyll) plus a CNAME.
-                $markerIndex = '<!doctype html><html><head><meta name="homebase-build" content="static"><script type="module" src="/pages/assets/app.js"></script></head></html>'
-                $pagesRepo = & $newPagesRepo 'publish-pages' @{ 'index.html' = $markerIndex; 'assets/app.js' = 'app'; '.nojekyll' = ''; 'CNAME' = 'homebase.example.invalid' }
+                # An earlier Portly publish (index.html with the build marker, assets\, .nojekyll) plus a CNAME.
+                $markerIndex = '<!doctype html><html><head><meta name="portly-build" content="static"><script type="module" src="/pages/assets/app.js"></script></head></html>'
+                $pagesRepo = & $newPagesRepo 'publish-pages' @{ 'index.html' = $markerIndex; 'assets/app.js' = 'app'; '.nojekyll' = ''; 'CNAME' = 'portly.example.invalid' }
                 $pagesStatusBefore = & $gitStatus $pagesRepo
                 $publishDry = & $run 'publish-static.ps1' @('-PublicRepoPath', $pagesRepo, '-Base', '/pages/', '-DryRun', '-NoPush')
                 $pagesStatusAfter = & $gitStatus $pagesRepo
-                Assert-That -Name 'publish-static.ps1 -DryRun on an earlier Homebase publish exits 0, prints the plan (base, files to remove, kept CNAME, commit, no push) and changes nothing' -Condition (
-                    $publishDry.ExitCode -eq 0 -and $publishDry.Text.Contains('HOMEBASE_STATIC_BASE=/pages/') -and
+                Assert-That -Name 'publish-static.ps1 -DryRun on an earlier Portly publish exits 0, prints the plan (base, files to remove, kept CNAME, commit, no push) and changes nothing' -Condition (
+                    $publishDry.ExitCode -eq 0 -and $publishDry.Text.Contains('PORTLY_STATIC_BASE=/pages/') -and
                     $publishDry.Text.Contains('- index.html') -and $publishDry.Text.Contains('- assets/app.js') -and $publishDry.Text.Contains('- .nojekyll') -and
                     $publishDry.Text.Contains('3 tracked file(s); kept: CNAME') -and
-                    $publishDry.Text.Contains('Publish Homebase ') -and $publishDry.Text.Contains('skipped (-NoPush)') -and
+                    $publishDry.Text.Contains('Publish Portly ') -and $publishDry.Text.Contains('skipped (-NoPush)') -and
                     $publishDry.Text.Contains('Dry run complete: nothing was built, copied, committed or pushed.') -and
                     $pagesStatusBefore -eq '' -and $pagesStatusAfter -eq '' -and (Test-Path -LiteralPath (Join-Path $pagesRepo 'index.html') -PathType Leaf)) -Detail $publishDry.Text
                 $publishNoRemote = & $run 'publish-static.ps1' @('-PublicRepoPath', $pagesRepo, '-DryRun')
@@ -908,8 +908,8 @@ try {
                 $foreignRepo = & $newPagesRepo 'publish-foreign' @{ 'index.html' = '<html>my site</html>'; 'privacy.html' = 'privacy'; 'README.md' = 'readme' }
                 $publishForeign = & $run 'publish-static.ps1' @('-PublicRepoPath', $foreignRepo, '-DryRun', '-NoPush')
                 $foreignText = & $flat $publishForeign.Text
-                Assert-That -Name 'publish-static.ps1 refuses a repository holding files that are not a Homebase publish (privacy.html), also in -DryRun' -Condition (
-                    $publishForeign.ExitCode -eq 1 -and $foreignText.Contains('neither empty nor an earlier Homebase publish') -and
+                Assert-That -Name 'publish-static.ps1 refuses a repository holding files that are not a Portly publish (privacy.html), also in -DryRun' -Condition (
+                    $publishForeign.ExitCode -eq 1 -and $foreignText.Contains('neither empty nor an earlier Portly publish') -and
                     $foreignText.Contains('privacy.html') -and $foreignText.Contains('-ReplaceEverything') -and -not $foreignText.Contains('Dry run complete')) -Detail $publishForeign.Text
                 $publishReplace = & $run 'publish-static.ps1' @('-PublicRepoPath', $foreignRepo, '-DryRun', '-NoPush', '-ReplaceEverything')
                 Assert-That -Name 'publish-static.ps1 -ReplaceEverything accepts it and lists every file it would delete (README.md kept)' -Condition (
@@ -918,8 +918,8 @@ try {
                     (Test-Path -LiteralPath (Join-Path $foreignRepo 'privacy.html') -PathType Leaf)) -Detail $publishReplace.Text
                 $otherBuild = & $newPagesRepo 'publish-other-build' @{ 'index.html' = '<html><script src="/assets/app.js"></script></html>'; 'assets/app.js' = 'app' }
                 $publishOther = & $run 'publish-static.ps1' @('-PublicRepoPath', $otherBuild, '-DryRun', '-NoPush')
-                Assert-That -Name 'publish-static.ps1 refuses index.html + assets\ without the homebase-build marker' -Condition (
-                    $publishOther.ExitCode -eq 1 -and (& $flat $publishOther.Text).Contains('is not a Homebase build')) -Detail $publishOther.Text
+                Assert-That -Name 'publish-static.ps1 refuses index.html + assets\ without the portly-build marker' -Condition (
+                    $publishOther.ExitCode -eq 1 -and (& $flat $publishOther.Text).Contains('is not a Portly build')) -Detail $publishOther.Text
 
                 # A new, empty repository (no commit yet) is fine.
                 $emptyRepo = & $newPagesRepo 'publish-empty' @{}
@@ -928,21 +928,21 @@ try {
                     $publishEmpty.ExitCode -eq 0 -and $publishEmpty.Text.Contains('branch main') -and $publishEmpty.Text.Contains('0 tracked file(s)')) -Detail $publishEmpty.Text
 
                 # -Base must match the github.com repository: /<repo>/ for a project site, / for <user>.github.io.
-                $null = & $gitIn $emptyRepo @('remote', 'add', 'origin', 'https://github.com/example/homebase-pages.git')
+                $null = & $gitIn $emptyRepo @('remote', 'add', 'origin', 'https://github.com/example/portly-pages.git')
                 $publishRootBase = & $run 'publish-static.ps1' @('-PublicRepoPath', $emptyRepo, '-Base', '/', '-DryRun')
-                Assert-That -Name 'publish-static.ps1 refuses -Base / for the project repository example/homebase-pages' -Condition (
-                    $publishRootBase.ExitCode -eq 1 -and (& $flat $publishRootBase.Text).Contains('-Base must be /homebase-pages/ (got /)')) -Detail $publishRootBase.Text
-                $publishProjectBase = & $run 'publish-static.ps1' @('-PublicRepoPath', $emptyRepo, '-Base', '/homebase-pages/', '-DryRun')
-                Assert-That -Name 'publish-static.ps1 accepts -Base /homebase-pages/ there and plans the push and the site URL' -Condition (
+                Assert-That -Name 'publish-static.ps1 refuses -Base / for the project repository example/portly-pages' -Condition (
+                    $publishRootBase.ExitCode -eq 1 -and (& $flat $publishRootBase.Text).Contains('-Base must be /portly-pages/ (got /)')) -Detail $publishRootBase.Text
+                $publishProjectBase = & $run 'publish-static.ps1' @('-PublicRepoPath', $emptyRepo, '-Base', '/portly-pages/', '-DryRun')
+                Assert-That -Name 'publish-static.ps1 accepts -Base /portly-pages/ there and plans the push and the site URL' -Condition (
                     $publishProjectBase.ExitCode -eq 0 -and $publishProjectBase.Text.Contains('git push -u origin main') -and
-                    $publishProjectBase.Text.Contains('https://example.github.io/homebase-pages/')) -Detail $publishProjectBase.Text
+                    $publishProjectBase.Text.Contains('https://example.github.io/portly-pages/')) -Detail $publishProjectBase.Text
                 $null = & $gitIn $emptyRepo @('remote', 'set-url', 'origin', 'git@github.com:Example/Example.github.io.git')
                 $publishUserSite = & $run 'publish-static.ps1' @('-PublicRepoPath', $emptyRepo, '-Base', '/pages/', '-DryRun')
                 $publishUserRoot = & $run 'publish-static.ps1' @('-PublicRepoPath', $emptyRepo, '-Base', '/', '-DryRun')
                 Assert-That -Name 'publish-static.ps1 wants -Base / for a <user>.github.io repository' -Condition (
                     $publishUserSite.ExitCode -eq 1 -and (& $flat $publishUserSite.Text).Contains('-Base must be / (got /pages/)') -and
                     $publishUserRoot.ExitCode -eq 0) -Detail "$($publishUserSite.Text)`n$($publishUserRoot.Text)"
-                $null = & $gitIn $pagesRepo @('remote', 'add', 'origin', 'https://github.com/example/homebase-pages.git')
+                $null = & $gitIn $pagesRepo @('remote', 'add', 'origin', 'https://github.com/example/portly-pages.git')
                 $publishCustomDomain = & $run 'publish-static.ps1' @('-PublicRepoPath', $pagesRepo, '-Base', '/', '-DryRun')
                 Assert-That -Name 'publish-static.ps1 accepts -Base / for a repository with a CNAME file (custom domain)' -Condition (
                     $publishCustomDomain.ExitCode -eq 0) -Detail $publishCustomDomain.Text
@@ -958,7 +958,7 @@ try {
                 $publishUnbuilt = & $run (Join-Path $unbuilt 'scripts\publish-static.ps1') @('-PublicRepoPath', $pagesRepo, '-Base', '/pages/', '-DryRun', '-NoPush')
                 Assert-That -Name 'publish-static.ps1 -DryRun works before the first build (no web\dist-static yet)' -Condition (
                     $publishUnbuilt.ExitCode -eq 0 -and $publishUnbuilt.Text.Contains('not built yet; the build creates it') -and
-                    $publishUnbuilt.Text.Contains('Publish Homebase 0.0.0-check')) -Detail $publishUnbuilt.Text
+                    $publishUnbuilt.Text.Contains('Publish Portly 0.0.0-check')) -Detail $publishUnbuilt.Text
 
                 [System.IO.File]::WriteAllText((Join-Path $pagesRepo 'untracked.txt'), 'x')
                 $publishDirty = & $run 'publish-static.ps1' @('-PublicRepoPath', $pagesRepo, '-DryRun', '-NoPush')
@@ -983,34 +983,34 @@ try {
                 $updateDry.Text.Contains('[dry run] Building the local page') -and
                 -not (Test-Path -LiteralPath (Join-Path $updateCopies.plain 'node_modules'))) -Detail $updateDry.Text
 
-            # The homebase command and its installer (-DryRun only; the PATH is never written here).
+            # The portly command and its installer (-DryRun only; the PATH is never written here).
             foreach ($copy in $updateCopies.Values) {
-                foreach ($name in @('homebase.ps1', 'install-cli.ps1', 'status.ps1')) {
+                foreach ($name in @('portly.ps1', 'install-cli.ps1', 'status.ps1')) {
                     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $copy 'scripts')
                 }
             }
-            $cliHelp = & $run (Join-Path $updateCopies.plain 'scripts\homebase.ps1') @('--help')
-            Assert-That -Name 'homebase --help prints the usage and exits 0' -Condition (
-                $cliHelp.ExitCode -eq 0 -and $cliHelp.Text.Contains('Usage: homebase') -and $cliHelp.Text.Contains('--rebuild')) -Detail $cliHelp.Text
-            $cliUnknown = & $run (Join-Path $updateCopies.plain 'scripts\homebase.ps1') @('--bogus')
-            $cliBadOption = & $run (Join-Path $updateCopies.plain 'scripts\homebase.ps1') @('--rebuild', '--nope')
-            Assert-That -Name 'homebase rejects an unknown command or option with exit code 2' -Condition (
+            $cliHelp = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--help')
+            Assert-That -Name 'portly --help prints the usage and exits 0' -Condition (
+                $cliHelp.ExitCode -eq 0 -and $cliHelp.Text.Contains('Usage: portly') -and $cliHelp.Text.Contains('--rebuild')) -Detail $cliHelp.Text
+            $cliUnknown = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--bogus')
+            $cliBadOption = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--rebuild', '--nope')
+            Assert-That -Name 'portly rejects an unknown command or option with exit code 2' -Condition (
                 $cliUnknown.ExitCode -eq 2 -and $cliBadOption.ExitCode -eq 2 -and $cliBadOption.Text.Contains("Unknown option '--nope'")) -Detail "$($cliUnknown.Text)`n$($cliBadOption.Text)"
-            $cliSettings = & $run (Join-Path $updateCopies.plain 'scripts\homebase.ps1') @('--settings')
-            Assert-That -Name 'homebase --settings shows only the settings section and exits 0' -Condition (
-                $cliSettings.ExitCode -eq 0 -and $cliSettings.Text.Contains('Homebase settings') -and $cliSettings.Text.Contains('Data folder') -and
+            $cliSettings = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--settings')
+            Assert-That -Name 'portly --settings shows only the settings section and exits 0' -Condition (
+                $cliSettings.ExitCode -eq 0 -and $cliSettings.Text.Contains('Portly settings') -and $cliSettings.Text.Contains('Data folder') -and
                 $cliSettings.Text.Contains('Pages repo') -and -not $cliSettings.Text.Contains('Health')) -Detail $cliSettings.Text
-            $cliRebuild = & $run (Join-Path $updateCopies.plain 'scripts\homebase.ps1') @('--rebuild', '--dry-run', '--skip-publish', '--skip-server')
-            Assert-That -Name 'homebase --rebuild --dry-run passes its options to update.ps1' -Condition (
+            $cliRebuild = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--rebuild', '--dry-run', '--skip-publish', '--skip-server')
+            Assert-That -Name 'portly --rebuild --dry-run passes its options to update.ps1' -Condition (
                 $cliRebuild.ExitCode -eq 0 -and $cliRebuild.Text.Contains('[dry run] Building the local page')) -Detail $cliRebuild.Text
-            $cliRebuildWorktree = & $run (Join-Path $updateCopies.worktree 'scripts\homebase.ps1') @('--rebuild', '--dry-run')
-            Assert-That -Name 'homebase --rebuild passes update.ps1 exit code through (worktree refused: 1)' -Condition (
+            $cliRebuildWorktree = & $run (Join-Path $updateCopies.worktree 'scripts\portly.ps1') @('--rebuild', '--dry-run')
+            Assert-That -Name 'portly --rebuild passes update.ps1 exit code through (worktree refused: 1)' -Condition (
                 $cliRebuildWorktree.ExitCode -eq 1 -and $cliRebuildWorktree.Text.Contains('temporary worktree')) -Detail $cliRebuildWorktree.Text
             $cliInstallWorktree = & $run (Join-Path $updateCopies.worktree 'scripts\install-cli.ps1') @('-DryRun')
             Assert-That -Name 'install-cli.ps1 refuses to point the command into a .claude\worktrees checkout' -Condition (
                 $cliInstallWorktree.ExitCode -eq 1 -and $cliInstallWorktree.Text.Contains('temporary worktree')) -Detail $cliInstallWorktree.Text
             $cliInstallDry = & $run (Join-Path $updateCopies.plain 'scripts\install-cli.ps1') @('-DryRun')
-            $cliLauncher = Join-Path $updateCopies.plain 'scripts\homebase.ps1'
+            $cliLauncher = Join-Path $updateCopies.plain 'scripts\portly.ps1'
             Assert-That -Name 'install-cli.ps1 -DryRun shows both launchers pointing at this checkout and writes nothing' -Condition (
                 $cliInstallDry.ExitCode -eq 0 -and $cliInstallDry.Text.Contains("-File `"$cliLauncher`" %*") -and
                 $cliInstallDry.Text.Contains("-File '$cliLauncher' `"`$@`"") -and $cliInstallDry.Text.Contains('[dry run] Writing')) -Detail $cliInstallDry.Text

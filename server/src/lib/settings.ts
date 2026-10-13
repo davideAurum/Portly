@@ -18,7 +18,7 @@ import {
   settingsNamespaceSchema,
   type Settings,
   type SettingsNamespace,
-} from '@homebase/shared';
+} from '@portly/shared';
 import type { Db } from '../db/open.ts';
 import { HttpError } from './errors.ts';
 import { errorFields, type Logger } from './logger.ts';

@@ -2,7 +2,7 @@
  * AccountPicker (§10.4): choose `'all'` accounts or a specific subset, limited to accounts with a
  * capability enabled (e.g. mail). Used by widget settings (`accountIds: 'all' | string[]`).
  */
-import type { Capability } from '@homebase/shared';
+import type { Capability } from '@portly/shared';
 import { useAccounts } from '../../api/accounts.ts';
 import { SkeletonLines } from '../Skeleton.tsx';
 import { Checkbox, Switch } from '../Toggles.tsx';

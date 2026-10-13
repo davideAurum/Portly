@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { defaultSettings, type Settings } from '@homebase/shared';
+import { defaultSettings, type Settings } from '@portly/shared';
 import { qk } from '../api/keys.ts';
 import { useSettingsAutosave } from '../api/settings.ts';
 import { createFakeServer } from './fakeServer.ts';

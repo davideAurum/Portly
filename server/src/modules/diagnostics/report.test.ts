@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DiagnosticsSummarySchema, HealthEntrySchema, LogRecordSchema, OutcomeRowSchema } from '@homebase/shared';
+import { DiagnosticsSummarySchema, HealthEntrySchema, LogRecordSchema, OutcomeRowSchema } from '@portly/shared';
 import { newId } from '../../lib/ids.ts';
 import { withLogContext } from '../../lib/log-context.ts';
 import { createLogger } from '../../lib/logger.ts';
@@ -39,7 +39,7 @@ describe('diagnostic report', () => {
 
   /** A testbed with planted secrets, user paths and personal names in every source the report reads. */
   function planted(): DiagnosticsTestbed {
-    launcherDir = path.join(os.tmpdir(), `homebase-launcher-${newId()}`);
+    launcherDir = path.join(os.tmpdir(), `portly-launcher-${newId()}`);
     const launcherLog = path.join(launcherDir, 'launcher.log');
     const bed = diagnosticsTestbed({
       accounts: [
@@ -54,7 +54,7 @@ describe('diagnostic report', () => {
       module: { launcherLogPath: launcherLog },
     });
     const { ctx } = bed;
-    vi.stubEnv('HOMEBASE_PLANTED_SETTING', 'planted-env-value');
+    vi.stubEnv('PORTLY_PLANTED_SETTING', 'planted-env-value');
 
     ctx.db.run("INSERT INTO calendars (id, account_id, source, remote_id, name, display_url) VALUES ('cal1', NULL, 'ics', 'r1', 'Planted Calendar Name', 'ics.planted-ics.example')");
     ctx.health.record({ key: 'account:g1', area: 'accounts', accountId: 'g1' }, { ok: false, code: 'invalid_grant', message: 'Google refused the refresh token' });
@@ -84,12 +84,12 @@ describe('diagnostic report', () => {
     return bed;
   }
 
-  it('is a JSON attachment named homebase-diagnostics-YYYYMMDD-HHmm.json with every part', async () => {
+  it('is a JSON attachment named portly-diagnostics-YYYYMMDD-HHmm.json with every part', async () => {
     t = planted();
     const res = await t.req('GET', '/api/diagnostics/report');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/^application\/json/);
-    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="homebase-diagnostics-\d{8}-\d{4}\.json"$/);
+    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="portly-diagnostics-\d{8}-\d{4}\.json"$/);
     expect(res.headers.get('cache-control')).toBe('no-store');
     const report = (await res.json()) as Report;
     expect(Object.keys(report)).toEqual(['generatedAt', 'summary', 'accounts', 'calendars', 'health', 'history', 'logs', 'supervisorLog', 'launcherLog', 'config']);
@@ -121,7 +121,7 @@ describe('diagnostic report', () => {
     expect(report.logs.files[1]?.fields).toEqual({ password: '[REDACTED]' });
     expect(report.supervisorLog.map((r) => [r.src, r.msg])).toEqual([['supervisor', 'server exited; restarting']]);
     expect(report.launcherLog).toEqual(['2026-10-11T07:00:00.000Z start password=[REDACTED] in C:\\Users\\~\\launcher']);
-    expect(report.config).toMatchObject({ port: t.ctx.config.port, envSet: expect.arrayContaining(['HOMEBASE_PLANTED_SETTING']) });
+    expect(report.config).toMatchObject({ port: t.ctx.config.port, envSet: expect.arrayContaining(['PORTLY_PLANTED_SETTING']) });
     expect(report.logs.flight.length).toBeGreaterThan(0);
     expect(report.logs.client.length).toBe(1);
   });
@@ -191,8 +191,8 @@ describe('diagnostic report', () => {
   });
 
   it('names the file by local date and time', () => {
-    expect(reportFilename(new Date(2026, 0, 5, 7, 3))).toBe('homebase-diagnostics-20260105-0703.json');
-    expect(reportFilename(new Date(2026, 11, 31, 23, 59))).toBe('homebase-diagnostics-20261231-2359.json');
+    expect(reportFilename(new Date(2026, 0, 5, 7, 3))).toBe('portly-diagnostics-20260105-0703.json');
+    expect(reportFilename(new Date(2026, 11, 31, 23, 59))).toBe('portly-diagnostics-20261231-2359.json');
   });
 });
 

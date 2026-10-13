@@ -39,7 +39,7 @@ import {
   type WidgetFrame,
   type WidgetFramePatch,
   type WidgetInstance,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { BROWSER_UNAVAILABLE_WIDGET_TYPES } from '../../capabilities.ts';
 import type { StaticContext } from '../context.ts';
 import { assertSafeJson, jsonByteLength } from '../lib/safeJson.ts';

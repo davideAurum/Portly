@@ -15,7 +15,7 @@
  * tokens and request parameters are never logged or shown. A failed token request is a `provider`
  * event (`diagnostics.ts`): status and that `error` code (else the failure's class), nothing else.
  */
-import { MICROSOFT_CONSUMER_TENANT_ID, type Capability } from '@homebase/shared';
+import { MICROSOFT_CONSUMER_TENANT_ID, type Capability } from '@portly/shared';
 import { z } from 'zod';
 import { encodeBase64 } from '../lib/base64.ts';
 import { classifyFetchError, fetchTextCapped, UpstreamPayloadTooLargeError } from '../lib/fetch.ts';

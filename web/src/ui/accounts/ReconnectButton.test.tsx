@@ -1,5 +1,5 @@
 /**
- * ReconnectButton: OAuth reconnects start here, on Homebase's own page and on the Pages site
+ * ReconnectButton: OAuth reconnects start here, on Portly's own page and on the Pages site
  * paired with it alike; app-password accounts link to Accounts settings.
  */
 import { screen, waitFor } from '@testing-library/react';
@@ -33,7 +33,7 @@ describe('ReconnectButton', () => {
     expect(await screen.findByRole('link', { name: 'Reconnect in settings' })).toHaveAttribute('href', '#/settings/accounts');
   });
 
-  it('the Pages site paired with Homebase on this PC reconnects here too', async () => {
+  it('the Pages site paired with Portly on this PC reconnects here too', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     const assign = vi.fn();
     vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, hash: '#/', assign } as Location);

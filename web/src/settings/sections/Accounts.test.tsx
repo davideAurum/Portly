@@ -1,6 +1,6 @@
 /**
- * Accounts settings on the Pages site using Homebase on this PC: the same page as the server build
- * (there is one Homebase page, with or without the server). Signing in, OAuth app registrations,
+ * Accounts settings on the Pages site using Portly on this PC: the same page as the server build
+ * (there is one Portly page, with or without the server). Signing in, OAuth app registrations,
  * app-password accounts, Reconnect and the vault reset all happen here, and nothing links out to a
  * page on this PC. (The server build is covered in `src/test/settings/Accounts.test.tsx`.)
  */
@@ -18,7 +18,7 @@ const GOOGLE_CLIENT = { clientId: null, hasSecret: false, redirectUri: 'http://l
 const MS_CLIENT = { clientId: 'ms-client-id', hasSecret: false, redirectUri: 'http://localhost:5757/api/oauth/microsoft/callback' };
 
 /** The Pages build on the server backend, with a controller reporting the connected server. */
-function useHomebaseOnThisPc(): void {
+function usePortlyOnThisPc(): void {
   setCapabilitiesForTests(capabilitiesFor(true, 'server'));
   const state: LocalServerState = {
     backend: 'server',
@@ -38,7 +38,7 @@ function useHomebaseOnThisPc(): void {
 }
 
 function renderAccounts(mocks: Record<string, ApiMock>) {
-  useHomebaseOnThisPc();
+  usePortlyOnThisPc();
   return renderWithProviders(<AccountsSettings />, {
     apiMocks: {
       'GET /api/health': health(),
@@ -50,13 +50,13 @@ function renderAccounts(mocks: Record<string, ApiMock>) {
   });
 }
 
-/** No link on the page leads to Homebase's own page on this PC. */
+/** No link on the page leads to Portly's own page on this PC. */
 function expectNoLinkToThisPc(): void {
-  expect(screen.queryByRole('link', { name: /Open Homebase on this PC/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /Open Portly on this PC/ })).not.toBeInTheDocument();
   expect(document.querySelector('a[href^="http://localhost"], a[href^="http://127.0.0.1"]')).toBeNull();
 }
 
-describe('Accounts settings with Homebase on this PC', () => {
+describe('Accounts settings with Portly on this PC', () => {
   it('offers the OAuth app registrations and the account forms here, as the server build does', async () => {
     const assign = vi.fn();
     vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, hash: '#/settings/accounts', assign } as Location);
@@ -114,7 +114,7 @@ describe('Accounts settings with Homebase on this PC', () => {
     const user = userEvent.setup();
     const { requestsTo } = renderAccounts({ 'GET /api/health': health('locked'), 'POST /api/vault/reset': mockResponse(204) });
     expect(await screen.findByText("Saved credentials can't be unlocked")).toBeInTheDocument();
-    expect(screen.queryByText(/Homebase's own page/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Portly's own page/)).not.toBeInTheDocument();
     expectNoLinkToThisPc();
     await user.click(screen.getByRole('button', { name: 'Reset credentials' }));
     const confirm = await screen.findByRole('dialog', { name: 'Reset all stored credentials?' });

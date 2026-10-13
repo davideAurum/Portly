@@ -9,7 +9,7 @@
  * {@link SPORTS_IDLE_REFETCH_MS}.
  */
 import { queryOptions, useQueries, useQuery } from '@tanstack/react-query';
-import type { SportsTeam, SportsTeamGames } from '@homebase/shared';
+import type { SportsTeam, SportsTeamGames } from '@portly/shared';
 import { apiGet } from './client.ts';
 import { qk } from './keys.ts';
 

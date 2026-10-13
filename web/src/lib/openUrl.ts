@@ -5,7 +5,7 @@
  * routes — is refused, so `javascript:`, `data:`, `vbscript:`, `file:` and friends can never be
  * navigated to, whatever a provider, feed, bookmark or imported file contains.
  */
-import { OAUTH_RETURN_TO_REGEX, isSafeHttpUrl } from '@homebase/shared';
+import { OAUTH_RETURN_TO_REGEX, isSafeHttpUrl } from '@portly/shared';
 
 export interface SafeHrefOptions {
   /** Also accept in-app hash routes (`#/settings/accounts`). Default true. */

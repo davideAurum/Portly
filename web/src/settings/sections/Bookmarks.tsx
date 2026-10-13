@@ -6,7 +6,7 @@
  */
 import { useId, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, FileUp, FolderPlus, Globe, Pencil, RefreshCw, Trash } from 'lucide-react';
-import type { BookmarkGroup, BookmarkImportReport, BrowserImport } from '@homebase/shared';
+import type { BookmarkGroup, BookmarkImportReport, BrowserImport } from '@portly/shared';
 import { useBookmarks, useImportFromBrowser, useImportFromHtml, useImportSources, useReorderGroups } from '../../api/bookmarks.ts';
 import { useSettings, useUpdateSettings } from '../../api/settings.ts';
 import { getCapabilities } from '../../capabilities.ts';
@@ -108,7 +108,7 @@ function ImportCard({ onReport }: { onReport(source: string, report: BookmarkImp
   return (
     <SettingsCard
       title="Import bookmarks"
-      description="Copies bookmarks into Homebase; your browser is not changed. Bookmarklets and other non-web addresses are skipped, as are addresses already in the same group."
+      description="Copies bookmarks into Portly; your browser is not changed. Bookmarklets and other non-web addresses are skipped, as are addresses already in the same group."
     >
       <div className={own.strategy}>
         <Field label="Put imported bookmarks into">
@@ -339,7 +339,7 @@ function ExportCard() {
   return (
     <SettingsCard
       title="Export bookmarks"
-      description="Saves every group as a folder in a bookmark HTML file. Import it into another Homebase (choose “One group per folder” to keep your groups) or into Chrome, Edge, Firefox or Safari. Icons and group colors are not included; Import & export saves your whole setup."
+      description="Saves every group as a folder in a bookmark HTML file. Import it into another Portly (choose “One group per folder” to keep your groups) or into Chrome, Edge, Firefox or Safari. Icons and group colors are not included; Import & export saves your whole setup."
       actions={
         <Button size="sm" icon={Download} disabled={count === 0} onClick={download}>
           Export bookmarks
@@ -377,7 +377,7 @@ function PreferencesCard() {
           description={
             getCapabilities().backend === 'browser'
               ? 'Icons are loaded by your browser from DuckDuckGo’s icon service, so that service sees the names of the sites you bookmark. Sites it has no icon for show its generic placeholder; choose a letter tile or upload an icon for those. Sites on your home network are never looked up and show a letter tile instead. When off, bookmarks show a letter tile unless you fetch or upload an icon.'
-              : 'Homebase downloads each site’s icon once (refreshed monthly). Sites on your home network are never looked up with outside icon services. When off, bookmarks show a letter tile unless you fetch or upload an icon.'
+              : 'Portly downloads each site’s icon once (refreshed monthly). Sites on your home network are never looked up with outside icon services. When off, bookmarks show a letter tile unless you fetch or upload an icon.'
           }
           checked={prefs.autoFetchIcons}
           onCheckedChange={(autoFetchIcons) => update.mutate({ bookmarks: { autoFetchIcons } })}

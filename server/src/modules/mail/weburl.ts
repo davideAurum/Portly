@@ -4,7 +4,7 @@
  * that stays on the origin of the IMAP account's configured `webmailUrl`. Anything else is null
  * and the UI renders no link.
  */
-import { WEBMAIL_HOSTS, YAHOO_PRESET, toSafeHttpUrl, type Account, type AccountConfigByKind } from '@homebase/shared';
+import { WEBMAIL_HOSTS, YAHOO_PRESET, toSafeHttpUrl, type Account, type AccountConfigByKind } from '@portly/shared';
 
 const FIXED_HOSTS: ReadonlySet<string> = new Set(WEBMAIL_HOSTS);
 

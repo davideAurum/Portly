@@ -5,7 +5,7 @@
  * render without suspending.
  */
 import type { QueryClient } from '@tanstack/react-query';
-import type { Profile, Settings } from '@homebase/shared';
+import type { Profile, Settings } from '@portly/shared';
 import { qk } from '../api/keys.ts';
 import { pickActiveProfile } from '../api/profiles.ts';
 import { createDefaultLayout } from '../grid/defaultLayout.ts';

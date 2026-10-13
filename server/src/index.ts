@@ -13,7 +13,7 @@
  *   server writes to stderr only for fatal output, so the supervisor's stderr tail is the crash
  *   cause), then the process handlers: until the server runs, an uncaught error or rejection is a
  *   start-up failure;
- * - every phase is timed (`Homebase ready {startupMs, phases}`, debug per phase); a failing one logs
+ * - every phase is timed (`Portly ready {startupMs, phases}`, debug per phase); a failing one logs
  *   `startup failed {phase, …}` and, under the supervisor, reports it over IPC before exiting;
  * - a timed verbose period saved by Settings → Diagnostics is switched back on right after the
  *   migrations, so the rest of start-up is logged verbosely too;
@@ -120,15 +120,15 @@ const writeStderr = (text: string): void => {
   }
 };
 
-/** Start-up facts for the Diagnostics summary (supervisor variables: `HOMEBASE_SUPERVISED`, `_ATTEMPT`, `_LAST_EXIT`). */
+/** Start-up facts for the Diagnostics summary (supervisor variables: `PORTLY_SUPERVISED`, `_ATTEMPT`, `_LAST_EXIT`). */
 function runtimeInfo(env: NodeJS.ProcessEnv = process.env): RuntimeInfo {
-  const rawAttempt = env.HOMEBASE_SUPERVISOR_ATTEMPT?.trim() ?? '';
+  const rawAttempt = env.PORTLY_SUPERVISOR_ATTEMPT?.trim() ?? '';
   return {
     boot: newRunId(),
     startedAt: Date.now(),
-    supervised: env.HOMEBASE_SUPERVISED === '1',
+    supervised: env.PORTLY_SUPERVISED === '1',
     restart: /^\d{1,6}$/.test(rawAttempt)
-      ? { attempt: Number(rawAttempt), lastExit: describeLastExit(env.HOMEBASE_SUPERVISOR_LAST_EXIT) }
+      ? { attempt: Number(rawAttempt), lastExit: describeLastExit(env.PORTLY_SUPERVISOR_LAST_EXIT) }
       : null,
     inflight: createInFlightRequests(),
     modules: [],
@@ -233,7 +233,7 @@ function installProcessHandlers(log: RootLogger): void {
     }
     outsideLogContext(() => {
       log.error('uncaught exception', errorFields(err, { stack: true }));
-      if (state.supervised) writeStderr(fatalText('Homebase: uncaught exception', err));
+      if (state.supervised) writeStderr(fatalText('Portly: uncaught exception', err));
       void shutdown(running, EXIT_STARTUP_FAILURE, 0);
     });
   });
@@ -343,7 +343,7 @@ async function main(): Promise<void> {
     redirectConsole(logger, writeStderr);
     return logger;
   });
-  log.info('starting Homebase', {
+  log.info('starting Portly', {
     version: config.version,
     dev: config.dev,
     dataDir: config.dataDir,
@@ -362,7 +362,7 @@ async function main(): Promise<void> {
   await timed('port-probe', async () => {
     for (const hostname of config.bindAddresses) {
       if ((await probePort(hostname, config.port))?.code === 'EADDRINUSE') {
-        log.error('port already in use — is Homebase already running?', { hostname, port: config.port });
+        log.error('port already in use — is Portly already running?', { hostname, port: config.port });
         log.close();
         process.exit(EXIT_ALREADY_RUNNING);
       }
@@ -445,7 +445,7 @@ async function main(): Promise<void> {
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code;
       if (code === 'EADDRINUSE') {
-        log.error('port already in use — is Homebase already running?', { hostname, port: config.port });
+        log.error('port already in use — is Portly already running?', { hostname, port: config.port });
         await shutdown(running, EXIT_ALREADY_RUNNING);
         return;
       }
@@ -469,7 +469,7 @@ async function main(): Promise<void> {
   // Outside any context: the interval outlives start-up.
   running.statusTimer = outsideLogContext(() => setInterval(() => logStatus(running), STATUS_INTERVAL_MS));
   running.statusTimer.unref();
-  log.info('Homebase ready', { url: config.origin, app: config.appOrigin, startupMs: Math.round(performance.now()), phases });
+  log.info('Portly ready', { url: config.origin, app: config.appOrigin, startupMs: Math.round(performance.now()), phases });
 }
 
 main().catch((err: unknown) => startupFailed(state.phase, err));

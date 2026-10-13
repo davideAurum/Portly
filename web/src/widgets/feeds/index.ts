@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Rss } from 'lucide-react';
 import { z } from 'zod';
-import { SafeHttpUrl } from '@homebase/shared';
+import { SafeHttpUrl } from '@portly/shared';
 import { lazyWithPreload } from '../lazyWidget.ts';
 import type { WidgetDefinition } from '../types.ts';
 

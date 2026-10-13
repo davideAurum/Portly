@@ -4,7 +4,7 @@
  * dispatch loop with the health route.
  */
 import { IDBFactory } from 'fake-indexeddb';
-import { ApiErrorBodySchema, HealthResponseSchema, type Profile, type Settings } from '@homebase/shared';
+import { ApiErrorBodySchema, HealthResponseSchema, type Profile, type Settings } from '@portly/shared';
 import { z } from 'zod';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AssetRegistry, parseAssetUrl } from './assets.ts';
@@ -35,7 +35,7 @@ function fakeContext(state: StaticState): StaticContext {
 
 /** Calls a JSON route the way the API client does. */
 async function call<T = unknown>(backend: StaticBackend, method: string, path: string, body?: unknown): Promise<{ status: number; body: T }> {
-  const headers = new Headers({ 'X-Homebase': '1', Accept: 'application/json' });
+  const headers = new Headers({ 'X-Portly': '1', Accept: 'application/json' });
   let payload: BodyInit | undefined;
   if (body instanceof FormData) payload = body;
   else if (body !== undefined) {
@@ -169,7 +169,7 @@ describe('StaticState', () => {
 
 describe('IndexedDbStorage', () => {
   it('round-trips JSON and blobs in an isolated database', async () => {
-    const storage = await IndexedDbStorage.open(new IDBFactory(), 'homebase-static-test');
+    const storage = await IndexedDbStorage.open(new IDBFactory(), 'portly-static-test');
     expect(storage.kind).toBe('indexeddb');
     await storage.setJson('a', { x: [1, 2], u: undefined });
     await storage.setJson('b', 'str');
@@ -292,9 +292,9 @@ describe('dispatch', () => {
 
 describe('storage names', () => {
   it('namespaces the database and the cross-tab channel by the base path', () => {
-    expect(STATIC_DB_NAME).toBe(`homebase-static:${import.meta.env.BASE_URL}`);
-    expect(STATIC_CHANNEL_NAME).toBe(`homebase-static:${import.meta.env.BASE_URL}`);
-    expect(STATIC_DB_NAME).not.toBe('homebase-static');
+    expect(STATIC_DB_NAME).toBe(`portly-static:${import.meta.env.BASE_URL}`);
+    expect(STATIC_CHANNEL_NAME).toBe(`portly-static:${import.meta.env.BASE_URL}`);
+    expect(STATIC_DB_NAME).not.toBe('portly-static');
   });
 });
 
@@ -323,7 +323,7 @@ describe('atomic storage batches', () => {
   });
 
   it('IndexedDbStorage: one transaction over both stores — a failing request rolls everything back', async () => {
-    const storage = await IndexedDbStorage.open(new IDBFactory(), 'homebase-static-batch-test');
+    const storage = await IndexedDbStorage.open(new IDBFactory(), 'portly-static-batch-test');
     await storage.setJson('a', 1);
     await storage.putBlob(blob('old'));
     const before = await dump(storage);
@@ -386,7 +386,7 @@ describe('a failed commit leaves memory as storage has it', () => {
   });
 
   it('works without reading storage back (a closed IndexedDB connection)', async () => {
-    const storage = await IndexedDbStorage.open(new IDBFactory(), 'homebase-static-closed-test');
+    const storage = await IndexedDbStorage.open(new IDBFactory(), 'portly-static-closed-test');
     const backend = await createStaticBackend({ storage, channel: null });
     await call(backend, 'PATCH', '/api/settings', { general: { userName: 'Before' } });
     storage.close();
@@ -515,7 +515,7 @@ describe('the page backend', () => {
 
   it("reports when another tab upgrades or deletes the database (writes then fail, memory stays consistent)", async () => {
     const factory = new IDBFactory();
-    const name = 'homebase-static-versionchange-test';
+    const name = 'portly-static-versionchange-test';
     restore = configurePageBackendForTests({ openStorage: () => IndexedDbStorage.open(factory, name) });
     const backend = await ensureStaticBackend();
     expect(getStaticBackendStatus()).toEqual({ state: 'ready', storage: 'indexeddb' });

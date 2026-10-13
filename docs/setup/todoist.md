@@ -1,6 +1,6 @@
 # Connect Todoist
 
-Homebase shows your Todoist tasks with a **personal API token** — there is no app registration and
+Portly shows your Todoist tasks with a **personal API token** — there is no app registration and
 no sign-in page. With it, the Todoist widget can:
 
 | What | How |
@@ -10,7 +10,7 @@ no sign-in page. With it, the Todoist widget can:
 | Complete | One click, with **Undo**; recurring tasks move on to their next date |
 | Show details | Due date (overdue in red), priority, project with its color, labels |
 
-Homebase talks only to Todoist's official API (`https://api.todoist.com/api/v1`) over HTTPS.
+Portly talks only to Todoist's official API (`https://api.todoist.com/api/v1`) over HTTPS.
 
 ## 1. Copy your API token
 
@@ -22,16 +22,16 @@ Homebase talks only to Todoist's official API (`https://api.todoist.com/api/v1`)
 
 The Todoist desktop app has the same **Settings → Integrations → Developer** page.
 
-## 2. Add it to Homebase
+## 2. Add it to Portly
 
-1. Open Homebase → **Settings → Todoist** (`http://localhost:5757/#/settings/todoist`).
+1. Open Portly → **Settings → Todoist** (`http://localhost:5757/#/settings/todoist`).
 2. Paste the token into **API token** (use the eye button to check what you pasted) and click
    **Save token**.
-3. Homebase first asks Todoist whether the token works and only then stores it. The card then shows
+3. Portly first asks Todoist whether the token works and only then stores it. The card then shows
    **Connected** and how many projects it found.
 
 To replace the token later, paste the new one into **Replace token**. **Remove token** (with
-confirmation) deletes it from Homebase; nothing changes in your Todoist account.
+confirmation) deletes it from Portly; nothing changes in your Todoist account.
 
 ## 3. Add a Todoist widget
 
@@ -53,7 +53,7 @@ Labels use `%` (for example `%errands`); Todoist still accepts the older `@` for
 
 Type into **Add a task…** and press **Enter** (Esc clears the field). Todoist parses the text
 exactly as in its own apps: dates and times (`tomorrow 5pm`, `every monday`), `#Project`,
-`#Project` (plus `/Section`, as in `#Work /Meetings`), `%label`, and `p1`–`p3`. Homebase then shows the task as Todoist understood it.
+`#Project` (plus `/Section`, as in `#Work /Meetings`), `%label`, and `p1`–`p3`. Portly then shows the task as Todoist understood it.
 If the new task doesn't match the widget's filter, the confirmation says so.
 
 ### Completing tasks
@@ -67,13 +67,13 @@ recurring tasks). Click a task's text to open it in Todoist.
 
 - The token gives **full access to your Todoist account**. Treat it like a password: don't paste it
   into chats, screenshots or other websites.
-- Homebase stores it encrypted in its vault (secret `todoist:token`), protected by a key that only
+- Portly stores it encrypted in its vault (secret `todoist:token`), protected by a key that only
   your Windows account can unlock. It is never sent back to the browser, never written to the log,
   and not included in **Settings → Import & export** files.
 - It is sent only to `api.todoist.com`, in the `Authorization` header over HTTPS.
 - If you think the token leaked: in Todoist go to **Settings → Integrations → Developer**, click
   **Issue a new API token** and confirm. The old token stops working immediately (for every app that
-  used it); paste the new one into Homebase.
+  used it); paste the new one into Portly.
 
 ## Troubleshooting
 
@@ -83,8 +83,8 @@ recurring tasks). Click a task's text to open it in Todoist.
 | **"That doesn't look like a Todoist API token"** | The text contains spaces, quotes or a URL. The token is a single run of 40 letters and digits. |
 | Widget: **Connect Todoist** | No token is saved yet. Follow step 2. |
 | Widget: **Todoist token rejected** / Settings: **Token rejected** | The saved token was reset or revoked in Todoist. Copy the current one and use **Replace token**. |
-| **Saved credentials are locked** | Homebase can't read its encryption key (for example after moving the data folder to another PC or Windows user). See [Vault locked](troubleshooting.md#vault-locked); after **Reset credentials**, add the Todoist token again. |
-| **"Todoist is rate limiting requests. Try again in N s."** | Todoist limits how many requests an account can make in a 15-minute window (other apps using your token count too). Homebase pauses Todoist requests for the time Todoist asks for; the widget keeps showing the last list meanwhile. |
+| **Saved credentials are locked** | Portly can't read its encryption key (for example after moving the data folder to another PC or Windows user). See [Vault locked](troubleshooting.md#vault-locked); after **Reset credentials**, add the Todoist token again. |
+| **"Todoist is rate limiting requests. Try again in N s."** | Todoist limits how many requests an account can make in a 15-minute window (other apps using your token count too). Portly pauses Todoist requests for the time Todoist asks for; the widget keeps showing the last list meanwhile. |
 | Widget: **Check the filter** ("Todoist could not understand this filter") | The widget's filter (or your default filter) has a syntax error. **Edit filter** opens the widget's settings (**Edit default filter** opens Settings → Todoist). Try the query in Todoist's own filter editor, then paste the working one. |
 | **"Todoist is having problems (HTTP 5xx)"** or **"The provider timed out"** | Todoist or your connection is having trouble. The widget keeps the last list (with a warning next to "Updated … ago") and retries on the next refresh. |
 | A new task doesn't appear in the widget | It was added, but it doesn't match the widget's filter (for example it has no date and the filter is `today \| overdue`). |

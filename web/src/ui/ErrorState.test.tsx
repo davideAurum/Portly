@@ -1,8 +1,8 @@
 /**
  * ErrorState per backend: what an unreachable backend (`network_error`) says on the server build,
- * the Pages build with its data in this browser, and the Pages build using Homebase on this PC
+ * the Pages build with its data in this browser, and the Pages build using Portly on this PC
  * (reconnecting, or switching to the copy in this browser once server mode has ended);
- * and `reauth_required` on the Pages build using Homebase on this PC, which reconnects in place as the
+ * and `reauth_required` on the Pages build using Portly on this PC, which reconnects in place as the
  * server build does.
  * (The server build's mapping of every code is covered in `ui.test.tsx`.)
  */
@@ -18,7 +18,7 @@ import { fakeLocalServer } from '../test/hybrid.ts';
 import { renderWithProviders } from '../test/render.tsx';
 import { ErrorState } from './ErrorState.tsx';
 
-const NETWORK = new ApiError(0, 'network_error', 'Homebase is not reachable');
+const NETWORK = new ApiError(0, 'network_error', 'Portly is not reachable');
 
 /** Plugs a controller that only reports a connected server (actions do nothing). */
 function plugConnected(): void {
@@ -40,33 +40,33 @@ function plugConnected(): void {
 }
 
 describe('ErrorState network_error per backend', () => {
-  it('server build: the Homebase server', () => {
+  it('server build: the Portly server', () => {
     renderWithProviders(<ErrorState error={NETWORK} />, { toaster: false });
-    expect(screen.getByText('Homebase is not reachable')).toBeInTheDocument();
-    expect(screen.getByText('Check that the Homebase server is running.')).toBeInTheDocument();
+    expect(screen.getByText('Portly is not reachable')).toBeInTheDocument();
+    expect(screen.getByText('Check that the Portly server is running.')).toBeInTheDocument();
   });
 
   it('Pages build, data in this browser: never mentions a server', () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
     renderWithProviders(<ErrorState error={NETWORK} />, { toaster: false });
-    expect(screen.getByText("Homebase couldn't load its data")).toBeInTheDocument();
+    expect(screen.getByText("Portly couldn't load its data")).toBeInTheDocument();
     expect(screen.getByText('Reload the page to try again.')).toBeInTheDocument();
     expect(screen.queryByText(/server|on this PC/)).not.toBeInTheDocument();
   });
 
-  it('Pages build using Homebase on this PC', () => {
+  it('Pages build using Portly on this PC', () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     renderWithProviders(<ErrorState error={NETWORK} />, { toaster: false });
-    expect(screen.getByText("Homebase on this PC isn't reachable")).toBeInTheDocument();
-    expect(screen.getByText(/Check that Homebase is running on this PC/)).toBeInTheDocument();
+    expect(screen.getByText("Portly on this PC isn't reachable")).toBeInTheDocument();
+    expect(screen.getByText(/Check that Portly is running on this PC/)).toBeInTheDocument();
   });
 
-  it('Pages build using Homebase on this PC, once server mode ended: switching, without a Retry that cannot help', () => {
+  it('Pages build using Portly on this PC, once server mode ended: switching, without a Retry that cannot help', () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     const fake = fakeLocalServer({ backend: 'server', status: 'reconnecting', paired: true, permission: 'granted' });
     act(() => setLocalServerController(fake.controller));
     renderWithProviders(<ErrorState error={NETWORK} onRetry={() => {}} />, { toaster: false });
-    expect(screen.getByText("Homebase on this PC isn't reachable")).toBeInTheDocument();
+    expect(screen.getByText("Portly on this PC isn't reachable")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
 
     // The pairing was revoked while a dialog kept the page busy: it follows the store.
@@ -77,12 +77,12 @@ describe('ErrorState network_error per backend', () => {
 
     // Withdrawn (the server answered again before the reload).
     act(() => fake.set({ status: 'reconnecting', pendingSwitch: null }));
-    expect(screen.getByText("Homebase on this PC isn't reachable")).toBeInTheDocument();
+    expect(screen.getByText("Portly on this PC isn't reachable")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });
 
-describe('ErrorState reauth_required on the Pages build using Homebase on this PC', () => {
+describe('ErrorState reauth_required on the Pages build using Portly on this PC', () => {
   it('starts the sign-in here, as the server build does', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     plugConnected();
@@ -96,9 +96,9 @@ describe('ErrorState reauth_required on the Pages build using Homebase on this P
       toaster: false,
     });
     expect(await screen.findByText('Reconnect Work Gmail')).toBeInTheDocument();
-    expect(screen.getByText('Homebase lost access to this account. Sign in again to keep things in sync.')).toBeInTheDocument();
-    expect(screen.queryByText(/Homebase's own page/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Open Homebase on this PC/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Portly lost access to this account. Sign in again to keep things in sync.')).toBeInTheDocument();
+    expect(screen.queryByText(/Portly's own page/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Open Portly on this PC/ })).not.toBeInTheDocument();
     await userEvent.click(await screen.findByRole('button', { name: 'Reconnect' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/v2/auth?x=1'));
     expect(requestsTo('POST /api/oauth/google/start')).toHaveLength(1);

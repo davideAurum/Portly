@@ -60,7 +60,7 @@ function ShellLayout() {
       <header className={styles.topbar}>
         <nav className={styles.group} aria-label="Dashboard">
           <Tooltip content="Dashboard">
-            <a className={styles.iconChip} href={routeHref({ name: 'home' })} aria-label="Homebase dashboard" aria-current={onDashboard ? 'page' : undefined}>
+            <a className={styles.iconChip} href={routeHref({ name: 'home' })} aria-label="Portly dashboard" aria-current={onDashboard ? 'page' : undefined}>
               <House aria-hidden="true" />
             </a>
           </Tooltip>

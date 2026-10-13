@@ -6,7 +6,7 @@
 import { useEffect, useId, useState } from 'react';
 import { Ban, Check, Pipette } from 'lucide-react';
 import { RadioGroup } from 'radix-ui';
-import { HEX_COLOR_REGEX } from '@homebase/shared';
+import { HEX_COLOR_REGEX } from '@portly/shared';
 import { SWATCHES, colorName, readableTextColor, toOpaqueHex } from '../lib/color.ts';
 import { useField } from './Field.tsx';
 import { Popover, PopoverContent, PopoverTrigger } from './Popover.tsx';

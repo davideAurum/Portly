@@ -61,16 +61,16 @@ describe('start-up failures', () => {
         fields: { phase: 'web-dist', errName: 'StartupError', errMessage: 'web/dist is missing', webDist: '/w', extra: 1 },
       });
       expect(stderr.length).toBe(supervised ? 1 : 0);
-      if (supervised) expect(stderr[0]).toMatch(/^Homebase: startup failed \(web-dist\): StartupError/);
+      if (supervised) expect(stderr[0]).toMatch(/^Portly: startup failed \(web-dist\): StartupError/);
     }
   });
 
   it('before the logger exists: a bootstrap line in server.log and the fatal text on stderr', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homebase-startup-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-startup-'));
     try {
       const file = path.join(dir, 'logs', 'server.log');
       const stderr: string[] = [];
-      reportStartupFailure('config', new Error('HOMEBASE_PORT must be an integer 1-65535 (got "x")'), {
+      reportStartupFailure('config', new Error('PORTLY_PORT must be an integer 1-65535 (got "x")'), {
         log: null,
         bootstrapFile: () => file,
         supervised: false,
@@ -78,7 +78,7 @@ describe('start-up failures', () => {
       });
       expect(JSON.parse(fs.readFileSync(file, 'utf8').trim())).toMatchObject({ lvl: 'error', msg: 'startup failed', phase: 'config' });
       expect(stderr).toHaveLength(1);
-      expect(stderr[0]).toMatch(/^Homebase: startup failed \(config\): Error: HOMEBASE_PORT/);
+      expect(stderr[0]).toMatch(/^Portly: startup failed \(config\): Error: PORTLY_PORT/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

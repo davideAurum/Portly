@@ -4,7 +4,7 @@
  * search text), the token or the provider's error text. A caller's own abort is not a failure.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { WeatherUnits } from '@homebase/shared';
+import type { WeatherUnits } from '@portly/shared';
 import { getClientEvents } from '../../diagnostics/clientLog.ts';
 import { createFakeFetch, failingFetch } from './__fixtures__/fakeFetch.ts';
 import { tokenError } from './__fixtures__/microsoft.ts';

@@ -14,7 +14,7 @@ import {
   type Profile,
   type Settings,
   type UploadResponse,
-} from '@homebase/shared';
+} from '@portly/shared';
 import { IMAGE_SAMPLES } from '../lib/__fixtures__/images.ts';
 import { decodeBase64, encodeBase64 } from '../lib/base64.ts';
 import { MAX_BACKUPS, SLICE, backupKey, getBackups, getBookmarks, getIcons, getProfiles, getTodoistToken, getUploads } from '../slices.ts';
@@ -99,7 +99,7 @@ async function seed(t: TestBackend): Promise<Seeded> {
 
 function baseFile(): Record<string, unknown> & { data: Record<string, unknown[] | unknown> } {
   return {
-    format: 'homebase-export',
+    format: 'portly-export',
     version: 1,
     exportedAt: '2026-09-25T12:00:00.000Z',
     data: { settings: {}, profiles: [], bookmarkGroups: [], bookmarks: [], uploads: [], customIcons: [] },
@@ -118,7 +118,7 @@ describe('static core: export', () => {
     const res = await t.call('GET', '/api/export');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/json');
-    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="homebase-export-\d{4}-\d{2}-\d{2}\.json"$/);
+    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="portly-export-\d{4}-\d{2}-\d{2}\.json"$/);
     expect(res.headers.get('cache-control')).toBe('no-store');
     const text = await res.text();
     const file = JSON.parse(text) as ExportFile;
@@ -196,7 +196,7 @@ describe('static core: import', () => {
   });
   afterEach(() => t.close());
 
-  const preview = (content: string | Uint8Array) => t.json<ImportPreviewResponse & ErrorBody>('POST', '/api/import/preview', fileForm(content, 'homebase-export.json', 'application/json'));
+  const preview = (content: string | Uint8Array) => t.json<ImportPreviewResponse & ErrorBody>('POST', '/api/import/preview', fileForm(content, 'portly-export.json', 'application/json'));
   const previewFile = (file: unknown) => preview(JSON.stringify(file));
   const commit = (previewId: unknown) => t.json<{ ok: boolean; summary: ImportSummary } & ErrorBody>('POST', '/api/import/commit', { previewId });
 
@@ -295,7 +295,7 @@ describe('static core: import', () => {
     const download = await t.call('GET', `/api/backups/${backups[0]!.id}`);
     expect(download.status).toBe(200);
     expect(download.headers.get('content-type')).toContain('application/json');
-    expect(download.headers.get('content-disposition')).toMatch(/^attachment; filename="homebase-backup-\d{4}-\d{2}-\d{2}\.json"$/);
+    expect(download.headers.get('content-disposition')).toMatch(/^attachment; filename="portly-backup-\d{4}-\d{2}-\d{2}\.json"$/);
     expect(await download.text()).toBe(stored);
     expect((await t.call('GET', '/api/backups/nope')).status).toBe(404);
     // The import file is a valid import itself (the way back).
@@ -445,7 +445,7 @@ describe('static core: import', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 
     expect((await preview('definitely not json')).body.error?.message).toBe('The file is not valid JSON');
-    expect((await previewFile({ ...baseFile(), format: 'other-app' })).body.error?.message).toBe('This is not a Homebase export file');
+    expect((await previewFile({ ...baseFile(), format: 'other-app' })).body.error?.message).toBe('This is not a Portly export file');
     expect((await previewFile({ ...baseFile(), version: 2 })).body.error?.message).toBe('Unsupported export version (expected 1)');
     const tooMany = await previewFile(withProfiles(51));
     expect(tooMany.body.error?.code).toBe('validation_failed');
@@ -559,7 +559,7 @@ describe('static core: a failed import commit changes nothing', () => {
     const t = await createTestBackend(MODULES, { storage });
     const seeded = await seed(t);
     const exported = await (await t.call('GET', '/api/export')).text();
-    const preview = await t.json<ImportPreviewResponse>('POST', '/api/import/preview', fileForm(exported, 'homebase-export.json', 'application/json'));
+    const preview = await t.json<ImportPreviewResponse>('POST', '/api/import/preview', fileForm(exported, 'portly-export.json', 'application/json'));
     const before = await dumpStorage(storage);
     const settingsBefore = (await t.json<Settings>('GET', '/api/settings')).body;
     const profilesBefore = (await t.json<Profile[]>('GET', '/api/profiles')).body;
@@ -593,11 +593,11 @@ describe('static core: a failed import commit changes nothing', () => {
   });
 
   it('is one IndexedDB transaction: a request failing inside it rolls every write back', async () => {
-    const storage = await IndexedDbStorage.open(new IDBFactory(), 'homebase-static-transfer-test');
+    const storage = await IndexedDbStorage.open(new IDBFactory(), 'portly-static-transfer-test');
     const t = await createTestBackend(MODULES, { storage });
     const seeded = await seed(t);
     const exported = await (await t.call('GET', '/api/export')).text();
-    const preview = await t.json<ImportPreviewResponse>('POST', '/api/import/preview', fileForm(exported, 'homebase-export.json', 'application/json'));
+    const preview = await t.json<ImportPreviewResponse>('POST', '/api/import/preview', fileForm(exported, 'portly-export.json', 'application/json'));
     const before = await dumpStorage(storage);
 
     // The settings put is issued after the backup, profiles, bookmarks, uploads and icons puts.

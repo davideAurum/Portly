@@ -45,7 +45,7 @@ describe('BrowserEventsPanel', () => {
     const labels = () => within(screen.getByRole('list', { name: 'Browser events' })).getAllByRole('listitem').map((row) => within(row).getAllByRole('button')[0]!.textContent);
     const { rerender } = renderWithProviders(<BrowserEventsPanel />, { apiMocks: MOCKS });
     expect(labels()).toEqual([expect.stringMatching(/uncaught error.*Not sent yet$/), expect.stringMatching(/probe result.*This browser only \(debug\)$/)]);
-    expect(screen.getByText('Not sent yet')).toHaveAttribute('title', 'Sent to Homebase on this PC within about 15 seconds');
+    expect(screen.getByText('Not sent yet')).toHaveAttribute('title', 'Sent to Portly on this PC within about 15 seconds');
     expect(screen.getByText('This browser only (debug)')).toHaveAttribute('title', 'Debug events are sent only while verbose logging covers browser events (Logging level)');
     // Verbose logging covers browser events: the debug event goes too.
     rerender(<BrowserEventsPanel acceptDebug />);
@@ -53,7 +53,7 @@ describe('BrowserEventsPanel', () => {
     // A server older than diagnostics refuses them all.
     rerender(<BrowserEventsPanel serverRefuses acceptDebug />);
     expect(labels()).toEqual([expect.stringMatching(/This browser only$/), expect.stringMatching(/This browser only$/)]);
-    expect(screen.getAllByText('This browser only')[0]).toHaveAttribute('title', 'Homebase on this PC is older than this page and does not take browser events');
+    expect(screen.getAllByText('This browser only')[0]).toHaveAttribute('title', 'Portly on this PC is older than this page and does not take browser events');
   });
 
   it('expands an event to its fields and page', async () => {

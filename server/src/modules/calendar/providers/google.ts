@@ -6,7 +6,7 @@
  * Writable calendars: `accessRole` owner or writer. Outbound purposes (logs, Diagnostics):
  * `gcal.calendarList`, `gcal.events.list|insert|patch|delete`.
  */
-import { EVENT_TEXT_LIMITS, type Account, type EventUpdate } from '@homebase/shared';
+import { EVENT_TEXT_LIMITS, type Account, type EventUpdate } from '@portly/shared';
 import type { AppContext } from '../../../context.ts';
 import { HttpError } from '../../../lib/errors.ts';
 import { descriptionText } from '../text.ts';

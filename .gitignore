@@ -9,7 +9,7 @@ web/dist-static/
 .vite/
 coverage/
 
-# Local data (the real data dir lives in %LOCALAPPDATA%\Homebase; these catch stray local runs)
+# Local data (the real data dir lives in %LOCALAPPDATA%\Portly; these catch stray local runs)
 /data/
 /.data/
 *.db

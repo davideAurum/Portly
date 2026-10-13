@@ -5,7 +5,7 @@
  * can make that parse super-linear. Running the session off the main thread keeps the API, the
  * new-tab page and the scheduler responsive whatever the server sends.
  *
- * This module therefore imports nothing heavy (no zod/@homebase/shared values, no Hono): jobs and
+ * This module therefore imports nothing heavy (no zod/@portly/shared values, no Hono): jobs and
  * their outputs are plain structured-cloneable data, and failures are either {@link ImapOpError}
  * (a decision this code made, e.g. `stale_message`), {@link ImapAuthError} (rejected login) or a
  * raw imapflow error whose few relevant fields are carried across by {@link serializeImapError}.
@@ -16,7 +16,7 @@
  * terminated — names the step it happened in. The sub-steps of `connect()` (TCP/TLS connect,
  * greeting, STARTTLS, login) are read from the client's public state ({@link connectPhase}).
  */
-import type { ImapSecurity } from '@homebase/shared';
+import type { ImapSecurity } from '@portly/shared';
 import type { ImapMessageRef } from './imap-id.ts';
 import type { MailAction } from './types.ts';
 

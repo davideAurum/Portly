@@ -1,5 +1,5 @@
 /**
- * capabilities.ts in the server build (the web project defines `__HOMEBASE_STATIC__` false): the
+ * capabilities.ts in the server build (the web project defines `__PORTLY_STATIC__` false): the
  * flags of every build/backend combination, the page load's capabilities and the test override,
  * and widget availability. The Pages build's own defaults (browser backend until `setPageBackend`)
  * are covered by `static/pagesBuild.test.ts`.

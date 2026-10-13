@@ -4,7 +4,7 @@
  */
 import { useMemo } from 'react';
 import { CalendarDays, CalendarRange, List } from 'lucide-react';
-import type { Calendar } from '@homebase/shared';
+import type { Calendar } from '@portly/shared';
 import { useAccounts } from '../../api/accounts.ts';
 import { useCalendars } from '../../api/calendar.ts';
 import { Field } from '../../ui/Field.tsx';

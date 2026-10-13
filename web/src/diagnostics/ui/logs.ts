@@ -12,7 +12,7 @@
  * events this browser no longer has (its ring keeps 300 for 7 days) or does not show (filters)
  * stay.
  */
-import { LOG_LEVEL_ORDER, type HealthEntry, type LogLevel, type LogRecord, type LogSource } from '@homebase/shared';
+import { LOG_LEVEL_ORDER, type HealthEntry, type LogLevel, type LogRecord, type LogSource } from '@portly/shared';
 import type { DiagnosticsLogsFilters } from '../../api/diagnostics.ts';
 import type { ClientLogEntry } from '../clientLog.ts';
 

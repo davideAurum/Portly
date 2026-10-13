@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WIDGET_TYPES } from '@homebase/shared';
+import { WIDGET_TYPES } from '@portly/shared';
 import { createDefaultLayout } from '../grid/defaultLayout.ts';
 import { WIDGET_DEFINITIONS, getWidgetDefinition, parseWidgetConfig, stackSizingOf } from './registry.ts';
 

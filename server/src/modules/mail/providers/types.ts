@@ -4,7 +4,7 @@
  * allowlisted links) and throw `HttpError`s with §7a codes; the service adds caching, the id
  * allowlist, per-account timeouts, error aggregation and health (§17: `mail:<accountId>`).
  */
-import type { Account, MailMessage } from '@homebase/shared';
+import type { Account, MailMessage } from '@portly/shared';
 
 /**
  * Reports the step a provider call has reached, so a failure or a timeout names it in logs and

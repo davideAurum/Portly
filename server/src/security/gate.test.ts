@@ -48,7 +48,7 @@ function streamOf(totalBytes: number, chunkSize = 64 * 1024): ReadableStream<Uin
 }
 
 function multipartBody(bytes: number): { body: Uint8Array; type: string } {
-  const boundary = 'homebase-test-boundary';
+  const boundary = 'portly-test-boundary';
   const head = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="x.bin"\r\nContent-Type: application/octet-stream\r\n\r\n`;
   const tail = `\r\n--${boundary}--\r\n`;
   const body = new Uint8Array(Buffer.concat([Buffer.from(head), Buffer.alloc(bytes, 1), Buffer.from(tail)]));
@@ -127,7 +127,7 @@ describe('request gate', () => {
     });
 
     it('allows the Vite dev host only in dev mode', async () => {
-      const devCtx = createTestContext({ env: { HOMEBASE_DEV: '1', HOMEBASE_VITE_PORT: '5173' } });
+      const devCtx = createTestContext({ env: { PORTLY_DEV: '1', PORTLY_VITE_PORT: '5173' } });
       const devApp = createApp(devCtx, { modules: [testModule], webDist: null }).app;
       const res = await testRequest(devApp, 'GET', '/api/things', {
         headers: { Host: 'localhost:5173', Origin: 'http://localhost:5173' },
@@ -138,15 +138,15 @@ describe('request gate', () => {
   });
 
   describe('step 3/4: non-exempt /api requests', () => {
-    it('requires X-Homebase: 1', async () => {
-      expect((await testRequest(app, 'GET', '/api/things', { headers: { 'X-Homebase': null } })).status).toBe(403);
-      expect((await testRequest(app, 'GET', '/api/things', { headers: { 'X-Homebase': '0' } })).status).toBe(403);
-      expect((await testRequest(app, 'GET', '/api/things', { headers: { 'X-Homebase': 'true' } })).status).toBe(403);
+    it('requires X-Portly: 1', async () => {
+      expect((await testRequest(app, 'GET', '/api/things', { headers: { 'X-Portly': null } })).status).toBe(403);
+      expect((await testRequest(app, 'GET', '/api/things', { headers: { 'X-Portly': '0' } })).status).toBe(403);
+      expect((await testRequest(app, 'GET', '/api/things', { headers: { 'X-Portly': 'true' } })).status).toBe(403);
       expect((await testRequest(app, 'GET', '/api/things')).status).toBe(200);
     });
 
     it('requires the header on unknown /api paths too (non-exempt by default)', async () => {
-      expect((await testRequest(app, 'GET', '/api/nope', { headers: { 'X-Homebase': null } })).status).toBe(403);
+      expect((await testRequest(app, 'GET', '/api/nope', { headers: { 'X-Portly': null } })).status).toBe(403);
       const res = await testRequest(app, 'GET', '/api/nope');
       expect(res.status).toBe(404);
       expect((await res.json()) as unknown).toMatchObject({ error: { code: 'not_found' } });
@@ -197,7 +197,7 @@ describe('request gate', () => {
     it('never answers preflights and never sends CORS headers', async () => {
       const res = await testRequest(app, 'OPTIONS', '/api/things', {
         headers: {
-          'X-Homebase': null,
+          'X-Portly': null,
           Origin: 'https://evil.example',
           'Access-Control-Request-Method': 'POST',
           'Sec-Fetch-Site': 'cross-site',
@@ -217,29 +217,29 @@ describe('request gate', () => {
   });
 
   describe('exemptions', () => {
-    it('health needs no X-Homebase and accepts cross-site fetches', async () => {
+    it('health needs no X-Portly and accepts cross-site fetches', async () => {
       const res = await testRequest(app, 'GET', '/api/health', {
-        headers: { 'X-Homebase': null, 'Sec-Fetch-Site': 'cross-site', Origin: 'chrome-extension://abcdef' },
+        headers: { 'X-Portly': null, 'Sec-Fetch-Site': 'cross-site', Origin: 'chrome-extension://abcdef' },
       });
       expect(res.status).toBe(200);
     });
 
     it('health exemption covers only GET /api/health', async () => {
-      expect((await testRequest(app, 'POST', '/api/health', { headers: { 'X-Homebase': null } })).status).toBe(403);
-      expect((await testRequest(app, 'GET', '/api/health/x', { headers: { 'X-Homebase': null } })).status).toBe(403);
+      expect((await testRequest(app, 'POST', '/api/health', { headers: { 'X-Portly': null } })).status).toBe(403);
+      expect((await testRequest(app, 'GET', '/api/health/x', { headers: { 'X-Portly': null } })).status).toBe(403);
     });
 
-    it('image routes accept Sec-Fetch-Site same-origin/none/absent without X-Homebase', async () => {
+    it('image routes accept Sec-Fetch-Site same-origin/none/absent without X-Portly', async () => {
       for (const site of ['same-origin', 'none', null]) {
-        const res = await testRequest(app, 'GET', '/api/icons/abc', { headers: { 'X-Homebase': null, 'Sec-Fetch-Site': site } });
+        const res = await testRequest(app, 'GET', '/api/icons/abc', { headers: { 'X-Portly': null, 'Sec-Fetch-Site': site } });
         expect(res.status, String(site)).toBe(200);
       }
-      expect((await testRequest(app, 'GET', '/api/uploads/abc', { headers: { 'X-Homebase': null } })).status).toBe(200);
+      expect((await testRequest(app, 'GET', '/api/uploads/abc', { headers: { 'X-Portly': null } })).status).toBe(200);
     });
 
     it('image routes reject same-site/cross-site and foreign origins', async () => {
       for (const site of ['same-site', 'cross-site']) {
-        const res = await testRequest(app, 'GET', '/api/icons/abc', { headers: { 'X-Homebase': null, 'Sec-Fetch-Site': site } });
+        const res = await testRequest(app, 'GET', '/api/icons/abc', { headers: { 'X-Portly': null, 'Sec-Fetch-Site': site } });
         expect(res.status, site).toBe(403);
       }
       const foreign = await testRequest(app, 'GET', '/api/icons/abc', { headers: { Origin: 'https://evil.example' } });
@@ -247,28 +247,28 @@ describe('request gate', () => {
     });
 
     it('image exemption does not extend to other methods or sub-paths', async () => {
-      expect((await testRequest(app, 'GET', '/api/icons/abc/extra', { headers: { 'X-Homebase': null } })).status).toBe(403);
-      expect((await testRequest(app, 'DELETE', '/api/icons/abc', { headers: { 'X-Homebase': null } })).status).toBe(403);
-      expect((await testRequest(app, 'GET', '/api/icons', { headers: { 'X-Homebase': null } })).status).toBe(403);
+      expect((await testRequest(app, 'GET', '/api/icons/abc/extra', { headers: { 'X-Portly': null } })).status).toBe(403);
+      expect((await testRequest(app, 'DELETE', '/api/icons/abc', { headers: { 'X-Portly': null } })).status).toBe(403);
+      expect((await testRequest(app, 'GET', '/api/icons', { headers: { 'X-Portly': null } })).status).toBe(403);
     });
 
     it('the OAuth callback accepts top-level cross-site navigations', async () => {
       const res = await testRequest(app, 'GET', '/api/oauth/google/callback?code=x&state=y', {
-        headers: { 'X-Homebase': null, 'Sec-Fetch-Site': 'cross-site' },
+        headers: { 'X-Portly': null, 'Sec-Fetch-Site': 'cross-site' },
       });
       expect(res.status).toBe(302);
     });
 
     it('exemptions still require an allowed Host', async () => {
-      const res = await testRequest(app, 'GET', '/api/oauth/google/callback', { headers: { 'X-Homebase': null, Host: 'evil.example' } });
+      const res = await testRequest(app, 'GET', '/api/oauth/google/callback', { headers: { 'X-Portly': null, Host: 'evil.example' } });
       expect(res.status).toBe(403);
     });
 
     it('matching uses the decoded route path, not string prefixes', async () => {
       // %68 = 'h': Hono routes this to /api/health, and so does the gate's router.
-      const res = await testRequest(app, 'GET', '/api/%68ealth', { headers: { 'X-Homebase': null } });
+      const res = await testRequest(app, 'GET', '/api/%68ealth', { headers: { 'X-Portly': null } });
       expect(res.status).toBe(200);
-      const lookalike = await testRequest(app, 'GET', '/api/healthz', { headers: { 'X-Homebase': null } });
+      const lookalike = await testRequest(app, 'GET', '/api/healthz', { headers: { 'X-Portly': null } });
       expect(lookalike.status).toBe(403);
     });
   });
@@ -368,7 +368,7 @@ describe('request gate: Pages site (hybrid mode)', () => {
 
   const preflight = (headers: Record<string, string | null>, path = '/api/things'): Promise<Response> =>
     testRequest(app, 'OPTIONS', path, {
-      headers: { Origin: TEST_PAGES_ORIGIN, 'Sec-Fetch-Site': 'cross-site', 'X-Homebase': null, 'Access-Control-Request-Method': 'POST', ...headers },
+      headers: { Origin: TEST_PAGES_ORIGIN, 'Sec-Fetch-Site': 'cross-site', 'X-Portly': null, 'Access-Control-Request-Method': 'POST', ...headers },
     });
 
   describe('preflights', () => {
@@ -379,12 +379,12 @@ describe('request gate: Pages site (hybrid mode)', () => {
     });
 
     it('answers the configured origin with 204 and the allowed method and headers, without reaching a route', async () => {
-      const res = await preflight({ 'Access-Control-Request-Headers': 'content-type,x-homebase,x-homebase-token' });
+      const res = await preflight({ 'Access-Control-Request-Headers': 'content-type,x-portly,x-portly-token' });
       expect(res.status).toBe(204);
       expect(await res.text()).toBe('');
       expect(res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
       expect(res.headers.get('access-control-allow-methods')).toBe('POST');
-      expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type, X-Homebase, X-Homebase-Token');
+      expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type, X-Portly, X-Portly-Token');
       expect(res.headers.get('access-control-max-age')).toBe('600');
       expect(res.headers.get('access-control-allow-credentials')).toBeNull();
       expect(res.headers.get('access-control-allow-private-network')).toBeNull();
@@ -392,7 +392,7 @@ describe('request gate: Pages site (hybrid mode)', () => {
 
     it('accepts every method the API uses, header lists in any case, and no requested headers at all', async () => {
       for (const method of ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']) {
-        const res = await preflight({ 'Access-Control-Request-Method': method, 'Access-Control-Request-Headers': 'X-Homebase, X-Homebase-Token' });
+        const res = await preflight({ 'Access-Control-Request-Method': method, 'Access-Control-Request-Headers': 'X-Portly, X-Portly-Token' });
         expect(res.status, method).toBe(204);
         expect(res.headers.get('access-control-allow-methods'), method).toBe(method);
       }
@@ -413,7 +413,7 @@ describe('request gate: Pages site (hybrid mode)', () => {
         { 'Access-Control-Request-Method': 'patch' },
         { 'Access-Control-Request-Method': '' },
         { 'Access-Control-Request-Headers': 'content-type, authorization' },
-        { 'Access-Control-Request-Headers': 'x-homebase, cookie' },
+        { 'Access-Control-Request-Headers': 'x-portly, cookie' },
       ];
       for (const headers of refused) {
         const res = await preflight(headers);
@@ -481,8 +481,8 @@ describe('request gate: Pages site (hybrid mode)', () => {
       }
     });
 
-    it('requires X-Homebase: 1', async () => {
-      const res = await testRequest(app, 'GET', '/api/things', { headers: pagesHeaders(token, { 'X-Homebase': null }) });
+    it('requires X-Portly: 1', async () => {
+      const res = await testRequest(app, 'GET', '/api/things', { headers: pagesHeaders(token, { 'X-Portly': null }) });
       expect(res.status).toBe(403);
       expect(await errorCode(res)).toBe('forbidden');
     });
@@ -525,19 +525,19 @@ describe('request gate: Pages site (hybrid mode)', () => {
       expect((await testRequest(app, 'POST', '/api/uploads', { headers: pagesHeaders(token, { 'Content-Type': type }), body })).status).toBe(200);
     });
 
-    it('serves image routes to the page with its token (and X-Homebase) only', async () => {
+    it('serves image routes to the page with its token (and X-Portly) only', async () => {
       const ok = await testRequest(app, 'GET', '/api/icons/abc', { headers: pagesHeaders(token) });
       expect(ok.status).toBe(200);
       expect(ok.headers.get('content-type')).toBe('image/png');
       expect(ok.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
-      expect((await testRequest(app, 'GET', '/api/icons/abc', { headers: pagesHeaders(null, { 'X-Homebase': null }) })).status).toBe(403);
+      expect((await testRequest(app, 'GET', '/api/icons/abc', { headers: pagesHeaders(null, { 'X-Portly': null }) })).status).toBe(403);
       expect((await testRequest(app, 'GET', '/api/icons/abc', { headers: pagesHeaders(null) })).status).toBe(401);
-      // Homebase's own page is unchanged: same-origin image loads need no token.
-      expect((await testRequest(app, 'GET', '/api/icons/abc', { headers: { 'X-Homebase': null } })).status).toBe(200);
+      // Portly's own page is unchanged: same-origin image loads need no token.
+      expect((await testRequest(app, 'GET', '/api/icons/abc', { headers: { 'X-Portly': null } })).status).toBe(200);
     });
 
-    it('lets health through without a token or X-Homebase', async () => {
-      const res = await testRequest(app, 'GET', '/api/health', { headers: pagesHeaders(null, { 'X-Homebase': null }) });
+    it('lets health through without a token or X-Portly', async () => {
+      const res = await testRequest(app, 'GET', '/api/health', { headers: pagesHeaders(null, { 'X-Portly': null }) });
       expect(res.status).toBe(200);
       expect(res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
     });
@@ -548,7 +548,7 @@ describe('request gate: Pages site (hybrid mode)', () => {
       expect(corsHeaders(res)).toEqual([]);
     });
 
-    it('leaves requests from Homebase\'s own page as they were', async () => {
+    it('leaves requests from Portly\'s own page as they were', async () => {
       expect((await testRequest(app, 'GET', '/api/things')).status).toBe(200);
       expect((await testRequest(app, 'POST', '/api/local')).status).toBe(200);
       const own = await testRequest(app, 'GET', '/api/things', { headers: { Origin: 'http://localhost:5757' } });
@@ -558,7 +558,7 @@ describe('request gate: Pages site (hybrid mode)', () => {
   });
 
   describe('feature off', () => {
-    it('without HOMEBASE_PAGES_URL the Pages origin is just another foreign origin', async () => {
+    it('without PORTLY_PAGES_URL the Pages origin is just another foreign origin', async () => {
       const offCtx = createTestContext();
       const offApp = createApp(offCtx, { modules: [pagesModule], webDist: null }).app;
       const offToken = offCtx.pairing.create({ label: 'x', origin: TEST_PAGES_ORIGIN }).token;
@@ -568,7 +568,7 @@ describe('request gate: Pages site (hybrid mode)', () => {
       expect(corsHeaders(res)).toEqual([]);
       expect(res.headers.get('vary')).toBeNull();
       const pre = await testRequest(offApp, 'OPTIONS', '/api/things', {
-        headers: { Origin: TEST_PAGES_ORIGIN, 'X-Homebase': null, 'Access-Control-Request-Method': 'GET' },
+        headers: { Origin: TEST_PAGES_ORIGIN, 'X-Portly': null, 'Access-Control-Request-Method': 'GET' },
       });
       expect(pre.status).toBe(403);
       expect(corsHeaders(pre)).toEqual([]);
@@ -626,12 +626,12 @@ describe('request gate: diagnostics', () => {
   });
 
   it('logs every refusal at info with a machine reason, repeat-collapsed per reason and origin', async () => {
-    await testRequest(app, 'GET', '/api/things', { headers: { 'X-Homebase': null } });
+    await testRequest(app, 'GET', '/api/things', { headers: { 'X-Portly': null } });
     await testRequest(app, 'GET', '/api/things', { headers: { Host: 'evil.example' } });
     await testRequest(app, 'GET', '/a//b');
     await testRequest(app, 'POST', '/api/local', { headers: pagesHeaders(token), body: {} });
     expect(refusals().map((l) => [l.level, l.fields?.reason, l.fields?.status])).toEqual([
-      ['info', 'x_homebase_missing', 403],
+      ['info', 'x_portly_missing', 403],
       ['info', 'host_not_allowed', 403],
       ['info', 'bad_path', 400],
       ['info', 'local_only', 403],
@@ -677,7 +677,7 @@ describe('request gate: diagnostics', () => {
 
   it('names foreign origins worth naming (GitHub Pages, loopback, the Pages domain) and only counts others', async () => {
     const send = (origin: string, path = '/api/things') =>
-      testRequest(app, 'GET', path, { headers: { Origin: origin, 'Sec-Fetch-Site': 'cross-site', 'X-Homebase': null } });
+      testRequest(app, 'GET', path, { headers: { Origin: origin, 'Sec-Fetch-Site': 'cross-site', 'X-Portly': null } });
     expect((await send('https://someone.github.io')).status).toBe(403);
     await send('https://someone.github.io');
     await send('http://localhost:4173');
@@ -717,7 +717,7 @@ describe('request gate: diagnostics', () => {
   });
 
   it('warns about a health check from another site (answered without CORS): a Pages site that is not configured', async () => {
-    const res = await testRequest(app, 'GET', '/api/health', { headers: { Origin: 'https://someone.github.io', 'X-Homebase': null } });
+    const res = await testRequest(app, 'GET', '/api/health', { headers: { Origin: 'https://someone.github.io', 'X-Portly': null } });
     expect(res.status).toBe(200);
     expect(res.headers.get('access-control-allow-origin')).toBeNull();
     expect(log.lines.find((l) => l.level === 'warn')?.message).toBe('health check from another site (no CORS answer)');

@@ -1,6 +1,6 @@
 /**
  * The Pages build's page-load capabilities (`capabilities.ts`, which the static project runs with
- * `__HOMEBASE_STATIC__` on): the browser backend until `main.tsx` calls `setPageBackend`, the
+ * `__PORTLY_STATIC__` on): the browser backend until `main.tsx` calls `setPageBackend`, the
  * server backend after it, the test reset, the static handlers' fixed widget refusal list, and
  * hybrid mode off while the build has no local server origin (the static project defines it `''`).
  */

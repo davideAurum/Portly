@@ -1,6 +1,6 @@
 /**
  * Loopback HTTP fixture for scripts/check-scripts.ps1: four listeners on 127.0.0.1 (random free
- * ports) that answer GET /api/health as Homebase, with non-JSON, with HTTP 503, or never.
+ * ports) that answer GET /api/health as Portly, with non-JSON, with HTTP 503, or never.
  * Prints the ports as one JSON line and exits when stdin closes, which check-scripts.ps1 does at
  * its end. The 15-minute cap only stops a fixture whose parent died; it must outlast both child-run
  * passes (Windows PowerShell 5.1 and PowerShell 7), or their port checks find nothing listening.

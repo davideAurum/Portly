@@ -7,7 +7,7 @@
  * plain text rendered as React text; links go through `linkProps`.
  */
 import { CircleAlert, ExternalLink, Radio, RefreshCw, Trophy, Tv } from 'lucide-react';
-import { sportsLeague, type SportsCompetitor, type SportsGame } from '@homebase/shared';
+import { sportsLeague, type SportsCompetitor, type SportsGame } from '@portly/shared';
 import { useTeamGames } from '../../api/sports.ts';
 import { useWidgetFrame, WidgetActions } from '../../grid/WidgetContext.tsx';
 import { useFormatters, type Formatters } from '../../lib/format.ts';

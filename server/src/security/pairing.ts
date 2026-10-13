@@ -2,7 +2,7 @@
  * Pairing store (hybrid mode, shared/src/pairing.ts): the browsers allowed to use this server from
  * the configured Pages site, and the server's instance id.
  *
- * - A pairing is created on Homebase's own page (`POST /api/pairings`). Its token (32 random bytes,
+ * - A pairing is created on Portly's own page (`POST /api/pairings`). Its token (32 random bytes,
  *   base64url) is handed to the browser once; only its SHA-256 (hex) is stored, with the Pages
  *   origin it was made for. A token stops working when that origin is no longer the configured one.
  * - `verify(token)` checks the format first, then answers from an in-memory map of hashes that is
@@ -19,7 +19,7 @@
  *   from one this server never issued. Tombstones hold hashes of dead tokens only.
  */
 import { createHash } from 'node:crypto';
-import { InstanceIdSchema, MAX_PAIRINGS, PairingTokenSchema } from '@homebase/shared';
+import { InstanceIdSchema, MAX_PAIRINGS, PairingTokenSchema } from '@portly/shared';
 import { asNullableString, asNumber, asString } from '../db/helpers.ts';
 import type { Db } from '../db/open.ts';
 import { newId, newToken } from '../lib/ids.ts';
@@ -39,7 +39,7 @@ export const MAX_TOMBSTONES = 50;
 export const PERSISTED_TOMBSTONES = 20;
 const TOKEN_HASH = /^[0-9a-f]{64}$/;
 
-/** Why a pairing was removed: on Homebase's side, by the browser itself, to make room, or never used. */
+/** Why a pairing was removed: on Portly's side, by the browser itself, to make room, or never used. */
 export type PairingRemoval = 'revoked' | 'unpaired-itself' | 'evicted' | 'unused';
 const REMOVALS: ReadonlySet<string> = new Set<PairingRemoval>(['revoked', 'unpaired-itself', 'evicted', 'unused']);
 

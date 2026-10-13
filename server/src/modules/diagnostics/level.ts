@@ -13,7 +13,7 @@
  * The logger itself logs `log level changed` and, when a timed period runs out, `verbose logging
  * ended {reason: 'expired'}`.
  */
-import { DIAGNOSTIC_AREAS, type LogLevelState, type SetLogLevel } from '@homebase/shared';
+import { DIAGNOSTIC_AREAS, type LogLevelState, type SetLogLevel } from '@portly/shared';
 import type { AppContext } from '../../context.ts';
 import type { Db } from '../../db/open.ts';
 import { errorFields, type Logger } from '../../lib/logger.ts';

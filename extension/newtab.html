@@ -11,30 +11,30 @@
     <script type="module" src="newtab.js"></script>
   </head>
   <body>
-    <p class="connecting" role="status">Connecting to Homebase…</p>
+    <p class="connecting" role="status">Connecting to Portly…</p>
 
     <section class="card starting" aria-labelledby="starting-title">
       <div class="brand">
         <img src="icons/icon-48.png" alt="" width="32" height="32" />
-        <span>Homebase</span>
+        <span>Portly</span>
       </div>
       <div class="title-row">
         <span class="spinner" aria-hidden="true"></span>
-        <h1 id="starting-title">Starting Homebase…</h1>
+        <h1 id="starting-title">Starting Portly…</h1>
       </div>
       <p id="starting-detail" class="muted" role="status" aria-live="polite">
-        This usually takes a few seconds. This tab opens Homebase as soon as it answers.
+        This usually takes a few seconds. This tab opens Portly as soon as it answers.
       </p>
     </section>
 
     <main class="card fallback" aria-labelledby="status-title">
       <div class="brand">
         <img src="icons/icon-48.png" alt="" width="32" height="32" />
-        <span>Homebase</span>
+        <span>Portly</span>
       </div>
 
-      <h1 id="status-title">Homebase isn't running</h1>
-      <p id="status-detail" class="muted">Nothing is answering on <span data-homebase-url>http://localhost:5757</span>.</p>
+      <h1 id="status-title">Portly isn't running</h1>
+      <p id="status-detail" class="muted">Nothing is answering on <span data-portly-url>http://localhost:5757</span>.</p>
       <p id="launch-status" class="notice" role="status" hidden></p>
 
       <div class="actions">
@@ -44,14 +44,14 @@
       </div>
 
       <section class="howto" data-help="manual" aria-labelledby="howto-title">
-        <h2 id="howto-title">Start Homebase</h2>
+        <h2 id="howto-title">Start Portly</h2>
         <ol>
           <li>
-            Start the Homebase Server task from PowerShell:
-            <code class="command">Start-ScheduledTask -TaskName 'Homebase Server'</code>
+            Start the Portly Server task from PowerShell:
+            <code class="command">Start-ScheduledTask -TaskName 'Portly Server'</code>
           </li>
           <li>
-            Or open PowerShell in your Homebase folder and run:
+            Or open PowerShell in your Portly folder and run:
             <code class="command">npm start</code>
           </li>
           <li>
@@ -62,15 +62,15 @@
       </section>
 
       <section class="howto" data-help="install" aria-labelledby="install-title" hidden>
-        <h2 id="install-title">Let new tabs start Homebase</h2>
+        <h2 id="install-title">Let new tabs start Portly</h2>
         <p>
-          Open PowerShell in your Homebase folder and run the installer once. It sets up the Homebase Server task
+          Open PowerShell in your Portly folder and run the installer once. It sets up the Portly Server task
           and the launcher that Chrome and Edge use to start it:
           <code class="command">powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1</code>
         </p>
         <p class="muted small">
-          Then click <strong>Try starting again</strong>. Details: <code>docs\setup\autostart.md</code> in your Homebase
-          folder. Until then, <code>npm start</code> in that folder starts Homebase by hand.
+          Then click <strong>Try starting again</strong>. Details: <code>docs\setup\autostart.md</code> in your Portly
+          folder. Until then, <code>npm start</code> in that folder starts Portly by hand.
         </p>
       </section>
 
@@ -79,11 +79,11 @@
         <p>
           The launcher only answers the extension ID it was installed for, and this extension's ID
           (<code data-extension-id>unknown</code>) isn't it — or its settings are missing. Run the installer again
-          from your Homebase folder so it allows this ID:
+          from your Portly folder so it allows this ID:
           <code class="command">powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1</code>
         </p>
         <p class="muted small">
-          Then click <strong>Try starting again</strong>. Details: <code>docs\setup\autostart.md</code> in your Homebase
+          Then click <strong>Try starting again</strong>. Details: <code>docs\setup\autostart.md</code> in your Portly
           folder.
         </p>
       </section>
@@ -98,20 +98,20 @@
         <ol>
           <li>
             Open <code>chrome://extensions</code> (or <code>edge://extensions</code>) and click <strong>Remove</strong> on
-            Homebase New Tab.
+            Portly New Tab.
           </li>
-          <li>Click <strong>Load unpacked</strong> and select the <code>extension</code> folder in your Homebase folder.</li>
+          <li>Click <strong>Load unpacked</strong> and select the <code>extension</code> folder in your Portly folder.</li>
           <li>Using a port other than 5757? Set it again in the extension options (removing the extension clears it).</li>
           <li>
-            If you haven't yet, install the launcher from your Homebase folder:
+            If you haven't yet, install the launcher from your Portly folder:
             <code class="command">powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1</code>
           </li>
         </ol>
-        <p class="muted small">Details: <code>extension\README.md</code> in your Homebase folder.</p>
+        <p class="muted small">Details: <code>extension\README.md</code> in your Portly folder.</p>
       </section>
 
       <p class="muted small">
-        This page looks for Homebase at <span data-homebase-url>http://localhost:5757</span>. Using another port?
+        This page looks for Portly at <span data-portly-url>http://localhost:5757</span>. Using another port?
         <a href="options.html">Change it in the extension options</a>.
       </p>
 

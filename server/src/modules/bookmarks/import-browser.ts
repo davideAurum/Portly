@@ -19,7 +19,7 @@ import type { Dirent } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
-import type { BookmarkImportSource, ImportBrowser } from '@homebase/shared';
+import type { BookmarkImportSource, ImportBrowser } from '@portly/shared';
 import { HttpError } from '../../lib/errors.ts';
 import { errorFields, type Logger } from '../../lib/logger.ts';
 import { MAX_FOLDER_DEPTH, type ImportFolder, type ImportLink } from './importer.ts';
@@ -44,6 +44,7 @@ export function defaultLocalAppData(): string | null {
 }
 
 export function sourceId(browser: ImportBrowser, profileDir: string): string {
+  // The seed predates the rename to Portly; kept so stored import sources keep their ids.
   return createHash('sha256').update(`homebase-bookmark-source\n${browser}\n${profileDir}`).digest('base64url').slice(0, 24);
 }
 

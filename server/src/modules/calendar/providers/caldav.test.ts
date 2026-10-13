@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { AccountDraft } from '@homebase/shared';
+import type { AccountDraft } from '@portly/shared';
 import { HttpError } from '../../../lib/errors.ts';
 import { outcomeFromError } from '../../../lib/health.ts';
 import { withLogContext } from '../../../lib/log-context.ts';

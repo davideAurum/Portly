@@ -1,7 +1,7 @@
 /**
  * Pure view model of the feeds widget: merges the items of several feeds newest first.
  */
-import type { Feed, FeedItem } from '@homebase/shared';
+import type { Feed, FeedItem } from '@portly/shared';
 import type { FeedSource } from './index.ts';
 
 export interface FeedRow {

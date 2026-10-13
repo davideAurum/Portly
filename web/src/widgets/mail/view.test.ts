@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MailAccountSummary, MailMessage } from '@homebase/shared';
+import type { MailAccountSummary, MailMessage } from '@portly/shared';
 import { applyMailAction, mailSummaryKey, mailSummaryPath } from '../../api/mail.ts';
 import { accountGroups, failedAccounts, mergedRows, rowHref, senderLabel, totalUnread } from './view.ts';
 

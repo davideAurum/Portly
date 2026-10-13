@@ -1,17 +1,17 @@
 /**
  * Runtime configuration (§3). Everything comes from the environment with defaults; the host
  * allowlist, origin allowlist, OAuth redirect URIs and the app origin are *derived* here and
- * must never be hard-coded elsewhere. The optional Pages site (`HOMEBASE_PAGES_URL`, hybrid mode)
+ * must never be hard-coded elsewhere. The optional Pages site (`PORTLY_PAGES_URL`, hybrid mode)
  * is kept apart from the origin allowlist: it is trusted only together with a pairing token.
  */
 import { readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import type { LogLevel, OAuthProvider } from '@homebase/shared';
+import type { LogLevel, OAuthProvider } from '@portly/shared';
 
 export interface ConfigPaths {
-  /** `<dataDir>/homebase.db` */
+  /** `<dataDir>/portly.db` */
   db: string;
   /** `<dataDir>/vault.key` */
   vaultKey: string;
@@ -46,7 +46,7 @@ export interface Config {
   allowedOrigins: ReadonlySet<string>;
   /**
    * The published Pages site allowed to use this server once a browser is paired with it
-   * (`HOMEBASE_PAGES_URL`, hybrid mode), e.g. `https://user.github.io/homebase/`: absolute, path
+   * (`PORTLY_PAGES_URL`, hybrid mode), e.g. `https://user.github.io/portly/`: absolute, path
    * starting and ending with `/`. Null when unset (pairing off; nothing else changes).
    */
   pagesUrl: string | null;
@@ -56,7 +56,7 @@ export interface Config {
   redirectUris: Readonly<Record<OAuthProvider, string>>;
   /** Redirect URI to register with each provider (Entra ignores the port for localhost). */
   registrationRedirectUris: Readonly<Record<OAuthProvider, string>>;
-  /** Boot log level (`HOMEBASE_LOG_LEVEL`: debug | info | warn; default debug in dev, else info). */
+  /** Boot log level (`PORTLY_LOG_LEVEL`: debug | info | warn; default debug in dev, else info). */
   logLevel: LogLevel;
   paths: ConfigPaths;
 }
@@ -110,9 +110,9 @@ function parseBind(raw: string | undefined): string[] {
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
     .map((s) => (s.startsWith('[') && s.endsWith(']') ? s.slice(1, -1) : s));
-  if (list.length === 0) throw new ConfigError('HOMEBASE_BIND must list at least one address');
+  if (list.length === 0) throw new ConfigError('PORTLY_BIND must list at least one address');
   for (const addr of list) {
-    if (isIP(addr) === 0) throw new ConfigError(`HOMEBASE_BIND entries must be IP addresses (got "${addr}")`);
+    if (isIP(addr) === 0) throw new ConfigError(`PORTLY_BIND entries must be IP addresses (got "${addr}")`);
   }
   return [...new Set(list)];
 }
@@ -139,17 +139,17 @@ function tryUrl(value: string): URL | null {
 function parseOrigin(raw: string | undefined, port: number): string {
   const value = raw === undefined || raw.trim() === '' ? `http://localhost:${port}` : raw.trim();
   const url = tryUrl(value);
-  if (url === null) throw new ConfigError(`HOMEBASE_ORIGIN must be an absolute http(s) origin (got ${echoUrl(null)})`);
+  if (url === null) throw new ConfigError(`PORTLY_ORIGIN must be an absolute http(s) origin (got ${echoUrl(null)})`);
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new ConfigError(`HOMEBASE_ORIGIN must use http or https (got ${echoUrl(url)})`);
+    throw new ConfigError(`PORTLY_ORIGIN must use http or https (got ${echoUrl(url)})`);
   }
   if (url.username || url.password || (url.pathname !== '/' && url.pathname !== '') || url.search || url.hash) {
-    throw new ConfigError(`HOMEBASE_ORIGIN must be a bare origin like http://localhost:${port} (got ${echoUrl(url)} with more after it)`);
+    throw new ConfigError(`PORTLY_ORIGIN must be a bare origin like http://localhost:${port} (got ${echoUrl(url)} with more after it)`);
   }
   return url.origin;
 }
 
-/** Hosts for which `HOMEBASE_PAGES_URL` may use plain http (a Pages build served on this PC). */
+/** Hosts for which `PORTLY_PAGES_URL` may use plain http (a Pages build served on this PC). */
 const LOOPBACK_PAGES_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 interface PagesSite {
@@ -158,14 +158,14 @@ interface PagesSite {
 }
 
 /**
- * `HOMEBASE_PAGES_URL`: the Pages site's address. `https:` (or `http:` on a loopback host), no
+ * `PORTLY_PAGES_URL`: the Pages site's address. `https:` (or `http:` on a loopback host), no
  * credentials, query or fragment; a missing trailing slash is added. The origin must not be one
  * this server already trusts as its own page.
  */
 function parsePagesUrl(raw: string | undefined, ownOrigins: ReadonlySet<string>): PagesSite {
   const value = raw?.trim() ?? '';
   if (value === '') return { pagesUrl: null, pagesOrigin: null };
-  const name = 'HOMEBASE_PAGES_URL';
+  const name = 'PORTLY_PAGES_URL';
   if (value === '*' || value.toLowerCase() === 'null') {
     throw new ConfigError(`${name} must be the address of one site, like https://user.github.io/ (got "${value}")`);
   }
@@ -178,7 +178,7 @@ function parsePagesUrl(raw: string | undefined, ownOrigins: ReadonlySet<string>)
     throw new ConfigError(`${name} must not contain a user name, password, query or fragment (got one for ${echoUrl(url)})`);
   }
   if (ownOrigins.has(url.origin)) {
-    throw new ConfigError(`${name} must be another site than Homebase's own page (got ${echoUrl(url)})`);
+    throw new ConfigError(`${name} must be another site than Portly's own page (got ${echoUrl(url)})`);
   }
   const pathname = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
   return { pagesUrl: `${url.origin}${pathname}`, pagesOrigin: url.origin };
@@ -194,7 +194,7 @@ export function startupWarnings(config: Pick<Config, 'pagesOrigin'>): StartupWar
   const warnings: StartupWarning[] = [];
   if (config.pagesOrigin !== null && config.pagesOrigin.startsWith('http:')) {
     warnings.push({
-      message: 'HOMEBASE_PAGES_URL uses plain http: paired browsers on this origin can use Homebase',
+      message: 'PORTLY_PAGES_URL uses plain http: paired browsers on this origin can use Portly',
       fields: { pagesOrigin: config.pagesOrigin },
     });
   }
@@ -202,9 +202,9 @@ export function startupWarnings(config: Pick<Config, 'pagesOrigin'>): StartupWar
 }
 
 function defaultDataDir(env: NodeJS.ProcessEnv): string {
-  if (process.platform === 'win32') return path.join(localAppData(env), 'Homebase');
+  if (process.platform === 'win32') return path.join(localAppData(env), 'Portly');
   const xdg = env.XDG_DATA_HOME && env.XDG_DATA_HOME.trim() !== '' ? env.XDG_DATA_HOME : path.join(os.homedir(), '.local', 'share');
-  return path.join(xdg, 'homebase');
+  return path.join(xdg, 'portly');
 }
 
 /** `%LOCALAPPDATA%`, or `~/AppData/Local` when it is unset. */
@@ -213,41 +213,41 @@ function localAppData(env: NodeJS.ProcessEnv): string {
 }
 
 /**
- * The data directory `loadConfig` would use (trimmed `HOMEBASE_DATA_DIR`, else the platform
+ * The data directory `loadConfig` would use (trimmed `PORTLY_DATA_DIR`, else the platform
  * default), without validating anything else: start-up failures are written to its `logs/` even
- * when the rest of the configuration is invalid. Never throws (falls back to `<tmp>/homebase`
+ * when the rest of the configuration is invalid. Never throws (falls back to `<tmp>/portly`
  * when not even the home directory can be read).
  */
 export function resolveDataDir(env: NodeJS.ProcessEnv = process.env): string {
   try {
-    const raw = env.HOMEBASE_DATA_DIR;
+    const raw = env.PORTLY_DATA_DIR;
     return path.resolve(typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : defaultDataDir(env));
   } catch {
-    return path.join(os.tmpdir(), 'homebase');
+    return path.join(os.tmpdir(), 'portly');
   }
 }
 
 /**
  * The browser extension's native-messaging launcher log (`native-host/launcher.mjs` writes
- * `launcher.log` next to itself; `scripts/` install it to `%LOCALAPPDATA%\Homebase\native-host`,
- * whatever `HOMEBASE_DATA_DIR` says). Never throws.
+ * `launcher.log` next to itself; `scripts/` install it to `%LOCALAPPDATA%\Portly\native-host`,
+ * whatever `PORTLY_DATA_DIR` says). Never throws.
  */
 export function nativeHostLogPath(env: NodeJS.ProcessEnv = process.env): string {
   try {
-    return path.join(localAppData(env), 'Homebase', 'native-host', 'launcher.log');
+    return path.join(localAppData(env), 'Portly', 'native-host', 'launcher.log');
   } catch {
-    return path.join('Homebase', 'native-host', 'launcher.log');
+    return path.join('Portly', 'native-host', 'launcher.log');
   }
 }
 
 const LOG_LEVEL_VALUES: readonly LogLevel[] = ['debug', 'info', 'warn'];
 
-/** `HOMEBASE_LOG_LEVEL`: debug | info | warn (any case); unset/blank → debug in dev, else info. */
+/** `PORTLY_LOG_LEVEL`: debug | info | warn (any case); unset/blank → debug in dev, else info. */
 function parseLogLevel(raw: string | undefined, dev: boolean): LogLevel {
   if (raw === undefined || raw.trim() === '') return dev ? 'debug' : 'info';
   const value = raw.trim().toLowerCase();
   const level = LOG_LEVEL_VALUES.find((l) => l === value);
-  if (level === undefined) throw new ConfigError(`HOMEBASE_LOG_LEVEL must be debug, info or warn (got "${raw}")`);
+  if (level === undefined) throw new ConfigError(`PORTLY_LOG_LEVEL must be debug, info or warn (got "${raw}")`);
   return level;
 }
 
@@ -259,14 +259,14 @@ function hostHeaderFor(hostname: string, port: number, protocol: 'http:' | 'http
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const port = parsePort('HOMEBASE_PORT', env.HOMEBASE_PORT, DEFAULT_PORT);
-  const vitePort = parsePort('HOMEBASE_VITE_PORT', env.HOMEBASE_VITE_PORT, DEFAULT_VITE_PORT);
-  const dev = parseBool('HOMEBASE_DEV', env.HOMEBASE_DEV);
-  const bindAddresses = parseBind(env.HOMEBASE_BIND);
-  const origin = parseOrigin(env.HOMEBASE_ORIGIN, port);
+  const port = parsePort('PORTLY_PORT', env.PORTLY_PORT, DEFAULT_PORT);
+  const vitePort = parsePort('PORTLY_VITE_PORT', env.PORTLY_VITE_PORT, DEFAULT_VITE_PORT);
+  const dev = parseBool('PORTLY_DEV', env.PORTLY_DEV);
+  const bindAddresses = parseBind(env.PORTLY_BIND);
+  const origin = parseOrigin(env.PORTLY_ORIGIN, port);
   const dataDir = resolveDataDir(env);
-  if (dev && vitePort === port) throw new ConfigError('HOMEBASE_VITE_PORT must differ from HOMEBASE_PORT');
-  const logLevel = parseLogLevel(env.HOMEBASE_LOG_LEVEL, dev);
+  if (dev && vitePort === port) throw new ConfigError('PORTLY_VITE_PORT must differ from PORTLY_PORT');
+  const logLevel = parseLogLevel(env.PORTLY_LOG_LEVEL, dev);
 
   const appOrigin = dev ? `http://localhost:${vitePort}` : origin;
 
@@ -283,7 +283,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const allowedOrigins = new Set<string>([origin, appOrigin]);
   for (const host of allowedHosts) allowedOrigins.add(`http://${host}`);
 
-  const { pagesUrl, pagesOrigin } = parsePagesUrl(env.HOMEBASE_PAGES_URL, allowedOrigins);
+  const { pagesUrl, pagesOrigin } = parsePagesUrl(env.PORTLY_PAGES_URL, allowedOrigins);
 
   const redirectUris = {
     google: `${origin}/api/oauth/google/callback`,
@@ -314,7 +314,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     registrationRedirectUris: Object.freeze({ google: redirectUris.google, microsoft: microsoftRegistration }),
     logLevel,
     paths: Object.freeze({
-      db: path.join(dataDir, 'homebase.db'),
+      db: path.join(dataDir, 'portly.db'),
       vaultKey: path.join(dataDir, 'vault.key'),
       logsDir,
       logFile: path.join(logsDir, 'server.log'),

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { Calendar } from '@homebase/shared';
+import type { Calendar } from '@portly/shared';
 import CalendarsSettings from '../../settings/sections/Calendars.tsx';
 import { account, settings } from '../../test/fixtures.ts';
 import { mockError, mockResponse, renderWithProviders, type MockRequest } from '../../test/render.tsx';

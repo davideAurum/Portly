@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { SearchEngine } from '@homebase/shared';
+import type { SearchEngine } from '@portly/shared';
 import SearchSettings from '../../settings/sections/Search.tsx';
 import { createFakeServer } from '../../test/fakeServer.ts';
 import { renderWithProviders } from '../../test/render.tsx';

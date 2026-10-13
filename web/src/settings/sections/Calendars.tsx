@@ -1,12 +1,12 @@
 /**
  * Settings › Calendars (§10.8): calendars grouped by account with visibility, color override,
- * "read-only in Homebase", last sync and last error per calendar; ICS subscriptions (add / edit /
+ * "read-only in Portly", last sync and last error per calendar; ICS subscriptions (add / edit /
  * remove — the feed URL is write-only, only its host is shown); sync interval, default calendar
  * for new events and "Sync now".
  */
 import { useRef, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { CircleAlert, Pencil, Plus, RefreshCw, RotateCcw, Rss, Trash, TriangleAlert, UserRoundPlus } from 'lucide-react';
-import { IcsCreateSchema, IcsUpdateSchema, type Account, type Calendar } from '@homebase/shared';
+import { IcsCreateSchema, IcsUpdateSchema, type Account, type Calendar } from '@portly/shared';
 import { useAccounts } from '../../api/accounts.ts';
 import {
   calendarSyncFailed,
@@ -139,7 +139,7 @@ function SyncCard({ calendars, hasAccounts }: { calendars: Calendar[]; hasAccoun
   return (
     <SettingsCard
       title="Sync"
-      description="Account calendars sync on this interval; ICS subscriptions every 30 minutes. Homebase keeps 30 days back and a year ahead."
+      description="Account calendars sync on this interval; ICS subscriptions every 30 minutes. Portly keeps 30 days back and a year ahead."
       actions={
         <Button icon={RefreshCw} loading={sync.isPending} onClick={() => void runSync()} disabled={calendars.length === 0 && !hasAccounts}>
           Sync now
@@ -353,7 +353,7 @@ function IcsCard({ calendars }: { calendars: Calendar[] }) {
           if (!open) setRemoving(null);
         }}
         title={removing ? `Remove “${removing.name}”?` : 'Remove subscription?'}
-        description="Homebase forgets the link and its cached events. The calendar itself is not affected."
+        description="Portly forgets the link and its cached events. The calendar itself is not affected."
         confirmLabel="Remove"
         destructive
         onConfirm={async () => {

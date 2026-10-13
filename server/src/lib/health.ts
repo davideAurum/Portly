@@ -16,7 +16,7 @@
  * - failing/degraded → ok: `info '<area> recovered' {downForMs, failures}`; ok → ok: debug;
  * - degraded (ok but partial): like failing, at info.
  *
- * Content rules (enforced by {@link HealthRecorder.record}): `message` is Homebase-authored text
+ * Content rules (enforced by {@link HealthRecorder.record}): `message` is Portly-authored text
  * (scrubbed, ≤ 300); `code` must be a machine token (`REASON_TOKEN`) and every detail string a
  * machine token, a hostname or a parameter-free media type (≤ 64 characters) — anything else is
  * dropped and the dropped names debug-logged. Times a `Date` cannot hold are dropped too.
@@ -28,7 +28,7 @@
  * failure, identical consecutive failures collapsing into the latest row (`count`, `last_at`).
  * `close()` flushes everything and stops writing (later records update memory only).
  */
-import { DIAGNOSTIC_AREAS, HEALTH_CODES, REASON_TOKEN } from '@homebase/shared';
+import { DIAGNOSTIC_AREAS, HEALTH_CODES, REASON_TOKEN } from '@portly/shared';
 import type { Db } from '../db/open.ts';
 import { HttpError } from './errors.ts';
 import { outsideLogContext } from './log-context.ts';
@@ -58,7 +58,7 @@ export interface Outcome {
   code?: string;
   /** Upstream HTTP status. */
   status?: number;
-  /** Homebase-authored text only (content rules below); scrubbed, ≤ 300 characters. */
+  /** Portly-authored text only (content rules below); scrubbed, ≤ 300 characters. */
   message?: string;
   ms?: number;
   /** Numbers, booleans, and strings ≤ 64 characters that are machine tokens, hostnames or media types; anything else is dropped. */
@@ -381,9 +381,9 @@ function transportCode(code: string): string | null {
     case 'EHOSTUNREACH':
     case 'ENETDOWN':
       return 'network';
-    case 'EHOMEBASE_NOT_LAN':
+    case 'EPORTLY_NOT_LAN':
       return 'not_lan';
-    case 'EHOMEBASE_BLOCKED':
+    case 'EPORTLY_BLOCKED':
       return 'blocked';
     default:
       return null;
@@ -486,7 +486,7 @@ function namedCode(name: string | null, err: Record<string, unknown>, upstream: 
   }
 }
 
-/** Errors whose message is Homebase-authored (built from host + status), so it may be shown and stored. */
+/** Errors whose message is Portly-authored (built from host + status), so it may be shown and stored. */
 function hasOwnMessage(err: unknown, name: string | null): boolean {
   return err instanceof HttpError || name === 'ExpandError' || name === 'DavParseError';
 }
@@ -511,7 +511,7 @@ function joinReasons(text: string): string | null {
  * timeout, not_lan) → VaultLockedError `vault_locked` → the HttpError code (`reauth_required`,
  * `rate_limited`, `timeout`, `not_configured`, `not_found`, provider errors by upstream status) →
  * named errors (feeds, DAV, expand, suggestions, IMAP auth) → transport codes → `internal`.
- * `status` = upstream status; `message` = the HttpError's own (Homebase) message, else the error
+ * `status` = upstream status; `message` = the HttpError's own (Portly) message, else the error
  * name; `detail` = the loggable error fields; `nextAttemptAt` from `retryAfterSeconds`. `extra`
  * overrides (its `detail` is merged).
  */

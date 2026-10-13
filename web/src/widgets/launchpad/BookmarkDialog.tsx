@@ -5,7 +5,7 @@
  */
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ImagePlus, RefreshCw, Trash } from 'lucide-react';
-import { BookmarkGroupNameSchema, BookmarkTitleSchema, type Bookmark, type BookmarkGroup, type SiteMeta } from '@homebase/shared';
+import { BookmarkGroupNameSchema, BookmarkTitleSchema, type Bookmark, type BookmarkGroup, type SiteMeta } from '@portly/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   createGroup,

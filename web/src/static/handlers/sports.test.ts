@@ -4,7 +4,7 @@
  * (server/src/modules/sports); here: the routes answer, cache and map errors like the server's.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SportsTeam, SportsTeamGames } from '@homebase/shared';
+import type { SportsTeam, SportsTeamGames } from '@portly/shared';
 import { getClientEvents } from '../../diagnostics/clientLog.ts';
 import { createFakeFetch, failingFetch, type FakeFetchRoute } from '../providers/__fixtures__/fakeFetch.ts';
 import { SCHEDULE_TTL_MS } from '../providers/espn.ts';

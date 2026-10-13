@@ -1,11 +1,11 @@
 /**
  * Bookmarks export (Settings → Bookmarks) as a Netscape bookmark HTML file, the format every
- * browser imports and the one Homebase's own HTML import reads. Each group becomes a top-level
- * folder, so importing the file into another Homebase with "One group per folder" recreates the
+ * browser imports and the one Portly's own HTML import reads. Each group becomes a top-level
+ * folder, so importing the file into another Portly with "One group per folder" recreates the
  * groups by name, in order. Only titles, addresses and group names are written: icons, colors and
  * ids stay behind (the full configuration export in Settings → Import & export carries those).
  */
-import type { BookmarkGroup } from '@homebase/shared';
+import type { BookmarkGroup } from '@portly/shared';
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -37,8 +37,8 @@ export function toNetscapeBookmarks(groups: readonly BookmarkGroup[], now: Date 
   return lines.join('\n');
 }
 
-/** `homebase-bookmarks-2026-10-11.html` (local date). */
+/** `portly-bookmarks-2026-10-11.html` (local date). */
 export function bookmarksFilename(now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `homebase-bookmarks-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.html`;
+  return `portly-bookmarks-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.html`;
 }

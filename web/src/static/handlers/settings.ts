@@ -14,7 +14,7 @@
  * 5. the result must pass the strict `SettingsSchema` (422 `Invalid settings` + details), then it
  *    is stored and returned in full. Nothing is written on any failure.
  */
-import { SettingsSchema, type Settings } from '@homebase/shared';
+import { SettingsSchema, type Settings } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
 import { applyMergePatch } from '../lib/mergePatch.ts';
 import { assertSafeJson, isPlainObject } from '../lib/safeJson.ts';

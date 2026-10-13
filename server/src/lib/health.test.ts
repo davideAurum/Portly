@@ -703,7 +703,7 @@ describe('outcomeFromError', () => {
     expect(outcome.status).toBe(status);
   });
 
-  it('uses Homebase-authored messages only and the loggable error fields as detail', () => {
+  it('uses Portly-authored messages only and the loggable error fields as detail', () => {
     const fromHttp = outcomeFromError(new SafeFetchError('timeout', 'Request to api.todoist.com timed out', 'api.todoist.com'));
     expect(fromHttp.message).toBe('Request to api.todoist.com timed out');
     expect(fromHttp.detail).toEqual({ errCode: 'upstream_timeout', errReason: 'timeout', host: 'api.todoist.com' });

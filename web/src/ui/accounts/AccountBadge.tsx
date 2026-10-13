@@ -3,7 +3,7 @@
  * validated hex values (§4.5); text on them uses readableTextColor.
  */
 import { CircleAlert, Unplug } from 'lucide-react';
-import type { Account } from '@homebase/shared';
+import type { Account } from '@portly/shared';
 import { colorFromString, safeColor } from '../../lib/color.ts';
 import { Badge } from '../Badge.tsx';
 import { ACCOUNT_KIND_LABELS } from './accountKinds.ts';

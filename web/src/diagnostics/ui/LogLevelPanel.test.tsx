@@ -6,7 +6,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { LogLevelState } from '@homebase/shared';
+import type { LogLevelState } from '@portly/shared';
 import { mockError, renderWithProviders, type MockRequest } from '../../test/render.tsx';
 import { LogLevelPanel } from './LogLevelPanel.tsx';
 
@@ -31,7 +31,7 @@ describe('LogLevelPanel', () => {
     const { requestsTo } = renderPanel(NORMAL);
     const user = userEvent.setup();
     await user.click(screen.getByRole('radio', { name: 'Until turned off' }));
-    expect(screen.getByText('“Until turned off” ends at the next restart of Homebase.')).toBeInTheDocument();
+    expect(screen.getByText('“Until turned off” ends at the next restart of Portly.')).toBeInTheDocument();
     const areas = screen.getByRole('group', { name: 'Areas' });
     await user.click(within(areas).getByRole('checkbox', { name: 'Mail' }));
     await user.click(within(areas).getByRole('checkbox', { name: 'Calendar' }));
@@ -61,14 +61,14 @@ describe('LogLevelPanel', () => {
 
   it('says that "until turned off" ends at the next restart, and names a non-default start level', () => {
     renderPanel({ level: 'debug', verbose: true, until: null, areas: null, bootLevel: 'debug', persisted: false });
-    expect(screen.getByText('Verbose until turned off. Ends at the next restart of Homebase.')).toBeInTheDocument();
+    expect(screen.getByText('Verbose until turned off. Ends at the next restart of Portly.')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Until turned off' })).toBeChecked();
-    expect(screen.getByText(/Homebase starts at level/)).toHaveTextContent('Homebase starts at level debug (HOMEBASE_LOG_LEVEL); Normal means that level.');
+    expect(screen.getByText(/Portly starts at level/)).toHaveTextContent('Portly starts at level debug (PORTLY_LOG_LEVEL); Normal means that level.');
   });
 
   it('tells when the level could not be changed', async () => {
-    renderPanel(NORMAL, mockError(403, 'local_only', 'Only on Homebase itself'));
+    renderPanel(NORMAL, mockError(403, 'local_only', 'Only on Portly itself'));
     await userEvent.setup().click(screen.getByRole('switch', { name: 'Verbose logging' }));
-    expect(await screen.findByText('Only on Homebase itself')).toBeInTheDocument();
+    expect(await screen.findByText('Only on Portly itself')).toBeInTheDocument();
   });
 });
