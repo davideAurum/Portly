@@ -154,6 +154,22 @@ Assert-Throws -Name 'Remove-HbLegacyInstall removes nothing when the task defini
 }
 Assert-That -Name 'Remove-HbLegacyInstall left the task and keys after a failed save' -Condition ($legacyCalls.Count -eq 0) -Detail ($legacyCalls -join '|')
 
+# The old `homebase` command, removed by install-cli.ps1.
+$cliLocal = Join-Path $workDir 'cli\Local'
+$cliBin = Join-Path $cliLocal 'Homebase\bin'
+$cliPath = "C:\Tools;$cliBin\;;C:\Other"
+Assert-That -Name 'Get-HbLegacyCliPlan is empty without the old command' -Condition (
+    (Get-HbLegacyCliPlan -UserPath 'C:\Tools' -LocalAppData $cliLocal).Empty)
+$null = New-Item -ItemType Directory -Path $cliBin -Force
+Set-Content -LiteralPath (Join-Path $cliBin 'homebase.cmd') -Value '@echo off'
+Set-Content -LiteralPath (Join-Path $cliBin 'keep.txt') -Value 'not ours'
+$cliPlan = Get-HbLegacyCliPlan -UserPath $cliPath -LocalAppData $cliLocal
+Assert-That -Name 'Get-HbLegacyCliPlan finds only the old launchers and the PATH entry of their folder' -Condition (
+    -not $cliPlan.Empty -and @($cliPlan.Files).Count -eq 1 -and $cliPlan.Files[0] -eq (Join-Path $cliBin 'homebase.cmd') -and
+    @($cliPlan.PathEntries).Count -eq 1 -and $cliPlan.PathWithout -ceq 'C:\Tools;C:\Other') -Detail "$($cliPlan.Files -join '|') / $($cliPlan.PathWithout)"
+Assert-That -Name 'Get-HbLegacyCliPlan matches a PATH entry stored with an environment variable' -Condition (
+    @((Get-HbLegacyCliPlan -UserPath '%LOCALAPPDATA%\Homebase\bin;C:\Tools').PathEntries).Count -eq 1)
+
 # The copy request (server/src/lib/legacy-homebase.ts reads it).
 $copyLocal = Join-Path $workDir 'copy\Local'
 $copyData = Join-Path $copyLocal 'Portly'

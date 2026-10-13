@@ -10,6 +10,10 @@
     GitHub Pages clone in the PORTLY_PAGES_REPO user environment variable (used by
     portly --rebuild). Open a new terminal afterwards. Run it again after moving the checkout.
 
+    On a PC that ran Homebase (Portly's name before the rename) it then removes the old
+    `homebase` command: homebase.cmd and homebase in %LOCALAPPDATA%\Homebase\bin, that folder's
+    user PATH entry, and the folder when it is empty. The rest of %LOCALAPPDATA%\Homebase stays.
+
     Refuses to run from a session worktree under .claude\worktrees (those are deleted when their
     session ends). Needs no administrator rights.
 
@@ -122,12 +126,29 @@ function Invoke-InstallCli {
         }
     }
 
+    # The old `homebase` command (ARCHITECTURE section 19) goes once portly is in place: one PATH
+    # write for both, then its launchers.
+    $legacyCli = Get-HbLegacyCliPlan -UserPath $userPath
+    $basePath = $userPath
+    if (@($legacyCli.PathEntries).Count -gt 0) {
+        Write-HbStep "${prefix}Removing the old homebase command's folder $($legacyCli.BinDir) from your user PATH"
+        $basePath = $legacyCli.PathWithout
+    }
     if ($onPath) {
         Write-HbOk "$binDir is already on your user PATH"
+        $newPath = $basePath
     } else {
         Write-HbStep "${prefix}Adding $binDir to your user PATH"
-        $newPath = if ($userPath.Trim()) { $userPath.TrimEnd(';') + ';' + $binDir } else { $binDir }
-        if (-not $DryRun) { Set-CliUserPath -Value $newPath }
+        $newPath = if ($basePath.Trim()) { $basePath.TrimEnd(';') + ';' + $binDir } else { $binDir }
+    }
+    if ($newPath -cne $userPath -and -not $DryRun) { Set-CliUserPath -Value $newPath }
+    foreach ($file in @($legacyCli.Files)) {
+        Write-HbStep "${prefix}Removing the old homebase command: $file"
+        if (-not $DryRun) { Remove-Item -LiteralPath $file -Force }
+    }
+    if (-not $DryRun -and @($legacyCli.Files).Count -gt 0 -and @(Get-ChildItem -LiteralPath $legacyCli.BinDir -Force).Count -eq 0) {
+        # Only the empty bin folder: the rest of %LOCALAPPDATA%\Homebase (its data) stays.
+        Remove-Item -LiteralPath $legacyCli.BinDir -Force
     }
 
     if (-not [string]::IsNullOrWhiteSpace($PublicRepoPath)) {

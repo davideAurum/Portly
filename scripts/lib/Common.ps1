@@ -761,6 +761,28 @@ function Remove-HbHomebaseCopyRequest {
     return $true
 }
 
+# The old `homebase` command (Homebase's install-cli.ps1): its two launchers in
+# %LOCALAPPDATA%\Homebase\bin and that folder's entries in the user PATH (as stored, -UserPath).
+# Portly's install-cli.ps1 removes them once the portly command is in place. PathWithout is
+# -UserPath without those entries (use it only when there are some). -LocalAppData replaces
+# %LOCALAPPDATA% (tests).
+function Get-HbLegacyCliPlan {
+    param([AllowEmptyString()][string]$UserPath = '', [string]$LocalAppData)
+    if (-not $LocalAppData) { $LocalAppData = [System.Environment]::GetFolderPath('LocalApplicationData') }
+    $binDir = Join-Path (Join-Path $LocalAppData 'Homebase') 'bin'
+    $files = @(@('homebase.cmd', 'homebase') | ForEach-Object { Join-Path $binDir $_ } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+    $isLegacy = { param([string]$Entry) [System.Environment]::ExpandEnvironmentVariables($Entry.Trim()).TrimEnd('\') -ieq $binDir.TrimEnd('\') }
+    $entries = @($UserPath.Split(';') | Where-Object { $_.Trim() -and (& $isLegacy $_) })
+    $kept = @($UserPath.Split(';') | Where-Object { $_.Trim() -and -not (& $isLegacy $_) })
+    return [pscustomobject]@{
+        BinDir      = $binDir
+        Files       = $files
+        PathEntries = $entries
+        PathWithout = ($kept -join ';')
+        Empty       = ($files.Count -eq 0 -and $entries.Count -eq 0)
+    }
+}
+
 function Test-HbWebBuilt {
     param([Parameter(Mandatory)][string]$RepoRoot)
     return Test-Path -LiteralPath (Join-Path $RepoRoot 'web\dist\index.html') -PathType Leaf

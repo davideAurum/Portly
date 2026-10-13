@@ -64,15 +64,15 @@ Homebase's own folders are left as they were, so you can go back until you delet
   as `homebase-task-backup.xml` in Portly's data folder. If Portly doesn't come up, Homebase is
   started again and nothing of it is removed. With `-NoStart`, Homebase stays installed.
   `-DryRun` shows exactly what it would do.
+- **The `homebase` command:** `install-cli.ps1` (which `setup.ps1` runs) installs `portly` and then
+  removes the old `homebase` command and its PATH entry. Open a new terminal afterwards.
 - **Browsers:** a browser paired with Homebase stays paired, and the Pages site keeps the data it
   kept in the browser: on its first load Portly copies Homebase's `homebase:` settings and its
   in-browser database to the new names. Export files from Homebase import as they are.
 - **By hand:** in `chrome://extensions` (or `edge://extensions`) **Remove** *Homebase New Tab* and
-  **Load unpacked** Portly's `extension` folder (same extension ID, so nothing else changes). The old
-  `homebase` command stays on your PATH until you run the old checkout's
-  `scripts\install-cli.ps1 -Uninstall` (Portly installs `portly`). Publish the Pages site again from
-  Portly (`publish-static.ps1` accepts the Homebase publish it replaces). When everything works,
-  delete `%LOCALAPPDATA%\Homebase` and the old checkout.
+  **Load unpacked** Portly's `extension` folder (same extension ID, so nothing else changes).
+  Publish the Pages site again from Portly (`publish-static.ps1` accepts the Homebase publish it
+  replaces). When everything works, delete `%LOCALAPPDATA%\Homebase` and the old checkout.
 
 ## Requirements
 

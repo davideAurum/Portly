@@ -72,8 +72,7 @@ On each PC that runs Homebase:
 1. Run `setup.ps1` from Portly. The first PC starts from scratch (`setup.ps1 -NoHomebaseCopy`);
    others can carry their Homebase data over.
 2. Check that Portly is up (`portly --status`).
-3. Swap the browser extension.
-4. Remove the old `homebase` command.
+3. Swap the browser extension. (Setup replaces the old `homebase` command with `portly` by itself.)
 
 Then publish the Pages site from Portly and test a real Outlook.com calendar in the browser-only
 build. Finally, archive the old Homebase repository (it stays private) and its leftover branches.
