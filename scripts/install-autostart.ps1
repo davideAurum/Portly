@@ -76,6 +76,11 @@
 .PARAMETER NoStart
     Register everything but do not start Portly now.
 
+.PARAMETER NoHomebaseCopy
+    Start Portly from scratch on a PC that ran Homebase: copy neither its database and vault key
+    nor its HOMEBASE_* user variables (a copy request already waiting is withdrawn). Homebase's
+    task and native host are still stopped and removed as usual, and its data folder stays.
+
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1
 
@@ -95,7 +100,8 @@ param(
     [switch]$DryRun,
     [ValidateNotNullOrEmpty()][string]$NodePath,
     [ValidateRange(10, 600)][int]$TimeoutSeconds = 90,
-    [switch]$NoStart
+    [switch]$NoStart,
+    [switch]$NoHomebaseCopy
 )
 
 $ErrorActionPreference = 'Stop'
@@ -104,7 +110,7 @@ $ErrorActionPreference = 'Stop'
 # The same options, for the "run it again as administrator" hint.
 function Format-HbInstallArguments {
     param([System.Collections.IDictionary]$Bound = @{})
-    $parts = foreach ($name in @('Trigger', 'LogonDelaySeconds', 'NoNativeHost', 'ExtensionId', 'NodePath', 'TimeoutSeconds', 'NoStart')) {
+    $parts = foreach ($name in @('Trigger', 'LogonDelaySeconds', 'NoNativeHost', 'ExtensionId', 'NodePath', 'TimeoutSeconds', 'NoStart', 'NoHomebaseCopy')) {
         if (-not $Bound.ContainsKey($name)) { continue }
         $value = $Bound[$name]
         if ($value -is [System.Management.Automation.SwitchParameter]) {
@@ -135,6 +141,11 @@ function Invoke-Install {
     # anything reads the PORTLY_* settings; Homebase's server is stopped once Portly's task is
     # registered and removed only once Portly answers (below).
     $legacy = Get-HbLegacyPlan
+    if ($NoHomebaseCopy) {
+        # From scratch: none of Homebase's settings either.
+        $legacy.Copy = @()
+        $legacy.Empty = ($null -eq $legacy.Task -and @($legacy.RegistryKeys).Count -eq 0)
+    }
     if (-not $legacy.Empty) {
         Write-HbStep "$(if ($DryRun) { '[dry run] ' } else { '' })Moving over from Homebase (Portly's name before the rename)"
         Write-HbLegacyPlan -Plan $legacy
@@ -200,8 +211,10 @@ function Invoke-Install {
 
     # Homebase's database is copied by the server at its next start, only when requested here.
     $homebaseCopy = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    if ($NoHomebaseCopy -and $homebaseCopy.State -in @('request', 'pending', 'portly-has-database')) { $homebaseCopy.State = 'skipped' }
     $homebaseCopyText = switch ($homebaseCopy.State) {
         'none' { 'no Homebase database found' }
+        'skipped' { 'not copied (-NoHomebaseCopy): Portly starts from scratch' }
         'done' { "already copied ($($homebaseCopy.CopiedAt))" }
         'pending' { "requested; Portly copies $($homebaseCopy.Source) at its next start" }
         'portly-has-database' { "NOT copied: Portly already has a database in $dataDir" }
@@ -298,6 +311,8 @@ function Invoke-Install {
         }
         if ($homebaseCopy.State -eq 'request') {
             Write-HbInfo "- ask Portly to copy Homebase's data at its first start: write $($homebaseCopy.RequestPath)"
+        } elseif ($homebaseCopy.State -eq 'skipped') {
+            Write-HbInfo "- copy nothing of Homebase (-NoHomebaseCopy); withdraw $($homebaseCopy.RequestPath) if it exists"
         }
         if ($running.Count -gt 0) {
             Write-HbInfo "- stop the Portly processes started from this folder: $(Format-HbProcessList -Trees $running)"
@@ -361,6 +376,8 @@ function Invoke-Install {
     if ($homebaseCopy.State -eq 'request') {
         $requestPath = Write-HbHomebaseCopyRequest -DataDir $dataDir
         Write-HbOk "Asked Portly to copy Homebase's data at its first start ($requestPath)"
+    } elseif ($homebaseCopy.State -eq 'skipped' -and (Remove-HbHomebaseCopyRequest -DataDir $dataDir)) {
+        Write-HbOk 'Withdrew the waiting copy of Homebase''s data (-NoHomebaseCopy)'
     }
 
     # Replace whatever the previous registration started. Stop-ScheduledTask ends only conhost,

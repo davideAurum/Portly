@@ -201,7 +201,7 @@ Build-time, for `npm run build:static` only: `PORTLY_STATIC_BASE` (URL prefix, d
   [Troubleshooting](docs/setup/troubleshooting.md)
 - [Browser-only build on GitHub Pages](docs/setup/static-build.md) ·
   [Pages site with Portly on this PC](docs/setup/pages-local-server.md)
-- [Architecture](docs/ARCHITECTURE.md)
+- [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md)
 
 ## License
 

@@ -810,10 +810,10 @@ try {
                     $noKey.ExitCode -eq 1 -and $noKey.Text.Contains('has no "key" entry')) -Detail $noKey.Text
             }
 
-            $logon = & $run 'install-autostart.ps1' @('-DryRun', '-Trigger', 'Logon', '-LogonDelaySeconds', '30', '-ExtensionId', $fixedId)
+            $logon = & $run 'install-autostart.ps1' @('-DryRun', '-Trigger', 'Logon', '-LogonDelaySeconds', '30', '-ExtensionId', $fixedId, '-NoHomebaseCopy')
             $expected = $common + $hostLines + @("Logon mode: at log on of $(Get-HbCurrentUserId), delay PT30S", "chrome-extension://$fixedId/", '(-ExtensionId)', 'after 30 s (-Trigger Logon)')
             $missing = @($expected | Where-Object { -not $logon.Text.Contains($_) })
-            Assert-That -Name 'install-autostart.ps1 -DryRun -Trigger Logon -LogonDelaySeconds 30 -ExtensionId exits 0 and prints it all' -Condition (
+            Assert-That -Name 'install-autostart.ps1 -DryRun -Trigger Logon -LogonDelaySeconds 30 -ExtensionId -NoHomebaseCopy exits 0 and prints it all' -Condition (
                 $logon.ExitCode -eq 0 -and $missing.Count -eq 0) -Detail ('missing: ' + ($missing -join ' | ') + "`n" + $logon.Text)
 
             $noHost = & $run 'install-autostart.ps1' @('-DryRun', '-NoNativeHost')

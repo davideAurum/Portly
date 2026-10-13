@@ -1612,7 +1612,8 @@ data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark impor
   `/api/health` answers with `app: 'portly'`, `Remove-HbLegacyInstall` exports the task to
   `<data dir>/homebase-task-backup.xml`, unregisters it and removes the `com.homebase.launcher` HKCU keys. Any other
   outcome (start failure, port taken, an error) runs `Resume-HbLegacyServer` in a `finally`. `-NoStart` leaves Homebase
-  alone. Homebase's data and native-host folders stay.
+  alone. `-NoHomebaseCopy` (also on `setup.ps1`) starts from scratch: no variable copy, no copy request (a waiting one is
+  withdrawn); the task and host are still replaced. Homebase's data and native-host folders stay.
 - **Browser** (`web/src/legacyStorage.ts`, imported by `main.tsx` right after zod's configuration): once
   (`portly:migrated-from-homebase`), every `homebase:` localStorage key except query caches is copied to its unset
   `portly:` key; `copyLegacyStaticDatabase` (`static/storage/idb.ts`) copies `homebase-static:<base>` into a

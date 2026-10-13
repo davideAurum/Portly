@@ -47,6 +47,10 @@
 .PARAMETER Trigger
     Passed to install-autostart.ps1: Browser (default; the extension starts Portly) or Logon.
 
+.PARAMETER NoHomebaseCopy
+    Passed to install-autostart.ps1: on a PC that ran Homebase, start Portly from scratch instead
+    of copying Homebase's data and HOMEBASE_* variables (Homebase's task is still removed).
+
 .PARAMETER SkipAutostart
     Do not register the scheduled task and native host (start Portly with scripts\start.ps1).
 
@@ -76,6 +80,7 @@ param(
     [string]$Branch = 'main',
     [string]$PagesUrl,
     [ValidateSet('Browser', 'Logon')][string]$Trigger = 'Browser',
+    [switch]$NoHomebaseCopy,
     [switch]$SkipAutostart,
     [switch]$SkipCli,
     [switch]$NoBrowser,
@@ -290,7 +295,7 @@ function Invoke-SetupFromClone {
 
     $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $target 'scripts\setup.ps1'), '-Trigger', $Trigger)
     if (-not [string]::IsNullOrWhiteSpace($PagesUrl)) { $arguments += @('-PagesUrl', $PagesUrl.Trim()) }
-    foreach ($name in @('SkipAutostart', 'SkipCli', 'NoBrowser', 'DryRun')) {
+    foreach ($name in @('NoHomebaseCopy', 'SkipAutostart', 'SkipCli', 'NoBrowser', 'DryRun')) {
         if ((Get-Variable -Name $name -ValueOnly).IsPresent) { $arguments += "-$name" }
     }
     $powershell = (Get-Process -Id $PID).Path
@@ -362,6 +367,7 @@ function Invoke-SetupHere {
     } else {
         Write-SetupStep "${prefix}Autostart: scripts\install-autostart.ps1 -Trigger $Trigger"
         $autostartArgs = @('-Trigger', $Trigger)
+        if ($NoHomebaseCopy) { $autostartArgs += '-NoHomebaseCopy' }
         if ($DryRun) { $autostartArgs += '-DryRun' }
         if ((Invoke-SetupScript -RepoRoot $RepoRoot -Script 'install-autostart.ps1' -Arguments $autostartArgs) -ne 0) {
             $failed += 'install-autostart.ps1'

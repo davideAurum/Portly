@@ -52,6 +52,11 @@ Homebase's own folders are left as they were, so you can go back until you delet
   data of its own, the installer warns and copies nothing; `portly --copy-from-homebase --replace`
   copies Homebase's over it and keeps Portly's old database beside it
   (`portly.db.before-homebase-<time>`).
+- **Starting from scratch instead:** run `setup.ps1 -NoHomebaseCopy` (or
+  `install-autostart.ps1 -NoHomebaseCopy`). Portly then starts with empty data and copies neither
+  Homebase's database and vault key nor its `HOMEBASE_*` variables. Homebase's task is still
+  replaced, and its data folder stays where it is. Browsers still copy Homebase's in-browser settings
+  on their first visit (see **Browsers** below).
 - **Settings and autostart:** the installer copies your `HOMEBASE_*` user variables to their
   `PORTLY_*` names (never over one you already set). It stops the **Homebase Server** task just
   before it starts Portly, since both use the same port, and removes that task and the
