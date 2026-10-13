@@ -42,6 +42,8 @@ function ShellLayout() {
   const onDashboard = route.name === 'home';
   const { editMode, canEdit, disabledReason, toggleEditMode, setEditMode, setAddWidgetOpen } = useEditMode();
   const [helpOpen, setHelpOpen] = useState(false);
+  // Each press of the lighthouse makes its light go round once.
+  const [beaconTurn, setBeaconTurn] = useState(0);
   const addRequest = useAddBookmarkRequest();
 
   useHotkey('e', toggleEditMode, { enabled: onDashboard && canEdit });
@@ -61,8 +63,14 @@ function ShellLayout() {
       <header className={styles.topbar}>
         <nav className={styles.group} aria-label="Dashboard">
           <Tooltip content="Dashboard">
-            <a className={styles.brandHome} href={routeHref({ name: 'home' })} aria-label="Portly dashboard" aria-current={onDashboard ? 'page' : undefined}>
-              <BrandMark size={36} />
+            <a
+              className={styles.brandHome}
+              href={routeHref({ name: 'home' })}
+              aria-label="Portly dashboard"
+              aria-current={onDashboard ? 'page' : undefined}
+              onClick={() => setBeaconTurn((n) => n + 1)}
+            >
+              <BrandMark size={36} turn={beaconTurn} />
             </a>
           </Tooltip>
           {onDashboard ? <ProfileSwitcher /> : null}

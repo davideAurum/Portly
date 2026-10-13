@@ -25,6 +25,20 @@ describe('BrandMark', () => {
     expect(full!.querySelectorAll('*').length).toBeGreaterThan(small!.querySelectorAll('*').length);
   });
 
+  it('draws the turning light only after a turn, and restarts it on each new turn', () => {
+    const { container, rerender } = render(<BrandMark size={36} />);
+    const still = container.querySelector('svg');
+    expect(still?.querySelectorAll('path').length).toBe(4);
+    rerender(<BrandMark size={36} turn={1} />);
+    const first = container.querySelector('svg');
+    // The beam in front of the tower and the lantern's flash join the still drawing.
+    expect(first?.querySelectorAll('path').length).toBe(5);
+    expect(first?.querySelectorAll('circle').length).toBe(3);
+    expect(first).not.toBe(still);
+    rerender(<BrandMark size={36} turn={2} />);
+    expect(container.querySelector('svg')).not.toBe(first);
+  });
+
   it('lockup shows the lowercase wordmark, hidden from assistive tech', () => {
     const { container } = render(<BrandLockup />);
     expect(container.textContent).toBe('portly');

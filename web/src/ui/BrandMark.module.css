@@ -10,3 +10,84 @@
   line-height: 1;
   color: var(--hb-text);
 }
+
+/*
+ * The light turning once (docs/brand/portly-icon-animated.svg): the beam's width follows the
+ * cosine of its angle, in front of the tower for the first half turn and behind it for the second.
+ */
+.turning .backBeam,
+.turning .frontBeam {
+  transform-origin: 32px 19px;
+  animation: hb-beam-turn 2.8s linear both;
+}
+
+.turning .frontBeam {
+  animation-name: hb-beam-turn, hb-beam-front;
+}
+
+.turning .backBeam {
+  animation-name: hb-beam-turn, hb-beam-back;
+}
+
+.turning .leftBeam {
+  animation: hb-beam-left 2.8s linear both;
+}
+
+.turning .flash {
+  animation: hb-beam-flash 2.8s ease-in-out both;
+}
+
+.flash {
+  opacity: 0;
+}
+
+@keyframes hb-beam-turn {
+  0%, 6% { transform: scaleX(1); }
+  13% { transform: scaleX(0.866); }
+  20% { transform: scaleX(0.5); }
+  27% { transform: scaleX(0); }
+  34% { transform: scaleX(-0.5); }
+  41% { transform: scaleX(-0.866); }
+  48% { transform: scaleX(-1); }
+  55% { transform: scaleX(-0.866); }
+  62% { transform: scaleX(-0.5); }
+  69% { transform: scaleX(0); }
+  76% { transform: scaleX(0.5); }
+  83% { transform: scaleX(0.866); }
+  90%, 100% { transform: scaleX(1); }
+}
+
+@keyframes hb-beam-front {
+  0%, 47.9% { opacity: 1; }
+  48%, 100% { opacity: 0; }
+}
+
+@keyframes hb-beam-back {
+  0%, 47.9% { opacity: 0; }
+  48%, 100% { opacity: 1; }
+}
+
+@keyframes hb-beam-left {
+  0% { opacity: 1; }
+  6%, 90% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes hb-beam-flash {
+  0%, 16% { opacity: 0; }
+  27% { opacity: 1; }
+  40%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turning .backBeam,
+  .turning .frontBeam,
+  .turning .leftBeam,
+  .turning .flash {
+    animation: none;
+  }
+
+  .turning .frontBeam {
+    opacity: 0;
+  }
+}

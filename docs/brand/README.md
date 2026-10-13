@@ -7,6 +7,7 @@ every new tab. Colors and type are shared with the earlier "Porthole" exploratio
 | --- | --- |
 | `portly-icon.svg` | App icon, full detail. Use at 48 px and up. |
 | `portly-icon-small.svg` | Simplified icon for 16–32 px (tabs, toolbar). Same file as `web/public/favicon.svg`. |
+| `portly-icon-animated.svg` | `portly-icon.svg` with the light making one full turn (about 3 s, plays once, then rests on the still icon). For splash or loading moments at 48 px and up; shows the still icon when the viewer asks for reduced motion. |
 | `portly-mark.svg` | The lighthouse without its tile, for light backgrounds. |
 | `portly-lockup.svg` | Icon plus the "portly" wordmark. The wordmark is live text in Fredoka SemiBold. |
 
@@ -44,7 +45,9 @@ subheads. Inside the app, text stays in the system UI font.
   installs that still had the old defaults (blue accent, indigo to violet gradient) move to these
   once; colors someone chose stay. The old gradient is still offered as the "Dusk" preset.
 - The lighthouse (`web/src/ui/BrandMark.tsx`) is the header's home button, the empty dashboard's
-  artwork and the mark on Settings > About. The extension's fallback and options pages use the
-  Harbor background too.
+  artwork and the mark on Settings > About. Pressing the header lighthouse makes its light go
+  round once (the `turn` prop on `BrandMark`, the same motion as `portly-icon-animated.svg`; it
+  stays still with reduced motion). The extension's fallback and options pages use the Harbor
+  background too.
 - Contrast: white on Tide is about 5:1; the link color derived from Tide is about 6.9:1 on white
   and 5:1 on the dark surface.
