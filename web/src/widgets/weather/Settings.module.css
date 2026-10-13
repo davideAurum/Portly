@@ -1,0 +1,203 @@
+/* Weather widget settings + the shared search combobox (also used by the clock settings). */
+
+.stack {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+.note {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.note strong {
+  font-weight: 600;
+  color: var(--hb-text);
+}
+
+.group {
+  display: grid;
+  gap: var(--hb-space-3);
+}
+
+.groupLabel {
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  color: var(--hb-text);
+}
+
+.labelWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.labelWithIcon svg {
+  width: 15px;
+  height: 15px;
+  color: var(--hb-text-muted);
+}
+
+/* ---- Selected place ------------------------------------------------------- */
+
+.placeCard {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--hb-space-3);
+  padding: var(--hb-space-3);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+}
+
+.placeCardIcon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--hb-accent);
+}
+
+.placeCardText {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.placeCardName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.placeCardMeta {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.placeCardActions {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-1);
+  margin-left: auto;
+}
+
+/* ---- Combobox ------------------------------------------------------------- */
+
+.combobox {
+  display: grid;
+  min-width: 0;
+}
+
+.searchIcon {
+  width: 15px;
+  height: 15px;
+  color: var(--hb-text-muted);
+}
+
+.listbox {
+  display: grid;
+  gap: 1px;
+  max-height: 248px;
+  margin: var(--hb-space-1) 0 0;
+  padding: var(--hb-space-1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid var(--hb-border-strong);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface);
+  box-shadow: var(--hb-shadow);
+}
+
+.listbox[hidden] {
+  display: none;
+}
+
+.option {
+  display: block;
+  padding: 7px var(--hb-space-2);
+  border-radius: var(--hb-radius-sm);
+  cursor: pointer;
+}
+
+.option[aria-selected='true'] {
+  background: var(--hb-accent-soft);
+  box-shadow: inset 2px 0 0 var(--hb-accent);
+}
+
+.option:hover:not([aria-selected='true']) {
+  background: var(--hb-hover);
+}
+
+.optionBody {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-width: 0;
+}
+
+.optionIcon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--hb-text-muted);
+}
+
+.optionText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.optionName {
+  font-size: var(--hb-text-md);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionMeta {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionAside {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.optionAside svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.comboStatus {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.comboStatus:not(:empty) {
+  padding-top: var(--hb-space-2);
+}
+
+.statusRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+}

@@ -1,0 +1,20 @@
+.content {
+  z-index: 1000;
+  max-width: 280px;
+  padding: 5px 9px;
+  border-radius: var(--hb-radius-sm);
+  background: color-mix(in srgb, var(--hb-text) 94%, transparent);
+  color: var(--hb-surface);
+  font-size: var(--hb-text-xs);
+  font-weight: 500;
+  line-height: 1.35;
+  box-shadow: var(--hb-shadow);
+  animation: hb-tooltip-in 120ms var(--hb-ease);
+}
+
+@keyframes hb-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}

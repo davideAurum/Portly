@@ -1,0 +1,173 @@
+/*
+ * Design tokens (§10.4). Features use tokens only; only the foundation writes global CSS.
+ * Theme values from settings are applied with style.setProperty on :root for a fixed list of
+ * variables (see src/theme/applyTheme.ts) — never by building CSS text. Light values live on
+ * :root; dark values apply for an explicit dark choice, or the OS preference unless light was
+ * chosen explicitly (`data-theme` is only ever 'light' | 'dark' | absent).
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces & text */
+  --hb-bg: #e9edf4;
+  --hb-surface: #ffffff;
+  --hb-surface-2: #f1f4f9;
+  --hb-surface-3: #e6ebf3;
+  /* Raised elements on a surface (selected segments, thumbs). */
+  --hb-surface-raised: #ffffff;
+  --hb-text: #111827;
+  --hb-text-muted: #5b6474;
+  --hb-text-subtle: #8a93a3;
+  --hb-border: rgb(15 23 42 / 0.1);
+  --hb-border-strong: rgb(15 23 42 / 0.18);
+
+  /* Brand & status */
+  --hb-accent: #2563eb;
+  --hb-accent-contrast: #ffffff;
+  --hb-danger: #dc2626;
+  --hb-warning: #b45309;
+  --hb-success: #15803d;
+  --hb-focus: #2563eb;
+
+  /* Derived tints (computed from the tokens above, so they follow the user's accent). */
+  --hb-accent-soft: color-mix(in srgb, var(--hb-accent) 14%, transparent);
+  --hb-accent-text: color-mix(in srgb, var(--hb-accent) 82%, #000000);
+  --hb-danger-soft: color-mix(in srgb, var(--hb-danger) 12%, transparent);
+  --hb-warning-soft: color-mix(in srgb, var(--hb-warning) 14%, transparent);
+  --hb-success-soft: color-mix(in srgb, var(--hb-success) 12%, transparent);
+  --hb-hover: rgb(15 23 42 / 0.05);
+  --hb-active: rgb(15 23 42 / 0.09);
+
+  /* Shape */
+  --hb-radius-sm: 6px;
+  --hb-radius-md: 10px;
+  --hb-radius-lg: 12px;
+  --hb-radius-full: 999px;
+
+  /* Spacing */
+  --hb-space-1: 4px;
+  --hb-space-2: 8px;
+  --hb-space-3: 12px;
+  --hb-space-4: 16px;
+  --hb-space-5: 24px;
+  --hb-space-6: 32px;
+
+  /* Type — system stacks only, no web fonts (§2a). --hb-font-sans is set from theme.font. */
+  --hb-font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --hb-font-mono: ui-monospace, 'Cascadia Code', 'Cascadia Mono', Consolas, 'SF Mono', 'Liberation Mono', monospace;
+  --hb-text-xs: 12px;
+  --hb-text-sm: 13px;
+  --hb-text-md: 14px;
+  --hb-text-lg: 17px;
+  --hb-text-xl: 22px;
+  --hb-text-2xl: 30px;
+
+  /* Elevation */
+  --hb-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 6px 24px -6px rgb(15 23 42 / 0.14);
+  --hb-shadow-lg: 0 2px 6px rgb(15 23 42 / 0.08), 0 24px 56px -12px rgb(15 23 42 / 0.28);
+  --hb-overlay: rgb(15 23 42 / 0.38);
+
+  /* Glass (widgets, settings panels, header chips) */
+  --hb-widget-opacity: 0.85;
+  --hb-glass: color-mix(in srgb, var(--hb-surface) calc(var(--hb-widget-opacity) * 100%), transparent);
+  --hb-glass-strong: color-mix(in srgb, var(--hb-surface) 92%, transparent);
+  --hb-glass-border: rgb(255 255 255 / 0.55);
+  --hb-glass-blur: 18px;
+  /* Live backdrop blur for always-visible glass surfaces; see the data-backdrop rule below. */
+  --hb-glass-filter: blur(var(--hb-glass-blur)) saturate(1.35);
+
+  /* Controls */
+  --hb-control-h: 36px;
+  --hb-control-h-sm: 30px;
+
+  /* Motion */
+  --hb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --hb-duration: 160ms;
+
+  /* Page backdrop (color / gradient / image) — set from the theme. */
+  --hb-backdrop: linear-gradient(160deg, #1e3a8a 0%, #6d28d9 100%);
+  --hb-backdrop-blur: 0px;
+  --hb-backdrop-dim: 0;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --hb-bg: #0a0e19;
+  --hb-surface: #151b2b;
+  --hb-surface-2: #1c2336;
+  --hb-surface-3: #252d43;
+  --hb-surface-raised: #2c3552;
+  --hb-text: #e8ebf4;
+  --hb-text-muted: #9aa3b7;
+  --hb-text-subtle: #6f7890;
+  --hb-border: rgb(255 255 255 / 0.09);
+  --hb-border-strong: rgb(255 255 255 / 0.16);
+  --hb-danger: #f87171;
+  --hb-warning: #fbbf24;
+  --hb-success: #4ade80;
+  --hb-focus: #93c5fd;
+  --hb-accent-text: color-mix(in srgb, var(--hb-accent) 72%, #ffffff);
+  --hb-hover: rgb(255 255 255 / 0.06);
+  --hb-active: rgb(255 255 255 / 0.1);
+  --hb-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 28px -6px rgb(0 0 0 / 0.5);
+  --hb-shadow-lg: 0 2px 6px rgb(0 0 0 / 0.4), 0 28px 64px -12px rgb(0 0 0 / 0.65);
+  --hb-overlay: rgb(3 6 14 / 0.6);
+  --hb-glass-border: rgb(255 255 255 / 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --hb-bg: #0a0e19;
+    --hb-surface: #151b2b;
+    --hb-surface-2: #1c2336;
+    --hb-surface-3: #252d43;
+    --hb-surface-raised: #2c3552;
+    --hb-text: #e8ebf4;
+    --hb-text-muted: #9aa3b7;
+    --hb-text-subtle: #6f7890;
+    --hb-border: rgb(255 255 255 / 0.09);
+    --hb-border-strong: rgb(255 255 255 / 0.16);
+    --hb-danger: #f87171;
+    --hb-warning: #fbbf24;
+    --hb-success: #4ade80;
+    --hb-focus: #93c5fd;
+    --hb-accent-text: color-mix(in srgb, var(--hb-accent) 72%, #ffffff);
+    --hb-hover: rgb(255 255 255 / 0.06);
+    --hb-active: rgb(255 255 255 / 0.1);
+    --hb-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 28px -6px rgb(0 0 0 / 0.5);
+    --hb-shadow-lg: 0 2px 6px rgb(0 0 0 / 0.4), 0 28px 64px -12px rgb(0 0 0 / 0.65);
+    --hb-overlay: rgb(3 6 14 / 0.6);
+    --hb-glass-border: rgb(255 255 255 / 0.08);
+  }
+}
+
+/*
+ * Live backdrop blur is only worth its GPU cost over a photo. Over a color or gradient the blurred
+ * result looks the same as the unblurred one, yet the browser recomputes the blur across the whole
+ * surface on every repaint inside it (hover fades, tile highlights), which stutters on 4K/high-DPI
+ * screens. `data-backdrop` is set by applyTheme; until it is, no blur is used.
+ */
+:root:not([data-backdrop='image']) {
+  --hb-glass-filter: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --hb-glass-filter: none;
+  }
+}
+
+/* Density (theme.density). */
+:root[data-density='compact'] {
+  --hb-space-3: 8px;
+  --hb-space-4: 12px;
+  --hb-space-5: 16px;
+  --hb-space-6: 24px;
+  --hb-text-md: 13px;
+  --hb-control-h: 32px;
+  --hb-control-h-sm: 26px;
+}

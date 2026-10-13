@@ -1,0 +1,6 @@
+{
+  "$comment": "The Node.js runtime scripts/build-release.ps1 puts in every release package (runtime/node.exe). To move to another version, take its sha256 for node-v<version>-win-x64.zip from https://nodejs.org/dist/v<version>/SHASUMS256.txt and change both fields together; build-release.ps1 refuses a download whose hash differs.",
+  "version": "24.21.0",
+  "platform": "win-x64",
+  "sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
+}

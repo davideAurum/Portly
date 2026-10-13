@@ -1,0 +1,18 @@
+.image {
+  display: block;
+  flex: none;
+  box-sizing: border-box;
+  object-fit: contain;
+  border-radius: 22%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* A monochrome glyph that matches the surface tone gets a contrasting plate. */
+.image[data-plate='true'] {
+  background: color-mix(in srgb, var(--hb-text) 88%, transparent);
+}
+
+.tile {
+  flex: none;
+}

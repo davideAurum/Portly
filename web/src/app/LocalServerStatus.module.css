@@ -1,0 +1,81 @@
+/* The footer's local server indicator: a dot and a label, styled like the footer's links. */
+.root {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.trigger {
+  --dot: var(--hb-text-subtle);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hb-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.trigger:hover,
+.trigger[data-state='open'] {
+  color: var(--hb-text);
+}
+
+.trigger:hover .label {
+  text-decoration: underline;
+}
+
+.trigger[data-tone='accent'] {
+  --dot: var(--hb-accent);
+}
+
+.trigger[data-tone='success'] {
+  --dot: var(--hb-success);
+}
+
+.trigger[data-tone='warning'] {
+  --dot: var(--hb-warning);
+}
+
+.trigger[data-tone='danger'] {
+  --dot: var(--hb-danger);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--dot);
+}
+
+/* A probe in flight: the dot breathes (not when the user asked for less motion). */
+.trigger[data-status='checking'] .dot,
+.trigger[data-status='reconnecting'] .dot,
+.trigger[data-status='waiting-permission'] .dot {
+  animation: hb-local-server-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger .dot {
+    animation: none !important;
+  }
+}
+
+.label {
+  min-width: 0;
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes hb-local-server-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}

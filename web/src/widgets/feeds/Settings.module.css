@@ -1,0 +1,94 @@
+/* Feeds widget settings. */
+
+.stack {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+.group {
+  display: grid;
+  gap: var(--hb-space-3);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--hb-space-2);
+}
+
+.groupLabel {
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+}
+
+.count {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.list {
+  display: grid;
+  gap: var(--hb-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  padding: var(--hb-space-2);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+}
+
+.fields {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.url {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.url svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.add {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hb-space-2);
+}
+
+.add > :first-child {
+  flex: 1;
+  min-width: 0;
+}

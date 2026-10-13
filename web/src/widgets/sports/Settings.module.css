@@ -1,0 +1,166 @@
+/* Sports widget settings. */
+
+.stack {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+.group {
+  display: grid;
+  gap: var(--hb-space-3);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--hb-space-2);
+}
+
+.groupLabel {
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+}
+
+.count {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.error {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-danger);
+}
+
+.list {
+  display: grid;
+  gap: var(--hb-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  padding: var(--hb-space-2);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+}
+
+.fields {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-size: var(--hb-text-sm);
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.league {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+/* ---- Team picker ------------------------------------------------------- */
+
+.picker {
+  display: grid;
+  gap: var(--hb-space-2);
+}
+
+.pickerControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: var(--hb-space-2);
+}
+
+.results {
+  display: grid;
+  gap: 1px;
+  max-height: 240px;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-md);
+  list-style: none;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  width: 100%;
+  padding: 5px var(--hb-space-2);
+  border: 0;
+  border-radius: var(--hb-radius-sm);
+  background: transparent;
+  color: var(--hb-text);
+  font: inherit;
+  font-size: var(--hb-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.result:hover:not(:disabled) {
+  background: var(--hb-hover);
+}
+
+.result:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: -2px;
+}
+
+.result:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.result[aria-pressed='true'] {
+  font-weight: 600;
+}
+
+.resultName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resultIcon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--hb-text-subtle);
+}
+
+.result[aria-pressed='true'] .resultIcon {
+  color: var(--hb-success);
+}
+
+.more {
+  padding: 6px var(--hb-space-2);
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+}

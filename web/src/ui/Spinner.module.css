@@ -1,0 +1,10 @@
+.spinner {
+  animation: hb-spin 0.8s linear infinite;
+  flex: none;
+}
+
+@keyframes hb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

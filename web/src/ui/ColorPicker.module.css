@@ -1,0 +1,137 @@
+.picker {
+  display: grid;
+  gap: var(--hb-space-3);
+  max-width: 320px;
+}
+
+.picker[data-disabled='true'] {
+  opacity: 0.55;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 28px);
+  gap: 8px;
+}
+
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+  transition: transform var(--hb-duration) var(--hb-ease);
+}
+
+.swatch:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+.swatch[data-state='checked'] {
+  box-shadow:
+    0 0 0 2px var(--hb-surface),
+    0 0 0 4px var(--hb-text);
+}
+
+.swatch[data-none='true'] {
+  background: var(--hb-surface-2);
+  color: var(--hb-text-muted);
+}
+
+.noneIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.indicator {
+  display: inline-flex;
+}
+
+.indicator svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 3;
+}
+
+.custom {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+}
+
+.native {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+  box-shadow: inset 0 0 0 1px var(--hb-border-strong);
+  color: var(--hb-text-muted);
+  cursor: pointer;
+}
+
+.native:focus-within {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: 2px;
+}
+
+.native svg {
+  width: 16px;
+  height: 16px;
+}
+
+.hex {
+  width: 120px;
+  height: 36px;
+  padding: 0 var(--hb-space-3);
+  border: 1px solid var(--hb-border-strong);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface);
+  font-family: var(--hb-font-mono);
+  font-size: var(--hb-text-sm);
+  text-transform: lowercase;
+}
+
+.hex:focus {
+  outline: none;
+  border-color: var(--hb-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-accent) 25%, transparent);
+}
+
+.hex[aria-invalid='true'] {
+  border-color: var(--hb-danger);
+}
+
+.trigger {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.15),
+    0 0 0 2px var(--hb-surface);
+  transition: transform var(--hb-duration) var(--hb-ease);
+}
+
+.trigger[data-size='sm'] {
+  width: 18px;
+  height: 18px;
+}
+
+.trigger:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+.trigger[data-empty='true'] {
+  background: repeating-linear-gradient(45deg, var(--hb-surface-2) 0 4px, var(--hb-surface-3) 4px 8px);
+}

@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Homebase New Tab",
+  "short_name": "Homebase",
+  "version": "0.5.0",
+  "description": "Opens Homebase in every new tab, starts it on this PC when needed, and adds the page you're on to your launch pad.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAi4fwJClMi9zC1h1jhYaFMkcGydu20VsOeLnpqac4MuAnNF5QeB5uigfv+ykBRMSLtii4JJIOWDEy9j789bay+Sr8QSUnNJITIGcBYXPmvy8vTWr+QKRJTTDYhwJP7rLnqC9jDuQwa8n1+SJUGXbEu9afI7/N50hz6nvfJyiFX4yaLM7i96259osCiuy2TIc099FbKxT2A1acRFMFD3p+2V/9uzyLRaLwjPdgqdW2i9VbGHHBw41gJ0aWgDtUIWHYLD5q6Fb8wL6ARHxrpvx8AuGZ8UjtolgYJabqheqnpK11Hz9gaKHX+C79L2skMKV1rpwWRM7bPtvx8NIyuzJmGwIDAQAB",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "action": {
+    "default_title": "Add this page to Homebase",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "options_page": "options.html",
+  "permissions": ["storage", "nativeMessaging", "activeTab"],
+  "host_permissions": ["http://localhost/*"],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src http://localhost:*; img-src 'self'; style-src 'self'"
+  }
+}

@@ -1,0 +1,130 @@
+# Connect Outlook.com (Microsoft personal account)
+
+Homebase reads and writes your Outlook.com calendar and mail through Microsoft Graph, using an app
+registration that **you** own. It works with personal Microsoft accounts (Outlook.com, Hotmail,
+Live, MSN). Work or school accounts are not supported.
+
+What you get: two-way calendar (create, edit, delete single events) and mail unread count, recent
+inbox messages, mark read/unread, archive and delete (moves to *Deleted Items*).
+
+**Time needed:** 20–30 minutes, once.
+
+> Don't want to set up Azure? Skip to [Read-only alternative: publish your calendar as ICS](#read-only-alternative-publish-your-calendar-as-ics).
+> You get your Outlook.com calendar (read-only) but no mail.
+
+> Portal labels below are as of September 2026. Microsoft renames things from time to time; the
+> values you enter (account type, platform, redirect URI, permissions) are what matter.
+
+## 1. Get a directory (Azure free account)
+
+Microsoft no longer lets a personal account register apps "outside a directory". Signing in to the
+Entra admin center with only a personal account puts you in the read-only *Microsoft Services*
+tenant, where **New registration** fails. You need your own directory, and the supported way to get
+one is an Azure account:
+
+1. Open a private/InPrivate browser window (avoids signing in with the wrong account).
+2. Go to <https://azure.microsoft.com/free/> and choose **Try Azure for free** / **Start free**.
+3. Sign in with your personal Microsoft account (the Outlook.com address is fine).
+4. Complete the sign-up: profile, phone verification and card verification. The card is only for
+   identity verification; this setup creates no billable resources.
+5. When the portal opens, you are the Global Administrator of a new directory (tenant) called
+   *Default Directory*.
+
+App registrations live in the directory, not in the Azure subscription, so Homebase keeps working
+after the free credit period. Do not create any Azure resources.
+
+## 2. Register the app
+
+1. Go to the Microsoft Entra admin center: <https://entra.microsoft.com/>. If you have several
+   directories, use the **Settings** (gear) icon in the top bar to switch to the new one.
+2. Open **Entra ID → App registrations** and click **New registration**.
+3. **Name:** `Homebase`.
+4. **Supported account types:** **Personal accounts only** (older portal versions call it
+   *Personal Microsoft accounts only*). Homebase signs in through the `/consumers` endpoint and
+   refuses work/school accounts.
+5. If the form also shows an optional **Redirect URI** section, you can leave it empty — the next
+   step adds it.
+6. Click **Register**.
+7. On the **Overview** page, copy the **Application (client) ID**.
+
+## 3. Add the redirect URI
+
+1. In the app's menu open **Authentication**.
+2. On the **Redirect URI configuration** tab click **Add Redirect URI** (older layouts:
+   **Add a platform**).
+3. Choose the **Mobile and desktop applications** tile.
+4. Under **Custom redirect URIs** enter exactly:
+
+   ```text
+   http://localhost/api/oauth/microsoft/callback
+   ```
+
+   No port: Microsoft ignores the port for `localhost` redirect URIs, so this works for
+   `http://localhost:5757` and any other port. (Homebase shows the same value to copy in
+   **Settings → Accounts**.)
+5. Click **Configure**.
+6. Make sure the same URL is **not** also registered under **Web** or **Single-page application** —
+   Microsoft picks one platform per redirect URI and the others break the sign-in.
+
+Leave **Allow public client flows** (on the **Settings** tab of the same page in newer layouts) at
+**No** / off — Homebase uses the authorization-code flow with PKCE, which does not need it.
+
+## 4. Add the Graph permissions
+
+1. Open **API permissions → Add a permission → Microsoft Graph → Delegated permissions**.
+2. Tick:
+   - **Calendars.ReadWrite**
+   - **Mail.ReadWrite**
+   - **offline_access** (under *OpenId permissions*; also tick **openid**, **profile** and **email**)
+   - **User.Read** is already listed — keep it.
+3. Click **Add permissions**.
+
+No admin consent is needed; with a personal account you consent for yourself when you connect.
+Homebase uses `Mail.ReadWrite` for mark read/unread, archive and moving mail to Deleted Items —
+it never sends mail and never permanently deletes it.
+
+## 5. No client secret
+
+Do **not** create anything under **Certificates & secrets**. Homebase is a *public client*: it
+proves itself with PKCE instead of a secret, which is how desktop apps are meant to work. Refresh
+tokens for this kind of app last 90 days and renew every time Homebase uses them.
+
+## 6. Enter the client in Homebase
+
+1. Open Homebase → **Settings → Accounts** (`http://localhost:5757/#/settings/accounts`).
+2. In the **Outlook.com** card (under *Google and Outlook.com*), paste the
+   **Application (client) ID** and click **Save**. There is no secret to enter.
+
+## 7. Connect your account
+
+1. In the same card, click **Connect Outlook.com** and sign in with your Outlook.com account.
+2. Microsoft shows **Let this app access your info?** with the permissions above and your app's
+   name marked as unverified. That is expected for your own app. Click **Accept**.
+3. You land back in Homebase with a "connected" message. Your calendars appear under
+   **Settings → Calendars** and the Mail widget shows your inbox.
+
+You can connect several personal Microsoft accounts with the same registration.
+
+## Good to know
+
+- **Staying connected.** A refresh token unused for 90 days expires, and changing your password
+  or removing the app at <https://account.live.com/consent/Manage> revokes it. Homebase then shows
+  **Reconnect** for the account.
+- **Mail archive** uses your mailbox's *Archive* folder; **delete** moves messages to
+  *Deleted Items*.
+
+## Read-only alternative: publish your calendar as ICS
+
+No Azure account needed; you get the calendar read-only and no mail.
+
+1. Open <https://outlook.live.com/calendar/> and click **Settings** (gear) → **Calendar** →
+   **Shared calendars**.
+2. Under **Publish a calendar**, pick the calendar and **Can view all details**, then **Publish**.
+3. Copy the **ICS** link (not the HTML one).
+4. In Homebase open **Settings → Calendars**, add an ICS calendar and paste the link.
+
+Treat the ICS link like a password: anyone who has it can read that calendar. Homebase stores it
+encrypted and only ever shows its host name. To revoke it, choose **Unpublish** (or **Reset links**)
+in the same Outlook settings page.
+
+Problems? See [troubleshooting](troubleshooting.md#microsoft).

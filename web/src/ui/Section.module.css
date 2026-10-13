@@ -1,0 +1,122 @@
+.card {
+  display: grid;
+  align-content: start;
+  gap: var(--hb-space-4);
+  padding: var(--hb-space-5);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface);
+}
+
+.card[data-tone='danger'] {
+  border-color: color-mix(in srgb, var(--hb-danger) 35%, var(--hb-border));
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--hb-space-3);
+  flex-wrap: wrap;
+}
+
+.cardTitles {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.cardTitle {
+  font-size: var(--hb-text-lg);
+  font-weight: 650;
+}
+
+.cardDescription {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+  max-width: 70ch;
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--hb-space-2);
+}
+
+.cardBody {
+  display: grid;
+  gap: var(--hb-space-4);
+  min-width: 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--hb-space-3);
+  padding-top: var(--hb-space-2);
+}
+
+.footerStatus {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.footerButtons {
+  display: flex;
+  gap: var(--hb-space-2);
+  margin-left: auto;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--hb-space-4);
+}
+
+@media (max-width: 640px) {
+  .fieldGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.facts {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+  gap: var(--hb-space-3);
+  align-items: center;
+  padding: var(--hb-space-3) 0;
+  border-bottom: 1px solid var(--hb-border);
+}
+
+.fact:last-child {
+  border-bottom: 0;
+}
+
+.fact dt {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.fact dd {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--hb-text-md);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .fact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}

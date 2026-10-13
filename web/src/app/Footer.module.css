@@ -1,0 +1,83 @@
+/* Quiet glass strip at the bottom of the page, matching the header chips. */
+.footer {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--hb-space-2) var(--hb-space-3) var(--hb-space-3);
+}
+
+.inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hb-space-2) var(--hb-space-4);
+  padding: var(--hb-space-2) var(--hb-space-4);
+  border: 1px solid var(--hb-glass-border);
+  border-radius: var(--hb-radius-full);
+  background: color-mix(in srgb, var(--hb-surface) 72%, transparent);
+  backdrop-filter: var(--hb-glass-filter);
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hb-space-1) var(--hb-space-3);
+}
+
+.links a,
+.linkButton {
+  color: var(--hb-text-muted);
+  font: inherit;
+}
+
+.links a:hover,
+.linkButton:hover {
+  color: var(--hb-text);
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hb-space-1) var(--hb-space-2);
+  margin: 0;
+}
+
+/* The serverStatus slot brings its own separator (hidden from screen readers) and disappears,
+   separator included, when the indicator renders nothing. */
+.serverStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-width: 0;
+}
+
+.serverStatus::before {
+  content: '·';
+  content: '·' / '';
+}
+
+.serverStatus:empty {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .inner {
+    border-radius: var(--hb-radius-lg);
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

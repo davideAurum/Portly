@@ -1,0 +1,212 @@
+/* Settings › Calendars (§10.8). Tokens only. */
+
+.list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--hb-space-3);
+  padding: var(--hb-space-3) 0;
+  border-bottom: 1px solid var(--hb-border);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-width: 0;
+  font-weight: 600;
+}
+
+.name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-danger);
+  overflow-wrap: anywhere;
+}
+
+.error svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  margin-top: 1px;
+}
+
+/* A non-fatal sync note (e.g. shortened repeating events): the calendar did sync. */
+.warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-warning);
+  overflow-wrap: anywhere;
+}
+
+.warning svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  margin-top: 1px;
+}
+
+.customColor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inlineAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: var(--hb-radius-sm);
+  background: none;
+  color: var(--hb-accent-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inlineAction:hover {
+  text-decoration: underline;
+}
+
+.inlineAction:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: 1px;
+}
+
+.inlineAction svg {
+  width: 11px;
+  height: 11px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--hb-space-2) var(--hb-space-3);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.syncGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--hb-space-4);
+}
+
+.addForm {
+  display: grid;
+  gap: var(--hb-space-3);
+  padding-top: var(--hb-space-3);
+  border-top: 1px solid var(--hb-border);
+}
+
+.addRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--hb-space-3);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.hint a {
+  font-weight: 600;
+}
+
+.cardTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-accent-soft);
+  color: var(--hb-accent-text);
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+}
+
+.link:hover {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--hb-accent) 22%, transparent);
+}
+
+.link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.accountDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--event-color);
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .controls {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .addRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

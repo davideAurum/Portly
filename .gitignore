@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output
+web/dist/
+web/dist-static/
+/dist-release/
+*.tsbuildinfo
+.vite/
+coverage/
+
+# Local data (the real data dir lives in %LOCALAPPDATA%\Homebase; these catch stray local runs)
+/data/
+/.data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+vault.key
+vault.key.*
+
+# Logs
+/logs/
+*.log
+npm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+
+# Personal reference material
+/Personal Page Info/
+
+# OS / editor noise (incl. per-machine Claude Code session files such as .claude/launch.json)
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.swp
+
+# Private keys (the extension's pinned ID only needs the public key in manifest.json)
+*.pem

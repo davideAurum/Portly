@@ -1,0 +1,386 @@
+/*
+ * Styles for the extension pages (new-tab fallback + options). Mirrors the Homebase design
+ * tokens (web/src/styles/tokens.css): the default gradient backdrop with a calm glass card,
+ * system fonts, light and dark via prefers-color-scheme.
+ */
+
+:root {
+  color-scheme: light;
+
+  --backdrop: linear-gradient(160deg, #1e3a8a 0%, #6d28d9 100%);
+  --surface: rgb(255 255 255 / 0.9);
+  --surface-2: #f3f5f9;
+  --text: #111827;
+  --text-muted: #5b6474;
+  --border: rgb(15 23 42 / 0.12);
+  --accent: #3b82f6;
+  --accent-contrast: #ffffff;
+  --danger: #dc2626;
+  --success: #15803d;
+  --focus: #2563eb;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.12);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', Consolas, 'Liberation Mono', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --surface: rgb(22 27 46 / 0.92);
+    --surface-2: #1e2438;
+    --text: #e6e9f2;
+    --text-muted: #9aa3b5;
+    --border: rgb(255 255 255 / 0.12);
+    --accent: #60a5fa;
+    --accent-contrast: #0b1020;
+    --danger: #f87171;
+    --success: #4ade80;
+    --focus: #93c5fd;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: #1e3a8a var(--backdrop) fixed;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 24px 16px;
+  display: grid;
+  /* minmax(0, 1fr): long unbreakable content scrolls inside the card, never widens the page. */
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+a {
+  color: var(--accent);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.card {
+  width: min(560px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: 13px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.howto {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.howto ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+/* A command to copy: its own line, never broken mid-word, scrolls if the card is narrow. */
+code.command {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 4px 8px;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-wrap: normal;
+  user-select: all;
+}
+
+label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.button.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-contrast);
+}
+
+.button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+/* Options: a group of radio choices ("New tab opens"). */
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+label.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-weight: 400;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+label.choice:has(input:checked) {
+  border-color: var(--accent);
+}
+
+.choice input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 3px 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.choice-help {
+  display: block;
+}
+
+.search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.status-ok {
+  color: var(--success);
+}
+
+.status-error {
+  color: var(--danger);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* New tab: nothing but the backdrop while checking/redirecting; a hint only if it takes a while. */
+.connecting {
+  display: none;
+  color: rgb(255 255 255 / 0.85);
+}
+
+[data-state='checking'] .connecting {
+  display: block;
+  animation: appear 0.2s ease 0.6s both;
+}
+
+[data-state='checking'] .fallback,
+[data-state='redirecting'] .fallback,
+[data-state='redirecting'] .connecting,
+[data-state='starting'] .fallback {
+  display: none;
+}
+
+/* New tab while the launcher starts Homebase. Fades in after a moment, so a launcher that answers
+   at once ("not installed") goes straight to the fallback without a flash. */
+.starting {
+  display: none;
+}
+
+[data-state='starting'] .starting {
+  display: grid;
+  animation: appear 0.2s ease 0.25s both;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spinner {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* What happened when the page tried to start Homebase. */
+.notice {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 16px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-state='checking'] .connecting,
+  [data-state='starting'] .starting {
+    animation: none;
+  }
+
+  .spinner {
+    animation-duration: 3s;
+  }
+}

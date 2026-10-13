@@ -1,0 +1,45 @@
+{
+  "name": "homebase",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-user, customizable browser home page served from a local Node server.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11.10"
+  },
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "node --watch --env-file=server/dev.env server/src/index.ts",
+    "dev:web": "npm run dev --workspace @homebase/web",
+    "build": "npm run build --workspace @homebase/web",
+    "build:static": "npm run build:static --workspace @homebase/web",
+    "start": "node server/src/index.ts",
+    "preview:static": "npm run preview:static --workspace @homebase/web",
+    "typecheck": "tsc --noEmit -p shared && tsc --noEmit -p server && tsc --noEmit -p web && tsc --noEmit -p web/tsconfig.node.json",
+    "test": "vitest run && npm run test:extension && npm run test:native-host && npm audit --omit=dev --audit-level=high",
+    "test:extension": "node scripts/check-extension.mjs",
+    "test:native-host": "node scripts/check-native-host.mjs"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.1.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}

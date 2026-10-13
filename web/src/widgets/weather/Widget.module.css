@@ -1,0 +1,630 @@
+/* Weather widget. Tokens only. The root is a size container ("weather") so every tier can
+   refine itself to the real width and height of the card. */
+
+/* The container itself cannot be styled by its own container queries: layout lives on .layout.
+   position: relative contains the visually-hidden (absolute) labels, which container-type does not.
+   A column so the Open-Meteo attribution line sits under the layout in every tier. */
+.root {
+  container: weather / size;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 6px var(--hb-space-4) var(--hb-space-2);
+}
+
+.root[data-tier='large'] .layout {
+  gap: var(--hb-space-3);
+}
+
+.root[data-tier='compact'] .layout {
+  justify-content: center;
+  padding-block: var(--hb-space-2);
+}
+
+/* Short but wide cards: the current conditions and a short hourly strip side by side. */
+.root[data-tier='compact'][data-wide='true'] .layout {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--hb-space-4);
+}
+
+.root[data-tier='compact'][data-wide='true'] .current {
+  flex: none;
+  max-width: 50%;
+}
+
+.root[data-tier='compact'][data-wide='true'] .layout > :last-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* ---- Condition icon tints ------------------------------------------------ */
+
+.weatherIcon {
+  flex: none;
+  color: var(--hb-text-muted);
+}
+
+.weatherIcon[data-tone='sun'] {
+  color: var(--hb-warning);
+}
+
+.weatherIcon[data-tone='partly'] {
+  color: color-mix(in srgb, var(--hb-warning) 70%, var(--hb-text-muted));
+}
+
+.weatherIcon[data-tone='moon'] {
+  color: color-mix(in srgb, var(--hb-accent) 45%, var(--hb-text-muted));
+}
+
+.weatherIcon[data-tone='rain'] {
+  color: var(--hb-accent);
+}
+
+.weatherIcon[data-tone='snow'] {
+  color: color-mix(in srgb, var(--hb-accent) 55%, var(--hb-text));
+}
+
+.weatherIcon[data-tone='storm'] {
+  color: color-mix(in srgb, var(--hb-warning) 60%, var(--hb-text));
+}
+
+/* ---- Current conditions ------------------------------------------------- */
+
+.current {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-3);
+  min-width: 0;
+  flex: none;
+}
+
+.currentIcon {
+  width: 48px;
+  height: 48px;
+}
+
+.root[data-tier='compact'] .currentIcon {
+  width: 40px;
+  height: 40px;
+}
+
+.currentMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.temp {
+  display: flex;
+  align-items: flex-start;
+  line-height: 1;
+  color: var(--hb-text);
+}
+
+.tempValue {
+  font-size: 38px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.root[data-tier='compact'] .tempValue {
+  font-size: 34px;
+}
+
+.tempUnit {
+  margin-top: 4px;
+  margin-left: 1px;
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  color: var(--hb-text-muted);
+}
+
+.condition {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compactPlace {
+  display: none;
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.currentAside {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  line-height: 1.3;
+  flex: 1 1 0;
+  min-width: 0;
+  margin-left: auto;
+  text-align: right;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.place {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--hb-text);
+}
+
+.placeIcon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  color: var(--hb-text-muted);
+}
+
+.placeName,
+.placeDetail {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.placeDetail {
+  font-size: var(--hb-text-xs);
+}
+
+.feels,
+.hiLo {
+  white-space: nowrap;
+}
+
+/* ---- Details (wind, humidity, precipitation, sun) -------------------------- */
+
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--hb-space-4);
+  flex: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text);
+}
+
+.detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.detailIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--hb-text-muted);
+}
+
+.sunsetIcon {
+  margin-left: 6px;
+}
+
+.windDir {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--hb-text-muted);
+}
+
+.windDir abbr {
+  text-decoration: none;
+}
+
+.windArrow {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+/* ---- Hourly strip / day strip --------------------------------------------- */
+
+.hourly {
+  --fade-start: 0px;
+  --fade-end: 0px;
+
+  position: relative;
+  flex: none;
+  margin-inline: calc(var(--hb-space-4) * -1);
+  padding-inline: var(--hb-space-4);
+  scroll-padding-inline: var(--hb-space-4);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  /* No scrollbar (it would cost the card ~10 px of height): faded edges show there is more,
+     and wheel, touch, drag-scroll and arrow keys all scroll the strip. */
+  scrollbar-width: none;
+  border-radius: var(--hb-radius-md);
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent 100%);
+}
+
+.hourly::-webkit-scrollbar {
+  display: none;
+}
+
+.hourly[data-fade-start='true'] {
+  --fade-start: 28px;
+}
+
+.hourly[data-fade-end='true'] {
+  --fade-end: 36px;
+}
+
+.hourly:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: -2px;
+}
+
+.hourList {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 2px;
+  list-style: none;
+}
+
+.hour {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 46px;
+  padding: 5px 4px;
+  border-radius: var(--hb-radius-md);
+  scroll-snap-align: start;
+}
+
+.hour[data-now='true'] {
+  background: color-mix(in srgb, var(--hb-text) 6%, transparent);
+}
+
+.hourTime {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  white-space: nowrap;
+}
+
+.hour[data-now='true'] .hourTime {
+  font-weight: 650;
+  color: var(--hb-text);
+}
+
+.hourIcon {
+  width: 22px;
+  height: 22px;
+}
+
+.hourTemp {
+  font-size: var(--hb-text-md);
+  font-weight: 600;
+}
+
+.hourPrecip,
+.dayStripMin {
+  min-height: 1em;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.hourPrecip {
+  font-weight: 600;
+  color: var(--hb-accent-text);
+}
+
+.dayStripMin {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+/* ---- 7-day list ---------------------------------------------------------- */
+
+.daily {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  margin: 0 calc(var(--hb-space-2) * -1);
+  padding: var(--hb-space-2) 0 0;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--hb-border);
+}
+
+.day {
+  display: grid;
+  grid-template-columns: minmax(3.2em, auto) 22px 2.6em 2.4em minmax(40px, 1fr) 2.4em;
+  align-items: center;
+  column-gap: var(--hb-space-2);
+  min-height: 28px;
+  padding: 0 var(--hb-space-2);
+  border-radius: var(--hb-radius-sm);
+  font-size: var(--hb-text-sm);
+}
+
+.day[data-today='true'] .dayName {
+  font-weight: 650;
+  color: var(--hb-text);
+}
+
+.dayName {
+  color: var(--hb-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dayIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.dayPrecip {
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+  color: var(--hb-accent-text);
+}
+
+.dayMin {
+  text-align: right;
+  color: var(--hb-text-muted);
+}
+
+.dayMax {
+  font-weight: 600;
+}
+
+.dayBar {
+  position: relative;
+  height: 6px;
+  border-radius: var(--hb-radius-full);
+  background: color-mix(in srgb, var(--hb-text) 9%, transparent);
+}
+
+.dayRange {
+  position: absolute;
+  inset-block: 0;
+  left: var(--hb-range-from);
+  right: calc(100% - var(--hb-range-to));
+  min-width: 6px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--hb-accent) 80%, var(--hb-surface)), var(--hb-warning));
+}
+
+.dayNow {
+  position: absolute;
+  top: 50%;
+  left: var(--hb-range-at);
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--hb-surface);
+  border-radius: 50%;
+  background: var(--hb-text);
+  transform: translate(-50%, -50%);
+}
+
+/* ---- Attribution (Open-Meteo, CC BY 4.0) ------------------------------------ */
+
+/* One small muted line; it tucks into the layout's bottom padding so it costs ~13 px of height. */
+.attribution {
+  flex: none;
+  margin: calc(var(--hb-space-1) * -1) 0 0;
+  padding: 0 var(--hb-space-4) 3px;
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--hb-text-muted);
+}
+
+.attribution .attributionLink {
+  display: inline;
+  color: inherit;
+  text-decoration: none;
+}
+
+.attribution .attributionLink:hover {
+  color: var(--hb-text);
+  text-decoration: underline;
+}
+
+/* The card clips its overflow: keep the focus ring inside it. */
+.attribution .attributionLink:focus-visible {
+  outline-offset: 0;
+  border-radius: 2px;
+}
+
+/* ---- Status / skeleton ----------------------------------------------------- */
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hb-space-2);
+  height: 100%;
+  padding: var(--hb-space-4);
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.statusIcon {
+  width: 18px;
+  height: 18px;
+  color: var(--hb-accent);
+  animation: hb-weather-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes hb-weather-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statusIcon {
+    animation: none;
+  }
+}
+
+.skeletonStack {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.skeletonStrip {
+  display: flex;
+  gap: var(--hb-space-2);
+  overflow: hidden;
+}
+
+/* ---- Container refinements -------------------------------------------------- */
+
+/* Sunrise/sunset only when they fit on the details line. */
+@container weather (max-width: 380px) {
+  .detail[data-optional='true'] {
+    display: none;
+  }
+}
+
+/* Narrow cards: drop secondary text. */
+@container weather (max-width: 300px) {
+  .currentIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tempValue {
+    font-size: 34px;
+  }
+
+  .placeDetail,
+  .placeIcon {
+    display: none;
+  }
+
+  .day {
+    grid-template-columns: minmax(2.8em, auto) 20px 2.2em minmax(24px, 1fr) 2.2em;
+  }
+
+  .dayPrecip {
+    display: none;
+  }
+}
+
+@container weather (max-width: 230px) {
+  .feels,
+  .hiLo {
+    display: none;
+  }
+
+  /* Narrow compact cards: the place replaces the condition (the icon shows the condition). */
+  .root[data-tier='compact'] .currentAside,
+  .root[data-tier='compact'] .condition {
+    display: none;
+  }
+
+  .root[data-tier='compact'] .compactPlace {
+    display: block;
+  }
+
+  .details {
+    gap: 2px var(--hb-space-3);
+  }
+
+  .windDir,
+  .detail[data-narrow-optional='true'] {
+    display: none;
+  }
+
+  /* Narrow cards keep the link as just "Open-Meteo.com". */
+  .attributionPrefix {
+    display: none;
+  }
+}
+
+@container weather (max-width: 150px) {
+  .condition,
+  .currentAside {
+    display: none;
+  }
+
+  .layout {
+    padding-inline: var(--hb-space-3);
+  }
+}
+
+/* Wide cards: roomier type. */
+@container weather (min-width: 460px) and (min-height: 200px) {
+  .tempValue {
+    font-size: 52px;
+  }
+
+  .currentIcon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .hour {
+    min-width: 52px;
+  }
+}
+
+/* Short cards: tighten the vertical rhythm. */
+@container weather (max-height: 90px) {
+  .layout {
+    gap: var(--hb-space-1);
+  }
+
+  .condition {
+    display: none;
+  }
+
+  .tempValue {
+    font-size: 28px;
+  }
+
+  .currentIcon {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@container weather (max-height: 180px) {
+  .root:not([data-tier='compact']) .layout {
+    gap: var(--hb-space-2);
+  }
+
+  .placeDetail {
+    display: none;
+  }
+}

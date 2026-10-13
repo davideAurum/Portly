@@ -1,0 +1,307 @@
+/* Search widget (§10.8). Tokens only; adapts to the widget width via container queries. */
+
+.root {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-height: 50px;
+  padding: 3px var(--hb-space-3);
+}
+
+.skeleton {
+  flex: 1;
+}
+
+/* With the frame header hidden, the frame's settings button floats in the top-right corner:
+   keep the search box clear of it. */
+:global(section[data-widget-type='search']:not(:has(> header))) .root {
+  padding-right: 40px;
+}
+
+.shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 4px;
+  border: 1px solid var(--hb-border-strong);
+  border-radius: var(--hb-radius-full);
+  background: var(--hb-surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--hb-text) 6%, transparent);
+  transition:
+    border-color var(--hb-duration) var(--hb-ease),
+    box-shadow var(--hb-duration) var(--hb-ease);
+}
+
+.shell:hover {
+  border-color: color-mix(in srgb, var(--hb-accent) 35%, var(--hb-border-strong));
+}
+
+.shell:focus-within {
+  border-color: var(--hb-accent);
+  box-shadow:
+    0 0 0 3px var(--hb-accent-soft),
+    0 4px 16px -8px color-mix(in srgb, var(--hb-accent) 45%, transparent);
+}
+
+.leadingIcon {
+  width: 18px;
+  height: 18px;
+  margin-left: 10px;
+  color: var(--hb-text-muted);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  max-width: 45%;
+  height: 34px;
+  padding: 0 8px 0 7px;
+  border: 0;
+  border-radius: var(--hb-radius-full);
+  background: var(--hb-surface-2);
+  color: var(--hb-text);
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--hb-duration) var(--hb-ease);
+}
+
+button.chip:hover,
+button.chip[data-state='open'] {
+  background: var(--hb-surface-3);
+}
+
+button.chip:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: 1px;
+}
+
+.shell[data-switched='true'] .chip {
+  background: var(--hb-accent-soft);
+  color: var(--hb-accent-text);
+}
+
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipChevron {
+  width: 14px;
+  height: 14px;
+  color: var(--hb-text-muted);
+}
+
+.chipClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: -2px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--hb-radius-full);
+  background: transparent;
+  color: inherit;
+}
+
+.chipClear:hover {
+  background: var(--hb-hover);
+}
+
+.chipClear svg {
+  width: 13px;
+  height: 13px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--hb-text);
+  font-size: var(--hb-text-lg);
+}
+
+.input::placeholder {
+  color: var(--hb-text-subtle);
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.clear {
+  color: var(--hb-text-muted);
+}
+
+.shell .submit,
+.shell .clear {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: var(--hb-radius-full);
+}
+
+.menuEngine {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-width: 0;
+  width: 100%;
+}
+
+.menuEngineName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuHint {
+  max-width: 17rem;
+  margin: 0;
+  padding: 4px 8px 6px;
+  color: var(--hb-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* ---- Dropdown (portalled; width follows the search box) ---- */
+
+.dropdown[data-side] {
+  width: var(--radix-popper-anchor-width);
+  max-width: calc(100vw - 24px);
+  max-height: min(440px, var(--radix-popover-content-available-height));
+  padding: 6px;
+}
+
+.listbox {
+  display: grid;
+  gap: 1px;
+}
+
+.section {
+  display: grid;
+  gap: 1px;
+}
+
+.sectionLabel {
+  padding: 8px 10px 4px;
+  color: var(--hb-text-subtle);
+  font-size: var(--hb-text-xs);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: var(--hb-radius-md);
+  color: var(--hb-text);
+  font-size: var(--hb-text-md);
+  cursor: pointer;
+  user-select: none;
+}
+
+.option[aria-selected='true'] {
+  background: var(--hb-accent-soft);
+}
+
+.option:hover:not([aria-selected='true']) {
+  background: var(--hb-hover);
+}
+
+.optionIcon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--hb-text-muted);
+}
+
+.optionText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionText strong {
+  font-weight: 650;
+}
+
+.optionMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  color: var(--hb-text-muted);
+  font-size: var(--hb-text-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.optionMeta svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.optionEnter {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--hb-text-subtle);
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  margin: 0 0 4px;
+  padding: 8px 10px;
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+  color: var(--hb-text-muted);
+  font-size: var(--hb-text-sm);
+}
+
+@container (max-width: 420px) {
+  .chipName {
+    display: none;
+  }
+
+  .chip {
+    padding: 0 6px;
+  }
+
+  .input {
+    font-size: var(--hb-text-md);
+  }
+}
+
+@container (max-width: 280px) {
+  .shell .clear {
+    display: none;
+  }
+}

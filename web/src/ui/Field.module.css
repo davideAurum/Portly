@@ -1,0 +1,67 @@
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field[data-inline='true'] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--hb-space-4);
+}
+
+.field[data-inline='true'] .help,
+.field[data-inline='true'] .error {
+  grid-column: 1 / -1;
+  margin-top: -2px;
+}
+
+.label {
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  color: var(--hb-text);
+}
+
+.required {
+  color: var(--hb-danger);
+}
+
+.control {
+  min-width: 0;
+}
+
+.help {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.error {
+  font-size: var(--hb-text-xs);
+  font-weight: 500;
+  color: var(--hb-danger);
+}
+
+.group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.legend {
+  padding: 0;
+  font-size: var(--hb-text-md);
+  font-weight: 650;
+}
+
+.groupDescription {
+  margin-top: 2px;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.groupBody {
+  display: grid;
+  gap: var(--hb-space-4);
+  margin-top: var(--hb-space-3);
+}

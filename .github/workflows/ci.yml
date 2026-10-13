@@ -1,0 +1,74 @@
+# Checks every change to main and every pull request: typecheck, the full test suite (vitest, the
+# extension and native host tests, npm audit), both web builds, the PowerShell self-checks and a
+# test release package (install, start, update; release.yml builds the real one).
+#
+# It runs on Windows because Homebase does: the vault uses DPAPI, autostart uses Task Scheduler,
+# and the native host tests run launcher.cmd through cmd.exe exactly as Chrome does. Windows
+# runners bill private-repository minutes at twice the Linux rate, so it runs on pushes to main
+# and on pull requests only (not on every branch push), and a newer run of the same branch or pull
+# request cancels the older one.
+#
+# Actions are pinned to full commit SHAs with their version as a comment (scripts\check-scripts.ps1
+# checks this); see static-pages.yml for how to upgrade one.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, test and build (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # package.json requires npm 11.10 or newer (engine-strict). Updated outside the checkout so
+      # the repository's .npmrc does not apply to the global install (as scripts\setup.ps1 does).
+      - name: npm 11.10 or newer
+        shell: pwsh
+        working-directory: ${{ runner.temp }}
+        run: |
+          if ([version](npm -v) -lt [version]'11.10.0') { npm install -g npm@11 --no-audit --no-fund }
+          node -v
+          npm -v
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      # One command per step: in a multi-line pwsh step only the last command's exit code counts.
+      - name: Build the server's page (web/dist)
+        run: npm run build
+
+      - name: Build the browser-only site (web/dist-static)
+        run: npm run build:static
+
+      - name: PowerShell self-checks (Windows PowerShell 5.1 and PowerShell 7)
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-scripts.ps1
+
+      # A test package with the runner's node.exe (no download): install, start, update.
+      - name: Release package checks
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release.ps1

@@ -1,0 +1,155 @@
+/* Feeds widget. Tokens only; the body is an inline-size container (WidgetFrame). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hb-space-1);
+  min-height: 100%;
+  padding: 2px var(--hb-space-2) var(--hb-space-2);
+}
+
+.fill {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- Headlines --------------------------------------------------------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  border-radius: var(--hb-radius-md);
+}
+
+.link {
+  display: grid;
+  gap: 2px;
+  padding: 7px var(--hb-space-2) 8px;
+  border-radius: inherit;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--hb-duration) var(--hb-ease);
+}
+
+a.link:hover {
+  text-decoration: none;
+  background: var(--hb-hover);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: -2px;
+}
+
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: var(--hb-text-sm);
+  font-weight: 550;
+  line-height: 1.35;
+  color: var(--hb-text);
+  overflow-wrap: anywhere;
+}
+
+a.link:visited .title {
+  color: var(--hb-text-muted);
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+}
+
+.source {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--hb-text-muted);
+}
+
+.time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: var(--hb-text-xs);
+  line-height: 1.4;
+  color: var(--hb-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Wide cards: three lines of summary. */
+@container (min-width: 520px) {
+  .summary {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+}
+
+/* ---- Failed feeds ------------------------------------------------------ */
+
+.notices {
+  display: grid;
+  gap: var(--hb-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  padding: var(--hb-space-2);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+}
+
+.noticeIcon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--hb-danger);
+}
+
+.noticeText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--hb-text-xs);
+}
+
+.noticeText strong,
+.noticeMessage {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noticeMessage {
+  color: var(--hb-text-muted);
+}

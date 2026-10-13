@@ -1,0 +1,160 @@
+.input {
+  width: 100%;
+  min-width: 0;
+  height: var(--hb-control-h);
+  padding: 0 var(--hb-space-3);
+  border: 1px solid var(--hb-border-strong);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface);
+  color: var(--hb-text);
+  font-size: var(--hb-text-md);
+  transition:
+    border-color var(--hb-duration) var(--hb-ease),
+    box-shadow var(--hb-duration) var(--hb-ease);
+}
+
+.input::placeholder {
+  color: var(--hb-text-subtle);
+}
+
+.input:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--hb-border-strong) 50%, var(--hb-text-muted));
+}
+
+.input:focus-visible,
+.input:focus {
+  outline: none;
+  border-color: var(--hb-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-accent) 25%, transparent);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--hb-danger);
+}
+
+.input[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 3px var(--hb-danger-soft);
+}
+
+.input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.input[readonly] {
+  background: var(--hb-surface-2);
+}
+
+.input[data-size='sm'] {
+  height: var(--hb-control-h-sm);
+  padding: 0 var(--hb-space-2);
+  font-size: var(--hb-text-sm);
+  border-radius: var(--hb-radius-sm);
+}
+
+.textarea {
+  height: auto;
+  min-height: calc(var(--hb-control-h) * 2);
+  padding: var(--hb-space-2) var(--hb-space-3);
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.textarea[data-autogrow='true'] {
+  field-sizing: content;
+  max-height: 40vh;
+}
+
+/* Leading / trailing affixes */
+.affix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.affix .input {
+  flex: 1;
+}
+
+.leading,
+.trailing {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  color: var(--hb-text-muted);
+  font-size: var(--hb-text-sm);
+}
+
+.leading {
+  left: var(--hb-space-3);
+  pointer-events: none;
+}
+
+.leading svg {
+  width: 16px;
+  height: 16px;
+}
+
+.trailing {
+  right: 4px;
+}
+
+.affix:has(.leading) .input {
+  padding-left: calc(var(--hb-space-3) + 24px);
+}
+
+.affix:has(.trailing) .input {
+  padding-right: 40px;
+}
+
+.reveal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--hb-radius-sm);
+  background: transparent;
+  color: var(--hb-text-muted);
+}
+
+.reveal:hover {
+  background: var(--hb-hover);
+  color: var(--hb-text);
+}
+
+.reveal svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Native select */
+.selectWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.select {
+  appearance: none;
+  padding-right: 34px;
+  cursor: pointer;
+}
+
+.chevron {
+  position: absolute;
+  right: 10px;
+  width: 16px;
+  height: 16px;
+  color: var(--hb-text-muted);
+  pointer-events: none;
+}
+
+.select option {
+  background: var(--hb-surface);
+  color: var(--hb-text);
+}

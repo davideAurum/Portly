@@ -1,0 +1,90 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hb-space-3);
+  height: 100%;
+  min-height: 0;
+  padding: var(--hb-space-4);
+  text-align: center;
+  color: var(--hb-text-muted);
+}
+
+.root[data-compact='true'] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: center;
+  gap: var(--hb-space-2) var(--hb-space-3);
+  padding: var(--hb-space-2) var(--hb-space-3);
+  text-align: left;
+}
+
+/* Compact: the text takes the row; actions wrap below it instead of overlapping it. */
+.root[data-compact='true'] .text {
+  flex: 1 1 10ch;
+}
+
+.root[data-compact='true'] .action {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+}
+
+.iconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--hb-text) 6%, transparent);
+  color: var(--hb-text-muted);
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+}
+
+.root[data-compact='true'] .iconWrap {
+  width: 30px;
+  height: 30px;
+}
+
+.root[data-compact='true'] .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--hb-text-md);
+  font-weight: 600;
+  color: var(--hb-text);
+}
+
+.body {
+  font-size: var(--hb-text-sm);
+  max-width: 38ch;
+  margin-inline: auto;
+}
+
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--hb-space-2);
+}
+
+/* Narrow widgets: drop the icon so the text fits. */
+@container (max-width: 180px) {
+  .iconWrap {
+    display: none;
+  }
+}

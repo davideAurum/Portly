@@ -1,0 +1,125 @@
+# Publishes the browser-only build (web/dist-static) to a PUBLIC repository's gh-pages branch.
+#
+# Manual only: Actions -> "Publish static site" -> Run workflow. It is NOT triggered by pushes. The
+# Homebase repository is private and GitHub Free serves Pages only from public repositories, so the
+# built files go to a second, public repository that you create first (docs/setup/static-build.md).
+# Until that repository and the ACTIONS_DEPLOY_KEY secret exist, a run stops at its first step with
+# a message saying so: nothing is published by accident, and the workflow is otherwise inert.
+#
+# One-time setup:
+#   1. Create the public repository, e.g. <user>/homebase-pages, and set its Pages source to
+#      "Deploy from a branch", branch gh-pages, folder / (root).
+#   2. Generate a key pair without a passphrase (press Enter twice at the passphrase prompts; no -N:
+#      -N '""' sets the two characters "" as the passphrase in Git Bash and PowerShell 7, and
+#      Windows PowerShell 5.1 drops the empty argument of -N ""):
+#        ssh-keygen -t rsa -b 4096 -C "homebase-pages deploy key" -f homebase-pages-key
+#      `ssh-keygen -y -f homebase-pages-key` must then print the public key without asking anything.
+#   3. Public repository -> Settings -> Deploy keys -> Add deploy key: paste homebase-pages-key.pub
+#      and tick "Allow write access". (GITHUB_TOKEN cannot push to another repository, hence a key.)
+#   4. THIS repository -> Settings -> Secrets and variables -> Actions -> New repository secret:
+#      name ACTIONS_DEPLOY_KEY, value = the contents of homebase-pages-key (the private key).
+#      Delete both key files from your PC afterwards.
+#   5. Run the workflow: public_repo = <user>/homebase-pages, base = /homebase-pages/ for a project
+#      site (https://<user>.github.io/homebase-pages/), or base = / for a user site.
+#
+# The deploy key never expires; revoke it on the public repository's Deploy keys page when done.
+# The build output already contains .nojekyll (web/public/.nojekyll); peaceiris adds one anyway.
+#
+# Every run REPLACES the whole gh-pages branch of public_repo (force_orphan), so public_repo must be
+# the repository created for this site - never one with other pages (homebase-site,
+# <user>.github.io) and never this repository (refused by the first step).
+#
+# The actions are pinned to full commit SHAs on purpose: a tag such as @v4 can be moved to other
+# code, and the last step hands the deploy key to an action. To upgrade, resolve the new tag's
+# commit (gh api repos/<owner>/<repo>/git/ref/tags/<tag>; for "type": "tag" follow it with
+# gh api repos/<owner>/<repo>/git/tags/<sha>) and update the SHA and the version comment together.
+# Do not go back to @vN.
+
+name: Publish static site
+
+on:
+  workflow_dispatch:
+    inputs:
+      public_repo:
+        description: 'Public repository that serves the site, as owner/name (for example davideAurum/homebase-pages)'
+        required: true
+        type: string
+      base:
+        description: 'URL path the site is served from: /<repo>/ for a project site, / for a user site. Must start and end with /.'
+        required: true
+        default: '/'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: static-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and push to ${{ inputs.public_repo }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check the deploy key and inputs
+        env:
+          DEPLOY_KEY: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          BASE: ${{ inputs.base }}
+          PUBLIC_REPO: ${{ inputs.public_repo }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::The ACTIONS_DEPLOY_KEY secret is not set. Create the public repository and its deploy key first; the steps are in the comments at the top of .github/workflows/static-pages.yml and in docs/setup/static-build.md."
+            exit 1
+          fi
+          case "$PUBLIC_REPO" in
+            */*) ;;
+            *) echo "::error::public_repo must be owner/name (got '$PUBLIC_REPO')"; exit 1 ;;
+          esac
+          # GITHUB_REPOSITORY is set by the runner (owner/name of this repository).
+          if [ "$(printf '%s' "$PUBLIC_REPO" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "::error::public_repo must be the separate public repository that serves the site, not $GITHUB_REPOSITORY itself"
+            exit 1
+          fi
+          case "$BASE" in
+            /) ;;
+            /*/) ;;
+            *) echo "::error::base must start and end with / (got '$BASE')"; exit 1 ;;
+          esac
+          case "$BASE" in
+            *" "*) echo "::error::base must not contain spaces (got '$BASE')"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # No later step needs the GITHUB_TOKEN in .git/config.
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the browser-only site
+        env:
+          HOMEBASE_STATIC_BASE: ${{ inputs.base }}
+        run: |
+          npm run build:static
+          test -f web/dist-static/index.html
+          grep -q -F "${HOMEBASE_STATIC_BASE}assets/" web/dist-static/index.html
+
+      - name: Push web/dist-static to the public repository
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
+        with:
+          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          external_repository: ${{ inputs.public_repo }}
+          publish_branch: gh-pages
+          publish_dir: web/dist-static
+          # The publish branch keeps only the latest build (no history of old bundles).
+          force_orphan: true
+          commit_message: 'Publish Homebase static build ${{ github.sha }}'
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'

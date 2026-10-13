@@ -1,0 +1,178 @@
+.frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--hb-radius-lg);
+  border: 1px solid var(--hb-glass-border);
+  background: var(--hb-glass);
+  box-shadow: var(--hb-shadow);
+  backdrop-filter: var(--hb-glass-filter);
+  color: var(--hb-text);
+  transition:
+    box-shadow var(--hb-duration) var(--hb-ease),
+    border-color var(--hb-duration) var(--hb-ease);
+}
+
+.frame[data-transparent='true'] {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  /* No glass behind the text: a soft halo in the scheme's page colour keeps it legible on
+     busy image and gradient backgrounds. */
+  text-shadow:
+    0 0 2px var(--hb-bg),
+    0 0 6px color-mix(in srgb, var(--hb-bg) 60%, transparent);
+}
+
+.frame[data-edit='true'] {
+  border-color: color-mix(in srgb, var(--hb-accent) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--hb-accent) 25%, transparent),
+    var(--hb-shadow);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-height: 40px;
+  padding: 6px var(--hb-space-2) 6px var(--hb-space-4);
+  flex: none;
+}
+
+.frame[data-edit='true'] .header {
+  padding-left: var(--hb-space-1);
+  background: color-mix(in srgb, var(--hb-accent) 8%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--hb-accent) 20%, transparent);
+  cursor: grab;
+  user-select: none;
+}
+
+.frame[data-edit='true'] .header:active {
+  cursor: grabbing;
+}
+
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 28px;
+  flex: none;
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-text-muted);
+}
+
+.grip:hover {
+  background: var(--hb-hover);
+  color: var(--hb-text);
+}
+
+.grip svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  color: var(--hb-text-muted);
+  flex: none;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--hb-text-sm);
+  font-weight: 650;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.actions:empty {
+  display: none;
+}
+
+.editActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+/* The per-widget settings button appears on hover/focus only (view mode). */
+.hoverAction {
+  opacity: 0;
+  transition: opacity var(--hb-duration) var(--hb-ease);
+}
+
+.frame:hover .hoverAction,
+.frame:focus-within .header .hoverAction,
+.floatingActions:focus-within .hoverAction,
+.hoverAction:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .hoverAction {
+    opacity: 0.7;
+  }
+}
+
+/* Header hidden: actions float in the top-right corner. */
+.floatingActions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--hb-radius-md);
+}
+
+/* Headerless widgets (the search box is focused on every load) show the corner button on hover,
+   or when focus is on the button itself, not whenever something inside has focus (VIS-1). */
+.floatingActions:has(.actions:not(:empty)),
+.frame:hover .floatingActions,
+.floatingActions:focus-within {
+  background: var(--hb-glass-strong);
+  box-shadow: var(--hb-shadow);
+}
+
+.floatingActions:not(:has(.actions:not(:empty))):not(:hover):not(:focus-within) {
+  box-shadow: none;
+  background: transparent;
+}
+
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  container-type: inline-size;
+}
+
+/* The search box has nothing to scroll (its suggestions open in a popover): a header (forced
+   in edit mode, or switched on) must not add a 2 px scroll bar at its default 2-row height. */
+.frame[data-widget-type='search'] .body {
+  overflow: hidden;
+}
+
+.loading {
+  padding: var(--hb-space-4);
+}

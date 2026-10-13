@@ -1,0 +1,105 @@
+.button {
+  --btn-bg: var(--hb-surface-2);
+  --btn-fg: var(--hb-text);
+  --btn-border: var(--hb-border);
+  --btn-hover: color-mix(in srgb, var(--btn-bg) 90%, var(--hb-text));
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hb-space-2);
+  height: var(--hb-control-h);
+  padding: 0 var(--hb-space-4);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--hb-radius-md);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background-color var(--hb-duration) var(--hb-ease),
+    border-color var(--hb-duration) var(--hb-ease),
+    box-shadow var(--hb-duration) var(--hb-ease),
+    transform 80ms var(--hb-ease);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--btn-hover);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  opacity: 0.5;
+}
+
+.button[aria-busy='true'] {
+  opacity: 0.8;
+}
+
+.button[data-size='sm'] {
+  height: var(--hb-control-h-sm);
+  padding: 0 var(--hb-space-3);
+  font-size: var(--hb-text-xs);
+  border-radius: var(--hb-radius-sm);
+  gap: 6px;
+}
+
+.button[data-block='true'] {
+  width: 100%;
+}
+
+.button[data-variant='primary'] {
+  --btn-bg: var(--hb-accent);
+  --btn-fg: var(--hb-accent-contrast);
+  --btn-border: transparent;
+  --btn-hover: color-mix(in srgb, var(--hb-accent) 86%, var(--hb-accent-contrast));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--hb-accent) 35%, transparent);
+}
+
+.button[data-variant='danger'] {
+  --btn-bg: var(--hb-danger);
+  --btn-fg: #ffffff;
+  --btn-border: transparent;
+  --btn-hover: color-mix(in srgb, var(--hb-danger) 86%, #000000);
+}
+
+.button[data-variant='ghost'] {
+  --btn-bg: transparent;
+  --btn-border: transparent;
+  --btn-hover: var(--hb-hover);
+}
+
+.button[data-variant='ghost'][aria-pressed='true'] {
+  --btn-bg: var(--hb-accent-soft);
+  --btn-fg: var(--hb-accent-text);
+  --btn-hover: color-mix(in srgb, var(--hb-accent) 22%, transparent);
+}
+
+.iconOnly,
+.iconOnly[data-size='sm'] {
+  padding: 0;
+}
+
+.iconOnly {
+  width: var(--hb-control-h);
+}
+
+.iconOnly[data-size='sm'] {
+  width: var(--hb-control-h-sm);
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
+
+.button[data-size='sm'] .icon {
+  width: 14px;
+  height: 14px;
+}

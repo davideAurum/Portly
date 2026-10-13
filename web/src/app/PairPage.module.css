@@ -1,0 +1,176 @@
+/* The pairing page (#/pair): one centered panel over the user's backdrop, in the same glass as the
+   settings panel, and the HOMEBASE_PAGES_URL setup steps it shares with Settings → About. */
+
+.page {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  min-height: 100vh;
+  padding: clamp(var(--hb-space-4), 8vh, 96px) var(--hb-space-3) var(--hb-space-6);
+}
+
+.panel {
+  display: grid;
+  gap: var(--hb-space-4);
+  width: 100%;
+  max-width: 640px;
+  min-width: 0;
+  padding: var(--hb-space-6) var(--hb-space-5) var(--hb-space-5);
+  border: 1px solid var(--hb-glass-border);
+  border-radius: calc(var(--hb-radius-lg) + 4px);
+  background: var(--hb-glass-strong);
+  box-shadow: var(--hb-shadow);
+  backdrop-filter: var(--hb-glass-filter);
+}
+
+.header {
+  display: grid;
+  justify-items: start;
+  gap: var(--hb-space-3);
+}
+
+.icon {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-accent-soft);
+  color: var(--hb-accent-text);
+}
+
+.icon[data-tone='warning'] {
+  background: var(--hb-warning-soft);
+  color: var(--hb-warning);
+}
+
+.icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.title {
+  font-size: var(--hb-text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.text {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+  max-width: 70ch;
+}
+
+.text strong {
+  color: var(--hb-text);
+  font-weight: 600;
+}
+
+/* The origin being trusted: the one thing to read before approving. */
+.origin {
+  padding: var(--hb-space-3) var(--hb-space-4);
+  border: 1px solid var(--hb-border-strong);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface);
+  font-family: var(--hb-font-mono);
+  font-size: var(--hb-text-lg);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.scope {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--hb-space-4);
+}
+
+@media (max-width: 560px) {
+  .scope {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.scopeTitle {
+  margin-bottom: var(--hb-space-2);
+  font-size: var(--hb-text-sm);
+  font-weight: 650;
+}
+
+.scopeList {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--hb-text-sm);
+}
+
+.scopeList li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hb-space-2);
+}
+
+.scopeList svg {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.scopeList[data-kind='can'] svg {
+  color: var(--hb-success);
+}
+
+.scopeList[data-kind='cannot'] svg {
+  color: var(--hb-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--hb-space-2);
+  padding-top: var(--hb-space-4);
+  border-top: 1px solid var(--hb-border);
+}
+
+.actionsNote {
+  flex: 1 1 220px;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--hb-text-sm);
+  font-weight: 500;
+}
+
+.backLink svg {
+  width: 16px;
+  height: 16px;
+}
+
+.steps {
+  display: grid;
+  gap: 6px;
+  padding-left: 1.2em;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.steps strong {
+  color: var(--hb-text);
+}
+
+.code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hb-text) 7%, transparent);
+  font-family: var(--hb-font-mono);
+  font-size: 0.92em;
+  color: var(--hb-text);
+  overflow-wrap: anywhere;
+}

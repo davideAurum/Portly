@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Homebase</title>
+  <meta name="description" content="Homebase is a personal, self-hosted browser home page that runs on its owner's own PC.">
+  <link rel="icon" href="icon-128.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <a href="./"><img src="icon-128.png" alt=""></a>
+    <a href="./" class="name">Homebase</a>
+  </header>
+
+  <h1>A personal browser home page that runs on your own PC</h1>
+  <p class="lede">Homebase replaces the browser's New Tab page with a dashboard of search, bookmarks,
+    calendar, mail, tasks and weather. It runs entirely on its owner's computer — there is no
+    Homebase cloud service and no Homebase account.</p>
+
+  <h2>What it does</h2>
+  <ul>
+    <li><strong>Search</strong> across several search engines from one box.</li>
+    <li><strong>Launch pad</strong> of bookmark groups with icons.</li>
+    <li><strong>Calendar</strong> — shows Google Calendar events and lets you create, edit and
+      delete them, alongside other calendars you connect.</li>
+    <li><strong>Mail</strong> — shows the unread count and the most recent inbox messages (sender,
+      subject, date and a short preview) from Gmail and other mailboxes, and lets you mark them
+      read or unread, archive them, or move them to the trash.</li>
+    <li><strong>Tasks</strong> from Todoist, <strong>weather</strong> and a <strong>clock</strong>.</li>
+  </ul>
+
+  <h2>How it uses your Google account</h2>
+  <div class="card">
+    <p>Homebase connects to Google with OAuth, only after you sign in and approve access on
+      Google's consent screen. It requests:</p>
+    <ul>
+      <li>your email address and basic profile, to label the connected account;</li>
+      <li>your calendar list (read-only) and calendar events (read and write), to show and edit
+        your calendar;</li>
+      <li>Gmail modify access, to show your recent inbox messages and to mark read/unread,
+        archive and trash. Homebase never sends mail and never permanently deletes mail.</li>
+    </ul>
+    <p>Everything Homebase receives from Google stays on the PC where Homebase runs. It is not
+      sent to any server operated by Homebase, shared with anyone, or used for advertising or
+      AI training. Details are in the <a href="privacy.html">privacy policy</a>.</p>
+  </div>
+
+  <h2>Who can use it</h2>
+  <p>Homebase is a personal project by davideAurum. It is self-hosted: each person who runs it uses their own
+    copy on their own computer, with their own Google Cloud OAuth client. It is not offered as a
+    hosted service.</p>
+
+  <footer>
+    <a href="privacy.html">Privacy policy</a>
+    <a href="terms.html">Terms of service</a>
+    <span>© 2026 davideAurum</span>
+  </footer>
+</main>
+</body>
+</html>

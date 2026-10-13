@@ -1,0 +1,128 @@
+/* Clock widget settings. */
+
+.stack {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+.note {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.zonesGroup {
+  display: grid;
+  gap: var(--hb-space-3);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--hb-space-2);
+}
+
+.groupLabel {
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+}
+
+.count {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.zonesHint {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.zoneList {
+  display: grid;
+  gap: var(--hb-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zoneRow {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  padding: var(--hb-space-2);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+}
+
+.zoneFields {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.zoneTz {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoneTz svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.zoneActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+/* Options of the time-zone picker (the combobox itself is styled by the weather settings). */
+.optionBody {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-width: 0;
+}
+
+.optionText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.optionName {
+  font-size: var(--hb-text-md);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionMeta {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionOffset {
+  flex: none;
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+  color: var(--hb-text-muted);
+  font-variant-numeric: tabular-nums;
+}

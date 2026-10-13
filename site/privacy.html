@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Homebase Privacy Policy</title>
+  <link rel="icon" href="icon-128.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <a href="./"><img src="icon-128.png" alt=""></a>
+    <a href="./" class="name">Homebase</a>
+  </header>
+
+  <h1>Privacy policy</h1>
+  <p class="updated">Effective October 6, 2026</p>
+
+  <p>Homebase is a self-hosted browser home page. It runs as a small server on the user's own
+    Windows PC, listening only on that computer (<code>localhost</code>). There is no Homebase cloud
+    service: its developer, davideAurum, does not operate any server that receives, stores or processes your
+    data.</p>
+
+  <h2>Data Homebase accesses from Google</h2>
+  <p>When you connect a Google account and approve access on Google's consent screen, Homebase
+    can access:</p>
+  <ul>
+    <li><strong>Account identity</strong> (<code>openid</code>, <code>userinfo.email</code>,
+      <code>userinfo.profile</code>): your email address and name, used to label the connected
+      account in Homebase.</li>
+    <li><strong>Calendar list</strong> (<code>calendar.calendarlist.readonly</code>): the names and
+      colors of your calendars, so you can choose which ones to show.</li>
+    <li><strong>Calendar events</strong> (<code>calendar.events</code>): event titles, times,
+      locations and descriptions, to display your calendar and to create, edit and delete events
+      when you ask it to.</li>
+    <li><strong>Gmail</strong> (<code>gmail.modify</code>): the unread count and, for recent inbox
+      messages, the sender, subject, date and Google's short preview snippet. Homebase does not
+      download message bodies or attachments. It uses this permission only to mark messages read
+      or unread, archive them, or move them to the trash when you ask it to. It never sends mail
+      and never permanently deletes mail.</li>
+  </ul>
+
+  <h2>How the data is stored</h2>
+  <ul>
+    <li>OAuth tokens are stored only on your PC, encrypted (AES-256-GCM under a key protected by
+      Windows DPAPI), and are never returned to the browser.</li>
+    <li>Calendar events are cached in a local database on your PC so the page loads quickly.</li>
+    <li>Mail is never written to disk; message lists are held in memory for about a minute.</li>
+  </ul>
+
+  <h2>Sharing</h2>
+  <p>Homebase does not sell, share or transfer Google user data to anyone. The only network
+    traffic carrying your Google data is between your PC and Google's own APIs. Homebase has no
+    analytics, advertising or tracking, and does not use Google user data to develop, improve or
+    train AI or machine-learning models.</p>
+
+  <h2>Limited Use</h2>
+  <p>Homebase's use and transfer to any other app of information received from Google APIs will
+    adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google
+    API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+  <h2>Other services</h2>
+  <p>If you connect them, Homebase talks directly from your PC to Microsoft (Outlook.com), Yahoo,
+    CalDAV/IMAP servers and Todoist under the same rules: data stays on your PC and is used only
+    to show and act on your own calendar, mail and tasks. Weather requests send the coordinates
+    of the location you choose to Open-Meteo. Bookmark icons are fetched from the bookmarked
+    websites.</p>
+
+  <h2>Removing access and deleting data</h2>
+  <ul>
+    <li>Removing an account in Homebase (Settings → Accounts) deletes its tokens and cached
+      events from your PC and revokes Homebase's access at Google.</li>
+    <li>You can also revoke access at any time at
+      <a href="https://myaccount.google.com/connections">myaccount.google.com/connections</a>.</li>
+    <li>Uninstalling Homebase and deleting its data folder removes everything it stored.</li>
+  </ul>
+
+  <h2>Changes and contact</h2>
+  <p>If this policy changes, the new version will be posted on this page with a new effective
+    date. Questions: <a href="https://github.com/davideAurum">github.com/davideAurum</a>.</p>
+
+  <footer>
+    <a href="./">Home</a>
+    <a href="terms.html">Terms of service</a>
+    <span>© 2026 davideAurum</span>
+  </footer>
+</main>
+</body>
+</html>

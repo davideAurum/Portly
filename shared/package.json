@@ -1,0 +1,13 @@
+{
+  "name": "@homebase/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Homebase API contracts: TypeScript types and zod schemas shared by server and web.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}

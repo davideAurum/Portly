@@ -1,0 +1,408 @@
+/* Sports widget. Tokens only; the body is an inline-size container (WidgetFrame). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hb-space-2);
+  min-height: 100%;
+  padding: 2px var(--hb-space-2) var(--hb-space-2);
+}
+
+.fill {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- Sections ---------------------------------------------------------- */
+
+.section {
+  display: grid;
+  gap: 2px;
+}
+
+.sectionTitle {
+  margin: 0;
+  padding: 0 var(--hb-space-2);
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hb-text-subtle);
+}
+
+.list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- Game rows --------------------------------------------------------- */
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-radius: var(--hb-radius-md);
+}
+
+.row[data-state='in'] {
+  background: color-mix(in srgb, var(--hb-danger) 6%, transparent);
+}
+
+.game {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--hb-space-3);
+  row-gap: 3px;
+  align-items: center;
+  min-width: 0;
+  padding: 7px var(--hb-space-2);
+  border-radius: inherit;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--hb-duration) var(--hb-ease);
+}
+
+a.game:hover {
+  text-decoration: none;
+  background: var(--hb-hover);
+}
+
+.game:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: -2px;
+}
+
+.teams {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.team {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-width: 0;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text);
+}
+
+.team[data-favorite] .teamName {
+  font-weight: 650;
+}
+
+.team[data-lost] {
+  color: var(--hb-text-muted);
+}
+
+.team[data-winner] .score {
+  font-weight: 700;
+}
+
+.logo {
+  flex: none;
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.logo img {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logoDark {
+  display: none;
+}
+
+:global(:root[data-theme='dark']) .logoLight {
+  display: none;
+}
+
+:global(:root[data-theme='dark']) .logoDark {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .logoLight {
+    display: none;
+  }
+
+  :global(:root:not([data-theme='light'])) .logoDark {
+    display: block;
+  }
+}
+
+.teamName {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nameFull,
+.nameAbbr {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Narrow cards: abbreviations ("KC") instead of names ("Chiefs"). */
+.nameAbbr {
+  display: none;
+}
+
+@container (max-width: 260px) {
+  .nameFull {
+    display: none;
+  }
+
+  .nameAbbr {
+    display: inline;
+  }
+}
+
+.record {
+  flex: none;
+  font-size: var(--hb-text-xs);
+  font-weight: 400;
+  color: var(--hb-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.score {
+  flex: none;
+  min-width: 2ch;
+  font-size: var(--hb-text-md);
+  font-weight: 550;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Status column ----------------------------------------------------- */
+
+.status {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-width: 64px;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.final {
+  font-weight: 600;
+  color: var(--hb-text);
+}
+
+.when,
+.clock {
+  font-variant-numeric: tabular-nums;
+}
+
+.clock {
+  color: var(--hb-text);
+}
+
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--hb-danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+  animation: hb-sports-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes hb-sports-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liveDot {
+    animation: none;
+  }
+}
+
+.meta {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row[data-state='in'] .meta {
+  color: var(--hb-text-muted);
+}
+
+.watchButton,
+.watchSpacer {
+  flex: none;
+  align-self: center;
+  margin-right: 2px;
+}
+
+.watchSpacer {
+  width: var(--hb-control-h-sm);
+}
+
+/* ---- Where to watch ---------------------------------------------------- */
+
+.watchPopover {
+  display: grid;
+  gap: var(--hb-space-2);
+  width: 300px;
+}
+
+.watchTitle {
+  margin: 0;
+  font-size: var(--hb-text-sm);
+  font-weight: 650;
+}
+
+.watchGame {
+  margin: -6px 0 0;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.watchList {
+  display: grid;
+  gap: var(--hb-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watchItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hb-space-3);
+  padding: 6px var(--hb-space-2);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+}
+
+.watchName {
+  display: grid;
+  min-width: 0;
+  font-size: var(--hb-text-sm);
+}
+
+.watchKind {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+}
+
+.watchLink {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.watchLink svg,
+.watchRadio svg {
+  width: 13px;
+  height: 13px;
+}
+
+.watchRadio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.watchNote {
+  margin: 0;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+}
+
+/* ---- Failed teams ------------------------------------------------------ */
+
+.notices {
+  display: grid;
+  gap: var(--hb-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  padding: var(--hb-space-2);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+}
+
+.noticeIcon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--hb-danger);
+}
+
+.noticeText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--hb-text-xs);
+}
+
+.noticeText strong,
+.noticeMessage {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noticeMessage {
+  color: var(--hb-text-muted);
+}

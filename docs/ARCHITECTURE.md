@@ -1,0 +1,1580 @@
+# Homebase — Architecture (v1, rev 2)
+
+Homebase is a single-user, highly customizable browser home page ("portal to the internet").
+v1 runs entirely on one Windows 11 PC: a small Node server on loopback serves the UI and holds all
+credentials; a tiny browser extension makes it the New Tab page. The same app also builds as a
+browser-only site for GitHub Pages, which can use the server on the PC it runs on once a browser is
+paired with it (*hybrid mode*, §16).
+
+This document is the binding contract for implementation. Sections 14–15 define how parallel builders
+split the work. Anything not specified here is the implementer's choice, provided it respects §4.
+
+---
+
+## 1. Scope
+
+**In v1**
+- Search bar: multiple configurable engines, keyword switching, URL detection, suggestions, bookmark matches.
+- Launch pad: bookmark groups, drag ordering within/across groups, editing, auto-fetched icons,
+  import from Chrome/Edge (local profile files) and HTML bookmark exports.
+- Calendar: **two-way** (create / edit / delete single instances) for Google and Microsoft personal
+  (Outlook.com). **Read-only** in v1: CalDAV (Yahoo preset + generic) and ICS/webcal subscriptions
+  (covers Proton Calendar share links, Yahoo public ICS links, Outlook published calendars).
+- Mail: unread counts + recent inbox messages, mark read/unread, archive (where supported), trash,
+  open in webmail — Gmail (API), Outlook.com (Graph), IMAP (Yahoo preset + generic).
+- Todoist: tasks by filter, quick add (natural language), complete (with undo), project chips.
+- Weather: current / hourly / daily via Open-Meteo.
+- Clock / greeting widget.
+- Customization: widget grid (add / remove / move / resize, multiple instances per type), per-widget
+  settings, global theme, profiles (named layouts, manual switching), config export/import.
+
+**Deferred (design must not preclude):** CalDAV writes (v1.1, after testing reads against the user's
+Yahoo account), multi-device access (a future mini PC — satisfied in v1 only by deriving bind address,
+origin and port from `config.ts` everywhere), sports & fantasy widgets, automatic profile switching
+(location / network / time), per-profile themes (`profiles.theme` column reserved), sending mail.
+
+**Not planned:** Proton Mail (any form); Microsoft work/school accounts (the app is registered for
+personal Microsoft accounts only and the `/consumers` authority is hard-coded).
+
+---
+
+## 2. Repository & toolchain
+
+```
+/package.json          workspaces ["shared","server","web"]; engines {node:">=24", npm:">=11.10"}
+/.npmrc                ignore-scripts=true, min-release-age=7, engine-strict=true
+/package-lock.json     committed; installs use `npm ci`
+/tsconfig.base.json
+/vitest.config.ts      test.projects: server (node env: server/**, shared/**), web (jsdom env: web/src/**)
+/shared                @homebase/shared — TS contract types + zod schemas; package.json "exports": {".": "./src/index.ts"}
+/server                @homebase/server — Node 24, Hono, node:sqlite; runs from TS source (no bundle)
+/web                   @homebase/web — Vite 8 + React 19 + TypeScript
+/extension             Manifest V3 new-tab extension (plain JS, no build; pinned ID via manifest "key")
+/native-host           native messaging host com.homebase.launcher (launcher.mjs + launcher.cmd template, §12)
+/scripts               PowerShell: install-autostart.ps1, uninstall-autostart.ps1, status.ps1, start.ps1; node test runners
+/docs                  ARCHITECTURE.md, SETUP.md, setup/*.md
+```
+
+### 2a. Dependencies (installed by the foundation only; majors pinned)
+If `min-release-age` blocks the newest version of a range, use the newest version older than 7 days.
+- **shared:** `zod@^4` (zod 4: nested object defaults need `.prefault({})`, not `.default({})`; use `z.email()`/`z.url()`).
+- **server:** `hono@^4.13` (floor 4.12.16), `@hono/node-server@^2.1`, `undici@^8` (safe-fetch only),
+  `ical.js@^2.2`, `tsdav@^2.3`, `imapflow@2.0.x` (exact pin), `node-html-parser@^9`, `entities` (HTML
+  entity decoding), `tldts` (eTLD+1).
+- **web:** `react@^19`, `react-dom@^19`, `@tanstack/react-query@^5`, `@tanstack/react-query-persist-client`,
+  `@tanstack/query-sync-storage-persister`, `react-grid-layout@^2.2` + `react-resizable` (direct dep, for CSS),
+  `@dnd-kit/core@^6.3`, `@dnd-kit/sortable@^10`, `@dnd-kit/utilities`, `radix-ui@^1.6`, `sonner@^2`,
+  `lucide-react`, `date-fns@^4`, `@date-fns/tz@^1`.
+- **root dev:** `typescript@~7.0` (only via `tsc --noEmit`; nothing may import the TS API — if TS 7 blocks
+  anything, pin `~6.0` instead), `@types/node@^24`, `@types/react`, `@types/react-dom`, `vite@^8`,
+  `@vitejs/plugin-react@^6`, `vitest@^5`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`,
+  `@testing-library/jest-dom`, `concurrently`.
+- **Not used:** tsup, tsx, esbuild bundling of the server, `@types/react-grid-layout`, `@dnd-kit/react`,
+  web fonts, lodash.merge/deepmerge, googleapis / msgraph SDKs (plain fetch), any native module.
+
+### 2b. TypeScript
+`tsconfig.base.json`: `strict`, `noEmit`, `allowImportingTsExtensions`, `verbatimModuleSyntax`,
+`erasableSyntaxOnly`, `isolatedModules`, `skipLibCheck`, `noUncheckedIndexedAccess`.
+server/shared: `module: nodenext`, `types: ["node"]`. web: `module: esnext`, `moduleResolution: bundler`,
+`types: ["vite/client"]`, `jsx: react-jsx`. Relative imports include the `.ts`/`.tsx` extension. No enums,
+namespaces or parameter properties (use `as const` objects). Type-only imports use `import type`.
+
+### 2c. Scripts (root package.json)
+- `dev` — `concurrently` of `node --watch server/src/index.ts` (HOMEBASE_DEV=1) and `vite` (web).
+- `build` — builds web to `web/dist` (server needs no build).
+- `start` — `node server/src/index.ts` (serves `web/dist`; fails with a clear message and exit code 4 if missing).
+- `typecheck` — `tsc --noEmit -p` for shared, server, web.
+- `test` — `vitest run` then `npm audit --omit=dev --audit-level=high`.
+
+---
+
+## 3. Runtime
+
+- **Config (`server/src/config.ts`)**, all from env with defaults: `HOMEBASE_PORT` (5757),
+  `HOMEBASE_BIND` (`127.0.0.1,::1`), `HOMEBASE_ORIGIN` (`http://localhost:<port>`), `HOMEBASE_DATA_DIR`
+  (`%LOCALAPPDATA%\Homebase`), `HOMEBASE_DEV` (0/1), `HOMEBASE_VITE_PORT` (5173), `HOMEBASE_LOG_LEVEL`
+  (`debug`|`info`|`warn`; default `info`, `debug` in dev; see Logging). Host allowlist, origin
+  checks, OAuth redirect URIs and the app origin used for redirects are **derived from config** — never
+  hard-coded. In dev, `appOrigin` = `http://localhost:<VITE_PORT>` and it is added to the host/origin allowlists.
+  `HOMEBASE_PAGES_URL` (unset = hybrid mode off) → `pagesUrl` (path ends with `/`) and `pagesOrigin`: absolute,
+  `https:` (or `http:` on `localhost`/`127.0.0.1`/`[::1]`, with a startup warning naming the origin), no credentials,
+  query or fragment, not `*`/`null`, and not one of the server's own origins. Kept apart from the origin allowlist
+  and never part of `Settings`.
+- **Listeners:** one `serve({fetch: app.fetch, hostname, port})` per bind address. `EADDRINUSE` on any →
+  log and `process.exit(3)` (EXIT_ALREADY_RUNNING). `EADDRNOTAVAIL`/`EAFNOSUPPORT` on `::1` → warn, continue IPv4-only.
+- **Static:** `serveStatic({root: <absolute path to web/dist>})` computed from `import.meta.dirname`, never cwd.
+  An `/api/*` JSON 404 handler is mounted before the SPA fallback. The SPA fallback serves `index.html`
+  only for GET requests whose path is not under `/api/` or `/assets/` and has no file extension.
+  Hashed `/assets/*` get `Cache-Control: public, max-age=31536000, immutable`; `index.html` gets `no-cache`.
+- **Data dir:** `homebase.db`, `vault.key`, `logs/`, `backups/`.
+- **Supervisor (`server/src/supervisor.ts`):** spawns `process.execPath --no-warnings server/src/index.ts` with
+  `windowsHide: true`, stdin/stdout ignored, **stderr piped** and an IPC channel, and adds `HOMEBASE_SUPERVISED=1`
+  to the child's environment (on a restart also `HOMEBASE_SUPERVISOR_ATTEMPT` and `HOMEBASE_SUPERVISOR_LAST_EXIT`
+  = JSON `{code, signal, failure?}`, shown in Settings → Diagnostics). A supervised server has no console and writes
+  to stderr only for fatal output (bootstrap failure, `startup failed`, uncaught exception), so the supervisor keeps
+  the last 40 lines / 16 KB of it, scrubbed, as the crash cause; Node's own warnings stay off stderr
+  (`--no-warnings`; the server logs them as `node warning`). A server whose start-up fails first sends IPC
+  `{type:'startup-failed', phase, errName, errCode, sqliteCode, message (scrubbed, ≤ 200)}`, kept as that run's
+  `lastFailure`. Restarts on exit with backoff 1 s, 2 s, 5 s, 10 s, 30 s, 60 s (cap) and
+  `warn 'server exited; restarting' {code, signal, uptimeMs, delayMs, attempt, lastFailure, stderrTail}` (≤ 10
+  lines); backoff resets after 10 min uptime; five runs in a row shorter than a minute log
+  `error 'server keeps crashing at start-up' {attempts, lastExit, lastFailure, stderrTail}` once per loop. Exit code
+  3 (EXIT_ALREADY_RUNNING) → supervisor exits without restarting; exit code 4 (EXIT_PERMANENT_FAILURE: `web/dist`
+  missing) three times in a row → `error 'server cannot start; not restarting'` and the supervisor exits with 4.
+  Stopping sends `{type:'shutdown'}` over the channel (Windows cannot deliver signals to a child; `kill()`
+  terminates it), so the server's own shutdown runs; forced kill after 10 s. It logs JSON Lines to
+  `logs/supervisor.log` (records `src: 'supervisor'`; an invalid configuration is written there as one
+  `startup failed {phase: 'config'}` line before it exits 1). SQLite `journal_size_limit` keeps the WAL small after
+  checkpoints.
+- **Start-up, process, shutdown (`index.ts`, `lib/startup.ts`, `lib/exit-codes.ts`):** phases `config → logger →
+  web-dist check → port-probe → db → migrate → health → pairing → vault → settings → accounts → modules → listen`,
+  each timed (`debug 'startup phase' {phase, ms}`); right after the logger `info 'starting Homebase' {version, dev,
+  dataDir, port, pid, boot, node, supervised, restart}`, at the end `info 'Homebase ready' {url, app, startupMs,
+  phases}` (`boot` = a random id per process start, in every report and summary). A timed Verbose
+  period saved by Settings → Diagnostics is switched back on right after `migrate`. The port is probed before the
+  database and vault are touched; a taken port logs `port already in use — is Homebase already running?` and exits 3.
+  An invalid configuration (no logger yet) appends one JSON line `startup failed {phase: 'config', errName,
+  errMessage}` to `<data dir>/logs/server.log` and writes it to stderr (ConfigError messages echo URL-valued
+  variables as their origin only), exit 1. Any later throw, and any uncaught exception or rejection before the
+  server runs, logs `error 'startup failed' {phase, …errorFields, stack frames}`, reports it to a supervisor over IPC
+  and exits 1 — 4 for `web/dist` missing (`StartupError web_dist_missing`). While running: `console.*` → log lines
+  `console {text}` (`log/info/debug` → debug, `warn`, `error`); `process.on('warning')` → `warn 'node warning'`;
+  an unhandled rejection → `error 'unhandled promise rejection'`; an uncaught exception → `error 'uncaught
+  exception'` and shutdown with exit 1; `info 'status' {uptimeMs, jobs: {<name>: {runs, failures, overdue}},
+  health: {ok, degraded, failing, stale, unknown}, requests: {count, s4xx, s5xx} (since start), rssBytes}` every
+  6 h and at shutdown. Shutdown (SIGINT/SIGTERM/SIGBREAK or IPC `shutdown`): `shutting down {signal}` → status →
+  stop jobs → close listeners → wait ≤ 5 s for job runs and open requests → health flush/close → database →
+  `stopped {exitCode, waitedForJobs, openRequests?}` → close the log. Exit codes: 0 clean, 1 start-up failure or
+  uncaught exception, 3 already running, 4 cannot start until fixed.
+- **Logging (`lib/logger.ts`, `lib/log-context.ts`; Settings → Diagnostics in §17):** one leveled logger per process
+  (`debug < info < warn < error`). **File** `logs/server.log` (the supervisor's: `logs/supervisor.log`) in **JSON
+  Lines**, one object per record: `{"t","lvl","msg","src"?,"area","tags","rid"?,"tEvent"?,...fields}` (`src`
+  omitted for `server`); rotated at 10 MB, 5 kept (`.1`…`.5`; a file another process rotated is reopened, not
+  rotated again). **Console** (not under the supervisor): text `<ISO> <LEVEL> <msg> {json}`, warn/error on stderr.
+  **Levels:** *Normal* is the boot level `HOMEBASE_LOG_LEVEL` (`debug`|`info`|`warn`; default `info`, `debug` with
+  `HOMEBASE_DEV`; anything else → *invalid configuration*): state changes, failures with hosts, statuses and
+  provider reason codes, one line per health transition. *Verbose* is `debug` for every area or the chosen ones
+  (`DIAGNOSTIC_AREAS`, matched against a record's tags), switched on in Settings → Diagnostics for a time (persisted
+  in `server_meta`, survives a restart) or until turned off (ends at the next restart).
+  - **Log context:** one `AsyncLocalStorage` carries the unit of work — `rid` (request), `job`/`run` (6-character run
+    id), `area`, `accountId`, `calendarId`, `feed`, `pairingId`, `op` — merged into every record (call fields >
+    child bindings > context). `area` = the module that wrote the line, or the unit of work's area for shared
+    infrastructure (`component: fetch|health|scheduler|console|vault|settings|pairing`); `tags` = every area the
+    record belongs to. Timers that re-arm or outlive the unit of work are created in `outsideLogContext` (scheduler,
+    watchdogs, sweeps); shared single-flight bodies set their own context; per-call workers are spawned inside the
+    caller's context.
+  - **Memory rings** (the `LogHub` Settings → Diagnostics reads), filled whatever the level: `main` = the last 5,000
+    info+ records; the **flight recorder** = the last 400 debug records **per area** (≤ 64 areas, so a chatty area
+    cannot evict a rare one); `client` = the last 1,000 browser events (§17). Health checks and the Diagnostics
+    page's own polling (`quiet`) stay out of the rings below 500. `lastRecordFor(run)` feeds the job watchdog.
+  - **Repeat suppression:** a call with `repeatKey` (and optional `repeatSig`) is written at its level once per
+    30-minute window per key and signature; repeats are written at debug with `repeats: n` and the window closes
+    with `info 'repeated' {repeatKey, count, since}` (≤ 1,000 keys). Used by GET request lines, outbound
+    non-2xx and failures, 5xx error lines, gate refusals, foreign origins and browser events. The repeats of a
+    warning or error also carry `repeatOf` (its level) and `repeatSince` (the window's start), and its summary
+    `repeatOf`, `repeatMsg` and the first record's `code`: a level filter (memory and files) matches them at the level
+    they repeat, and the warning counts of the last hour include them (a closed window through its summary, an open
+    one through its count).
+  - **Scrubbing** (`shared/src/diagnostics.ts`, shared with the browser): every field value goes through
+    `scrubFields` — secret-named keys (`password`, `access_token`, `nextPageToken`, `cookie`, `code` …) →
+    `[REDACTED]` whatever the value (a `code` that is an error code such as `ECONNREFUSED` is kept); URL-valued keys
+    and absolute URLs → `scheme://host/…`; strings ≤ 2 KB, depth 6, 50 array items, cycles cut; free text goes
+    through `scrub` — Bearer/Basic credentials, header dumps, compound secret keys, `token=`/`code=` pairs,
+    URL-encoded secrets, URL credentials, Google token and JWT shapes, quoted `JSON.parse` input → `"…"`,
+    `webcal(s)://` paths. User paths are masked in every spelling (`C:\Users\~\…`, plus this PC's home directory →
+    `~`, matched before the generic rule so a home outside `C:\Users` is never left half-masked); messages ≤ 500
+    characters with control and bidi characters escaped, and field strings with the controls, line separators and bidi
+    characters JSON leaves raw escaped as `\uXXXX`; caller keys that clash with record
+    keys are renamed `f_<key>`. Errors are logged only through `errorFields` (allowlisted: name, code, our status,
+    upstream status, machine reason, host, account id, Retry-After, a cause chain `TypeError <- Error[ECONNREFUSED]`
+    with its deepest code, SQLite code; scrubbed message ≤ 300; with `{stack}` the frame lines only, never the
+    header).
+  - **Never logged** (files, rings, reports, browser events, any level): tokens of any kind, passwords, OAuth codes
+    and PKCE verifiers, client secrets, pairing tokens and nonces, cookies, Authorization headers, URL credentials;
+    request/response bodies and content — mail subjects/senders/bodies, event titles/descriptions/locations, task
+    text and filters, bookmark/page/feed titles, search terms, geocode text, coordinates, browser profile names, user
+    names typed into forms; full URLs (hosts plus a `purpose` for outbound calls, route patterns and query-less
+    paths for our API; ICS URLs never leave the vault). imapflow always `logger: false`.
+- **Backups:** daily `VACUUM INTO backups/homebase-<YYYY-MM-DD>.db`, keep the last 7; also before import.
+- **Orphaned uploads:** daily core job deletes `uploads` rows older than 24 h whose id appears in neither the stored
+  settings JSON (appearance background) nor any profile layout/theme JSON.
+
+---
+
+## 4. Security model (mandatory)
+
+### 4.1 Threats and accepted risks
+Threats addressed: (a) any website in the browser can send requests to localhost (CSRF, DNS rebinding,
+navigation); (b) attacker-controlled content is rendered in a page that can reach every account — email
+subjects/senders, calendar text/links, ICS feeds, favicons, fetched titles, imported bookmark/config files;
+(c) credentials at rest; (d) hostile remote servers (ICS, CalDAV, favicon hosts) attempting SSRF, resource
+exhaustion or credential capture.
+
+**Accepted risks (v1):** everything running as this Windows user, other local Windows accounts, and
+installed browser extensions are trusted — the API does not defend against them. The vault protects
+secrets at rest against copies of the data dir only. Port squatting on 5757 while Homebase is down is
+accepted (OAuth codes are PKCE-bound; Google codes also need the client secret). No service worker in the web app
+(the extension has one, §11).
+
+**Hybrid mode (§16) adds one trusted origin:** with `HOMEBASE_PAGES_URL` set, browsers paired on Homebase's own page
+may call the routes declared `paired()` from that origin. Trust is per **origin**, and `https://<user>.github.io` is
+shared by every Pages site of the account: any script on any page of that origin, in a paired browser, can read the
+pairing token (localStorage) and the persisted copy of server data, call every paired route, and use the browser's
+local-network permission. Accepted for a single user who controls what the origin publishes (since 2026-10-11 that
+includes connecting accounts, OAuth client secrets, the vault reset and listing/revoking pairings: there is one page,
+connected to the server or not); mitigations: approving a pairing stays local-only (403 `local_only`), secrets stay
+write-only, `/api/about` hides the data folder and log path from it, the Pages site never persists account lists or
+OAuth client settings, and the consent page says that the whole origin gets access. A custom domain used only for the
+site removes the risk (docs/setup/pages-local-server.md). The page in turn treats every answer from `127.0.0.1:<port>`
+as untrusted input (it may be a squatter): responses are parsed with the shared schemas, the reported `appUrl` is only
+used when it is a loopback root page, and the server's `instanceId` is a guard against using the wrong server, not
+authentication — the token is.
+
+### 4.2 Request gate (global middleware, `app.use('*', …)`, in this order)
+1. Reject (400) if the raw request path contains `//`, `\`, `%2f`, `%5c` (case-insensitive) or dot segments.
+2. **Host allowlist** (derived from config): `localhost:PORT`, `127.0.0.1:PORT`, `[::1]:PORT`, origin host;
+   dev adds `localhost:VITE_PORT`. Otherwise 403.
+3. `/api/*` routes are **non-exempt by default**. Exemptions are declared as metadata when the route is
+   registered (a helper records `{method, pattern, kind}`; the gate matches with a Hono router instance —
+   never string-prefix checks):
+   - `health` — `GET /api/health`
+   - `image` — `GET /api/icons/:id`, `GET /api/uploads/:id` (accept `Sec-Fetch-Site` `same-origin`/`none`/absent)
+   - `oauth-callback` — `GET /api/oauth/:provider/callback`
+
+   Route **access** (hybrid mode) is metadata too: `paired()` marks a route the paired Pages site may call. Default
+   deny — untagged routes are local-only: `POST /api/pairings`, the OAuth callback and unknown routes. `RouteTable.match` **fails closed**: a request
+   counts as paired only if every registration it matches is `paired()`. The 503 handlers of failed modules are
+   tagged `paired()`. A test pins the access of every registered route.
+
+   **Pages branch** (only with `HOMEBASE_PAGES_URL` and a pairing store): an `/api` request whose `Origin` equals the
+   configured `pagesOrigin` exactly skips step 4 and is marked for CORS (refusals included, so the page can read them):
+   - preflight (`OPTIONS` + `Access-Control-Request-Method`): method ∈ GET/HEAD/POST/PUT/PATCH/DELETE and every
+     requested header ∈ {content-type, x-homebase, x-homebase-token} → 204, else 403; never passed on;
+   - `GET /api/health` passes as for anyone (no token);
+   - anything else: route access must be `paired` (else 403 `local_only`), `X-Homebase: 1`, `Sec-Fetch-Site`
+     `cross-site`/`same-site`/absent (the exact Origin match is the real check), a pairing token
+     (`X-Homebase-Token`) that verifies **and** was issued for that origin (else 401 `pairing_required`), and the
+     Content-Type rules of step 4 (image routes too: the page fetches images with the token). The pairing's
+     last-used time is touched (at most every 10 min).
+
+   Any other `Origin` (or none) goes through step 4 unchanged.
+4. Non-exempt `/api` requests must have: `X-Homebase: 1`; `Origin` absent or in the origin allowlist;
+   `Sec-Fetch-Site` absent or `same-origin` (reject `same-site`, `cross-site`, `none`); for bodies,
+   `Content-Type: application/json`, except routes declared multipart (uploads, imports).
+   Apart from the configured Pages origin (step 3), the server **never** sends CORS headers and never answers
+   preflights.
+5. **Body limits** enforced on streamed bytes (chunked included): JSON 1 MB; uploads/icons 10 MB; import 25 MB.
+
+### 4.3 Response headers
+- **All responses:** `X-Content-Type-Options: nosniff`, `Cross-Origin-Resource-Policy: same-origin`,
+  `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`.
+- **HTML:** `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https://a.espncdn.com; connect-src 'self'; font-src 'self' data:; frame-src 'none';
+  object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`. **Invariant:** `script-src` never
+  gains `'unsafe-inline'` or `'unsafe-eval'`. Consequence: all third-party traffic goes through the server, except the
+  sports widget's team logos (`<img>` from ESPN's image host; the mappers accept no other logo host).
+- **`/api` JSON:** `Cache-Control: no-store`.
+- **`/api/icons/:id`, `/api/uploads/:id`:** `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`,
+  `Cache-Control: private, max-age=86400`. IDs are random UUIDv4. Stored content type comes from magic-byte
+  sniffing (png, gif, jpeg, webp, avif, ico, bmp; svg only if the root element is `<svg`), never from headers.
+- **CORS (hybrid mode only):** any `Access-Control-*` header a handler sets is stripped. Answers to requests the gate
+  marked as Pages requests get `Access-Control-Allow-Origin: <pagesOrigin>` (from config, never echoed),
+  `Access-Control-Expose-Headers: Retry-After, Content-Disposition, X-Request-Id` (§17); preflights also `Access-Control-Allow-Methods`
+  (the requested one), `Access-Control-Allow-Headers: Content-Type, X-Homebase, X-Homebase-Token`,
+  `Access-Control-Max-Age: 600`, `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers` and
+  `Access-Control-Allow-Private-Network: true` only when requested. **Never** `Access-Control-Allow-Credentials`
+  (the page authenticates with its token; cookies are never involved). With a Pages URL configured every `/api`
+  answer carries `Vary: Origin`. CORP/COOP stay `same-origin` (CORP does not apply to CORS-mode fetches).
+
+### 4.4 URL & text policy
+- `SafeHttpUrl` (shared zod): `new URL` parses; scheme `http:`/`https:`; no username/password; ≤ 2048 chars.
+  Enforced server-side on: bookmark create/update/import (non-http(s) entries skipped and counted in the
+  import report), search-engine templates (must contain `%s`; substitution uses `encodeURIComponent`),
+  `events.html_url`, `events.meeting_url`, location links, mail `webUrl` (additionally host-allowlisted:
+  `mail.google.com`, `outlook.live.com`, `mail.yahoo.com`, or the IMAP account's configured `webmailUrl`).
+  Values that fail are stored as null and not rendered as links.
+- Web: one `safeHref()` helper (`web/src/lib/openUrl.ts`) used by every `<a href>`, `window.open`,
+  `location.assign`. External links: `target="_blank" rel="noopener noreferrer"` (unless the user's
+  "open links in same tab" preference applies to launch pad/search).
+- **No** `dangerouslySetInnerHTML`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `DOMParser`, `document.write`.
+- Text: Gmail snippets decoded server-side with `entities` `decodeHTML` (never the DOM). Google/Graph HTML
+  (and ICS/CalDAV HTML) event descriptions converted to plain text at ingest with the linear-time tag scanner
+  (`server/src/lib/html-scan.ts`) — untrusted HTML is never handed whole to a tree-building parser, and no regex
+  over untrusted text may backtrack super-linearly. UI linkifies only SafeHttpUrl matches as React
+  elements. Length caps at ingest: subject 500, snippet 500, event title 500, description 8 KB.
+
+### 4.5 Theme safety
+Theme values are strict zod (see §7a `Theme`): colors match `^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$`; background
+is a discriminated union (color | gradient with bounded stops | image by `uploadId` UUID — the URL is always
+built as `/api/uploads/${uploadId}`); fonts are an enum of system stacks; numbers bounded. Applied only via
+`document.documentElement.style.setProperty(name, value)` for a fixed list of variable names — never by
+building CSS text. Provider/user colors (calendars, groups, accounts) are normalized with the same regex at
+ingest; invalid → null.
+
+### 4.6 Vault (`server/src/security/vault.ts`)
+- Master key: `crypto.randomBytes(32)`. On Windows it is protected with DPAPI (CurrentUser) by spawning
+  `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` **by absolute path** with
+  `-NoProfile -NonInteractive -EncodedCommand <script>` and `windowsHide: true`. The script contains no
+  secrets; it runs `Add-Type -AssemblyName System.Security`, reads base64 from `[Console]::In.ReadToEnd()`,
+  calls `ProtectedData.Protect/Unprotect(..., CurrentUser)`, writes base64 to stdout, exits non-zero on error.
+  Key bytes travel only over stdin/stdout. Non-Windows: raw key file, mode 0600.
+- `vault.key` written atomically (temp + rename) as `{"v":1,"alg":"dpapi-cu","blob":"..."}`.
+- Secrets: AES-256-GCM, fresh `randomBytes(12)` IV per encryption, AAD = `${secretId}|v${keyVersion}`,
+  decipher with `{authTagLength: 16}` and reject other tag lengths. `PRAGMA secure_delete=ON`.
+- API: `vault.state` (`'ready'|'locked'`), `get(id)`, `put(id, value)`, `delete(id)`. The key never leaves the module.
+- Startup: (a) no key file and no secrets → create key + canary secret. (b) key missing while secrets
+  exist, or DPAPI/parse/canary-decrypt fails → **never regenerate automatically**: rename the file to
+  `vault.key.unreadable-<ts>`, enter `locked`. Locked: non-secret features work, `GET /api/health` reports
+  `vault:'locked'`, accounts/Todoist report `reauth`, Settings shows a banner with **Reset credentials**
+  → `POST /api/vault/reset` (confirm) deletes all secrets and creates a new key.
+- Secret ids: `account:<accountId>` (JSON `{refreshToken}` or `{password}`), `todoist:token`,
+  `oauth-client:<provider>` (client secret), `ics:<calendarId>` (full feed URL), `canary`.
+- **Secrets are never returned to the client** (APIs return `{configured: true}` / host-only displays).
+
+### 4.7 OAuth (Google, Microsoft) — owned by the accounts module
+- `POST /api/oauth/:provider/start {accountId?, returnTo?}` (non-exempt) → `{authorizeUrl}`; the SPA does
+  `location.assign(authorizeUrl)` in the same tab (never a popup). `returnTo` must match `^#/[a-z0-9/_-]*$`
+  (default `#/settings/accounts`).
+- `oauth_states`: random 32-byte base64url `state`, PKCE S256 `code_verifier`, `account_id`, `return_to`,
+  `expires_at` (+10 min). At most 20 pending (oldest deleted); expired rows purged hourly.
+- Callback reads only `code`, `state`, `error`. It consumes state atomically:
+  `DELETE FROM oauth_states WHERE state=? AND provider=? AND expires_at>? RETURNING code_verifier, account_id, return_to`
+  before any token exchange; always responds `302` to `${appOrigin}/?oauth=<result>${returnTo}` with
+  `Cache-Control: no-store`, never reflecting provider text. `result` ∈
+  `connected|reconnected|different_account|denied|expired|error`.
+- Identity: claims from the token endpoint's `id_token` (Google `sub`, `email`; Microsoft `oid`,
+  `email`/`preferred_username`, and **require** `tid == 9188040d-6c67-4c5b-b112-36a304b66dad`).
+  Upsert by `(kind, external_id)`. A reconnect for `accountId` whose subject differs creates a new
+  account (`different_account`) and never overwrites the original.
+- Granted scopes recorded in `accounts.granted_scopes`; capabilities derived from them (Google: calendar
+  if `calendar.events` granted, mail if `gmail.modify` granted).
+- `DELETE /api/accounts/:id`: deletes the account, its secrets and (cascade) calendars/events in one
+  transaction; Google tokens revoked best-effort via `https://oauth2.googleapis.com/revoke`.
+- `AccountService.getAccessToken` is single-flight per account (in-memory `Map<id, Promise>`); access
+  tokens live **only in memory**; refresh 5 min before expiry; rotated refresh tokens are persisted
+  before resolving; on `invalid_grant` set `reauth` only if the refresh token used is still the stored
+  one; network/5xx → `status='error'` (no reauth).
+
+### 4.8 Outbound fetch (`server/src/security/safe-fetch.ts`)
+`safeFetch(url, {method?, headers?, body?, policy, timeoutMs = 10000, maxBytes?, as: 'json'|'text'|'bytes', redirect?})
+→ Promise<{status, headers, url, data}>`.
+- `policy: 'provider'` — fixed vendor endpoints (Google, Graph, Todoist, Open-Meteo, suggestion providers,
+  DuckDuckGo/Google favicon services). Uses global fetch; timeouts + size caps only.
+- `policy: 'public'` — untrusted/discovered URLs (bookmark pages, icon & manifest hrefs, site-meta, ICS feeds).
+  Uses `fetch` **and** `Agent` imported from the pinned `undici` package (never mixed with global fetch) with
+  `new Agent({connect: {lookup: guardedLookup}})`. `guardedLookup` does `dns.lookup(host, {all: true})` and
+  fails if **any** address is in the deny `net.BlockList`: 0.0.0.0/8, 10/8, 100.64/10, 127/8, 169.254/16,
+  172.16/12, 192.0.0/24, 192.168/16, 198.18/15, 224/4, 240/4, ::/128, ::1/128, ::ffff:0:0/96 (check the
+  embedded IPv4), 64:ff9b::/96, fc00::/7, fe80::/10, ff00::/8. IP-literal hostnames (incl. decimal/octal forms
+  as normalized by `new URL`, bracketed IPv6) are checked before dispatch. `redirect: 'manual'`; follow ≤ 5
+  hops manually, re-validating scheme (http/https), host and port each hop; never forward
+  `Authorization`/`Cookie` across origins. Never use env proxies.
+- `policy: 'user-server'` — user-entered CalDAV endpoints: private addresses allowed; timeouts + caps; manual
+  redirects restricted to the account's `credentialOrigins` (§8). Plain `http` targets (insecureLan) must be, or
+  resolve only to, private addresses on **every** connection (a LAN-only lookup guard; IP literals checked per hop),
+  so a name that later resolves publicly never receives the Basic credentials in cleartext.
+- Size caps count **decoded** bytes while streaming and abort past the cap (never trust Content-Length):
+  HTML 2 MB, image 1 MB, ICS 10 MB, JSON 5 MB. Honest `User-Agent: Homebase/<version> (personal dashboard)`.
+- `data:` icon hrefs are decoded locally, sniffed and size-capped. The DuckDuckGo/Google favicon fallbacks
+  are skipped for IP-literal, single-label, `.local`, `.lan`, `.home.arpa`, `.internal` hosts.
+
+### 4.9 Untrusted calendar data limits
+- ICS/CalDAV parse + recurrence expansion runs in a `worker_threads` worker with
+  `resourceLimits: {maxOldGenerationSizeMb: 256}` and a 5 s wall-clock timeout (worker terminated on expiry).
+- Per event ≤ 1,000 instances in the window and ≤ 50,000 iterator steps; per feed/collection ≤ 5,000 VEVENTs
+  and ≤ 20,000 instances. `FREQ=SECONDLY/MINUTELY` are not expanded (first instance only, `recurring=1`).
+- A **per-event** limit truncates that event (its first instances in the window are kept; SECONDLY/MINUTELY count
+  too) and records the non-fatal `last_error` `Warning: Some repeating events were shortened…` — the calendar is not
+  failed and the UI shows it as a warning. A **feed** limit (VEVENTs, total instances) or a worker failure/timeout/OOM
+  keeps the previous cached rows and sets `calendars.last_error` (an error).
+- CalDAV XML containing `<!DOCTYPE` is rejected. tsdav's multistatus parsing (xml-js) also runs in a worker
+  (same heap limit and 5 s timeout, nesting depth ≤ 256 checked first); PROPFIND answers are capped at 1 MB, REPORT
+  answers at the ICS cap.
+- Bytes, not only counts: per job the instances' text (title, location, description, links) is budgeted at 8 M chars —
+  past it descriptions are left out (non-fatal warning), past twice that the job fails. Across all calendars and
+  feeds the events cache holds at most 100,000 rows / 64 M chars of text; a listing that would pass that changes
+  nothing and records an error. Unchanged rows are not rewritten on sync.
+- Long-running DAILY/WEEKLY series (no COUNT/BYSETPOS/RDATE, BYDAY only when it includes DTSTART's weekday) are
+  iterated from an occurrence aligned to DTSTART + k×INTERVAL shortly before the window (same results, far fewer
+  steps). `wallToUtcMs` resolves times in a DST gap with the pre-gap offset (moved forward) in every zone.
+
+### 4.10 Mail action safety
+- IMAP message id = base64url(`${mailbox}\n${uidValidity}\n${uid}`). Every action SELECTs the mailbox and
+  compares UIDVALIDITY; mismatch → 409 `conflict` (`stale_message`) and the UI refreshes. UID commands only.
+  Trash = `UID MOVE` to the RFC 6154 `\Trash` special-use mailbox (fallback exact names: Trash, Deleted Items,
+  Deleted Messages, Bin); Archive = `\Archive` (fallback: Archive). Without MOVE: `UID COPY` + `UID STORE
+  +FLAGS (\Deleted)` + `UID EXPUNGE` only if UIDPLUS is advertised; otherwise refuse. Never plain EXPUNGE;
+  never `\Deleted` without a successful copy. Unresolvable target → 422; UI hides the action.
+- Graph: `Prefer: IdType="ImmutableId"` on list and actions. Gmail: `messages.modify` and `messages.trash`
+  only — never `delete`/`batchDelete`.
+- Actions accept only message ids the server listed for that account (short-lived in-memory allowlist).
+
+---
+
+## 5. Data model (`server/src/db/migrations/001_init.sql`, all v1 tables)
+
+Conventions: every `*_at` column is INTEGER epoch ms; booleans INT 0/1; JSON columns TEXT validated with zod
+on read; SQL uses single-quoted literals and prepared statements only; PATCH handlers map fields to columns
+through static allowlists (never interpolate request keys). Migrations are applied in filename order inside
+a transaction and tracked in `schema_migrations(name TEXT PK, applied_at)`. Reserved migration number ranges:
+000–099 foundation/accounts/core, 100–199 bookmarks+search, 200–299 weather, 300–399 todoist,
+400–499 calendar, 500–599 mail.
+
+```sql
+settings(namespace TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)
+profiles(id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0,
+         layout TEXT NOT NULL, theme TEXT NULL /* reserved */, created_at INTEGER, updated_at INTEGER)
+bookmark_groups(id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, color TEXT NULL,
+         collapsed INTEGER NOT NULL DEFAULT 0, created_at INTEGER, updated_at INTEGER)
+bookmarks(id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES bookmark_groups(id) ON DELETE CASCADE,
+         title TEXT NOT NULL, url TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0,
+         icon_mode TEXT NOT NULL DEFAULT 'auto' CHECK (icon_mode IN ('auto','custom','letter')),
+         icon_id TEXT NULL, letter_color TEXT NULL, created_at INTEGER, updated_at INTEGER)
+         -- INDEX (group_id, sort)
+icons(id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('favicon','upload')), source_host TEXT NULL,
+         content_type TEXT NOT NULL, bytes BLOB NOT NULL, width INTEGER NULL, fetched_at INTEGER NOT NULL)
+uploads(id TEXT PRIMARY KEY, content_type TEXT NOT NULL, bytes BLOB NOT NULL, created_at INTEGER NOT NULL)
+secrets(id TEXT PRIMARY KEY, key_version INTEGER NOT NULL DEFAULT 1, alg TEXT NOT NULL DEFAULT 'aes-256-gcm',
+         iv BLOB NOT NULL, tag BLOB NOT NULL, ciphertext BLOB NOT NULL, updated_at INTEGER NOT NULL)
+oauth_clients(provider TEXT PRIMARY KEY, client_id TEXT NOT NULL, has_secret INTEGER NOT NULL DEFAULT 0,
+         updated_at INTEGER NOT NULL)
+oauth_states(state TEXT PRIMARY KEY, provider TEXT NOT NULL, code_verifier TEXT NOT NULL, account_id TEXT NULL,
+         return_to TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)
+accounts(id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('google','microsoft','yahoo','caldav','imap')),
+         label TEXT NOT NULL, email TEXT NULL, external_id TEXT NULL, config TEXT NOT NULL DEFAULT '{}',
+         capabilities TEXT NOT NULL DEFAULT '[]', enabled_capabilities TEXT NOT NULL DEFAULT '[]',
+         granted_scopes TEXT NULL, color TEXT NULL, sort INTEGER NOT NULL DEFAULT 0,
+         status TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok','error','reauth')), status_message TEXT NULL,
+         created_at INTEGER, updated_at INTEGER, UNIQUE (kind, external_id))
+calendars(id TEXT PRIMARY KEY, account_id TEXT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+         source TEXT NOT NULL CHECK (source IN ('google','microsoft','caldav','ics')), remote_id TEXT NOT NULL,
+         name TEXT NOT NULL, color TEXT NULL, color_override TEXT NULL,
+         provider_writable INTEGER NOT NULL DEFAULT 0, user_read_only INTEGER NOT NULL DEFAULT 0,
+         visible INTEGER NOT NULL DEFAULT 1, is_primary INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0,
+         display_url TEXT NULL /* host-only display for ICS; full URL is vault secret ics:<id> */,
+         collection_url TEXT NULL /* CalDAV collection href */, sync_state TEXT NULL,
+         last_synced_at INTEGER NULL, last_error TEXT NULL, UNIQUE (account_id, remote_id))
+events(id TEXT PRIMARY KEY /* `${calendarId}:${sha1(remoteId + '|' + (instanceKey ?? ''))}` */,
+         calendar_id TEXT NOT NULL REFERENCES calendars(id) ON DELETE CASCADE, remote_id TEXT NOT NULL,
+         instance_key TEXT NULL, etag TEXT NULL, title TEXT NOT NULL, location TEXT NULL, description TEXT NULL,
+         start TEXT NOT NULL, "end" TEXT NOT NULL, all_day INTEGER NOT NULL, timezone TEXT NULL, status TEXT NULL,
+         recurring INTEGER NOT NULL DEFAULT 0, series_id TEXT NULL, html_url TEXT NULL, meeting_url TEXT NULL,
+         editable INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL)
+         -- INDEX (calendar_id, start); INDEX (all_day, start, "end")
+cache(key TEXT PRIMARY KEY, value TEXT NOT NULL, expires_at INTEGER NOT NULL)   -- non-sensitive only (weather, suggestions)
+```
+Times in `events`: timed events are ISO-8601 UTC (`...Z`); all-day events are `YYYY-MM-DD` (end exclusive).
+Mail content is **never** persisted (in-memory LRU only).
+
+`002_pairing.sql` (hybrid mode, §16):
+```sql
+pairings(id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE /* SHA-256 hex; the token itself is never stored */,
+         label TEXT NOT NULL /* "<Browser> on <OS>" */, origin TEXT NOT NULL /* the Pages origin it was made for */,
+         created_at INTEGER NOT NULL, last_used_at INTEGER)
+server_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)   -- 'instance_id': random 16 bytes base64url, created once
+```
+`server_meta` also holds `pairing.tombstones` (§17), `diagnostics.verbose` and `diagnostics.verbose.untilOff` (§17).
+
+`003_diagnostics.sql` (§17): `diag_health` (one row per health subject) and `diag_outcomes` (its outcome history).
+Machine-local: never exported or imported.
+
+---
+
+## 6. Server structure
+
+```
+server/src/
+  index.ts               bootstrap: config → logger → port probe → db/migrate → health → pairing → vault → settings →
+                         accounts → app → listeners → scheduler (§3)
+  supervisor.ts          autostart supervisor (§3)
+  config.ts  app.ts  context.ts
+  db/{open,migrate,helpers}.ts, db/migrations/{001_init,002_pairing,003_diagnostics}.sql
+  security/{gate,headers,vault,safe-fetch,dpapi,pairing,foreign-origins}.ts
+  lib/{logger,log-context,health,inflight,provider-errors,exit-codes,startup,ids,errors,cache,scheduler,validate,
+       settings,routes}.ts
+  testing/{test-context,test-request,fake-fetch,fake-accounts}.ts
+  modules/index.ts       static list of all modules (`MODULES`); each register() wrapped in try/catch — a failing
+                         module is logged and its route prefix returns 503 `module_unavailable`
+  modules/{core,accounts,bookmarks,search,weather,todoist,calendar,mail,feeds,sports,pairing,diagnostics}/index.ts
+```
+
+Each module exports `register(app: Hono<AppEnv>, ctx: AppContext): void`. `lib/routes.ts` provides
+`exempt(kind)`, `multipart(kind)` and `paired()` route metadata helpers used by the gate (§4.2).
+`ctx.pairing` (`security/pairing.ts`, built after migrations in `index.ts` and `testing/test-context.ts`) is the
+pairing store: `instanceId()`, `create({label, origin})` → `{token, record}` (32 random bytes base64url; at
+`MAX_PAIRINGS` = 20 the least recently used goes first; never-used pairings older than 24 h are purged on create and
+list), `verify(token)` (format check, then an in-memory hash map), `touch(id)`, `list()`, `revoke(id)`,
+`revokeByToken(token)`.
+
+```ts
+interface AppContext {
+  config: Config;
+  db: Db;               // run/get/all/exec + tx(fn) (BEGIN IMMEDIATE/COMMIT/ROLLBACK); rows → plain objects
+  vault: Vault;         // §4.6
+  log: Logger;
+  fetch: SafeFetch;     // §4.8
+  cache: Cache;         // get<T>(k), set(k, v, ttlMs), getOrSet<T>(k, ttlMs, fn), delPrefix(p) — SQLite `cache`
+                        // table, non-sensitive data only; keys '<module>:...'
+  memo: MemoryCache;    // same API, in-memory LRU (sensitive data, e.g. mail lists)
+  scheduler: Scheduler; // every(name, intervalMs, fn, {initialDelayMs?}) → {reschedule(ms), runNow(), stop()};
+                        // no overlapping runs; each run records `job:<name>` health (§17); names '<module>:...';
+                        // trigger(name), jobs() (stats), idle(ms)
+  settings: SettingsService; // get<K extends keyof Settings>(ns: K): Settings[K]; onChange(ns, cb)
+  accounts: AccountService;
+  pairing: PairingStore; // hybrid mode, §16
+  logs: LogHub;         // the logger's rings, level switch and queries (§3, §17; in production the same object as `log`)
+  health: HealthRecorder; // §17
+  runtime: RuntimeInfo; // boot id, start time, supervised + restart, in-flight requests, module status (§17)
+}
+
+interface AccountService {
+  list(f?: {kind?: AccountKind; capability?: Capability}): Account[];
+  get(id: string): Account | null;
+  getConfig<K extends AccountKind>(id: string): AccountConfigByKind[K];
+  getAccessToken(id: string): Promise<string>;           // google|microsoft; §4.7 semantics;
+                                                          // throws HttpError(409,'reauth_required',{accountId})
+  withToken<T>(id: string, fn: (token: string) => Promise<T>): Promise<T>; // on provider 401: force refresh once, retry once
+  getSecret(id: string): Promise<{password: string}>;    // app-password accounts
+  setStatus(id: string, status: 'ok'|'error'|'reauth', message?: string,
+            meta?: {reason?: string; source?: string}): void;   // reason = health code of `account:<id>` (§17)
+  registerProbe(capability: Capability, kinds: AccountKind[],
+                probe: (draft: AccountDraft) => Promise<{configPatch?: Record<string, unknown>}>): void;
+  onChange(cb: (e: {type: 'created'|'updated'|'deleted'; accountId: string}) => void): void;
+}
+```
+Probes: calendar registers the CalDAV probe for `yahoo`/`caldav`; mail registers the IMAP probe for
+`yahoo`/`imap`. Account creation runs the probes for the kind; capabilities = passing probes; if none pass
+→ 422 with per-capability errors. With no probe registered, save with `status_message: 'not verified'`.
+
+Errors: `throw new HttpError(status, code, message, details?)` → `{error: {code, message, details?, accountId?}}`.
+
+---
+
+## 7. API contract
+
+All JSON, camelCase. Non-exempt routes require the §4.2 gate. IDs in paths are always `encodeURIComponent`-ed by clients.
+
+**Core** — `GET /api/health` → `{ok, version, vault: 'ready'|'locked', app: 'homebase', apiVersion, instanceId,
+appUrl: '<appOrigin>/', pagesUrl: <HOMEBASE_PAGES_URL>|null}` (the last five optional in the schema: older servers lack
+them; the new-tab extension follows `pagesUrl`, §11) · `GET /api/settings` → full `Settings`
+(defaults applied) · `PATCH /api/settings` — RFC 7396 JSON Merge Patch applied to a `structuredClone`; objects
+merge, arrays replace, `null` resets the key to its default; any `__proto__`/`constructor`/`prototype` key at
+any depth → 400; result validated with `SettingsSchema.parse`; returns full `Settings` ·
+`GET|POST /api/profiles` · `PATCH|DELETE /api/profiles/:id` (name/sort) · `POST /api/profiles/:id/activate` ·
+`PUT /api/profiles/:id/positions {items:[{id,x,y,w,h}]}` · `POST /api/profiles/:id/widgets {type, config?, frame?}` ·
+`PATCH /api/profiles/:id/widgets/:instanceId {config?, frame?}` · `DELETE /api/profiles/:id/widgets/:instanceId` ·
+`POST /api/uploads` (multipart image) → `{id, url}` · `GET /api/uploads/:id` ·
+`GET /api/export` → export file · `POST /api/import/preview` (multipart, ≤ 25 MB) → `{previewId, summary}` ·
+`POST /api/import/commit {previewId}` · `POST /api/vault/reset` · `GET /api/about` → `{version, dataDir, logPath, vault}`
+(`dataDir` and `logPath` are `''` for a paired Pages request: they contain the Windows user name).
+
+Export file: `{format:'homebase-export', version:1, exportedAt, data:{settings, profiles, bookmarkGroups,
+bookmarks, uploads[base64], customIcons[base64]}}` built by an explicit per-entity allowlist serializer.
+Excluded: accounts, secrets, oauth_*, the Todoist token, calendars/ICS URLs, events, cache, fetched favicons.
+Import preview validates with a strict versioned `ExportSchema` reusing the create/update schemas
+(SafeHttpUrl, Theme), regenerates all IDs, caps counts (≤ 50 profiles, ≤ 200 groups, ≤ 5,000 bookmarks,
+≤ 50 widgets/profile), drops unknown widget types, and returns a summary (counts, search-engine names+hosts,
+dropped items). Commit backs up (`VACUUM INTO backups/pre-import-<ts>.db`) then replaces the included
+tables in one transaction.
+
+**Bookmarks** — `GET /api/bookmarks` → `{groups: BookmarkGroup[]}` (with bookmarks) · `POST /api/bookmark-groups` ·
+`PATCH|DELETE /api/bookmark-groups/:id` · `POST /api/bookmark-groups/reorder {ids}` · `POST /api/bookmarks` ·
+`PATCH|DELETE /api/bookmarks/:id` · `POST /api/bookmarks/:id/move {groupId, index}` (atomic) ·
+`GET /api/icons/:id` · `POST /api/bookmarks/:id/refresh-icon` · `POST /api/bookmarks/:id/icon` (multipart upload) ·
+`GET /api/site-meta?url=` → `{title, iconId|null}` · `GET /api/bookmarks/import/sources` →
+`[{id, browser:'chrome'|'edge', profileName, bookmarkCount}]` (opaque ids; server scans only
+`%LOCALAPPDATA%\Google\Chrome\User Data\*\Bookmarks` and `%LOCALAPPDATA%\Microsoft\Edge\User Data\*\Bookmarks`) ·
+`POST /api/bookmarks/import/browser {sourceId, targetGroupStrategy:'folders'|'single'}` (server re-resolves the
+path, `fs.realpath`, checks it is under those roots, caps 20 MB, validates JSON) ·
+`POST /api/bookmarks/import/html` (multipart Netscape bookmark file, ≤ 25 MB) → import report `{groups, bookmarks, skipped}`.
+
+**Search** — `GET /api/search/suggest?provider=&q=` → `string[]` (≤ 8).
+
+**Weather** — `GET /api/weather?lat=&lon=` → `WeatherReport` (units from settings) · `GET /api/weather/geocode?q=` → `GeoPlace[]`.
+
+**Todoist** — `GET /api/todoist/token` → `{configured}` · `PUT /api/todoist/token {token}` (validated upstream first) ·
+`DELETE /api/todoist/token` · `GET /api/todoist/tasks?filter=` · `POST /api/todoist/tasks {text}` (quick add) ·
+`POST /api/todoist/tasks/:id/close` · `POST /api/todoist/tasks/:id/reopen` · `PATCH /api/todoist/tasks/:id` ·
+`GET /api/todoist/projects`.
+
+**Accounts** (foundation) — `GET /api/accounts` · `PATCH /api/accounts/:id {label?, color?, enabledCapabilities?, sort?}` ·
+`DELETE /api/accounts/:id` · `POST /api/accounts/:id/test` · `GET /api/oauth-clients/:provider` →
+`{clientId|null, hasSecret, redirectUri}` · `PUT /api/oauth-clients/:provider {clientId, clientSecret?}` ·
+`POST /api/oauth/:provider/start {accountId?, returnTo?}` → `{authorizeUrl}` · `GET /api/oauth/:provider/callback` ·
+`POST /api/accounts/yahoo {email, appPassword}` · `POST /api/accounts/caldav {label, serverUrl, username, password, insecureLan?}` ·
+`POST /api/accounts/imap {label, host, port, security:'tls'|'starttls', username, password, webmailUrl?}`.
+
+**Calendar** — `GET /api/calendar/calendars` · `PATCH /api/calendar/calendars/:id {visible?, colorOverride?, userReadOnly?, sort?}` ·
+`POST /api/calendar/ics {url, name, color?}` · `PATCH /api/calendar/ics/:id {url?, name?}` ·
+`DELETE /api/calendar/calendars/:id` (ICS only) · `GET /api/calendar/events?from=YYYY-MM-DD&to=YYYY-MM-DD&tz=<IANA>`
+→ `{events, window:{from,to}, truncated?}` (to exclusive; query `(all_day=0 AND start < :toInstant AND ("end" > :fromInstant
+OR start = :fromInstant)) OR (all_day=1 AND start < :toDate AND "end" > :fromDate)`, clipped to the synced window;
+optional `calendarIds=a,b` (≤ 200) = exactly those calendars, hidden ones included, otherwise the visible calendars;
+at most 5,000 events / 4 M chars of event text per response, earliest first, `truncated: true` when cut) ·
+`POST /api/calendar/events` · `PATCH|DELETE /api/calendar/events/:id` (single instance) · `POST /api/calendar/sync`.
+
+**Mail** — `GET /api/mail/summary` → `MailAccountSummary[]` · `POST /api/mail/:accountId/messages/:id/read {read}` ·
+`POST /api/mail/:accountId/messages/:id/archive` · `POST /api/mail/:accountId/messages/:id/trash`.
+
+**Feeds** — `GET /api/feeds?url=` → `Feed` (`shared/src/feeds.ts`). Fetched with `safeFetch('public')` (≤ 5 MB,
+10 s); RSS 2.0/0.9x, RSS 1.0 (RDF) and Atom are read by a linear-time XML reader (`modules/feeds/xml.ts`: no entity
+expansion, DOCTYPE internal subsets rejected, depth/element caps). A web page is searched for its advertised feed
+(`<link rel="alternate" type="application/rss+xml|atom+xml">`), which is fetched once. Titles and summaries are plain
+text (`htmlToPlainText`), links are SafeHttpUrls, ≤ 50 items newest first. Cached 15 min in `cache`. Not a feed → 422.
+`&check=1` (the feed settings trying an address before adding it) records the `feed:` health subject only when the
+fetch succeeds, so a typo leaves no failing feed behind. Not available in the static build (feeds are cross-origin).
+
+**Sports** — `GET /api/sports/teams?league=` → `SportsTeam[]` · `GET /api/sports/games?league=&team=` →
+`SportsTeamGames {team, recent ≤ 10, live, upcoming ≤ 10, fetchedAt}` (`shared/src/sports.ts`; 16 leagues in
+`SPORTS_LEAGUES`). ESPN's public site API, `safeFetch('provider')` (no key). The pure mapper `modules/sports/espn.ts` is
+copied byte for byte to `web/src/static/providers/espn.ts` (a test checks). A team's games come from its schedule
+(cached 5 min; one season phase, so the previous phase is also read when it has < 3 results and the next when nothing
+is scheduled; soccer adds `?fixture=true`) with the league scoreboard (cached 20 s) overlaid while a game is around
+now (30 min before start to 8 h after). Team lists cached 1 day; the static build reads them from `/standings`
+(ESPN's `/teams` sends no CORS header). Plain text only; links https; logos from `a.espncdn.com` only.
+
+**Pairing** (hybrid mode, §16; `shared/src/pairing.ts`) — `GET /api/pairing` [paired] → `PairingStatusResponse
+{paired, pairingId, instanceId, label, createdAt}` for the presenting `X-Homebase-Token` (none → 409 `not_configured`,
+unknown → 401 `pairing_required`) · `DELETE /api/pairing` [paired] → 204 (the browser unpairs itself) ·
+`GET /api/pairings` [paired] → `{pagesUrl|null, instanceId, pairings: {id, label, origin, createdAt, lastUsedAt|null,
+current}[]}` (`current` = made for the configured origin) · `POST /api/pairings {nonce}` [local] → 201 `{redirectUrl}`
+= `<pagesUrl>#/paired?token=…&nonce=…&instance=…` built from config only (409 `not_configured` without a Pages URL) ·
+`DELETE /api/pairings/:id` [paired] → 204 / 404. Every other route except those listed local-only in §4.2 is `paired()`.
+
+**Diagnostics** (§17; `shared/src/diagnostics.ts`, all [paired]) — `GET /api/diagnostics/summary` ·
+`GET /api/diagnostics/logs?scope=memory|files&…` · `GET /api/diagnostics/health/:key/history?limit=` ·
+`PUT /api/diagnostics/level` · `POST /api/diagnostics/jobs/:name/run` · `GET /api/diagnostics/report?redact=0|1` ·
+`POST /api/diagnostics/client-events`. Every answer (API, static file, error) carries `X-Request-Id`.
+
+### 7a. Shared contracts (`shared/src/*`, written by the foundation; features may only add optional fields in their own file)
+- **errors.ts** — `ErrorCode = 'bad_request'|'validation_failed'|'forbidden'|'not_found'|'conflict'|'not_configured'|
+  'reauth_required'|'provider_error'|'rate_limited'|'upstream_timeout'|'payload_too_large'|'module_unavailable'|'internal'`;
+  statuses 400/422/403/404/409/409/409/502/429/504/413/503/500; hybrid mode adds `pairing_required` (401) and
+  `local_only` (403). `ApiErrorBody {error:{code,message,details?,accountId?}}`.
+  Multi-account aggregates return 200 with a per-item `error?: ApiErrorBody['error']`.
+- **core.ts** — `SafeHttpUrl`, `HexColor`, `Uuid`, id/timestamp helpers, `Paged<T>` if needed.
+- **profiles.ts** — `WidgetFrame {title?: string; showHeader: boolean; transparent: boolean}`;
+  `WidgetInstance {id, type: string, x, y, w, h, config: unknown, frame: WidgetFrame}`;
+  `Layout {version: 1, items: WidgetInstance[]}`; `Profile {id, name, sort, layout: Layout}`.
+- **settings.ts** — composes namespaces with `.prefault({})` so `SettingsSchema.parse({})` yields full defaults:
+  `Settings {general, appearance, search, bookmarks, weather, calendar, todoist, activeProfileId: string|null}`.
+  `GeneralSettings {userName?, locale: 'system'|string, timeFormat: 'system'|'12h'|'24h', weekStartsOn: 0|1|6,
+  temperatureUnit: 'C'|'F', windUnit: 'kmh'|'mph'|'ms', precipUnit: 'mm'|'in', openLinksInNewTab: boolean}`.
+  `appearance: Theme`. Every sub-schema is `.strict()` at every level, bounded strings/arrays; `z.record` keys match
+  `^[a-z0-9_-]{1,64}$`. Feature namespaces (search, bookmarks, weather, calendar, todoist) are defined in the
+  feature's own shared file and imported here.
+- **Theme** — `{mode: 'light'|'dark'|'system', accent: HexColor, background: {type:'color', color} |
+  {type:'gradient', angle: 0–360, stops: {color, at: 0–100}[2..5]} | {type:'image', uploadId: Uuid, blur: 0–40, dim: 0–0.9},
+  font: 'system'|'serif'|'mono'|'rounded', density: 'comfortable'|'compact', radius: 0–24, widgetOpacity: 0.3–1}`.
+- **accounts.ts** — `AccountKind`, `Capability = 'calendar'|'mail'`, `Account {id, kind, label, email|null, color|null,
+  capabilities, enabledCapabilities, status: 'ok'|'error'|'reauth', statusMessage|null, createdAt, updatedAt}`,
+  per-kind config types, create payloads, `OAuthProvider = 'google'|'microsoft'`, `OAuthResult`.
+- **bookmarks.ts** — `Bookmark {id, groupId, title, url, sort, iconMode, iconId|null, letterColor|null}`,
+  `BookmarkGroup {id, name, sort, color|null, collapsed, bookmarks}`, create/update/move schemas,
+  `BookmarksSettings`, import report types.
+- **search.ts** — `SuggestProvider = 'google'|'ddg'|'bing'|'wikipedia'|'youtube'`;
+  `SearchEngine {id, name, urlTemplate /* contains %s */, keyword|null, suggest: SuggestProvider|null, iconId|null}`;
+  `SearchSettings {engines, defaultEngineId, suggestionsEnabled, showBookmarkMatches}`; preset list.
+- **weather.ts** — `GeoPlace {name, admin1?, country?, lat, lon, timezone?}`; `WeatherReport {place?, units,
+  current {time, temp, apparent, humidity, windSpeed, windDir, code, isDay, precip}, hourly[{time, temp, code, precipProb}],
+  daily[{date, min, max, code, precipProb, sunrise, sunset}]}`; `WeatherSettings {defaultLocation: GeoPlace|null}`;
+  WMO code → `{label, icon}` map.
+- **todoist.ts** — `Task {id, content, description, projectId, due: {date, datetime|null, string, isRecurring}|null,
+  priority: 1|2|3|4, labels: string[], url}`, `Project {id, name, color}`, `TodoistSettings {defaultFilter}`.
+- **calendar.ts** — `Calendar {id, accountId|null, source, name, color /*resolved*/, writable /* provider && !userReadOnly */,
+  providerWritable, userReadOnly, visible, isPrimary, sort, displayUrl|null, lastSyncedAt|null, lastError|null,
+  colorOverride?: string|null}` (`lastError` starting with `CALENDAR_WARNING_PREFIX` = `"Warning: "` is non-fatal);
+  `CalendarEvent {id, calendarId, title, location|null, description|null, start, end, allDay, timezone|null, status,
+  recurring, seriesId|null, htmlUrl|null, meetingUrl|null, editable}`; `EventInput {calendarId, title, allDay, start,
+  end, timezone, location?, description?}` (timed = ISO with offset; all-day = `YYYY-MM-DD`, end exclusive);
+  `CalendarSettings {syncIntervalMin: 5–60, defaultCalendarId: string|null}`.
+- **mail.ts** — `MailMessage {id, accountId, from: {name, address}, subject, snippet|null, date, unread, webUrl|null}`;
+  `MailAccountSummary {accountId, label, email, color, unread, messages, webmailUrl|null, canArchive, canTrash?, error?}`.
+- **pairing.ts** (hybrid mode) — `HOMEBASE_API_VERSION` (core.ts; bumped on any change the other side cannot
+  ignore), `PAIRING_TOKEN_HEADER = 'X-Homebase-Token'`, `MAX_PAIRINGS`, token/nonce schemas (43-char base64url),
+  `InstanceIdSchema`, the request/response schemas of §7 Pairing, and the URL helpers `buildPairingRequestUrl` /
+  `parsePairingRequest` (`<appUrl>#/pair?nonce=…`) and `buildPairingReturnUrl` / `parsePairingReturn`
+  (`<pagesUrl>#/paired?token&nonce&instance`). Response schemas are strict on the server; the Pages site reads
+  them with tolerant copies (`z.object(Schema.shape)`), because the published site and the server are updated
+  separately — `apiVersion` decides compatibility.
+- **diagnostics.ts** (§17) — log levels, `DIAGNOSTIC_AREAS`, `HEALTH_CODES`, `REQUEST_ID_HEADER`, the scrubbers
+  (`scrub`, `maskUserPaths`, `scrubFields`, `redactForSharing`) shared by the server and the browser, and the DTOs of
+  `/api/diagnostics/*` (log records and queries, health entries and outcome rows, jobs, log level, summary, browser
+  events). Additive: `HOMEBASE_API_VERSION` was not bumped.
+- **Conventions:** API camelCase; DB snake_case; booleans ↔ 0/1; DB timestamps epoch ms, API ISO strings.
+- **web/src/api/keys.ts** exports one `qk` object with every query key (settings, profiles, accounts, oauthClients,
+  bookmarks, icons, search.suggest, weather, geocode, todoist.token/tasks/projects, calendar.calendars/events,
+  mail.summary, pairings, diagnostics — never persisted). Account create/delete/reconnect invalidates `['accounts']`,
+  `['calendar']`, `['mail']`.
+
+---
+
+## 8. Provider notes (verified 2026-09-25)
+
+**Google** — OAuth client type *Web application*; redirect `http://localhost:5757/api/oauth/google/callback`
+(from config). Scopes: `openid email profile https://www.googleapis.com/auth/calendar.events
+https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/gmail.modify`;
+`access_type=offline`, `prompt=consent`, `include_granted_scopes=true`, PKCE S256; `client_secret` required at
+token exchange. The consent screen must be **In production** (unverified, personal-use exemption) — "Testing"
+expires refresh tokens after 7 days. Handle partial grants via the token response `scope`. Refresh tokens die
+after 6 months unused or on password change (Gmail scopes) → `reauth`.
+Calendar: `calendarList.list`; `events.list(singleEvents=true, timeMin, timeMax, maxResults=1000, pageToken, prettyPrint=false, fields=<only what
+the mapper reads>)` (listing pages capped at 16 MB);
+`events.insert/patch/delete` (instance ids edit single occurrences). All-day uses `start.date`/`end.date`.
+`meeting_url` from `hangoutLink` or `conferenceData.entryPoints[type=video]`.
+Gmail: `users.labels.get(INBOX)` → `messagesUnread`; `messages.list(labelIds=INBOX, maxResults=N)` +
+`messages.get(format=metadata, metadataHeaders=[From,Subject,Date])` with concurrency ≤ 5; `modify`
+(UNREAD / INBOX labels); `trash`. `webUrl = https://mail.google.com/mail/u/?authuser=<email>#inbox/<threadId>`.
+
+**Microsoft (personal accounts only)** — Prerequisite: the user creates a personal Entra directory via Azure
+free-account signup with their personal MSA (identity verification by card; no charges for this use). App
+registration: *Personal Microsoft accounts only*; platform **Mobile and desktop applications** (public client,
+no secret, 90-day sliding refresh tokens); redirect `http://localhost/api/oauth/microsoft/callback` (Entra ignores
+the port for localhost); no Web/SPA redirect on the same path. Authority `https://login.microsoftonline.com/consumers`.
+Scopes: `openid profile email offline_access User.Read Calendars.ReadWrite Mail.ReadWrite`. PKCE; no client
+secret at the token endpoint (Node fetch sends no Origin header). Persist rotated refresh tokens. Require
+id_token `tid` = consumer tenant.
+Calendar: `/me/calendars`; `/me/calendars/{id}/calendarView?startDateTime&endDateTime&$top=500` paging via
+`@odata.nextLink`, `Prefer: outlook.timezone="UTC"`; create `POST /me/calendars/{id}/events`; `PATCH/DELETE /me/events/{id}`
+(occurrence ids edit single instances). When `isAllDay`, take the date part of start/end verbatim (end exclusive).
+`meeting_url` from `onlineMeeting.joinUrl`. Mail: `/me/mailFolders/inbox` (`unreadItemCount`);
+`/me/mailFolders/inbox/messages?$top=N&$orderby=receivedDateTime desc&$select=id,subject,from,receivedDateTime,isRead,bodyPreview,webLink`;
+`PATCH isRead`; `POST /me/messages/{id}/move {destinationId:'archive'|'deleteditems'}`; always
+`Prefer: IdType="ImmutableId"`. Fallback without Azure: publish Outlook.com calendars as ICS (read-only); mail unavailable.
+
+**Yahoo** — no public REST API. App password (Account Security → Generate app password; Yahoo may refuse for
+new/low-history accounts — documented in SETUP). CalDAV (read-only in v1): tsdav
+`createDAVClient({serverUrl:'https://caldav.calendar.yahoo.com', credentials:{username,password}, authMethod:'Basic',
+defaultAccountType:'caldav'})` with a transport built on `safeFetch('user-server')`; `credentialOrigins` fixed to
+`https://caldav.calendar.yahoo.com`. IMAP `imap.mail.yahoo.com:993` TLS. The Yahoo create call reports CalDAV and
+IMAP results separately; a CalDAV failure still allows a mail-only account. Fallback for calendars: Yahoo
+Calendar public ICS link → add as ICS. `webmailUrl` = `https://mail.yahoo.com/`.
+
+**Generic CalDAV** (read-only v1) — https required, TLS verification always on (no ignore-cert option); `http`
+only if the host resolves to a private address and the user ticked `insecureLan`. Credentials go only to the
+account's `credentialOrigins`: the entered origin plus same-site origins (same eTLD+1 via `tldts`) reached through
+`/.well-known/caldav` redirects at account creation (stored in `accounts.config`). Every href in PROPFIND/REPORT
+responses is resolved against the request URL and dropped unless inside `credentialOrigins`; event hrefs must be
+under their collection path. Runtime redirects are manual and stay within `credentialOrigins`.
+
+**Generic IMAP** — `security:'tls'` (port 993, `secure:true`) or `'starttls'` (`doSTARTTLS:true`); never plaintext or
+opportunistic. `tls: {rejectUnauthorized: true, minVersion: 'TLSv1.2'}`. imapflow: `logger:false`; attach
+`client.on('error', …)` before `connect()`; every session runs in a `worker_threads` worker (imapflow parses server
+responses synchronously and super-linearly on hostile input, reachable before auth/STARTTLS) with a heap limit and a
+30 s cap, terminated on abort; lines ≤ 64 KB, literals ≤ 64 KB, responses ≤ 256 KB; `unreadOnly` searches only
+the newest 1,000 messages; one short-lived connection per request (connect → lock INBOX →
+work → logout) with 15 s timeouts. v1: `STATUS INBOX (UNSEEN)`, latest N messages (ENVELOPE + FLAGS; no
+snippets), mark read/unread, trash, archive only when a `\Archive` special-use folder exists (§4.10).
+
+**ICS** — `webcal://` → `https://`; full URL stored as vault secret `ics:<calendarId>`, API/logs show host only;
+conditional GET (ETag / Last-Modified) via `safeFetch('public')`; parse/expand in the worker (§4.9).
+
+**Recurrence (ICS/CalDAV)** — for each master build `ICAL.Event` and call `master.relateException(...)` for every
+VEVENT with the same UID and a RECURRENCE-ID; iterate `master.iterator()` using `getOccurrenceDetails` until past the
+window end. Register every VTIMEZONE with `ICAL.TimezoneService.register`. TZIDs without VTIMEZONE: map Windows zone
+names to IANA via a bundled CLDR `windowsZones` table; otherwise floating in the server's local zone. Expanded
+instances: `instance_key` = occurrence start (UTC), `editable = 0`.
+
+**Todoist** — `Authorization: Bearer <token>`, base `https://api.todoist.com/api/v1`. Filter: `GET /tasks/filter?query=<q>&limit=200[&cursor=]`
+→ `{results, next_cursor}` (loop until null). Quick add: `POST /tasks/quick {text}`. Close: `POST /tasks/{id}/close`
+(recurring tasks advance instead of completing — refetch, don't remove). Reopen: `POST /tasks/{id}/reopen`. Update:
+`POST /tasks/{id}` (not PATCH). Projects: `GET /projects?limit=200` with cursor paging. IDs are opaque strings.
+REST v2 is shut down (410). Token validated with a cheap call before storing.
+
+**Weather** — Open-Meteo `https://api.open-meteo.com/v1/forecast?latitude&longitude&current=...&hourly=...&daily=...&timezone=auto&temperature_unit&wind_speed_unit&precipitation_unit&forecast_days=7`;
+geocoding `https://geocoding-api.open-meteo.com/v1/search?name=&count=8&language=en&format=json`. Cache 10 min
+(key rounds lat/lon to 2 decimals). No key.
+
+**Favicons** — resolver (policy `public`): page HTML (≤ 2 MB) → `<link rel~=icon|apple-touch-icon>` + web manifest
+icons, hrefs resolved against the final response URL, prefer largest ≥ 32 px raster or SVG → `/favicon.ico` →
+`https://icons.duckduckgo.com/ip3/<host>.ico` → `https://www.google.com/s2/favicons?domain=<host>&sz=128`
+(non-2xx = miss; skip for local-looking hosts, §4.8) → client-side letter tile. Stored in `icons`; refreshed after 30 days.
+
+**Search suggestions** (all return `[query, string[], ...]`; take index 1; send the Homebase User-Agent):
+google `https://suggestqueries.google.com/complete/search?client=firefox&q=` · youtube
+`https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=` · ddg `https://duckduckgo.com/ac/?type=list&q=` ·
+bing `https://api.bing.com/osjson.aspx?query=` · wikipedia
+`https://en.wikipedia.org/w/api.php?action=opensearch&format=json&namespace=0&limit=8&search=`. Cache 5 min.
+
+---
+
+## 9. Sync
+
+In-process scheduler. Calendar: every `settings.calendar.syncIntervalMin` (default 5; rescheduled on change) per
+account; window `[today-30d, today+365d]`; per calendar, fetch the full window and in one transaction upsert by
+deterministic event id and delete ids no longer returned. ICS: every 30 min with conditional GET. Initial sync 5 s
+after startup; `POST /api/calendar/sync` forces one. Writes (Google/Microsoft only) are write-through: provider call →
+upsert the cache row from the provider response → return it. Mail: fetched on demand, in-memory LRU 60 s; after an
+action the account's entry is invalidated. Auth failures set `status=reauth`; the UI shows Reconnect.
+
+---
+
+## 10. Web app
+
+### 10.1 Structure
+React 19 + Vite 8 + TS; TanStack Query (cache persisted to localStorage: maxAge 24 h, buster = app version, so a
+new tab paints last-known data instantly, then refetches; the cache is restored and the active profile's widget
+chunks are preloaded (≤ 150 ms) *before* the first render, so the first frame shows content, not skeletons; queries
+over 512 KB, site-meta lookups and unobserved calendar ranges are not persisted, and a quota error drops the
+oldest queries; the Pages build keeps one snapshot per backend, §16); hand-rolled hash router (`web/src/app/router.ts`:
+home, `#/settings/<section>`, `#/pair?nonce=…`);
+CSS custom properties (tokens) + CSS Modules for feature styles; `lucide-react`; `date-fns` + `@date-fns/tz`;
+Radix primitives; sonner toasts. Vite dev proxy: `/api` → `HOMEBASE_PORT`, `changeOrigin: false`; never set
+`server.host` or `server.cors: true`.
+
+### 10.2 Grid
+12 columns, react-grid-layout v2: `import ReactGridLayout, { useContainerWidth } from 'react-grid-layout'`;
+`gridConfig={{cols: 12, rowHeight: 40, margin: [12, 12]}}`, `dragConfig={{enabled: editMode, handle: '.hb-drag-handle',
+cancel: 'input,textarea,select,button,a,[data-no-grid-drag]'}}`, `resizeConfig={{enabled: editMode, handles: [all four corners and edges]}}`; import
+`react-grid-layout/css/styles.css` and `react-resizable/css/styles.css`. Edit mode: drag handle in each frame header,
+Add Widget dialog, remove, per-widget settings dialog (frame options + widget Settings component). Positions saved
+via `PUT /positions` (debounced); config via `PATCH /widgets/:instanceId` — never whole-layout overwrites.
+Below 768 px: widgets stacked full-width in (y, x) order, edit mode disabled; lists (launch pad, agenda, Todoist,
+mail) size to their content up to 70 vh, other widgets keep their row height (`WidgetDefinition.stackSizing`). First run seeds a "Home" profile
+from `web/src/grid/defaultLayout.ts` with all seven widget types.
+
+### 10.3 Widget registry
+Each `web/src/widgets/<type>/index.ts` exports
+`definition: WidgetDefinition<C> = {type, title, description, icon, defaultSize: {w, h, minW, minH, maxW?, maxH?},
+configSchema /* zod, every field defaulted */, Component: lazyWithPreload(() => import('./Widget.tsx')), Settings?: lazy(() => import('./Settings.tsx')), stackSizing?}`
+(amended: `lazyWithPreload` is `React.lazy` plus `preload()`; once preloaded it renders without suspending).
+`web/src/widgets/registry.ts` imports the seven definitions (foundation-frozen).
+`WidgetProps<C> = {instanceId, config: C, setConfig(patch: Partial<C>): Promise<void>, size: {w, h}, editMode: boolean}`;
+`WidgetSettingsProps<C> = {value: C, onChange(next: C): void}`. `WidgetFrame` wraps each widget in an ErrorBoundary
++ Suspense (Skeleton fallback), renders the header (icon, title, `<WidgetActions>` slot for widget-specific header
+buttons, drag handle in edit mode) and sets `container-type: inline-size` on the body. Config is parsed with
+`configSchema` on every read (invalid/old config → defaults). Unknown types render an "Unknown widget" placeholder.
+All types allow multiple instances.
+
+### 10.4 UI kit (`web/src/ui/`, foundation)
+Button (primary|secondary|ghost|danger; sm|md; loading), IconButton (required aria-label), Input, TextArea, Select,
+Checkbox, Switch, SegmentedControl, Field (label/help/error), Dialog + ConfirmDialog, Popover, Menu, Tooltip, Tabs,
+toast (sonner; supports Undo action), ColorPicker (12 swatches + native color input + hex field), ImageUpload,
+Spinner, Skeleton, EmptyState {icon, title, body, action}, ErrorState (maps ApiError codes: `reauth_required` →
+ReconnectButton, `not_configured` → "Set up" link, else Retry), Badge, LetterTile, ExternalLink, RelativeTime, Kbd,
+plus `ui/accounts/{AccountPicker, AccountBadge, ReconnectButton}`.
+Tokens (`web/src/styles/tokens.css`, light + dark): `--hb-bg, --hb-surface, --hb-surface-2, --hb-text, --hb-text-muted,
+--hb-border, --hb-accent, --hb-accent-contrast, --hb-danger, --hb-warning, --hb-success, --hb-focus,
+--hb-radius-{sm,md,lg}, --hb-space-{1..6}, --hb-font-sans, --hb-font-mono, --hb-text-{xs,sm,md,lg,xl},
+--hb-shadow, --hb-widget-opacity`. Rules: features use tokens only; user-data colors go through
+`readableTextColor()` (`web/src/lib/color.ts`); only the foundation writes global CSS.
+Visual direction: calm, modern "glass" widgets over the user's background (color/gradient/image with blur+dim),
+generous spacing, clear hierarchy, system font stacks, subtle shadows, excellent dark mode.
+
+### 10.5 Settings
+Hash routes `#/settings/<section>`; nav: general, appearance, search, bookmarks, accounts, calendars, todoist,
+profiles, import-export, diagnostics (§17), about. Foundation implements General, Appearance, Accounts (OAuth client setup with the exact
+redirect URI to copy, connect/reconnect/remove, Yahoo/CalDAV/IMAP forms, vault-locked banner), Profiles, Import/Export,
+About (version, data dir, log path, vault state). Features own Search, Bookmarks, Calendars, Todoist.
+The app reads `?oauth=<result>` on load, shows a toast, and strips it from the URL.
+Hybrid mode (§16): About in the server build ends with **Paired browsers** (`PairedBrowsersCard`: the configured Pages
+address or how to set it, every pairing with label, created and last used, "Old address" when not made for the
+current origin, Revoke); in the Pages build it shows the local server panel as a card instead. `#/pair?nonce=…`
+renders `PairPage` on its own (no shell, loaded on demand): in the server build the consent page — fetches
+`GET /api/pairings`; no Pages URL → setup steps; invalid nonce → error; else "Allow **<origin>** to use Homebase on
+this PC?" with the warning that every page of that origin gets the access and what it can and cannot do.
+**Approve** is enabled only after the page has been visible and focused for 1 s (re-armed on blur / hidden); it
+posts the pairing and follows the redirect only when it is exactly `<pagesUrl>#/paired?…` with the same nonce.
+Cancel → `#/`. In the Pages build the route only says that pairing happens on Homebase's own page.
+
+### 10.6 Hotkeys & focus
+`useHotkey` ignores events from input/textarea/select/contenteditable. `/` focus search; `e` toggle edit mode;
+`Esc` close dialog / exit edit mode; `?` shortcut help. When loaded with `?src=newtab` or directly, the (first) search
+widget with `autofocus` focuses its input.
+
+### 10.7 Widget definition of done (every widget)
+1. Not-configured state with a CTA deep link (e.g. `#/settings/todoist`, `#/settings/accounts`; weather "Set location" opens widget settings).
+2. Skeleton on first load. 3. Error state with Retry; `reauth_required` shows the account and Reconnect.
+4. Stale data kept on refetch failure with "Updated N min ago" and a warning indicator.
+5. Renders at minW×minH and adapts upward via container queries. 6. Light + dark via tokens only.
+7. Keyboard-reachable actions with visible focus. 8. Optimistic mutations with toast (+ Undo where reversible).
+Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refetch on window focus.
+
+### 10.8 Widget product specs
+- **Search** — presets: Google, DuckDuckGo, Bing, YouTube, Wikipedia, Google Maps, GitHub, Amazon, Reddit, Perplexity,
+  ChatGPT, Claude (`https://claude.ai/new?q=%s`). Settings: CRUD, reorder, default, keyword, suggest provider.
+  Widget: engine chip/menu; typing `<keyword>` + Space switches engine (Backspace on empty reverts); input that parses as a
+  URL (scheme, dotted host without spaces whose last label is a real TLD or a local name such as `.lan`, any dotted
+  host with a port or path, `localhost:port`, IP literals) navigates directly; a bare dotted word with an unknown TLD
+  (`next.js`, `index.html`) searches on Enter and offers "Go to" second; dropdown shows bookmark matches (≤ 4)
+  then suggestions (≤ 8; debounced 150 ms; aborted on new input; engine provider → default engine's → none when
+  disabled); ↑/↓ navigate, Enter current tab, Ctrl/Shift+Enter new tab. Config `{engineIds: 'all'|string[],
+  showEngineSwitcher, autofocus, placeholder}`.
+- **Launch pad** — config `{groupIds: 'all'|string[], iconSize: 's'|'m'|'l', showLabels, columns: 'auto'|number,
+  style: 'tiles'|'list'}`. Add/edit dialog: URL → debounced `/api/site-meta` fills title/icon; icon modes auto | upload |
+  letter (+ color). Group CRUD with color and collapse. Reorder within/across groups with @dnd-kit (pointer + keyboard)
+  **in edit mode** via `POST /api/bookmarks/:id/move` (the edit board and the dialogs are separate chunks, preloaded
+  when the browser is idle, so the view chunk carries no @dnd-kit). Empty state links to import (`#/settings/bookmarks`).
+  Ctrl/middle-click opens a new tab. Bookmarks settings: import Chrome/Edge/HTML, manage groups.
+- **Calendar** — config `{view: 'agenda'|'week'|'month', days: 1–14, calendarIds: 'visible'|string[], showDeclined}`;
+  agenda default; "now" marker, all-day row, multi-day spans. Event popover: time, location, plain-text description,
+  Join (meetingUrl), Open in provider, Edit/Delete when editable. "+" opens EventDialog (title, writable calendar default
+  `settings.calendar.defaultCalendarId`, all-day, local start/end, location, description); recurring instances edit the
+  single occurrence, with "Edit series in Google/Outlook" linking to htmlUrl. Calendars settings: grouped by account,
+  visible toggle, color override, mark read-only, add/edit/remove ICS, sync interval, default calendar, Sync now,
+  last error per calendar.
+- **Mail** — config `{accountIds: 'all'|string[], maxMessages: 5–20, unreadOnly, grouping: 'merged'|'byAccount'}`;
+  header shows total unread; rows: account color dot, sender, subject, snippet (when available), relative time,
+  unread weight; hover actions read/unread, archive (if `canArchive`), trash — optimistic with toast; click opens webUrl.
+- **Todoist** — config `{filter: string (default settings.todoist.defaultFilter = 'today | overdue'), title?, showProject,
+  showDue, sort: 'todoist'|'due'|'priority'}`; quick-add input; complete checkbox with Undo (reopen); project color chips;
+  overdue styling.
+- **Weather** — config `{location: GeoPlace|null, useDeviceLocation, show: {hourly, daily}, units: 'inherit'|'C'|'F'}`;
+  location search via `/api/weather/geocode`; device location via `navigator.geolocation` (localhost is a secure context).
+- **Clock** — config `{format: 'inherit'|'12h'|'24h', showSeconds, showDate, greeting, extraZones: {label, tz}[]}`;
+  greeting uses `general.userName` and time of day.
+- **RSS feeds** (`feeds`) — config `{feeds: {url, title}[] (≤ 20), maxItems: 3–50, showSummary, showSource}`; one query
+  per feed (staleTime 10 min, refetch 15 min), items merged newest first and de-duplicated by URL; failed feeds show a
+  notice row with Retry while the rest keep working. Settings add a feed by URL or site address, checked by fetching it
+  first (the discovered feed URL is stored). Not in the default layout (it starts empty).
+- **Sports scores** (`sports`) — config `{teams: {league, id, name, abbreviation, logo}[] (≤ 16), recentGames: 0–5,
+  upcomingGames: 0–5, upcomingDays: 1–30, showRecords}`; one query per team, refetched every 30 s while a game is live,
+  60 s from 15 min before a start, else 10 min. Sections Live (pulsing badge, clock, situation) / Upcoming / Final, a
+  game shared by two favorites shown once; a row opens the box score (the preview before the start); live and upcoming
+  games have a "Where to watch" popover mapping broadcasters to official streaming services (`model.ts`). Works in the
+  static build. Not in the default layout (it starts empty).
+
+---
+
+## 11. Extension (Chromium MV3; Chrome + Edge)
+
+`manifest.json` (version 0.5.0): `chrome_url_overrides.newtab: "newtab.html"`, `options_page`,
+`background: {service_worker: "background.js", type: "module"}`, `host_permissions: ["http://localhost/*"]`,
+`permissions: ["storage", "nativeMessaging", "activeTab"]` (an unpacked extension gets them without a prompt), `action`
+(the "Add this page" toolbar button), and a public
+`key` (base64 DER SubjectPublicKeyInfo of an RSA-2048 key; the private key was discarded and is never committed).
+The `key` pins the ID in Chrome and Edge alike to **`nbaolbakegefnefgojdokagajincnfjj`** (first 16 bytes of
+SHA-256(DER) as hex, digits 0–f mapped to a–p; `extension/tools/extension-id.mjs` prints it, `--origin` prints
+`chrome-extension://<id>/`). `lib/launcher.js` exports it as `PINNED_EXTENSION_ID`; `scripts/check-scripts.ps1`
+fails when the key, that constant, the installer's computation and the IDs quoted in the docs disagree. Before 0.2.0
+the ID was derived from the folder path (`daklamdnkmbdeegnkhmpeccgggbgiole` for example); moving to the
+pinned ID needs a one-time **Remove + Load unpacked** (which also clears `chrome.storage.local`, i.e. the port), and
+the pages detect an extension still running under another ID (`isStaleExtensionId`) and say so. No content scripts, no
+`externally_connectable`; CSP `script-src 'self'`, `connect-src http://localhost:*`; no inline scripts/handlers.
+
+- **Settings** (`chrome.storage.local`, `lib/homebase.js`): `target` (`auto`, the default since 0.5.0, `pages` or
+  `local`), `pagesUrl` (none by default — no owner's site is built in; `https:`, or `http:` on localhost/127.0.0.1/[::1];
+  no credentials, `?` or `#`; normalized with a trailing `/`), `port` (default 5757). Invalid stored values read as
+  the default. Next to them, `serverSite` = `{port, pagesUrl|null}`: what Homebase last reported as `pagesUrl` in
+  `/api/health` (its `HOMEBASE_PAGES_URL`), written by every healthy check (worker warm-up, new tab, options Test
+  connection) only when it changed, and counted only for the port it was said on. It trusts whatever answers on the
+  port exactly as the redirect to `localhost:<port>` does (§4.1 accepts port squatting); the address still passes the
+  `pagesUrl` rules.
+- **Where a new tab goes** (`resolveNewTab`): `local` → Homebase on this PC; `pages` → the stored `pagesUrl`, else
+  `serverSite`'s; `auto` → `serverSite`'s. No address (`auto` before Homebase has ever answered, or a server without a
+  Pages site) → Homebase on this PC, whose healthy answer still sends the tab on to the `pagesUrl` it names unless the
+  target is `local`. So a fresh install needs no extension settings: the server's `HOMEBASE_PAGES_URL`
+  (`scripts/setup.ps1 -PagesUrl`) decides.
+- **Service worker** (`background.js` → `lib/warm-up.js`): `runtime.onStartup` (once per profile start, not
+  incognito), `runtime.onInstalled` and `runtime.onMessage` listeners are registered synchronously at the top level
+  and share one in-flight warm-up: read the port (default 5757) from `chrome.storage.local`, one `GET /api/health`
+  (1.5 s timeout; a healthy answer updates `serverSite`), and only if that fails one `{action:"start", port}` to the
+  launcher. `onMessage` accepts only
+  `{type:'homebase:warm-up'}` from the extension itself (`sender.id === runtime.id`), answers `{ok:true}` at once,
+  then warms up at most once per 60 s (`chrome.storage.session` key `lastWarmUpAt`, in-memory fallback); browser
+  start and install always run. No polling; results are only logged (`[Homebase] …`).
+- **New tab, Pages site**: sends `{type:'homebase:warm-up'}`, waits ≤ 300 ms for the answer
+  (failures ignored), then `location.replace(pagesUrl)` — no query parameters, and no request to this PC from the
+  tab itself. The Pages site finds Homebase on its own (§16).
+- **New tab, Homebase on this PC** (`newtab.html` → `newtab.js` → `lib/newtab-page.js`): health check; on success
+  record `serverSite`, then `location.replace(<its pagesUrl>)` when it names one and the target isn't `local`, else
+  `location.replace('http://localhost:<port>/?src=newtab')`. Otherwise, with native messaging available, one
+  `start` request, a "Starting Homebase…" card, and `/api/health` polled 400 ms after each check finishes until it
+  answers (redirect), the launcher reports something that cannot succeed, or 30 s pass ("Still starting…" after
+  10 s). Then the fallback: "Homebase isn't running", why, the matching help (install the launcher, re-install it
+  for this ID, Remove + Load unpacked, or start manually), **Try starting again**, Retry with automatic re-checks
+  every 5 s (12×), and a Google search box built with `encodeURIComponent`. Each attempt sends at most one launcher
+  request; host text is shown via `textContent` only, one line, ≤ 200 characters.
+- **Options page** (`options.html` → `lib/options-page.js`): **New tab opens** (whatever Homebase on this PC is set
+  up for — showing what that currently is | the Pages site | Homebase on this PC; saved on change), **Pages site
+  address** (Save; empty or **Use the address Homebase reports** removes it), integer port 1024–65535, Test
+  connection (also records and shows the reported Pages site), the extension ID (with a warning for a stale one)
+  and **Test launcher** (`ping`, 10 s timeout). No new permissions: messages between the extension's pages and its
+  worker need none, and opening the Pages site is a plain navigation.
+- **Launcher contract** (`lib/launcher.js` ↔ `native-host/launcher.mjs`, host name `com.homebase.launcher`, one
+  message each way via `runtime.sendNativeMessage` (callback form, `lastError` read in the callback)):
+
+  | Request | Response |
+  | --- | --- |
+  | `{"action":"start","port":<1024–65535>}` | `{"ok":true,"state":"running"}` when `/api/health` on 127.0.0.1 or localhost already answers 200 `{"ok":true}`; `{"ok":true,"state":"starting"}` after a successful `schtasks /run` (or one reporting the task already runs) |
+  | `{"action":"ping"}` | `{"ok":true,"state":"pong","version":1}` |
+  | anything failing | `{"ok":false,"state":"error","error":"task_missing"\|"schtasks_failed"\|"bad_request"\|"bad_origin","detail":"<one short line>"}` |
+
+  Browser-side errors: message containing "not found" → launcher not installed (install help); "forbidden" →
+  `allowed_origins` does not list this ID (re-install help, or Remove + Load unpacked when the ID is stale);
+  "Native host has exited." / "Failed to start native messaging host." / anything else → it may have started the
+  task anyway, keep polling. `task_missing` / `bad_origin` / `schtasks_failed` / `bad_request` stop the attempt.
+- Omnibox focus after redirect is a known Chrome limitation; docs/setup/extension.md records the tested behaviour
+  and the alternative (`chrome.tabs.getCurrent` → `chrome.tabs.update`), and how to set Homepage/Startup page (the
+  New Tab page is preferred for startup, because it waits while Homebase starts).
+- Tests: `extension/test/*.test.mjs` with `node --test` (`npm run test:extension`), mocked fetch, storage and
+  native messaging.
+
+---
+
+## 12. Autostart (Windows)
+
+Homebase does **not** start at logon by default. It starts when Chrome or Edge opens (service-worker warm-up) and
+from a new tab that finds it not running (§11). The server is only ever started by **Task Scheduler**, never as a
+child of the browser or the native host: Chrome's isolated-browser mode runs native hosts in a kill-on-job-close job
+object, and libuv puts Node's own children in such a job too, so anything the host spawned would die with it. The task
+service creates the process outside both. Duplicate starts are harmless: the task has `MultipleInstances IgnoreNew`,
+and a second server exits with code 3 when the port is taken (the supervisor then exits too).
+
+**Scheduled task** — `scripts/install-autostart.ps1` registers the per-user task `\Homebase Server`:
+- `-Trigger Browser` (default): **no trigger** — runs only on demand (`schtasks /run` from the native host, or
+  `Start-ScheduledTask`). `-Trigger Logon` (`-LogonDelaySeconds 0–3600`): AtLogOn of the current user (the previous
+  behaviour; the native host is still registered as a fallback).
+- Action `Execute = "$env:SystemRoot\System32\conhost.exe"`, `Argument = '--headless "<absolute node.exe>" "<repo>\server\src\supervisor.ts"'`,
+  `WorkingDirectory = <repo>`; principal current user, `-LogonType Interactive -RunLevel Limited` (so it only runs while
+  the user is signed in and ends at sign-out); settings `New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero)
+  -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -StartWhenAvailable -Priority 4
+  -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)` (RestartOnFailure only covers launch failures; crashes are
+  handled by the supervisor). On-demand start stays allowed (`AllowDemandStart`).
+
+**Native messaging host `com.homebase.launcher`** (registered in both modes unless `-NoNativeHost`), per user, no
+administrator rights:
+- Files in `%LOCALAPPDATA%\Homebase\native-host\` (fixed, so the registry never points into the repository):
+  `launcher.mjs` (byte copy of `native-host/launcher.mjs`), `launcher.cmd` (from the `native-host/launcher.cmd`
+  template: `@echo off` + `"<absolute node.exe>" "%~dp0launcher.mjs" %*`, `%` doubled, CRLF, ASCII or the OEM code
+  page; never `start`), `com.homebase.launcher.json` and `config.json` (ASCII, no BOM).
+- Host manifest: `{"name":"com.homebase.launcher","description":"Homebase launcher (starts the Homebase Server scheduled task)","path":"<absolute path of launcher.cmd>","type":"stdio","allowed_origins":["chrome-extension://nbaolbakegefnefgojdokagajincnfjj/"]}`.
+  The ID is computed from the manifest `key` (or `-ExtensionId`); the installer refuses a manifest without `key`.
+  `config.json` = `{"version":1,"allowedOrigins":[same origin],"installedFrom":"<repo>"}`.
+- Registry: default (REG_SZ) value of `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher` and
+  `HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher` = absolute path of the host manifest
+  (user-level hosts are allowed unless policy `NativeMessagingUserLevelHosts` forbids them).
+- Runtime: the browser starts `%ComSpec% /d /s /c ""<launcher.cmd>" chrome-extension://<id>/ --parent-window=<n>"`
+  with a hidden console. `launcher.mjs` checks the origin argument against `config.json` before reading stdin
+  (`bad_origin`), reads one frame (4-byte little-endian length + UTF-8 JSON, ≤ 64 KB, 5 s), validates it
+  (`bad_request`), answers `ping`, probes `/api/health` on 127.0.0.1 and localhost (700 ms), and otherwise runs
+  `%SystemRoot%\System32\schtasks.exe /run /tn "\Homebase Server"` by absolute path, no shell, fixed arguments,
+  hidden window, 10 s timeout. "already running"/`0x8004131F` → `starting`; "cannot find the file specified"/`0x80070002` → `task_missing` (English Windows;
+  other languages report `schtasks_failed` with the translated first line); other failures → `schtasks_failed`.
+  It writes exactly one frame, appends one line to `launcher.log` (rotated at 64 KB) and exits 0. Nothing from the
+  message reaches a command line; the worst a caller can do is start Homebase.
+
+**Install flow:** validate (Node 24+, dependencies, `HOMEBASE_*` via `server/src/config.ts`, manifest key), print
+everything with `-DryRun` (task, every file with content, both registry values; exit 1 if something must be fixed),
+`npm run build` if `web/dist` is missing, register the task, write the host files and keys, stop processes started from
+this repo's supervisor, then (unless `-NoStart`) start the task and wait for `/api/health` (`-TimeoutSeconds`, default
+90). On `Access is denied` (0x80070005) it tells the user to rerun from an elevated PowerShell. Running it again updates
+everything (also to switch modes or after updating Homebase/Node.js). `uninstall-autostart.ps1` removes the host keys
+and folder **first** (so no browser can restart the task meanwhile), then stops the task and its node processes and
+unregisters it; the data folder is never touched. `status.ps1` reports the task (mode, last result), both host
+registrations (manifest, files, `allowed_origins`, `node.exe`, stale `launcher.mjs` copy), the last `launcher.log`
+line, processes and health. Every Node child spawn uses `windowsHide: true`. No VBScript, no `-WindowStyle Hidden`.
+
+**Tests never touch Task Scheduler or the registry:** `npm run test:native-host` (`scripts/check-native-host.mjs`) unit-tests
+the launcher with injected fakes and runs the generated `launcher.cmd` exactly as Chrome does with
+`scripts/tests/schtasks-stub.mjs` preloaded through `NODE_OPTIONS` (it replaces `child_process.execFile` and fails
+closed); `scripts/check-scripts.ps1` adds parse/ASCII/CRLF checks, task definitions, installs into a temp folder with a
+fake registry, and the `-DryRun` outputs, and asserts the real task, keys and folder are unchanged.
+
+---
+
+## 13. Quality bar & test harness
+
+- `npm run typecheck`, `npm test`, `npm run build` must pass. No live network in tests. No secrets in the repo.
+  `.github/workflows/ci.yml` runs them, `npm run build:static` and `scripts/check-scripts.ps1` on `windows-latest`
+  for every push to `main` and every pull request (Windows because DPAPI, Task Scheduler and the `launcher.cmd`
+  tests are; not on other branch pushes, to spare private-repository minutes).
+- Foundation harness: `server/src/testing/test-context.ts` — `createTestContext(overrides?)` → AppContext with `:memory:`
+  DB (migrations applied), in-memory vault (fixed key, no DPAPI), fake fetch, `FakeAccountService` (canned tokens and
+  secrets), manual scheduler (`runDue()`), a test logger (`createTestLogger()`: rings and `lines()`, no file or
+  console) as both `log` and `logs`, the real health tracker on that database and a fresh `runtime`. `test-request.ts` — `testRequest(app, method, path, {body?, headers?})`
+  sets `Host: localhost:5757`, `X-Homebase: 1`, `Sec-Fetch-Site: same-origin`, JSON content type. `fake-fetch.ts` —
+  `createFakeFetch([{match: string|RegExp, method?, respond: {status, json?|text?|body?, headers?}}])`; unmatched URL
+  fails the test. `web/src/test/render.tsx` — `renderWithProviders(ui, {apiMocks})`. Fixtures in `<module>/__fixtures__/`.
+- Required server tests: gate (host, header, origin, sec-fetch-site, path normalization, exemptions), headers, vault
+  round-trip + locked states (corrupted key, missing key with secrets), migrations, settings merge-patch incl.
+  prototype-pollution payloads (`({}).polluted === undefined` afterwards), safe-fetch (lookup returning public then
+  private, IPv4-mapped IPv6, decimal/octal literals, 302 → 127.0.0.1, gzip bomb), OAuth state/PKCE/consume/upsert,
+  favicon HTML parsing, ICS parse/expand incl. RECURRENCE-ID overrides, Windows TZIDs, FREQ=SECONDLY and 100k-VEVENT
+  limits, provider response mappers (fixtures), IMAP id/UIDVALIDITY handling, Todoist mapping.
+- Review wave serves the production build and checks there are no CSP violations.
+
+---
+
+## 14. Build plan & parallel rules
+
+**Waves:** 1a Scaffold (one builder) → 1b Foundation services (three parallel builders: server-core, web-shell,
+platform) → review → 2 Features (five parallel builders: A search+launchpad+bookmarks, B weather+clock, C todoist,
+D calendar, E mail) → review + fixes → 3 integration verification.
+
+**Rules for parallel builders (waves 1b and 2):**
+1. Edit only paths you own (§15). If a contract change is needed, stop and report it in your final message; the
+   orchestrator applies it between waves.
+2. No `npm install/uninstall/update` and no package.json edits. Report missing dependencies instead.
+3. No git write commands (add, commit, stash, checkout, restore, reset, clean, rebase).
+4. Manual runs use per-builder env: `HOMEBASE_PORT` and `HOMEBASE_VITE_PORT` from your assignment and
+   `HOMEBASE_DATA_DIR=<your scratch dir>\data`. Never use port 5757/5173 or `%LOCALAPPDATA%\Homebase`.
+   Stop any server you start before finishing.
+5. Verify with scoped commands (`npx vitest run <your paths>`, `npm run typecheck`) and fix only errors in owned paths.
+6. Migrations only in your reserved range (§5).
+
+---
+
+## 15. File ownership
+
+**Wave 1a — Scaffold (creates everything below; later waves own the parts listed for them):**
+- Root: package.json, package-lock.json, .npmrc, .gitignore, .editorconfig, tsconfig.base.json, vitest.config.ts, README.md (stub).
+- shared: package.json, tsconfig.json, `src/index.ts` (barrel re-exporting every file), all contract files of §7a
+  (errors, core, settings, profiles, accounts, bookmarks, search, weather, todoist, calendar, mail) — complete types and
+  zod schemas, including feature namespaces.
+- server: package.json, tsconfig.json, `src/{index,config,app,context}.ts`, `src/db/**` incl. `001_init.sql`,
+  `src/security/{gate,headers}.ts` (complete), `src/security/{vault,dpapi,safe-fetch}.ts` (interfaces + minimal working
+  in-memory/global-fetch implementations), `src/lib/**`, `src/testing/**`, `src/modules/index.ts`, and **stub**
+  `register()` for all 8 modules (each exporting its final symbol names; stubs return 501 `not_configured` where needed).
+- web: package.json, tsconfig.json, vite.config.ts, index.html, `src/main.tsx`, `src/app/{App.tsx,Shell.tsx,router.ts,providers.tsx}`,
+  `src/api/{client,keys}.ts`, `src/widgets/{types,registry}.ts`, all seven `src/widgets/<type>/{index.ts,Widget.tsx,Settings.tsx}`
+  stubs (EmptyState "Coming soon"), `src/settings/{SettingsShell.tsx,nav.ts}` + all ten section stubs, minimal
+  `src/styles/{tokens,base}.css`, `src/test/{setup.ts,render.tsx}`.
+- extension/ and scripts/ placeholders; docs/SETUP.md placeholder.
+- After 1a: `npm run typecheck`, `npm test`, `npm run build` pass and `npm start` serves the shell with seven "Coming soon" widgets.
+
+**Wave 1b owners:**
+- **server-core:** `server/src/security/{vault,dpapi,safe-fetch}.ts`, `server/src/modules/{core,accounts}/**`,
+  `server/src/supervisor.ts`, `server/src/lib/settings.ts` + backups job (may add files under `server/src/lib/` it creates
+  new), tests for all of these.
+- **web-shell:** `web/src/ui/**`, `web/src/styles/**`, `web/src/theme/**`, `web/src/grid/**`, `web/src/app/**`,
+  `web/src/lib/**`, `web/src/api/{settings,profiles,accounts,uploads,about}.ts`, `web/src/settings/SettingsShell.tsx`,
+  `web/src/settings/sections/{General,Appearance,Accounts,Profiles,ImportExport,About}.tsx`, `web/src/test/**`.
+- **platform:** `extension/**`, `native-host/**`, `scripts/**`, `docs/SETUP.md`, `docs/setup/**`, `README.md`.
+
+**Wave 2 owners** (may create any new file under their own folders plus migrations in their range):
+- **A search+launchpad+bookmarks:** `server/src/modules/{bookmarks,search}/**`; `web/src/widgets/{search,launchpad}/**`;
+  `web/src/settings/sections/{Search,Bookmarks}.tsx`; `web/src/api/{bookmarks,search}.ts`.
+- **B weather+clock:** `server/src/modules/weather/**`; `web/src/widgets/{weather,clock}/**`; `web/src/api/weather.ts`.
+- **C todoist:** `server/src/modules/todoist/**`; `web/src/widgets/todoist/**`; `web/src/settings/sections/Todoist.tsx`;
+  `web/src/api/todoist.ts`; `docs/setup/todoist.md`.
+- **D calendar:** `server/src/modules/calendar/**`; `web/src/widgets/calendar/**`; `web/src/settings/sections/Calendars.tsx`;
+  `web/src/api/calendar.ts`.
+- **E mail:** `server/src/modules/mail/**`; `web/src/widgets/mail/**`; `web/src/api/mail.ts`.
+
+Shared contract files (`shared/src/*`) are frozen after wave 1a; changes go through the orchestrator.
+
+---
+
+## 16. Hybrid mode (Pages site + Homebase on this PC)
+
+The browser-only build (`npm run build:static`, published on GitHub Pages; in-browser backend in `web/src/static/`,
+user guide `docs/setup/static-build.md`) can use the Homebase server running on the same PC. Decisions: when this
+browser is paired with that server and the server answers, the Pages site uses the server for **everything**, exactly
+like the server's own page; otherwise it uses its in-browser copy. The two datasets are separate (no sync). Pairing
+happens once, on the server's own page. Everything else, account sign-in, OAuth client setup and the vault reset
+included, happens on the Pages site: there is one page. The server's own page forwards to the Pages site (keeping the
+query and hash, so the OAuth callback's `?oauth=` result arrives there) unless it is approving a pairing (`#/pair`),
+showing diagnostics (`#/settings/diagnostics`, §17: full diagnostics on this PC must open even when the Pages site or
+the connection to it is what is broken) or the Pages site can't be reached, when it serves the app as the offline
+fallback (`web/src/app/pagesForward.ts`; the HTML CSP's `connect-src` allows the Pages origin for that check). User
+guide: `docs/setup/pages-local-server.md`.
+
+**One backend per page load.** In the Pages build each page load picks `browser` or `server` before the first render
+and keeps it, so no request of one dataset can reach the other and capabilities are per-load constants. When the right
+backend changes, the page persists what the next load needs and **reloads**: a hidden tab at once; a visible idle tab
+at once, with a toast after the reload (sessionStorage `homebase:mode-switch-toast` = `<target>:<reason>`); a busy tab
+— a modal dialog open (`[role="dialog"][aria-modal="true"]`, which `ui/Dialog.tsx` sets, or `dialog[open]`), edit
+mode (`<html data-homebase-editing="true">`, set by `grid/editMode.tsx`) or a focused text field with text in it (an
+empty, autofocused search box is not busy) — exposes `pendingSwitch` (banner with **Switch now**) and re-checks every
+2 s. A switch reloads by itself only when the hints it writes make the next load pick its target: if storage refuses
+them (quota), it stays pending (**Switch now**) and retries every 2 s instead of reloading into the same backend. The
+hints are written again right before the reload (other tabs may have changed them), and the toast only when the
+switch takes effect; the next load drops a toast that names the other backend. The server build is always `server`
+and never reloads for this.
+
+**Boot (`main.tsx` → `localServer/boot.ts`, Pages build):**
+1. `consumePairingReturn()` first: on `#/paired?…` the nonce must equal sessionStorage `homebase:pairing-nonce` (one
+   use); the record is saved, `lastServerSeenAt = now`, the address is replaced with `#/`.
+2. No pairing record → remove the server snapshot key and the mode hints (revoke/disconnect leftovers, including late
+   throttled cache writes).
+3. Backend = `server` iff hybrid mode is on, the page is not framed, it is paired, and `lastMode === 'server'` or (no
+   decision yet and the server was seen in the last 10 min); else `browser`. A `browser` decision written after a
+   grace wins over a recent sighting (no reload loop).
+4. `setPageBackend()`, create the controller (no module top level reads storage), plug it into the store and the
+   transport; a server-backend page also gets the server image source.
+5. The browser backend opens IndexedDB as before (a load that will stay in the browser fetches its code alongside the
+   boot chunk), the server backend never does; then paint the persisted theme of that backend's snapshot (whatever its
+   age; on the server backend only with that instance's buster), so stored images already resolve to `blob:` URLs;
+   restore the snapshot; render; start probing.
+
+**Capabilities (`web/src/capabilities.ts`)** — `getCapabilities()` returns frozen per-load flags: `pagesBuild`,
+`backend`, `remoteServer` (Pages + server), `accounts|calendar|mail|feeds|vault|browserBookmarkImport|siteMetaFetch|
+serverSearchSuggestions` (server backend), `browserBackups` (browser backend), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives
+in this browser" is `backend === 'browser'`, not the build flag. Server-only widgets on a browser-backend page show
+`ServerOnlyNotice` ("needs Homebase running on this PC" + Look for it / Pair this browser / Switch now / Check again).
+Account setup works the same on the server backend from either build (one page).
+
+**Controller (`localServer/controller.ts`, every side effect injected, unit-tested under fake timers).** State
+`{backend, status, server: {version, instanceId, appUrl, apiVersion, vault}|null, paired, checkedAt, pendingSwitch,
+permission, manual}`; the UI reads it through `localServer/store.ts` (`useLocalServer()`, `localServerActions`:
+`checkNow`, `lookForServer`, `startPairing`, `disconnect`, `switchNow`; an inert `disabled` default in the server
+build and tests). Statuses: `disabled` (hybrid off), `framed`, `idle` (not checked), `checking`, `absent`, `blocked`
+(permission denied), `waiting-permission`, `unpaired`, `revoked`, `other-server`, `incompatible`, `connected`,
+`reconnecting`.
+- *Probe*: `GET <origin>/api/health` as a simple CORS request (no custom header, so no preflight; `cache: 'no-store'`,
+  `credentials: 'omit'`, `targetAddressSpace: 'loopback'`), then for a paired server with the same `instanceId`
+  `GET /api/pairing` with the token. Answers are untrusted (shared schemas, read tolerantly), and `appUrl` survives
+  only as an http(s) loopback root page (`localServer/urls.ts`). After a failed CORS probe with the permission
+  `granted` (or no permission API), one `GET /api/health` with `mode: 'no-cors'` (same `targetAddressSpace`, carries
+  nothing): an opaque answer means something answers on the port but not to this site — state
+  `unreachableReason: 'answers-without-cors'` (its `HOMEBASE_PAGES_URL` names another site, or it predates hybrid
+  mode); the status stays `absent`/`reconnecting` and Settings → Diagnostics explains it (§17).
+- *When*: never while disabled/framed; not paired → only after the Local Network Access permission (`loopback-network`,
+  older `local-network-access`) is `granted`/unsupported, on boot, focus and visibility, or when the user clicks
+  **Look for Homebase on this PC**; paired → on boot, then every 30 s while connected (skipped while requests got
+  answers in the last 30 s), every 2 s while reconnecting, else backoff 5→10→20→30→60 s, reset by visibility, focus,
+  `online`, permission or pairing changes and **Check again**. One probe at a time; with the permission at `prompt`
+  only while visible.
+- *Permission prompt*: the browser shows it only after a TCP connection succeeds and the request stays pending while it
+  is open, so a probe is never aborted while the permission may be `prompt`: after 3 s the status becomes
+  `waiting-permission` (grace paused). Otherwise a probe times out after 5 s, which is inconclusive when the server
+  answered anything in the last 30 s.
+- *Outcomes* (browser backend / server backend): unreachable → `absent` / `reconnecting`; denied → `blocked` /
+  switch to browser; other `apiVersion` → `incompatible` / switch; healthy, not paired → `unpaired` / switch; other instance →
+  `other-server` (the token is never sent) / switch; pairing accepted → `connected` and switch to server /
+  `connected` (a pending switch is withdrawn only for the instance the page booted with; another instance, paired
+  since in another tab, has other data and switches with `other-server`); 401 → `revoked`, compare-and-clear the
+  record / and switch. A server-backend page `reconnecting` for 45 s (`GRACE_MS`, permission waits excluded; a hidden
+  tab re-probes when visible first) switches to the browser, writing `lastMode = 'browser'`, once no tab has seen the
+  server within the grace; while another tab has, it keeps reconnecting. Every healthy probe of the paired server
+  writes `lastServerSeenAt` (≤ once a minute) and `lastMode = 'server'`.
+- *Pairing*: `startPairing()` needs a fresh healthy probe, stores a new nonce (32 random bytes) in sessionStorage and
+  navigates this tab to `<appUrl>#/pair?nonce=…` (§10.5). `disconnect()`: best-effort `DELETE /api/pairing` (3 s in
+  all), sent only after `GET /api/health` shows the paired `instanceId` (otherwise the pairing is cleared locally
+  only), compare-and-clear, remove the server snapshot, `lastMode = 'browser'`, reload. Other tabs follow through `storage`
+  events.
+
+**Transport (`localServer/transport.ts`).** `api()` calls `pagesFetch(path, init)` in the Pages build (dynamic import,
+so the server bundle never contains it). Browser backend → `staticFetch`. Server backend → wait for
+`whenServerReady(signal)` (resolves when connected, waits while checking/reconnecting/waiting for the permission,
+rejects with `ServerModeEndedError extends TypeError` once a switch to the browser is requested — `api()` maps it to
+`network_error`), then `fetch(<origin><path>)` with `mode: 'cors'`, `credentials: 'omit'`, `X-Homebase: 1`,
+`X-Homebase-Token` and `targetAddressSpace: 'loopback'`, with no extra timeout. Any response reports liveness; a
+`TypeError` from that fetch makes the controller probe; so does 401 `pairing_required`, since another Homebase may
+answer on the port now: only the paired instance refusing the token (`revoked`) clears the record, another instance
+gives `other-server` and keeps it. `/api/backups*` (the
+browser backend's own pre-import backups) answer 404 without a request.
+
+**Images (`localServer/assets.ts`, `static/assets.ts`).** `<img src>`/CSS `url()` cannot carry the token, and the raw
+`/api/icons|uploads/<id>` path would ask GitHub. A server-backend page fetches each image through the transport
+(`cache: 'default'`; the server sends `private, max-age=86400`), at most 3 at once, raster types as `blob:` URLs of the
+checked type, SVG only as a `data:` URL (a same-origin SVG document could run script), 404s remembered, other failures
+retried (by the next request and by the cache itself, until the page leaves the server). `getAssetUrl` is null and
+`resolveAssetUrl` a transparent pixel until loaded; components use `useAssetUrl`. The Pages CSP's `img-src`
+(`'self' data: blob:`) is unchanged; `connect-src` gains the local server origin.
+
+**Storage (all keys namespaced by the Pages base path `<base>`; every access guarded, everything read validated):**
+
+| Where | Key | Content |
+| --- | --- | --- |
+| localStorage | `homebase:pairing:<base>` | `{token, instanceId, pairedAt}` |
+| localStorage | `homebase:backend-mode:<base>` | `lastMode`: the backend the last decision chose |
+| localStorage | `homebase:server-seen:<base>` | `lastServerSeenAt` (epoch ms) |
+| localStorage | `homebase:query-cache:static:<base>` | browser backend snapshot, buster `<version>+static`, 24 h |
+| localStorage | `homebase:query-cache:local-server:<base>` | server backend snapshot, buster `<version>+local-server:<instanceId>`, 7 days; never `accounts`, `oauth-clients` or mail |
+| sessionStorage | `homebase:pairing-nonce` | the nonce of this tab's pairing request (one use) |
+| sessionStorage | `homebase:mode-switch-toast` | the switch to announce after the reload |
+| IndexedDB | `homebase-static:<base>` | the browser backend's data (never opened by a server-backend page) |
+| localStorage | `homebase:diagnostics:events:<base>` | this browser's diagnostic events (§17; the server build: `homebase:diagnostics:events`) |
+| localStorage | `homebase:diagnostics:events:<base>:upload-pacing` | the event uploads of the last minute, shared by every tab |
+
+The query client's persist options are per client and decided by the first restore or render; on a quota error the
+*other* backend's snapshot is dropped before trimming the active one. The first-run seed lock is per backend.
+
+**Diagnostics (§17).** Every server answer carries `X-Request-Id` (exposed to the Pages origin); `ApiError.requestId`
+keeps it, and a failed request's `api` event keeps it as `rid`, so the browser's event and the server's lines of that
+request share one id (`transport: 'pages-server'`). The controller (`diag` dependency, wired by `boot.ts`) records
+`hybrid` events: `hybrid status changed {from, to, reason}`, probe results `{kind, httpStatus, ms, timedOut, errName,
+permission}`, pairing-check failures and `pairing revoked by Homebase on this PC`, reconnect grace started/ended,
+backend switch requested/deferred/performed/withdrawn `{target, reason}`, permission changes; a page load's first
+status is debug when it repeats the one last reported in this browser. The events survive the reload of a switch
+(localStorage) and are uploaded only by a page load whose backend is the server; a browser-backend page keeps them
+(This browser, the report). The server logs a Pages request's lines with `from: 'pages'` and its `pairingId`, a refused
+token with its sub-reason (`token_revoked {pairingId, removedBy}` …), and a GitHub Pages, loopback or same-domain site
+it does not answer as a foreign origin (`health check from another site (no CORS answer)`). All diagnostics routes are
+`paired()`, so a paired site shows the full Diagnostics page; `#/settings/diagnostics` on Homebase's own page never
+forwards, and the site links to it ("Open diagnostics on this PC", `<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`).
+
+**Build.** `HOMEBASE_STATIC_SERVER` (default `http://127.0.0.1:5757`; `off` disables; only http(s) origins on
+`localhost`, `*.localhost`, `127.0.0.1` or `[::1]`, anything else fails the build) → `__HOMEBASE_LOCAL_SERVER__`
+(`''` in the server build and in both vitest web projects). The hybrid-only UI (footer indicator, local server panel,
+pairing page) is loaded on demand, so the server build's main chunk does not carry it.
+
+**Extension** (§11): by default new tabs open the Pages site the server reports (`pagesUrl` in `/api/health`) and
+only ask the service worker to warm Homebase up; the site finds the server itself. A server without `HOMEBASE_PAGES_URL`
+gets Homebase's own page instead.
+
+---
+
+## 17. Diagnostics
+
+Goal: find out why something does not connect, sync or update — server start-up, accounts and OAuth, calendar, mail,
+Todoist, feeds, weather, search suggestions, sports, favicons, hybrid mode and the browser's own API failures — with
+as much detail as possible, but a short log by default (*Normal*) and everything on request (*Verbose*, §3). The
+privacy rules of §3 (**Never logged**, scrubbing) apply to every piece below: log files, memory rings, health
+entries, the report and browser events. User guide: `docs/setup/troubleshooting.md` (Diagnostics page and logs, and
+one section per health code).
+
+**Health tracker (`lib/health.ts`, `003_diagnostics.sql`).** The latest outcome of every synced subject, and the
+only source of failure, recovery and reminder lines for them (modules record outcomes and log debug detail only).
+
+| Key | Subject (recorded by) | Stale after |
+| --- | --- | --- |
+| `account:<accountId>` | the account: status, credentials, token refresh, every kind (`accounts/store.ts` `applyAccountStatus`, the only writer of `accounts.status`; code = the status reason) | never (on demand) |
+| `calendar-list:<accountId>` | the account's calendar list (calendar sync) | 3 × sync interval |
+| `calendar:<calendarId>` | one provider calendar; detail `{mode, fetched, upserted, deleted}` | 3 × sync interval |
+| `ics:<calendarId>` | one ICS subscription; detail `{host, finalHost, blockedHost, status, bytes, notModified, …counts}` | 3 × 30 min |
+| `mail:<accountId>` | the inbox listing; detail `{stage, count}` (IMAP: the session phase that failed) | never |
+| `todoist` | the Todoist token and API | never |
+| `feed:<sha1(url), 10 hex>` | one RSS/Atom feed (a settings check only when it succeeds); label = host; detail `{status, bytes, items, finalHost, contentType}` | never |
+| `weather` | Open-Meteo; detail `{op: geocode\|forecast}` | never |
+| `suggest:<provider>` | a search suggestion provider | never |
+| `sports:<league>` | ESPN for one league; detail `{op: teams\|schedule\|scoreboard, status}` | never |
+| `job:<name>` | every scheduler job (the scheduler itself) | 3 × job interval |
+
+- **Statuses:** `ok`; `degraded` (ok but partial: `storage_limit`, `truncated`, a failed best-effort sports read);
+  `failing`; `unknown` (never checked); `stale`, derived at read time — `expectEveryMs` is set and the subject was not
+  checked for longer, or it is `ok` while the job that checks it (`calendar:sync` for `calendar-list:`/`calendar:`,
+  `calendar:ics` for `ics:`, the job itself for `job:`, else the only job of its area) is overdue or stuck.
+  On-demand subjects (`expectEveryMs` null) are never stale.
+- **Outcomes:** `record(subject, outcome)`; failures only through `outcomeFromError(err, extra)`: `code` =
+  ProviderHttpError denial (`api_disabled`, `insufficient_scope`, `denied`) → a `details.reason` that is a health
+  code → SafeFetchError `reason` refined by its cause chain (`timeout`, `dns`, `refused`, `reset`, `tls`, `blocked`,
+  `not_lan`, `too_large`, `parse_error`, `network`, `redirect`, `bad_url`) → `vault_locked` → the HttpError code (`reauth_required`,
+  `rate_limited`, `timeout`, `not_configured`, `not_found`, `too_large`, provider errors by upstream status:
+  `not_found`, `rate_limited`, `http_4xx`, `http_5xx`) → named errors (`not_a_feed`, `parse_error`, `too_large`,
+  `worker_failed`, `auth_failed`, `timeout`) → transport codes → `internal`; `status` = upstream HTTP status;
+  `message` = Homebase's own text (HttpError/ExpandError/DavParseError), else the error name; `detail` = the loggable
+  error fields; `nextAttemptAt` from Retry-After. Codes are `HEALTH_CODES` (each has a remedy in the UI and a section
+  in troubleshooting.md) or another machine token (`REASON_TOKEN`; e.g. a provider's
+  reason). Content rules, enforced by `record`: message Homebase-authored, scrubbed, ≤ 300; code a token;
+  detail values numbers, booleans, or ≤ 64-character tokens, hostnames or media types; anything else is dropped and
+  the dropped names debug-logged. A subject that fails because its account is unusable records
+  `account_unavailable` with `causeKey: 'account:<id>'` at severity info. Skipped work (`touch`: `backoff`,
+  `vault_locked`, `missing_url`, `disabled`, `account_unavailable`) updates `lastCheckedAt` without a transition.
+  Subjects are forgotten with their calendar or account (`forget`, `forgetAccount`). `record` never throws.
+- **Transition lines** (call field `area` = the subject's, plus `key`, `accountId`):
+
+  | Transition | Line | Level |
+  | --- | --- | --- |
+  | ok/unknown → failing, or a failure with another code or status | `<area> failing {key, code, status, message, consecutive, causeKey, nextAttemptAt, …detail}` | warn (jobs error, dependent subjects info) |
+  | failing → failing, same problem | `<area> still failing {key, code, consecutive}` | debug; info at most every 6 h, and for the first record after a restart that matches the stored failure (a restart is not a new failure) |
+  | → degraded / still degraded | `<area> degraded {key, code, status, message, causeKey}` | info (repeats as for failing) |
+  | failing or degraded → ok | `<area> recovered {key, downForMs, failures}` | info |
+  | ok → ok | `<area> ok {key, ms, …detail}` | debug |
+
+- **Persistence:** memory and the line are updated synchronously; writes are queued and flushed in a microtask in one
+  transaction, after the caller's own (re-queued while one is open). `diag_health` (one row per key, incl.
+  `last_reminder_at`) is upserted on every transition, otherwise at most once a minute per key; `diag_outcomes` gets
+  a row per transition and per failure, identical consecutive failures (key, status, code, HTTP status) collapsing
+  into the latest row (`count`, `last_at`). Persistence errors → at most one `warn 'health persistence failed'` a
+  minute. Shutdown flushes and closes it before the database. **Retention** (daily job `diagnostics:purge`, first run
+  15 min after start): outcomes older than 30 days or beyond the newest 5,000; subjects not updated for 30 days
+  (`feed:`/`suggest:` 7 days); an ended persisted Verbose period. A `feed:`/`suggest:` subject nothing checked for a
+  day is *inactive* (`isInactiveSubject`): the summary and the `status` line leave it out until it is checked again,
+  so a feed removed from its widget stops showing "Failing" long before the purge.
+- **Related log lines:** `contextFieldForKey(key)` — `account:`, `mail:`, `calendar-list:` → `accountId`;
+  `calendar:`, `ics:` → `calendarId`; `feed:` → `feed`; `job:` → `job`; others → their area. Modules run each unit of
+  work in `withLogContext({area, accountId?, calendarId?, feed?, op?})` so that filter finds its lines.
+
+**Scheduler (`lib/scheduler.ts`).** Every run is a unit of work `withLogContext({job, run, area: <prefix before
+':'>})` (a `runNow()` from a request keeps that request's `rid` for the awaited run only; timers are armed outside any
+context). Success → `debug 'job finished' {job, ms}` and `job:<name>` ok; failure → `job:<name>` failing at error with
+the next attempt (`debug 'job failed'` with the error fields). `jobs()` → per job: `intervalMs, nextRunAt, running,
+runningSince, runs, failures, consecutiveFailures, lastStartedAt, lastFinishedAt, lastMs, lastOk, lastError {name,
+code, message}` (message = Homebase's own text or the error name), `overdue` (not running and the next run is late by
+more than max(60 s, interval / 10)) and `stuckForMs` (running longer than max(2 min, interval)). Watchdog:
+`warn 'job still running' {job, run, runningForMs, lastRecord}` after 2 min, then every 10 min (`lastRecord` = the
+last line that run logged). `idle(ms)` waits for every run in flight (shutdown); `trigger(name)` runs a job now.
+
+**Requests, errors, gate, outbound.**
+- **Request line** (`app.ts`, the outermost middleware): a request id (10 characters `[a-z0-9]`) → `X-Request-Id` on
+  every answer; the request runs in `withLogContext({rid, area})` (area = the module owning the path,
+  `/api/diagnostics` → `diagnostics`, else `server`) and in `runtime.inflight`; still running after 15 s → one
+  `warn 'request still running'`; then one `request {method, route, path, status, ms, code, from: pages|local,
+  pairingId, aborted}` (`route` = the matched pattern, `path` without query). Levels: 5xx warn; API GET/HEAD below
+  400 debug (info past 3 s); other API answers (mutations, any 4xx) info; OPTIONS and non-API debug. *Quiet*
+  requests — `GET /api/health`, `GET /api/diagnostics/*`, `POST /api/diagnostics/client-events` — are debug and stay
+  out of the rings below 500. GET lines are repeat-collapsed per route, status and code.
+- **Errors** (`lib/errors.ts`): the answer's code is noted for the request line; an unexpected error →
+  `error 'request failed'` with `errorFields` and the stack's frame lines; an expected one ≥ 500 → `warn 'request
+  failed'` (repeat-collapsed per route and code); 4xx → `debug 'request rejected' {code, accountId?, issues, paths
+  (first 5 field paths, never values), errReason?, upstreamStatus?}`.
+- **Gate refusals** (`security/gate.ts`): `info 'request refused by gate' {method, path, status, reason, origin?,
+  secFetchSite?}`, repeat-collapsed per reason and origin. `reason`: `bad_path`, `host_not_allowed`,
+  `preflight_refused`, `local_only`, `x_homebase_missing`, `cross_site`, `content_type`, `origin_not_allowed`,
+  `bad_content_length`, `too_large`, and for a Pages token `token_missing`, `token_malformed`, `token_unknown`
+  (never issued by this server), `token_revoked {pairingId, removedBy}`, `token_origin_mismatch {pairingId}` (made
+  for another Pages address) — never the token. Origins are logged only when they are ours, the Pages site's or a
+  named foreign one; a browser extension's only as its scheme (`chrome-extension:`). A paired Pages request's route
+  runs with `pairingId` in its log context.
+- **Pairing tombstones** (`security/pairing.ts`): a removed pairing leaves `{pairingId, removedAt, removedBy:
+  revoked | unpaired-itself | evicted | unused}` under its token hash — 50 in memory, the last 20 in `server_meta`
+  `pairing.tombstones` — so `explain(token)` (`ok | malformed | unknown | removed`) tells a token removed on this PC
+  from one never issued. Lines: `pairing created {pairingId, label}`, `pairing removed {pairingId, by}`, `unused
+  pairings removed {count, pairingIds}`, `least recently used pairings removed to make room {count, pairingIds}`,
+  `instance id created {replacedInvalid}`.
+- **Foreign origins** (`security/foreign-origins.ts`): an `/api` request (health included) whose `Origin` is an
+  http(s) origin that is neither allowed nor the configured Pages origin. *Named* — a `*.github.io` site, a loopback
+  origin, or one under the registrable domain of `HOMEBASE_PAGES_URL` — it is kept (≤ 5, least recently seen dropped)
+  and logged `warn 'request from a site that is not the configured Pages site' {origin, pagesOrigin}`, for
+  `/api/health` `warn 'health check from another site (no CORS answer)'` (repeat-collapsed per origin): how a
+  missing or wrong `HOMEBASE_PAGES_URL` shows. Any other origin is only counted (`foreignOriginRequests`), never
+  named.
+- **Outbound** (`security/safe-fetch.ts`): callers pass a `purpose` (`<provider>.<op>`: `gcal.events.list`,
+  `graph.calendars`, `gmail.get`, `oauth.refresh`, `ics.fetch`, `todoist.filter`, `weather.forecast`,
+  `suggest.<provider>`, `espn.scoreboard`, `favicon.page` …). One `outbound {method, host, policy, purpose, status,
+  ms, bytes, redirects?, finalHost?, retryAfter?, rateLimitRemaining?}` per call: debug, info for a
+  provider/user-server status ≥ 400 (repeat-collapsed per host, purpose and status). A transport failure →
+  `outbound failed {…, reason, cause, causeCode, hops, blockedHost?}` (warn; `public` calls debug); a caller's abort
+  → `debug 'outbound aborted'`. `SafeFetchError` keeps the transport error as `cause`, so health tells DNS, refused,
+  reset, TLS and not-LAN failures apart. `inflightOutbound()` lists calls in progress with their run or request id.
+- **Modules** add only specific lines: `account status changed {accountId, kind, from, to, reason, source}`,
+  `provider rejected a freshly refreshed token`, `calendar event written {op, source, accountId, calendarId, status,
+  ms, …}`, `event written by Homebase is missing from the provider listing`, `calendar worker failed`, `mail action
+  {op, accountId, ms}`, debug `favicon resolved`/`favicon miss`; everything else is health transitions and debug
+  detail.
+
+**Diagnostics module (`modules/diagnostics/`; every route `paired()`, so the paired Pages site — the main UI — can use
+all of it).**
+
+| Route | Answer |
+| --- | --- |
+| `GET /api/diagnostics/summary` | `DiagnosticsSummary`: `server {version, boot, pid, startedAt, uptimeMs, node, platform, memory, supervised, restart {attempt, lastExit}, dataDir, logDir}` (the two directories `''` for a Pages request, as `/api/about`), `logLevel`, `modules`, `vault`, `hybrid {pagesOrigin, pairings, lastPairedRequestAt, foreignOrigins, foreignOriginRequests}`, `inFlight {count, oldestMs, routes (≤ 10), outbound}`, `jobs`, `health` (labels resolved at read time — account label, calendar name, league name, job name — and `stale` derived), `counts` (warn/error of the last hour, server and browser; distinct warning keys; records in memory) |
+| `GET /api/diagnostics/logs?scope=memory\|files&…` | `LogsResponse {records, lastSeq, truncated, scope}`. `memory`: the rings, merged by `seq` (`after=<lastSeq>` for polling). `files`: `server.log` and `.1`…`.5`, all opened first, read backwards in 64 KB chunks (≤ 20 MB per scan); text lines from before JSON Lines are read best-effort; every record is scrubbed again; `seq` 0. Filters: `since`/`before`, `level` (minimum), `area` (any tag), `src`, `rid`, `job`, `run`, `accountId`, `calendarId`, `feed`, `pairingId`, `key` (a health key → its context field), `q` (substring of message or fields), `limit` ≤ 2,000 |
+| `GET /api/diagnostics/health/:key/history?limit=` | the subject's outcome rows, newest first (default 50, at most 500) |
+| `PUT /api/diagnostics/level` | `{verbose, minutes: 1–10080 \| null, areas: [...] \| null}` → `LogLevelState {level, verbose, until, areas, bootLevel, persisted}`. Timed → `server_meta` `diagnostics.verbose` `{until, areas}`, switched back on after a restart; `minutes: null` (until turned off) → only the marker `diagnostics.verbose.untilOff`, so the next start logs `verbose logging ended {reason: 'restart'}`; `verbose: false` deletes both. The logger logs `log level changed {verbose, until, areas}` and `verbose logging ended {reason: 'expired'}` |
+| `POST /api/diagnostics/jobs/:name/run` | 202 `{started: true}` (not awaited; the job records its own outcome); 404 for an unknown job |
+| `GET /api/diagnostics/report?redact=0\|1` | JSON attachment `homebase-diagnostics-YYYYMMDD-HHmm.json` (below); `info 'diagnostic report created' {redact, bytes, ms}` |
+| `POST /api/diagnostics/client-events` | `{sentAt, events (1–100)}` → `{accepted, dropped, acceptDebug}` (below) |
+
+A server from before diagnostics answers the Pages site `403 local_only` (its own page `404`); the page then says
+"Update Homebase on this PC to see its diagnostics".
+
+**Report.** `{generatedAt, summary (full; paths masked), accounts [{id, kind, label, status, statusMessage}], calendars
+[{id, accountId, name, source}], health, history (the newest 500 outcome rows), logs {main: the last 3,000 info+
+records, flight: the whole flight recorder, client: the whole browser ring, files: the last 2,000 server.log records},
+supervisorLog (the last 300 records), launcherLog (the last 100 lines of the extension launcher's log, or null),
+config {port, bindAddresses, dev, pagesOrigin, logLevel, envSet: the names of the HOMEBASE_* variables set, never their
+values}}`, everything through `scrubFields` and the home-directory mask. The page adds `browser {build, version,
+backend, pagesOrigin, userAgent, session, hybrid, events}`. **Redaction** ("Hide hosts, emails and names", off by
+default): the server applies `redactForSharing` with a dictionary of account labels, emails and user names, IMAP,
+CalDAV, webmail, ICS and feed hosts, calendar names, the Pages origin and its first DNS label, the PC's name and the
+Windows user name, plus every `host`/`finalHost`/`blockedHost`/`origin`/`pagesOrigin`/`hops` value found —
+replaced case-insensitively, longest first, by `host#n`, `email#n`, `label#n`, `name#n` (stable within one report);
+then remaining emails, URL authorities and non-loopback IP literals by pattern. Well-known provider API hosts are kept
+(they say which service failed, not who the user is). The page redacts its `browser` section the same way, numbering
+`host#b1` … so the two parts never collide; "Copy summary" is redacted with the page's dictionary.
+
+**Browser events (`web/src/diagnostics/clientLog.ts`, `upload.ts`).** `recordClientEvent(level, cat, msg, fields)`
+next to the console line it explains; each category keeps only its allowlisted fields (plus `repeats`), every value
+through `scrub`/`scrubFields`:
+
+| `cat` | Recorded by | Fields |
+| --- | --- | --- |
+| `api` | `api/client.ts`: no answer (warn), 5xx (warn), other refusals (info), an answer after more than 5 s (info); never `/api/diagnostics/*` or a request its caller cancelled; the same method, route, status and code within 60 s is one event, then one more with `repeats` | `method, route, path, status, code, ms, rid, transport (server \| pages-server \| pages-browser), errName, errMessage` |
+| `hybrid` | the local server controller (§16) | `from, to, reason, kind, httpStatus, ms, timedOut, errName, permission, target, attempt, graceMs` |
+| `backend` | the in-browser backend's start failures | `errName, attempt, op` |
+| `provider` | the in-browser backend's upstream failures (never URLs or queries) | `provider, host, status, code, errName, ms` |
+| `widget` | the mail widget when an account's error changes | `accountId, code, status, widget` |
+| `app` | `window` `error`/`unhandledrejection`, the error boundary | `errName, errMessage, source, stack (≤ 5 frames, file names only)` |
+
+- **Kept:** a ring of the last 300 events mirrored to localStorage (`homebase:diagnostics:events`, Pages build
+  `…:<base>`; merged across tabs, ≤ 256 KB, entries older than 7 days dropped). **Debug events are never stored**
+  (the last 100 stay in memory). Each event carries a session id (random per page load) and `page {build, backend,
+  version}`; every storage access is guarded and everything read back is validated.
+- **Upload** (only while this page load's backend is the server): every 15 s and when the tab is hidden, one upload
+  at a time under a Web Lock shared by the tabs, ≤ 100 events per batch with `sentAt`, 10 s timeout, marked only after
+  a 2xx; paced across tabs to the server's limit (`…:upload-pacing`). Never uploaded: events recorded on the browser
+  backend, and `api` events carrying a `rid` (the server logged that request itself). Debug events go only while the
+  server says `acceptDebug` (otherwise one a minute, to ask). 400, 403, 404, 409, 413 and a 422 that names no event
+  stop the uploads for the page load (a server older than the page); no answer, 5xx and 429 are retried.
+- **Intake** (`client-events.ts`): per caller (`pairingId`, or `local` for Homebase's own page) at most 120 events and
+  64 KB of fields a minute — the rest is dropped and counted, with one `warn 'client events dropped' {caller,
+  dropped, perMinute, bytesPerMinute}` a minute; debug events are dropped unless Verbose covers `client`. Clock skew:
+  `tEvent = t + (receivedAt − sentAt)`, `late` when it happened more than 5 min before it arrived. Each event is
+  logged as `client: <msg>` with `src: 'client'`, area `client`, `rid` = the event's `rid` when it is a request id, and
+  `{tEvent, client {cat, session, page, late}, cf: <its fields, path/route without query>, uploadRid}` — browser
+  fields stay nested under `cf`. They always reach the `client` ring, `server.log` only at warn+ unless Verbose
+  covers `client`.
+
+**Settings → Diagnostics (`settings/sections/Diagnostics.tsx`, `diagnostics/ui/`).** Six tabs:
+- **Overview** — version (warning when the page runs another), uptime and boot, process, supervisor and its last
+  restart (`lastExit` with the start-up failure), modules down, vault, warnings/errors of the last hour (server and
+  browser), log level, requests and outbound calls in progress, Pages site and pairings; a banner when a named
+  foreign origin tried to use this server ("A page at <origin> tried to use this server, but HOMEBASE_PAGES_URL is
+  not set / is set to …"). Pages build: a "This site" card (version, backend, hybrid status, local network
+  permission, this browser's counts, **Open diagnostics on this PC**) and, for `answers-without-cors`, "Homebase
+  runs on this PC but does not accept this site: set `HOMEBASE_PAGES_URL=<this site's address>` and restart it".
+- **Connections & sync** — health grouped by account (account, calendar list, calendars, mail) and then by area (ICS
+  calendars, feeds, Todoist, weather, search suggestions, sports, scheduled jobs — jobs also from the job stats, so a
+  job that never ran shows), needing attention first; status pill (OK / Degraded / Failing since … / Stale — last
+  checked … / Not checked yet), last OK, current error (code, remedy from `diagnostics/ui/remedies.ts`, the
+  `troubleshooting.md#<code>` anchor as text, message, HTTP status), consecutive failures, next attempt, skipped
+  reason, `causeKey` link ("because <account> needs attention"); details: outcome history, **Show related log lines**
+  (Server log filtered to the subject's context field, level debug, last failure ± 1 h) and **Run now** for `job:*`
+  and the subjects `calendar:sync` / `calendar:ics` sync.
+- **Logging level** — Normal / Verbose for 30 min, 2 h, 24 h or until turned off (ends at the next restart), all
+  areas or ticked ones; while on, the nav shows a "Verbose" badge.
+- **Server log** — the rings with level (Errors / Warnings / Info / All), area, source (server / browsers) and text
+  filters; chips for request, job, run, account and calendar (by name) filter on click; **Live** polls `after=` every
+  2 s; a restart (lower `lastSeq` or a new boot id) starts the list over; **Show older** reads the files; **Timeline**
+  merges this browser's events by time (`tEvent ?? t`, late ones marked); ≤ 2,000 rows; rows expand to their JSON.
+- **This browser** — this browser's events, live across tabs, each marked sent / not sent yet / kept here; Clear.
+- **Report** — **Download diagnostic report** and **Copy summary** (≤ 40 lines: time with UTC offset, server, page and
+  hybrid state, log level, vault, modules down, Pages and foreign origins, late jobs, health counts and every subject
+  not OK, the last 10 distinct server warnings/errors with counts — collapsed repeats included, each window by the
+  largest of its repeats' running `repeats` and its summary's `count` — the last 5 browser ones), both with "Hide hosts,
+  emails and names (for sharing publicly)".
+
+Availability follows the page load's backend: the server (Homebase's own page, or the Pages site using it) → every
+tab; a server whose summary answers `403 local_only`/`404` → "Update Homebase on this PC to see its diagnostics" with
+Overview and This browser; the in-browser backend → Overview (the "This site" card) and This browser
+(`static/handlers/unavailable.ts` answers `/api/diagnostics/*` as unavailable). `#/settings/diagnostics` on Homebase's
+own page never forwards to the Pages site (`app/pagesForward.ts`, like `#/pair`), and the Pages build always links to
+it (`<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`, `http://127.0.0.1:5757` when hybrid mode is built off). Every
+diagnostics query is unpersisted (`qk.diagnostics` in `NON_PERSISTED_ROOTS`); errors render notices, never a broken
+section.
+
+---
+
+## 18. Release packages (install without a checkout)
+
+User guide and release steps: `docs/setup/releases.md`. A Git checkout (`scripts/setup.ps1`) stays the development
+path; a **release install** runs the same server code from a zip that needs no Git, npm or separate Node.js.
+
+- **Package** (`scripts/build-release.ps1` → `dist-release/homebase-<version>-win-x64.zip` + `homebase-release.json`
+  `{name, version, platform, package, sha256, size, node, commit, builtAt}`): root `package.json` (the version the server
+  reports), `release.json` `{name: 'homebase', version, platform: 'win-x64', node, nodeSource, extensionVersion, commit,
+  dirty, builtAt, releaseRepo}`, `server/` and `shared/` TypeScript sources without `*.test.ts`, `__fixtures__/` and
+  `server/src/testing/`, `node_modules/` = `npm ci --omit=dev` of the server and shared workspaces only (no workspace
+  links), `web/dist`, `extension/` without `test/` and `tools/`, `native-host/`, the user scripts with `scripts/lib`,
+  `docs/`, and `runtime/node.exe` + `LICENSE` from the nodejs.org zip pinned with its SHA-256 in
+  `scripts/release/node-runtime.json` (`-NodeExe` substitutes a local one for test builds; `publish-release.ps1`
+  refuses those and dirty builds). No bundling: Node runs the sources as in a checkout.
+- **`@homebase/shared` link:** a zip holds no junction, so `node_modules/@homebase/shared` → `<app>/shared` is created
+  after the package reaches its final folder (`install.ps1`; `Initialize-HbReleaseLinks` in `install-autostart.ps1` and
+  `start.ps1` restores it). Node resolves it to the real path outside `node_modules`, where type stripping is allowed.
+  Before a release folder is moved or deleted its junctions are removed first (non-recursive `Directory.Delete`), since
+  a moved junction keeps its absolute target.
+- **Scripts in a release install** (`Get-HbReleaseInfo` = `release.json` present): `Resolve-HbNode` prefers
+  `<root>/runtime/node.exe` over PATH (task action, `launcher.cmd`, config check); `homebase --update` runs a temporary
+  copy of `install.ps1` with `-InstallDir` = the parent of `app`, `--rebuild` refuses (it is `update.ps1`, checkout
+  only), `--version` names the install kind; `install-cli.ps1` skips the `HOMEBASE_PAGES_REPO` warning; `status.ps1`
+  shows the release version.
+- **Install/update** (`scripts/install.ps1`, self-contained, also `irm | iex`): latest =
+  `github.com/<releaseRepo>/releases/latest/download/homebase-release.json` (validated: name, platform, version syntax,
+  package name pattern, 64-hex SHA-256), package checked against that SHA-256 before unpacking into `<InstallDir>/app.new`
+  and checked (release.json, platform, version, required files). Update: same version skipped unless `-Force`; stop the
+  task when its action names `<app>/server/src/supervisor.ts`, stop every process whose executable lives under `<app>`,
+  copy `homebase.db` (+ `-wal`/`-shm`) to `<data>/backups/homebase-before-<old>-<time>.db` (newest 3 kept), `app` →
+  `app.previous`, `app.new` → `app`, link, `install-autostart.ps1 -Trigger <installed mode> -NodePath <app>/runtime/node.exe`
+  (waits for `/api/health`); on failure `app` → `app.failed`, `app.previous` → `app`, and the old version's
+  `install-autostart.ps1`. A task that runs another copy (a checkout) is left alone with a warning. The data folder is
+  never moved or deleted.
+- **Trust:** the SHA-256 comes from the same releases repository as the package, so it detects corruption, not a
+  compromised repository; packages are not code-signed (alpha).
+- **Checks:** `scripts/check-release.ps1` (install, the installed CLI and autostart dry run, a server started from the
+  package on a free port with a temporary data folder, re-install, `-Force` update with backup and `app.previous`,
+  refusals) — in `ci.yml` with a test package and in `release.yml` with the real one.

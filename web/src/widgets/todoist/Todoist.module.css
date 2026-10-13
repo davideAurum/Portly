@@ -1,0 +1,398 @@
+/* Todoist widget, widget settings and the Settings → Todoist section. Tokens only. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.top {
+  flex: none;
+  display: grid;
+  gap: var(--hb-space-2);
+  padding: 0 var(--hb-space-3) var(--hb-space-2);
+}
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--hb-space-2);
+  min-width: 0;
+  padding: 0 var(--hb-space-1);
+}
+
+.title {
+  min-width: 0;
+  font-size: var(--hb-text-md);
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count {
+  flex: none;
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+  color: var(--hb-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.quickIcon {
+  width: 15px;
+  height: 15px;
+  color: var(--hb-accent-text);
+}
+
+/* ---- Task list ---- */
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 0 var(--hb-space-2) var(--hb-space-2);
+  list-style: none;
+}
+
+.item {
+  position: relative;
+}
+
+.item + .item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 38px;
+  right: var(--hb-space-2);
+  border-top: 1px solid var(--hb-border);
+}
+
+.task {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hb-space-3);
+  padding: 8px var(--hb-space-2);
+  border-radius: var(--hb-radius-md);
+  transition:
+    background var(--hb-duration) var(--hb-ease),
+    opacity var(--hb-duration) var(--hb-ease);
+}
+
+.task:hover,
+.task:focus-within {
+  background: var(--hb-hover);
+}
+
+.task[data-done='true'] {
+  opacity: 0.6;
+}
+
+/* Round completion checkbox, colored by priority (the Todoist convention). */
+.check {
+  --prio: var(--hb-text-subtle);
+  --prio-fill: transparent;
+
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  padding: 0;
+  border: 1.5px solid var(--prio);
+  border-radius: 50%;
+  background: var(--prio-fill);
+  color: var(--prio);
+  cursor: pointer;
+  transition:
+    background var(--hb-duration) var(--hb-ease),
+    color var(--hb-duration) var(--hb-ease);
+}
+
+/* A comfortable hit target around the small circle. */
+.check::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+}
+
+.check[data-priority='4'] {
+  --prio: var(--hb-danger);
+  --prio-fill: var(--hb-danger-soft);
+}
+
+.check[data-priority='3'] {
+  --prio: var(--hb-warning);
+  --prio-fill: var(--hb-warning-soft);
+}
+
+.check[data-priority='2'] {
+  --prio: var(--hb-accent);
+  --prio-fill: var(--hb-accent-soft);
+}
+
+.check svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 3;
+  opacity: 0;
+  transition: opacity var(--hb-duration) var(--hb-ease);
+}
+
+.check:hover svg,
+.check:focus-visible svg {
+  opacity: 0.75;
+}
+
+.check[aria-checked='true'] {
+  background: var(--prio);
+  color: var(--hb-surface);
+}
+
+.check[aria-checked='true'] svg {
+  opacity: 1;
+}
+
+.check[aria-checked='true'][data-priority='1'] {
+  --prio: var(--hb-text-muted);
+}
+
+.check:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: 2px;
+}
+
+.check:disabled {
+  cursor: default;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.content {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--hb-text);
+  font-size: var(--hb-text-sm);
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+a.content:hover {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+}
+
+a.content:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.task[data-done='true'] .content {
+  text-decoration: line-through;
+  color: var(--hb-text-muted);
+}
+
+.description {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--hb-space-3);
+  min-width: 0;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.meta:empty {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.chip svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.chipText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.due[data-status='overdue'] {
+  color: var(--hb-danger);
+  font-weight: 600;
+}
+
+.due[data-status='today'] {
+  color: var(--hb-success);
+  font-weight: 600;
+}
+
+.due[data-status='tomorrow'] {
+  color: var(--hb-warning);
+}
+
+.recurring {
+  opacity: 0.8;
+}
+
+.projectDot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--hb-text-subtle);
+}
+
+.label {
+  color: var(--hb-text-subtle);
+}
+
+.hint {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+}
+
+/* ---- States ---- */
+
+.state {
+  flex: 1;
+  min-height: 0;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--hb-control-h-sm);
+  padding: 0 var(--hb-space-3);
+  border-radius: var(--hb-radius-sm);
+  background: var(--hb-accent);
+  color: var(--hb-accent-contrast);
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+}
+
+.cta:hover {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--hb-accent) 86%, var(--hb-accent-contrast));
+}
+
+.cta:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: 2px;
+}
+
+.cta svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---- Container adaptation (§10.7 #5) ---- */
+
+@container (max-width: 300px) {
+  .description,
+  .label {
+    display: none;
+  }
+
+  .project .chipText {
+    max-width: 96px;
+  }
+
+  .task {
+    gap: var(--hb-space-2);
+    padding-inline: var(--hb-space-1);
+  }
+
+  .item + .item::before {
+    left: 30px;
+  }
+}
+
+@container (min-width: 480px) {
+  .content {
+    font-size: var(--hb-text-md);
+  }
+
+  .task {
+    padding-block: 9px;
+  }
+}
+
+/* ---- Widget settings & settings section ---- */
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hb-space-2);
+}
+
+.steps {
+  display: grid;
+  gap: var(--hb-space-2);
+  margin: 0;
+  padding-left: 1.3em;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.steps strong {
+  color: var(--hb-text);
+  font-weight: 600;
+}
+
+.code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hb-text) 7%, transparent);
+  font-family: var(--hb-font-mono);
+  font-size: 0.92em;
+  color: var(--hb-text);
+}
+
+.formStack {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+.connection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hb-space-2);
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}

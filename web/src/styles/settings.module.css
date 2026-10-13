@@ -1,0 +1,414 @@
+/* Settings shell and the foundation-owned settings sections (General, Appearance, Accounts,
+   Profiles, Import & export, About). */
+
+.shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: var(--hb-space-4);
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--hb-space-2) var(--hb-space-3) var(--hb-space-6);
+}
+
+.nav,
+.content {
+  border: 1px solid var(--hb-glass-border);
+  border-radius: calc(var(--hb-radius-lg) + 4px);
+  background: var(--hb-glass-strong);
+  box-shadow: var(--hb-shadow);
+  backdrop-filter: var(--hb-glass-filter);
+}
+
+.nav {
+  position: sticky;
+  top: var(--hb-space-3);
+  align-self: start;
+  padding: var(--hb-space-2);
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--hb-space-2) 0 0;
+  padding: var(--hb-space-2) 0 0;
+  border-top: 1px solid var(--hb-border);
+  list-style: none;
+}
+
+.back,
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-3);
+  padding: 8px var(--hb-space-3);
+  border-radius: var(--hb-radius-md);
+  color: var(--hb-text);
+  font-size: var(--hb-text-sm);
+  font-weight: 500;
+}
+
+.back {
+  color: var(--hb-text-muted);
+}
+
+.back:hover,
+.navLink:hover {
+  text-decoration: none;
+  background: var(--hb-hover);
+}
+
+.navLink[aria-current='page'] {
+  background: var(--hb-accent-soft);
+  color: var(--hb-accent-text);
+  font-weight: 650;
+}
+
+.navIcon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hb-space-4);
+  min-width: 0;
+  min-height: 360px;
+  padding: var(--hb-space-5);
+}
+
+.heading {
+  font-size: var(--hb-text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.heading:focus {
+  outline: none;
+}
+
+@media (max-width: 767px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nav {
+    position: static;
+    overflow-x: auto;
+  }
+
+  .navList {
+    flex-direction: row;
+    margin-top: var(--hb-space-1);
+  }
+
+  .navLink {
+    white-space: nowrap;
+  }
+
+  .content {
+    padding: var(--hb-space-4);
+  }
+}
+
+/* ---- Shared section layout ---- */
+
+.stack {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+.intro {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+  max-width: 70ch;
+}
+
+.preview {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.autosaveStatus {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+  padding-inline: var(--hb-space-1);
+}
+
+.preview strong {
+  color: var(--hb-text);
+  font-weight: 600;
+}
+
+.inlineRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--hb-space-2);
+}
+
+.mono {
+  font-family: var(--hb-font-mono);
+  font-size: var(--hb-text-sm);
+}
+
+.list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-3);
+  padding: var(--hb-space-3) 0;
+  border-bottom: 1px solid var(--hb-border);
+  min-width: 0;
+}
+
+.listItem:last-child {
+  border-bottom: 0;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemTitle {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemMeta {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.itemActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+/* ---- Appearance ---- */
+
+.themePreview {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 10px;
+  height: 150px;
+  padding: 14px;
+  overflow: hidden;
+  border-radius: var(--hb-radius-lg);
+  border: 1px solid var(--hb-border);
+  isolation: isolate;
+}
+
+.themePreviewBackdrop {
+  position: absolute;
+  inset: -20px;
+  z-index: -1;
+  background: var(--hb-backdrop);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--hb-backdrop-blur)) brightness(calc(1 - var(--hb-backdrop-dim)));
+}
+
+.previewWidget {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--hb-radius-lg);
+  border: 1px solid var(--hb-glass-border);
+  background: var(--hb-glass);
+  backdrop-filter: var(--hb-glass-filter);
+  box-shadow: var(--hb-shadow);
+  color: var(--hb-text);
+  font-family: var(--hb-font-sans);
+}
+
+.previewTitle {
+  font-size: var(--hb-text-sm);
+  font-weight: 650;
+}
+
+.previewLine {
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hb-text) 14%, transparent);
+}
+
+.previewButton {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 4px 10px;
+  border-radius: var(--hb-radius-sm);
+  background: var(--hb-accent);
+  color: var(--hb-accent-contrast);
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+}
+
+.stops {
+  display: grid;
+  gap: var(--hb-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stop {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--hb-space-3);
+}
+
+.gradientBar {
+  height: 28px;
+  border-radius: var(--hb-radius-md);
+  border: 1px solid var(--hb-border);
+}
+
+/* ---- Accounts ---- */
+
+/* Two columns only when each card is wide enough to show its redirect URI in full (the value
+   must be registered exactly, so it should be readable, not just copyable). */
+.providerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+  gap: var(--hb-space-4);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: 6px;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.steps strong {
+  color: var(--hb-text);
+}
+
+.accountRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--hb-space-3);
+  padding: var(--hb-space-4) 0;
+  border-bottom: 1px solid var(--hb-border);
+}
+
+.accountRow:last-child {
+  border-bottom: 0;
+}
+
+.accountMain {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.accountName {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--hb-space-2);
+  font-weight: 600;
+}
+
+.accountCaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hb-space-4);
+  margin-top: 6px;
+}
+
+.capability {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  font-size: var(--hb-text-sm);
+}
+
+.probeList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.probe {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hb-space-2);
+  font-size: var(--hb-text-sm);
+}
+
+.probe svg {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.probe[data-ok='true'] svg {
+  color: var(--hb-success);
+}
+
+.probe[data-ok='false'] svg {
+  color: var(--hb-danger);
+}
+
+.formGrid {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+/* ---- Import / export ---- */
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--hb-space-3);
+  margin: 0;
+}
+
+.summaryItem {
+  display: grid;
+  gap: 2px;
+  padding: var(--hb-space-3);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+}
+
+.summaryItem dt {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.summaryItem dd {
+  margin: 0;
+  font-size: var(--hb-text-xl);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.fileButton {
+  position: relative;
+}

@@ -1,0 +1,151 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hb-space-3);
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--hb-space-3) var(--hb-space-3) var(--hb-space-2);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-width: 0;
+}
+
+/* Glass chips over the user's backdrop: readable on any background in light and dark. */
+.chip,
+.iconChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border: 1px solid var(--hb-glass-border);
+  border-radius: var(--hb-radius-full);
+  background: color-mix(in srgb, var(--hb-surface) 72%, transparent);
+  color: var(--hb-text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  backdrop-filter: var(--hb-glass-filter);
+  transition:
+    background-color var(--hb-duration) var(--hb-ease),
+    color var(--hb-duration) var(--hb-ease);
+}
+
+.chip {
+  gap: 6px;
+  min-width: 0;
+  max-width: 260px;
+  padding: 0 var(--hb-space-3);
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+}
+
+.iconChip {
+  width: 36px;
+  flex: none;
+}
+
+.chip:hover,
+.iconChip:hover {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--hb-surface) 90%, transparent);
+}
+
+.iconChip[aria-pressed='true'] {
+  background: var(--hb-accent);
+  border-color: transparent;
+  color: var(--hb-accent-contrast);
+}
+
+.iconChip[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.iconChip[aria-current='page'] {
+  background: color-mix(in srgb, var(--hb-surface) 95%, transparent);
+  color: var(--hb-accent-text);
+}
+
+.iconChip svg {
+  width: 17px;
+  height: 17px;
+}
+
+.chipIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--hb-text-muted);
+}
+
+.chipText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipChevron {
+  width: 14px;
+  height: 14px;
+  color: var(--hb-text-muted);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.banners {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 var(--hb-space-3) var(--hb-space-3);
+}
+
+.bannerLink {
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Keyboard shortcut list (help dialog, About page) */
+.shortcutGroups {
+  display: grid;
+  gap: var(--hb-space-3);
+}
+
+.shortcutHeading {
+  margin: var(--hb-space-2) 0 0;
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--hb-space-3) var(--hb-space-4);
+  align-items: center;
+  margin: 0;
+}
+
+.shortcuts dt {
+  display: flex;
+  gap: 4px;
+}
+
+.shortcuts dd {
+  margin: 0;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}

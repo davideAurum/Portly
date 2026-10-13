@@ -1,0 +1,389 @@
+.wrap {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 var(--hb-space-3) var(--hb-space-6);
+}
+
+.wrap[data-edit='true'] {
+  padding-bottom: 96px;
+}
+
+.gridContainer {
+  width: 100%;
+  min-height: 1px;
+}
+
+.item {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* react-grid-layout: themed placeholder, handles and motion (global class names). */
+.rgl :global(.react-grid-item.react-grid-placeholder) {
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-accent);
+  opacity: 0.18;
+}
+
+.rgl :global(.react-grid-item.react-draggable-dragging) > * {
+  box-shadow: var(--hb-shadow-lg);
+}
+
+/* Resize handles on every corner and edge. They straddle the frame's border (half in the 12 px
+   gutter) so they stay clear of the header's grip and settings/remove buttons. */
+.rgl :global(.react-grid-item > .react-resizable-handle) {
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  background-image: none;
+}
+
+/* Corners: an accent "L" hugging the corner (react-resizable rotates the handle per corner). */
+.rgl :global(.react-grid-item > .react-resizable-handle::after) {
+  right: 6px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--hb-accent);
+  border-bottom: 2px solid var(--hb-accent);
+  border-bottom-right-radius: 2px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-se) {
+  right: -8px;
+  bottom: -8px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-sw) {
+  left: -8px;
+  bottom: -8px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-ne) {
+  right: -8px;
+  top: -8px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-nw) {
+  left: -8px;
+  top: -8px;
+}
+
+/* Edges: thin strips along each side (between the corners) with a small centred pill. */
+.rgl :global(.react-grid-item > .react-resizable-handle-e),
+.rgl :global(.react-grid-item > .react-resizable-handle-w),
+.rgl :global(.react-grid-item > .react-resizable-handle-n),
+.rgl :global(.react-grid-item > .react-resizable-handle-s) {
+  z-index: 2;
+  margin: 0;
+  transform: none;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-e),
+.rgl :global(.react-grid-item > .react-resizable-handle-w) {
+  top: 10px;
+  bottom: 10px;
+  width: 10px;
+  height: auto;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-e) {
+  right: -6px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-w) {
+  left: -6px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-n),
+.rgl :global(.react-grid-item > .react-resizable-handle-s) {
+  left: 10px;
+  right: 10px;
+  width: auto;
+  height: 10px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-n) {
+  top: -6px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-s) {
+  bottom: -6px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-e::after),
+.rgl :global(.react-grid-item > .react-resizable-handle-w::after),
+.rgl :global(.react-grid-item > .react-resizable-handle-n::after),
+.rgl :global(.react-grid-item > .react-resizable-handle-s::after) {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  border: none;
+  border-radius: 999px;
+  background: var(--hb-accent);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--hb-duration) var(--hb-ease);
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-e::after),
+.rgl :global(.react-grid-item > .react-resizable-handle-w::after) {
+  width: 3px;
+  height: 24px;
+}
+
+.rgl :global(.react-grid-item > .react-resizable-handle-n::after),
+.rgl :global(.react-grid-item > .react-resizable-handle-s::after) {
+  width: 24px;
+  height: 3px;
+}
+
+/* Edge pills show on hover so eight handles per widget do not clutter the page. */
+.rgl :global(.react-grid-item:hover > .react-resizable-handle::after),
+.rgl :global(.react-grid-item.resizing > .react-resizable-handle::after) {
+  opacity: 1;
+}
+
+.wrap[data-edit='true'] .rgl :global(.react-grid-item > .react-resizable-handle) {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rgl :global(.react-grid-item),
+  .rgl:global(.react-grid-layout) {
+    transition: none;
+  }
+}
+
+/* Narrow screens: full-width stack in (y, x) order. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hb-space-3);
+  padding-top: var(--hb-space-1);
+}
+
+.stackItem {
+  height: calc(var(--hb-stack-rows) * 40px + (var(--hb-stack-rows) - 1) * 12px);
+  min-height: 88px;
+  max-height: 80vh;
+}
+
+/* Lists (launch pad, agenda, tasks, mail) take the height of their content, up to 70 % of the
+   screen: no small scroll box inside the scrolling page. */
+.stackItem[data-stack-sizing='content'] {
+  height: auto;
+  max-height: none;
+}
+
+.stackItem[data-stack-sizing='content'] > * {
+  height: auto;
+  max-height: 70vh;
+}
+
+.empty {
+  display: flex;
+  justify-content: center;
+  margin: var(--hb-space-6) auto;
+  max-width: 480px;
+  padding: var(--hb-space-6) var(--hb-space-5);
+  border-radius: var(--hb-radius-lg);
+  border: 1px solid var(--hb-glass-border);
+  background: var(--hb-glass);
+  box-shadow: var(--hb-shadow);
+  backdrop-filter: var(--hb-glass-filter);
+}
+
+/* Floating edit toolbar */
+.editBar {
+  position: fixed;
+  left: 50%;
+  bottom: var(--hb-space-5);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  max-width: calc(100vw - 32px);
+  padding: 6px 6px 6px var(--hb-space-4);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-full);
+  background: var(--hb-glass-strong);
+  box-shadow: var(--hb-shadow-lg);
+  backdrop-filter: var(--hb-glass-filter);
+  transform: translateX(-50%);
+  animation: hb-bar-in 200ms var(--hb-ease);
+}
+
+.editBar button {
+  border-radius: var(--hb-radius-full);
+}
+
+.editHint {
+  margin-right: var(--hb-space-2);
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .editHint {
+    display: none;
+  }
+}
+
+@keyframes hb-bar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+
+/* Add Widget catalog */
+.catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--hb-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalogItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hb-space-3);
+  width: 100%;
+  height: 100%;
+  padding: var(--hb-space-4);
+  border: 1px solid var(--hb-border);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface-2);
+  text-align: left;
+  transition:
+    border-color var(--hb-duration) var(--hb-ease),
+    background-color var(--hb-duration) var(--hb-ease),
+    transform var(--hb-duration) var(--hb-ease);
+}
+
+.catalogItem:hover:not(:disabled) {
+  border-color: var(--hb-accent);
+  background: var(--hb-accent-soft);
+  transform: translateY(-1px);
+}
+
+.catalogItem:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.catalogIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-accent-soft);
+  color: var(--hb-accent-text);
+}
+
+.catalogIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.catalogText {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.catalogTitle {
+  font-weight: 650;
+}
+
+.catalogDescription {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.catalogAdd {
+  display: inline-flex;
+  color: var(--hb-text-muted);
+}
+
+.catalogAdd svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Widget settings sheet */
+.settingsForm {
+  display: grid;
+  gap: var(--hb-space-5);
+}
+
+.settingsSection {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+.settingsSection + .settingsSection {
+  padding-top: var(--hb-space-5);
+  border-top: 1px solid var(--hb-border);
+}
+
+.settingsHeading {
+  font-size: var(--hb-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hb-text-muted);
+}
+
+.settingsNote {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.settingsError {
+  font-size: var(--hb-text-sm);
+  font-weight: 500;
+  color: var(--hb-danger);
+}
+
+/* A newly added widget scrolls into view clear of the fixed edit toolbar (≈ 88 px) and the top
+   bar, and glows briefly so it is easy to spot (UX-6). */
+.item,
+.stackItem {
+  scroll-margin-top: 72px;
+  scroll-margin-bottom: 104px;
+}
+
+.item[data-just-added='true'] > *,
+.stackItem[data-just-added='true'] > * {
+  animation: hb-just-added 1.6s var(--hb-ease) 1;
+}
+
+@keyframes hb-just-added {
+  0%,
+  40% {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--hb-accent) 70%, transparent),
+      var(--hb-shadow);
+  }
+  100% {
+    box-shadow: var(--hb-shadow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item[data-just-added='true'] > *,
+  .stackItem[data-just-added='true'] > * {
+    animation: none;
+    outline: 3px solid color-mix(in srgb, var(--hb-accent) 70%, transparent);
+  }
+}
