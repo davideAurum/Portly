@@ -10,7 +10,14 @@ import { settings as makeSettings } from '../../test/fixtures.ts';
 import { createTestQueryClient, mockError, renderWithProviders, type ApiMock } from '../../test/render.tsx';
 import { weatherConfigSchema, type WeatherConfig } from './index.ts';
 import { isWideCompact, weatherTier } from './layout.ts';
-import { DEVICE_PLACE_NAME, needsDeviceLocation, resetDeviceLocationMemory, resolveLocation, type DeviceLocationState } from './location.ts';
+import {
+  DEVICE_PLACE_NAME,
+  allowLocationPrompt,
+  needsDeviceLocation,
+  resetDeviceLocationMemory,
+  resolveLocation,
+  type DeviceLocationState,
+} from './location.ts';
 import WeatherSettings from './Settings.tsx';
 import { clockLabel, dayLabel, hourLabel, isDaylight, placeNow, upcomingDays, upcomingHours } from './time.ts';
 import { compassPoint, convertPrecip, convertTemp, convertWind, displayTempUnit, formatTemp, formatWind } from './units.ts';
@@ -96,6 +103,13 @@ function mockGeolocation(impl: (success: PositionCallback, error: PositionErrorC
   return getCurrentPosition;
 }
 
+/** The browser's lasting geolocation decision (`navigator.permissions.query`), absent by default (jsdom). */
+function mockPermission(state: PermissionState) {
+  const query = vi.fn(async () => ({ state }) as PermissionStatus);
+  Object.defineProperty(navigator, 'permissions', { configurable: true, value: { query } });
+  return query;
+}
+
 function geoError(code: 1 | 2 | 3): GeolocationPositionError {
   return { code, message: 'x', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError;
 }
@@ -107,6 +121,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete (navigator as { geolocation?: unknown }).geolocation;
+  delete (navigator as { permissions?: unknown }).permissions;
 });
 
 // ---------------------------------------------------------------------------
@@ -339,6 +354,56 @@ describe('weather widget', () => {
   it('reports an unavailable geolocation API', async () => {
     renderWeather({ config: { useDeviceLocation: true } });
     expect(await screen.findByText('Device location is unavailable')).toBeInTheDocument();
+  });
+
+  describe('when the browser would ask (no lasting "Allow")', () => {
+    const NYC = (success: PositionCallback) => success({ coords: { latitude: 40.71277, longitude: -74.00597 } } as GeolocationPosition);
+
+    it('does not make a page load ask: it offers "Use my location", which asks', async () => {
+      mockPermission('prompt');
+      const geo = mockGeolocation(NYC);
+      const { user } = renderWeather({ config: { useDeviceLocation: true } });
+      expect(await screen.findByText('Show weather for your location')).toBeInTheDocument();
+      expect(geo).not.toHaveBeenCalled();
+      await user.click(screen.getByRole('button', { name: 'Use my location' }));
+      await screen.findByTestId('weather-view');
+      expect(geo).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows a remembered position without asking again', async () => {
+      mockPermission('prompt');
+      window.localStorage.setItem('portly:weather:device-location', JSON.stringify({ lat: 52.52, lon: 13.4, at: NOW.getTime() - 60_000 }));
+      const geo = mockGeolocation(NYC);
+      const { requestsTo } = renderWeather({ config: { useDeviceLocation: true } });
+      await screen.findByTestId('weather-view');
+      expect(geo).not.toHaveBeenCalled();
+      expect(requestsTo('GET /api/weather')[0]!.search).toBe('?lat=52.52&lon=13.40');
+    });
+
+    it('asks right away when the user has just turned the device location on', async () => {
+      mockPermission('prompt');
+      const geo = mockGeolocation(NYC);
+      allowLocationPrompt();
+      renderWeather({ config: { useDeviceLocation: true } });
+      await screen.findByTestId('weather-view');
+      expect(geo).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes on a page load when the browser allows it for good, and never asks when it is blocked', async () => {
+      mockPermission('granted');
+      const geo = mockGeolocation(NYC);
+      const first = renderWeather({ config: { useDeviceLocation: true } });
+      await screen.findByTestId('weather-view');
+      expect(geo).toHaveBeenCalledTimes(1);
+      first.unmount();
+
+      resetDeviceLocationMemory();
+      mockPermission('denied');
+      const blocked = mockGeolocation(NYC);
+      renderWeather({ config: { useDeviceLocation: true } });
+      expect(await screen.findByText('Location access is blocked')).toBeInTheDocument();
+      expect(blocked).not.toHaveBeenCalled();
+    });
   });
 
   it('compact size shows only icon, temperature and place', async () => {

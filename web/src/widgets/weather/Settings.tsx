@@ -18,7 +18,7 @@ import { errorMessage, toastUndo } from '../../ui/toast.ts';
 import { SegmentedControl, Switch } from '../../ui/Toggles.tsx';
 import type { WidgetSettingsProps } from '../types.ts';
 import type { WeatherConfig } from './index.ts';
-import { placeSubtitle, samePlace } from './location.ts';
+import { allowLocationPrompt, placeSubtitle, samePlace } from './location.ts';
 import { SearchCombobox } from './SearchCombobox.tsx';
 import styles from './Settings.module.css';
 
@@ -125,7 +125,10 @@ export default function WeatherSettings({ value, onChange }: WidgetSettingsProps
             : 'Used when neither this widget nor your default has a location. Your browser asks first.'
         }
         checked={value.useDeviceLocation}
-        onCheckedChange={(checked) => update({ useDeviceLocation: checked })}
+        onCheckedChange={(checked) => {
+          if (checked) allowLocationPrompt();
+          update({ useDeviceLocation: checked });
+        }}
       />
 
       <div className={styles.group} role="group" aria-labelledby="hb-weather-show">

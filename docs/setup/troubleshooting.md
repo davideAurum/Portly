@@ -340,6 +340,17 @@ with the Diagnostics page and the logs. A few more:
 | The installer warns about a temporary `node.exe` path | You use a Node version manager whose shims live in a per-shell temp folder (e.g. fnm). Pass a permanent path: `-NodePath 'C:\path\to\node.exe'`. |
 | `Stop-ScheduledTask` didn't stop Portly | It only ends the hidden console host. Use `uninstall-autostart.ps1`, or re-run the installer to restart it. |
 
+## Weather and your location
+
+The Weather widget asks the browser for your location only when you click **Use my location**
+(or switch on *Use this device's location*). After that it shows the place it remembered, for up
+to 6 hours, and keeps it current only if the browser lets this site use your location for good.
+If the widget says *Show weather for your location*, either click **Use my location**, or allow
+location for good: click the icon at the left of the address bar, then **Site settings** →
+**Location** → **Allow**. A fixed city, chosen in the widget's settings (for that widget, or as the
+default for every Weather widget), never asks at all. Each address counts as its own site, so `localhost:5757` and your Pages site are
+allowed separately.
+
 ## Restoring a backup or starting over
 
 - **Restore a backup:** stop Portly (`uninstall-autostart.ps1` or Ctrl+C), copy a file from

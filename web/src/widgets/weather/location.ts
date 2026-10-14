@@ -2,7 +2,8 @@
  * Where the weather widget looks, in order (§10.8 Weather):
  *   1. the widget's own `config.location`,
  *   2. `settings.weather.defaultLocation`,
- *   3. this device's location (`navigator.geolocation`) when `config.useDeviceLocation` is on.
+ *   3. this device's location (`navigator.geolocation`) when `config.useDeviceLocation` is on; a
+ *      page load only asks the browser when it already allows it (see `useDeviceLocation`).
  * Otherwise the widget shows its not-configured state ("Set location").
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -11,6 +12,8 @@ import type { GeoPlace } from '@portly/shared';
 export type DeviceLocationState =
   | { status: 'idle' }
   | { status: 'pending' }
+  /** The browser would ask, and nothing the user did just now asked for it (see {@link useDeviceLocation}). */
+  | { status: 'needs-permission' }
   | { status: 'ready'; lat: number; lon: number; at: number }
   | { status: 'denied' }
   | { status: 'unavailable' }
@@ -23,6 +26,7 @@ export type ResolvedLocation =
   | { status: 'loading' }
   | { status: 'ready'; place: GeoPlace; source: LocationSource }
   | { status: 'locating' }
+  | { status: 'device-needs-permission' }
   | { status: 'device-denied' }
   | { status: 'device-unavailable' }
   | { status: 'device-error'; message: string }
@@ -46,6 +50,8 @@ export function resolveLocation({ configLocation, useDeviceLocation, defaultLoca
   switch (device.status) {
     case 'ready':
       return { status: 'ready', place: { name: DEVICE_PLACE_NAME, lat: device.lat, lon: device.lon }, source: 'device' };
+    case 'needs-permission':
+      return { status: 'device-needs-permission' };
     case 'denied':
       return { status: 'device-denied' };
     case 'unavailable':
@@ -139,9 +145,34 @@ function geolocation(): Geolocation | null {
   return navigator.geolocation;
 }
 
+/** The browser's lasting geolocation decision for this site, or 'unknown' without the Permissions API. */
+async function geolocationPermission(): Promise<PermissionState | 'unknown'> {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) return 'unknown';
+    return (await navigator.permissions.query({ name: 'geolocation' })).state;
+  } catch {
+    return 'unknown';
+  }
+}
+
+/** Set by a user action that asks for the device location (the next lookup may make the browser ask). */
+let promptAllowed = false;
+
 /**
- * The device position (rounded to ~1 km) while `enabled`. A recently remembered position is used
- * immediately and refreshed in the background; a denial is reported (and forgets the position).
+ * Call from a click or toggle that turns the device location on ("Use my location"): the next
+ * lookup may then make the browser ask. Without it, a page load never does.
+ */
+export function allowLocationPrompt(): void {
+  promptAllowed = true;
+}
+
+/**
+ * The device position (rounded to ~1 km) while `enabled`. The browser is asked on page load only
+ * when it already has a lasting "Allow" for this site (then the position is refreshed); otherwise
+ * a recently remembered position is shown as it is, and without one the state is
+ * `needs-permission` until the user asks (`retry`, or {@link allowLocationPrompt} before turning
+ * it on). So a one-time "Allow this time" does not bring the prompt back on every new tab. Without
+ * the Permissions API the browser is asked as before. A denial is reported (and forgets the position).
  */
 export function useDeviceLocation(enabled: boolean): DeviceLocationState & { retry(): void } {
   const [state, setState] = useState<DeviceLocationState>(() => {
@@ -152,6 +183,7 @@ export function useDeviceLocation(enabled: boolean): DeviceLocationState & { ret
   const [attempt, setAttempt] = useState(0);
   const latest = useRef(state);
   latest.current = state;
+  const asked = useRef(false);
 
   useEffect(() => {
     if (!enabled) {
@@ -167,35 +199,59 @@ export function useDeviceLocation(enabled: boolean): DeviceLocationState & { ret
     const stored = readStored(Date.now());
     if (stored) setState({ status: 'ready', ...stored });
     else if (latest.current.status !== 'ready') setState({ status: 'pending' });
+    // A user action (retry, or turning it on) may make the browser ask; a page load may not.
+    const interactive = asked.current || promptAllowed;
+    asked.current = false;
+    promptAllowed = false;
 
-    geo.getCurrentPosition(
-      (position) => {
+    const lookup = (): void => {
+      geo.getCurrentPosition(
+        (position) => {
+          if (cancelled) return;
+          const next: StoredPosition = { lat: round2(position.coords.latitude), lon: round2(position.coords.longitude), at: Date.now() };
+          writeStored(next);
+          setState({ status: 'ready', ...next });
+        },
+        (error) => {
+          if (cancelled) return;
+          if (error.code === error.PERMISSION_DENIED) {
+            writeStored(null);
+            setState({ status: 'denied' });
+            return;
+          }
+          // Keep showing a remembered position when a refresh merely failed.
+          if (latest.current.status === 'ready') return;
+          setState({
+            status: 'error',
+            message: error.code === error.TIMEOUT ? 'Finding your location took too long.' : 'Your location is not available right now.',
+          });
+        },
+        { enableHighAccuracy: false, maximumAge: MAX_AGE_MS, timeout: TIMEOUT_MS },
+      );
+    };
+
+    if (interactive) lookup();
+    else {
+      void geolocationPermission().then((permission) => {
         if (cancelled) return;
-        const next: StoredPosition = { lat: round2(position.coords.latitude), lon: round2(position.coords.longitude), at: Date.now() };
-        writeStored(next);
-        setState({ status: 'ready', ...next });
-      },
-      (error) => {
-        if (cancelled) return;
-        if (error.code === error.PERMISSION_DENIED) {
+        if (permission === 'granted' || (permission === 'unknown' && !stored)) lookup();
+        else if (permission === 'denied') {
           writeStored(null);
           setState({ status: 'denied' });
-          return;
-        }
-        // Keep showing a remembered position when a refresh merely failed.
-        if (latest.current.status === 'ready') return;
-        setState({
-          status: 'error',
-          message: error.code === error.TIMEOUT ? 'Finding your location took too long.' : 'Your location is not available right now.',
-        });
-      },
-      { enableHighAccuracy: false, maximumAge: MAX_AGE_MS, timeout: TIMEOUT_MS },
-    );
+        } else if (!stored) setState({ status: 'needs-permission' });
+        // Otherwise ('prompt' or unknown, with a remembered position): show it, ask nobody.
+      });
+    }
     return () => {
       cancelled = true;
+      // A user's request survives an effect that is torn down and run again (StrictMode).
+      if (interactive) asked.current = true;
     };
   }, [enabled, attempt]);
 
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = useCallback(() => {
+    asked.current = true;
+    setAttempt((n) => n + 1);
+  }, []);
   return { ...state, retry };
 }

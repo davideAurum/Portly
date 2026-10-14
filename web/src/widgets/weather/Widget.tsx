@@ -20,7 +20,7 @@ import { Skeleton } from '../../ui/Skeleton.tsx';
 import type { WidgetProps } from '../types.ts';
 import type { WeatherConfig } from './index.ts';
 import { HOURLY_STRIP_HOURS, PRECIP_LABEL_MIN, weatherTier, type WeatherTier, isWideCompact } from './layout.ts';
-import { needsDeviceLocation, placeSubtitle, resolveLocation, useDeviceLocation, type LocationSource } from './location.ts';
+import { allowLocationPrompt, needsDeviceLocation, placeSubtitle, resolveLocation, useDeviceLocation, type LocationSource } from './location.ts';
 import { clockLabel, dayLabel, dayLongLabel, hourLabel, isDaylight, placeNow, upcomingDays, upcomingHours, type HourCycle, type LabelZone } from './time.ts';
 import {
   compassPoint,
@@ -79,7 +79,14 @@ export default function WeatherWidget({ config, setConfig, size }: WidgetProps<W
             <>
               {setLocationAction}
               {oneAction && setLocationAction ? null : (
-                <Button size="sm" icon={LocateFixed} onClick={() => void setConfig({ useDeviceLocation: true })}>
+                <Button
+                  size="sm"
+                  icon={LocateFixed}
+                  onClick={() => {
+                    allowLocationPrompt();
+                    void setConfig({ useDeviceLocation: true });
+                  }}
+                >
                   Use my location
                 </Button>
               )}
@@ -93,6 +100,24 @@ export default function WeatherWidget({ config, setConfig, size }: WidgetProps<W
           <LocateFixed className={styles.statusIcon} aria-hidden="true" />
           <span>Finding your location…</span>
         </div>
+      );
+    case 'device-needs-permission':
+      // A page load does not make the browser ask (it would on every new tab): the user does.
+      return (
+        <EmptyState
+          icon={LocateFixed}
+          compact={compact}
+          title="Show weather for your location"
+          body="Your browser asks before sharing it. Allow it for this site to skip this step, or choose a place instead."
+          action={
+            <>
+              <Button size="sm" variant="primary" icon={LocateFixed} onClick={device.retry}>
+                Use my location
+              </Button>
+              {oneAction ? null : setLocationAction}
+            </>
+          }
+        />
       );
     case 'device-denied':
       return (

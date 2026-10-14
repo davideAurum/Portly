@@ -929,6 +929,10 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   overdue styling.
 - **Weather** — config `{location: GeoPlace|null, useDeviceLocation, show: {hourly, daily}, units: 'inherit'|'C'|'F'}`;
   location search via `/api/weather/geocode`; device location via `navigator.geolocation` (localhost is a secure context).
+  A page load asks the browser only when `permissions.query({name: 'geolocation'})` says `granted`; otherwise it shows
+  the position remembered for 6 hours, or "Show weather for your location" with a **Use my location** button. Only that
+  button, turning the option on, or Retry may make the browser prompt, so a one-time "Allow this time" does not bring
+  the prompt back with every new tab. Without the Permissions API it asks as before.
 - **Clock** — config `{format: 'inherit'|'12h'|'24h', showSeconds, showDate, greeting, extraZones: {label, tz}[]}`;
   greeting uses `general.userName` and time of day.
 - **RSS feeds** (`feeds`) — config `{feeds: {url, title}[] (≤ 20), maxItems: 3–50, showSummary, showSource}`; one query
