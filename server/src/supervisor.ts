@@ -2,7 +2,8 @@
  * Autostart supervisor (§3, §12): `node server/src/supervisor.ts` (started at logon by the
  * "Portly Server" scheduled task) keeps the server running.
  *
- * - Spawns `process.execPath --no-warnings server/src/index.ts` with `windowsHide: true`, stdin and
+ * - Spawns `process.execPath --no-warnings server/src/index.ts` (or `portly-server.exe`, see the
+ *   last point) with `windowsHide: true`, stdin and
  *   stdout ignored, stderr piped and an IPC channel. The server logs to its own `logs/server.log`
  *   (no console when supervised) and writes to stderr only for fatal output, so the supervisor
  *   keeps the last lines of it (scrubbed, ≤ 40 lines / 16 KB) as the crash cause; Node's own
@@ -30,8 +31,15 @@
  *   supervise it. (Elsewhere a killed supervisor leaves the server running; autostart is Windows-only.)
  * - Logs JSON Lines to `<dataDir>/logs/supervisor.log` (records `src: 'supervisor'`); an invalid
  *   configuration is written there as one line before exiting.
+ * - Task Manager names a process after its program file, so the autostart task runs a copy of
+ *   node.exe named `portly-supervisor.exe` (scripts/lib/Common.ps1). A supervisor running as that
+ *   program starts the server as `portly-server.exe` from the same folder, made from its own
+ *   program (a hard link, else a copy) when it is missing or another build ({@link serverProgram}).
+ *   When that file cannot be made, or the server cannot be started from it, the server runs as the
+ *   supervisor's own program instead.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig, resolveDataDir } from './config.ts';
 import {
@@ -64,10 +72,65 @@ export const STDERR_TAIL_LOGGED = 10;
 /** After `exit`, how long to wait for `close` (stderr fully read) before using the tail anyway. */
 export const CLOSE_GRACE_MS = 1000;
 
+/** The autostart task's copy of node.exe (scripts/lib/Common.ps1), and the server's next to it. */
+export const SUPERVISOR_PROGRAM = 'portly-supervisor.exe';
+export const SERVER_PROGRAM = 'portly-server.exe';
+/** Two programs are the same build when their sizes match and their modification times are this close. */
+export const SAME_PROGRAM_MTIME_MS = 2_000;
+
 const SERVER_ENTRY = path.join(import.meta.dirname, 'index.ts');
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 /** One stderr line is cut to this length (a minified stack line can be huge). */
 const MAX_TAIL_LINE = 1000;
+
+export type ProgramFs = Pick<typeof fs, 'statSync' | 'linkSync' | 'copyFileSync' | 'utimesSync' | 'renameSync' | 'rmSync'>;
+
+/**
+ * The program the server runs as. A supervisor running as {@link SUPERVISOR_PROGRAM} runs it as
+ * {@link SERVER_PROGRAM} from the same folder, so the two have their own names in Task Manager.
+ * That file is (re)made from the supervisor's own program when it is missing or another build: a
+ * hard link (one file on disk), else a copy with the same modification time. Any other program
+ * name, or any failure, returns `execPath` itself. Logs program names only, never paths.
+ */
+export function serverProgram(execPath: string, log: Logger, fsImpl: ProgramFs = fs): string {
+  if (path.basename(execPath).toLowerCase() !== SUPERVISOR_PROGRAM) return execPath;
+  const target = path.join(path.dirname(execPath), SERVER_PROGRAM);
+  const temp = `${target}.${process.pid}.new`;
+  try {
+    const self = fsImpl.statSync(execPath);
+    let current = false;
+    try {
+      const other = fsImpl.statSync(target);
+      current = other.size === self.size && Math.abs(other.mtimeMs - self.mtimeMs) <= SAME_PROGRAM_MTIME_MS;
+    } catch {
+      // Missing: made below.
+    }
+    if (current) return target;
+    fsImpl.rmSync(temp, { force: true });
+    try {
+      fsImpl.linkSync(execPath, temp);
+    } catch {
+      fsImpl.copyFileSync(execPath, temp);
+      fsImpl.utimesSync(temp, self.atime, self.mtime);
+    }
+    // Replaces an older build (the server is not running from it at this point).
+    fsImpl.renameSync(temp, target);
+    log.info('made the server program', { program: SERVER_PROGRAM });
+    return target;
+  } catch (err) {
+    try {
+      fsImpl.rmSync(temp, { force: true });
+    } catch {
+      // Best effort.
+    }
+    log.warn('could not make the server program; the server runs as the supervisor program', {
+      program: SERVER_PROGRAM,
+      fallback: path.basename(execPath),
+      ...errorFields(err),
+    });
+    return execPath;
+  }
+}
 
 export interface ChildExit {
   code: number | null;
@@ -145,6 +208,8 @@ export interface SupervisorOptions {
   log: Logger;
   /** Executable (default `process.execPath`). */
   command?: string;
+  /** Executable used from the next start on once `command` could not be started at all. */
+  fallbackCommand?: string;
   /** Arguments (default `[--no-warnings, <repo>/server/src/index.ts]`). */
   args?: readonly string[];
   cwd?: string;
@@ -175,7 +240,8 @@ interface LastExit {
 
 export function startSupervisor(options: SupervisorOptions): Supervisor {
   const { log } = options;
-  const command = options.command ?? process.execPath;
+  let command = options.command ?? process.execPath;
+  const { fallbackCommand } = options;
   const args = [...(options.args ?? ['--no-warnings', SERVER_ENTRY])];
   const schedule = options.schedule ?? BACKOFF_SCHEDULE_MS;
   const stableUptimeMs = options.stableUptimeMs ?? STABLE_UPTIME_MS;
@@ -303,11 +369,18 @@ export function startSupervisor(options: SupervisorOptions): Supervisor {
       closeTimer = null;
       if (exitInfo !== null) onGone(exitInfo.code, exitInfo.signal);
     };
-    proc.once('spawn', () => log.info('server started', { pid: proc.pid, attempt: lastExit === null ? 0 : attempt }));
+    const program = path.basename(command);
+    proc.once('spawn', () => log.info('server started', { pid: proc.pid, attempt: lastExit === null ? 0 : attempt, program }));
     proc.once('error', (err) => {
-      log.error('could not start the server process', errorFields(err));
+      log.error('could not start the server process', { program, ...errorFields(err) });
       // A failed spawn emits no 'exit'; treat it as an immediate crash.
-      if (proc.pid === undefined) onGone(null, null);
+      if (proc.pid === undefined) {
+        if (fallbackCommand !== undefined && command !== fallbackCommand) {
+          command = fallbackCommand;
+          log.warn('starting the server with the fallback program from now on', { program: path.basename(command) });
+        }
+        onGone(null, null);
+      }
     });
     proc.once('exit', (code, signal) => {
       exitInfo = { code, signal };
@@ -381,9 +454,10 @@ async function main(): Promise<void> {
   }
   const root = createLogger({ level: config.logLevel, file: config.paths.supervisorLog });
   const log = root.child({ src: 'supervisor' });
-  log.info('supervisor starting', { pid: process.pid, node: process.version, dataDir: config.dataDir });
+  log.info('supervisor starting', { pid: process.pid, node: process.version, dataDir: config.dataDir, program: path.basename(process.execPath) });
 
-  const supervisor = startSupervisor({ log });
+  const program = serverProgram(process.execPath, log);
+  const supervisor = startSupervisor(program === process.execPath ? { log } : { log, command: program, fallbackCommand: process.execPath });
   const forward = (signal: NodeJS.Signals): void => {
     log.info('supervisor stopping', { signal });
     // Windows has no POSIX signals; SIGBREAK (Ctrl+Break) is forwarded as SIGTERM.

@@ -126,6 +126,15 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   `logs/supervisor.log` (records `src: 'supervisor'`; an invalid configuration is written there as one
   `startup failed {phase: 'config'}` line before it exits 1). SQLite `journal_size_limit` keeps the WAL small after
   checkpoints.
+- **Program names (`serverProgram` in `supervisor.ts`, §12):** a supervisor running as `portly-supervisor.exe` (the
+  task's copy of node.exe) spawns the server as `portly-server.exe` from the same folder instead of
+  `process.execPath`, so Task Manager tells them apart. That file is (re)made from the supervisor's own program — a
+  hard link, else a copy keeping the modification time — when it is missing or another build (size differs or
+  modification times more than 2 s apart), then `info 'made the server program'`. When it cannot be made
+  (`warn 'could not make the server program; the server runs as the supervisor program'`) or cannot be spawned at all
+  (`warn 'starting the server with the fallback program from now on'`), the server runs as the supervisor's own
+  program. Any other program name (plain node.exe, `npm start`, tests) spawns `process.execPath` as before.
+  `supervisor starting`, `server started` and these lines carry `program` (a file name, never a path).
 - **Start-up, process, shutdown (`index.ts`, `lib/startup.ts`, `lib/exit-codes.ts`):** phases `config → logger →
   web-dist check → port-probe → legacy (§19) → db → migrate → health → pairing → vault → settings → accounts → modules → listen`,
   each timed (`debug 'startup phase' {phase, ms}`); right after the logger `info 'starting Portly' {version, dev,
@@ -1037,12 +1046,40 @@ and a second server exits with code 3 when the port is taken (the supervisor the
 - `-Trigger Browser` (default): **no trigger** — runs only on demand (`schtasks /run` from the native host, or
   `Start-ScheduledTask`). `-Trigger Logon` (`-LogonDelaySeconds 0–3600`): AtLogOn of the current user (the previous
   behaviour; the native host is still registered as a fallback).
-- Action `Execute = "$env:SystemRoot\System32\conhost.exe"`, `Argument = '--headless "<absolute node.exe>" "<repo>\server\src\supervisor.ts"'`,
-  `WorkingDirectory = <repo>`; principal current user, `-LogonType Interactive -RunLevel Limited` (so it only runs while
+- Action `Execute = "$env:SystemRoot\System32\conhost.exe"`, `Argument = '--headless "<program>" "<repo>\server\src\supervisor.ts"'`
+  with `<program>` = `%LOCALAPPDATA%\Portly\node\portly-supervisor.exe` (below), or the absolute node.exe itself when
+  that copy cannot be made or does not run, `WorkingDirectory = <repo>`; principal current user, `-LogonType Interactive -RunLevel Limited` (so it only runs while
   the user is signed in and ends at sign-out); settings `New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero)
   -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -StartWhenAvailable -Priority 4
   -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)` (RestartOnFailure only covers launch failures; crashes are
   handled by the supervisor). On-demand start stays allowed (`AllowDemandStart`).
+
+**Named processes** — Task Manager's Details tab and Resource Monitor name a process after its program file, so
+Portly runs as copies of node.exe named for it rather than as two `node.exe` (`scripts/lib/Common.ps1`, "Portly's
+copies of Node.js"):
+- Folder `%LOCALAPPDATA%\Portly\node\` (`Get-HbRuntimeDir`; fixed per user like `native-host\`, not under
+  `PORTLY_DATA_DIR`, and not `bin\`, which is on PATH for the `portly` command): `portly-supervisor.exe` = a byte copy of
+  the chosen node.exe (`-NodePath`, a release's `runtime\node.exe`, else PATH) with its modification time, written as
+  `<name>.new` and swapped in; `portly-server.exe` = a hard link of it (one file on disk), else a second copy;
+  `runtime.json` = `{"version":1,"source":"<node.exe>","nodeVersion":"<x.y.z>"}` (ASCII). The supervisor starts the
+  server as `portly-server.exe` (§3). The version resource is not changed: the Processes tab still says "Node.js
+  JavaScript Runtime", and the Authenticode signature stays valid.
+- Same build = same size and modification times at most 2 s apart (`Test-HbSameProgram`). `Update-HbRuntimeCopies`
+  makes both current, runs `portly-supervisor.exe -p process.versions.node` (must match the source's version) and writes
+  `runtime.json`; it never throws and returns `Ok`, `Usable` (an older copy in use was kept, or only
+  `portly-server.exe`/`runtime.json` failed), `Changed`, `Linked`, `Version`, `Error`.
+- `install-autostart.ps1` makes or refreshes them before registering the task: not usable (cannot be written, blocked by
+  policy, wrong version) → the task runs node.exe itself, with a warning; usable but not current (Portly runs from
+  them) → registered with the copy and refreshed again once the running processes are stopped (still not usable then →
+  re-registered with node.exe). `Start-HbTask` (`update.ps1` restart, `portly --start`, the `--copy-from-homebase`
+  restart, `try-branch.ps1` restore) first runs `Sync-HbTaskRuntime`: when the task's program is
+  `portly-supervisor.exe` and the copies are missing or another build than `runtime.json`'s source, it refreshes them
+  (quiet when current; a line when it did something or could not; `-DryRun` only says it). A browser start goes
+  through `schtasks /run` only, so it does not refresh them; `status.ps1` warns when they are another build than
+  their source, or when the task's program is missing. `uninstall-autostart.ps1` deletes the folder (only that one)
+  after the task. `try-branch.ps1` leaves it out of its data copy.
+- Trust: the folder is the user's own, like the checkout and `native-host\` (§4.1 accepted risk: everything running as
+  this user is trusted).
 
 **Native messaging host `com.portly.launcher`** (registered in both modes unless `-NoNativeHost`), per user, no
 administrator rights:
@@ -1067,21 +1104,26 @@ administrator rights:
   message reaches a command line; the worst a caller can do is start Portly.
 
 **Install flow:** validate (Node 24+, dependencies, `PORTLY_*` via `server/src/config.ts`, manifest key), print
-everything with `-DryRun` (task, every file with content, both registry values; exit 1 if something must be fixed),
-`npm run build` if `web/dist` is missing, register the task, write the host files and keys, stop processes started from
-this repo's supervisor, then (unless `-NoStart`) start the task and wait for `/api/health` (`-TimeoutSeconds`, default
+everything with `-DryRun` (task, every file with content, both registry values, the copies' state; exit 1 if something
+must be fixed), `npm run build` if `web/dist` is missing, make or refresh the named copies, register the task, write
+the host files and keys, stop processes started from this repo's supervisor (then refresh the copies if they were in
+use), then (unless `-NoStart`) start the task and wait for `/api/health` (`-TimeoutSeconds`, default
 90). On `Access is denied` (0x80070005) it tells the user to rerun from an elevated PowerShell. Running it again updates
 everything (also to switch modes or after updating Portly/Node.js). `uninstall-autostart.ps1` removes the host keys
-and folder **first** (so no browser can restart the task meanwhile), then stops the task and its node processes and
-unregisters it; the data folder is never touched. `status.ps1` reports the task (mode, last result), both host
-registrations (manifest, files, `allowed_origins`, `node.exe`, stale `launcher.mjs` copy), the last `launcher.log`
-line, processes and health. Every Node child spawn uses `windowsHide: true`. No VBScript, no `-WindowStyle Hidden`.
+and folder **first** (so no browser can restart the task meanwhile), then stops the task and its processes,
+unregisters it and deletes `%LOCALAPPDATA%\Portly\node`; the data folder is never touched. Processes are found by
+command line (`supervisor.ts` of this repo, whatever the program; not the `conhost.exe` host) and their children, and
+listed with their program names. `status.ps1` reports the task (mode, last result, what it runs as, a missing program or
+out-of-date copies), both host registrations (manifest, files, `allowed_origins`, `node.exe`, stale `launcher.mjs`
+copy), the last `launcher.log` line, processes and health. Every Node child spawn uses `windowsHide: true`. No
+VBScript, no `-WindowStyle Hidden`.
 
 **Tests never touch Task Scheduler or the registry:** `npm run test:native-host` (`scripts/check-native-host.mjs`) unit-tests
 the launcher with injected fakes and runs the generated `launcher.cmd` exactly as Chrome does with
 `scripts/tests/schtasks-stub.mjs` preloaded through `NODE_OPTIONS` (it replaces `child_process.execFile` and fails
 closed); `scripts/check-scripts.ps1` adds parse/ASCII/CRLF checks, task definitions, installs into a temp folder with a
-fake registry, and the `-DryRun` outputs, and asserts the real task, keys and folder are unchanged.
+fake registry, the named copies in a temp folder (made, linked, refreshed, kept while held open, refused when they do
+not run), and the `-DryRun` outputs, and asserts the real task, keys and folders are unchanged.
 
 ---
 
@@ -1574,7 +1616,7 @@ path; a **release install** runs the same server code from a zip that needs no G
   Before a release folder is moved or deleted its junctions are removed first (non-recursive `Directory.Delete`), since
   a moved junction keeps its absolute target.
 - **Scripts in a release install** (`Get-HbReleaseInfo` = `release.json` present): `Resolve-HbNode` prefers
-  `<root>/runtime/node.exe` over PATH (task action, `launcher.cmd`, config check); `portly --update` runs a temporary
+  `<root>/runtime/node.exe` over PATH (source of the task's named copies §12, `launcher.cmd`, config check); `portly --update` runs a temporary
   copy of `install.ps1` with `-InstallDir` = the parent of `app`, `--rebuild` refuses (it is `update.ps1`, checkout
   only), `--version` names the install kind; `install-cli.ps1` skips the `PORTLY_PAGES_REPO` warning; `status.ps1`
   shows the release version.
@@ -1582,7 +1624,8 @@ path; a **release install** runs the same server code from a zip that needs no G
   `github.com/<releaseRepo>/releases/latest/download/portly-release.json` (validated: name, platform, version syntax,
   package name pattern, 64-hex SHA-256), package checked against that SHA-256 before unpacking into `<InstallDir>/app.new`
   and checked (release.json, platform, version, required files). Update: same version skipped unless `-Force`; stop the
-  task when its action names `<app>/server/src/supervisor.ts`, stop every process whose executable lives under `<app>`,
+  task when its action names `<app>/server/src/supervisor.ts`, stop every process whose executable lives under `<app>`
+  and every named copy (`%LOCALAPPDATA%\Portly\node\*`) whose command line names a file under `<app>`,
   copy `portly.db` (+ `-wal`/`-shm`) to `<data>/backups/portly-before-<old>-<time>.db` (newest 3 kept), `app` →
   `app.previous`, `app.new` → `app`, link, `install-autostart.ps1 -Trigger <installed mode> -NodePath <app>/runtime/node.exe`
   (waits for `/api/health`); on failure `app` → `app.failed`, `app.previous` → `app`, and the old version's

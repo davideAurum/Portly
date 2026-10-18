@@ -35,14 +35,17 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
 - **Download and check:** the package is refused when its SHA-256 differs from the published one.
 - **New install:** unpack to `app.new`, check it (release.json, platform, runtime and every part),
   move it to `app`, link `@portly/shared`, run `app\scripts\install-autostart.ps1` with
-  `app\runtime\node.exe` and `app\scripts\install-cli.ps1`, and open the browser's extensions page
-  for **Load unpacked** → `app\extension`.
+  `app\runtime\node.exe` (copied as `portly-supervisor.exe` and `portly-server.exe` to
+  `%LOCALAPPDATA%\Portly\node`, the names Task Manager then shows, see
+  [In Task Manager](autostart.md#in-task-manager)) and `app\scripts\install-cli.ps1`, and open the
+  browser's extensions page for **Load unpacked** → `app\extension`.
 - **Update** (`portly --update`, which runs a temporary copy of the installed `install.ps1`; or
   running `install.ps1` again): the same version is skipped unless `-Force`. Otherwise it stops the
-  scheduled task (when it runs this install) and every process whose program lives in `app\`,
-  copies `portly.db` to `<data folder>\backups\portly-before-<old version>-<time>.db` (the
+  scheduled task (when it runs this install), every process whose program lives in `app\` and
+  every `portly-supervisor.exe` / `portly-server.exe` running a file in `app\`, copies `portly.db` to `<data folder>\backups\portly-before-<old version>-<time>.db` (the
   newest three are kept), moves `app` to `app.previous` (replacing the one before) and `app.new` to
-  `app`, then runs the new `install-autostart.ps1`, which starts Portly and waits for it. If it
+  `app`, then runs the new `install-autostart.ps1`, which refreshes those copies from the new
+  `runtime\node.exe`, starts Portly and waits for it. If it
   doesn't come up, the new version is moved to `app.failed`, the previous one back to `app`, and
   that one is started again. The autostart mode (Browser or Logon) is kept. When the extension's
   version changed, it says to click **Reload** on it.

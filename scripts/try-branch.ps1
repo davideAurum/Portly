@@ -7,15 +7,18 @@
     want to try. It:
 
     1. builds this checkout's page and its Pages (static) build;
-    2. pauses your normal Portly: stops its server and disables the 'Portly Server' task, so
-       the extension cannot start it again meanwhile (port 5757 must be free: Google only accepts
-       sign-ins that come back to localhost:5757);
-    3. copies your data folder (without backups and logs) to a temporary folder;
-    4. starts this checkout's server on port 5757 with the copy, and serves this checkout's Pages
-       build at http://localhost:<PagesPort> as a stand-in for the published site (nothing is
-       published);
+    2. pauses your normal Portly: stops its server (node.exe, or portly-supervisor.exe and
+       portly-server.exe) and disables the 'Portly Server' task, so the extension cannot start it
+       again meanwhile (port 5757 must be free: Google only accepts sign-ins that come back to
+       localhost:5757);
+    3. copies your data folder (without backups, logs and Portly's copies of node.exe) to a
+       temporary folder;
+    4. starts this checkout's server on port 5757 with the copy (as plain node.exe, so Task
+       Manager tells it from your normal Portly), and serves this checkout's Pages build at
+       http://localhost:<PagesPort> as a stand-in for the published site (nothing is published);
     5. waits until you press Enter, then stops both, deletes the copy (unless -KeepData), turns the
-       task back on and starts your normal Portly again - also after Ctrl+C or an error.
+       task back on and starts your normal Portly again (refreshing its copies of node.exe when
+       they are out of date) - also after Ctrl+C or an error.
 
     Your real data folder is only read. Anything you change during the test (accounts added,
     pairings, settings) happens in the copy and is gone afterwards.
@@ -30,6 +33,9 @@
 .PARAMETER SkipBuild
     Use the builds already in web\dist and web\dist-static.
 
+.PARAMETER DryRun
+    Print what would be built, paused, copied, started and restored, and change nothing.
+
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\try-branch.ps1
 #>
@@ -37,7 +43,8 @@
 param(
     [ValidateRange(1, 65535)][int]$PagesPort = 5175,
     [switch]$KeepData,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$DryRun
 )
 
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
@@ -73,6 +80,32 @@ $busy = Get-HbPortListeners -Port $PagesPort
 if ($null -ne $busy -and $busy.Count -gt 0) {
     Write-HbFailure "Port $PagesPort is in use by $(Format-HbPortOwners $busy). Pick another with -PagesPort."
     exit 1
+}
+
+if ($DryRun) {
+    $dryTask = Get-HbTask
+    Write-HbStep 'Steps a real run would take'
+    if ($SkipBuild) {
+        Write-HbInfo '- use the builds already in web\dist and web\dist-static (-SkipBuild)'
+    } else {
+        if (-not (Test-Path -LiteralPath $vite -PathType Leaf)) { Write-HbInfo '- install the dependencies: npm ci' }
+        Write-HbInfo "- build: npm run build, then npm run build:static (PORTLY_STATIC_SERVER=http://127.0.0.1:$port)"
+    }
+    if ($null -ne $dryTask -and $dryTask.State -ne 'Disabled') { Write-HbInfo "- disable the task '$PortlyTaskName' for the test" }
+    Write-HbInfo "- stop the Portly processes started from $mainRoot`: $(Format-HbProcessList -Trees @(Get-HbSupervisorProcesses -RepoRoot $mainRoot))"
+    Write-HbInfo "- copy $realData to $testData, without backups, logs and $(Get-HbRuntimeDir)"
+    Write-HbInfo "- start $node server\src\index.ts in $checkout on port $port with the copy, and the stand-in Pages site on port $PagesPort"
+    $deleteCopy = if ($KeepData) { 'keep the copy (-KeepData)' } else { 'delete the copy' }
+    Write-HbInfo "- wait for Enter, then stop both and $deleteCopy"
+    if ($null -ne $dryTask) {
+        if ($dryTask.State -ne 'Disabled') { Write-HbInfo "- enable the task '$PortlyTaskName' again" }
+        $note = Sync-HbTaskRuntime -Task $dryTask -DryRun
+        if ($note) { Write-HbInfo "- $note" }
+        Write-HbInfo "- start the task '$PortlyTaskName' and wait for your normal Portly"
+    }
+    Write-Host ''
+    Write-HbOk 'Dry run complete: nothing was built, stopped, copied or started.'
+    exit 0
 }
 
 # --- 1. Build ------------------------------------------------------------------------------
@@ -131,7 +164,8 @@ try {
 
     # --- 3. Copy the data --------------------------------------------------------------------
     Write-HbStep 'Copying your data folder'
-    & robocopy $realData $testData /E /XD (Join-Path $realData 'backups') (Join-Path $realData 'logs') /NFL /NDL /NJH /NJS /NP | Out-Null
+    # Not Portly's copies of node.exe either (%LOCALAPPDATA%\Portly\node, about 90 MB).
+    & robocopy $realData $testData /E /XD (Join-Path $realData 'backups') (Join-Path $realData 'logs') (Get-HbRuntimeDir) /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "Copying the data folder failed (robocopy exit code $LASTEXITCODE)." }
     Write-HbOk 'Copied.'
 
@@ -208,7 +242,7 @@ try {
         Write-HbOk "Task '$PortlyTaskName' enabled again."
     }
     if ($null -ne $task) {
-        Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
+        Start-HbTask
         $back = Wait-HbHealth -Port $port -TimeoutSeconds 60
         if ($back.Ok) { Write-HbOk "Your Portly is $(Format-HbHealth $back)" }
         else { Write-HbFailure "Your Portly did not come back: $(Format-HbHealth $back). Try: portly --start" }
