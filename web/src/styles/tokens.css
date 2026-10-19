@@ -1,5 +1,5 @@
 /*
- * Design tokens (§10.4). Features use tokens only; only the foundation writes global CSS.
+ * Design tokens (§10.4). Features use tokens only; global CSS lives only here and in base.css.
  * Theme values from settings are applied with style.setProperty on :root for a fixed list of
  * variables (see src/theme/applyTheme.ts) — never by building CSS text. Light values live on
  * :root; dark values apply for an explicit dark choice, or the OS preference unless light was
