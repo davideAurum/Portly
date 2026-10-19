@@ -102,8 +102,6 @@ or fold them into a phase.
 - **Tidy-ups:**
   - remove `@tanstack/query-sync-storage-persister` from `web/package.json`. Nothing uses it
     since the background-tab work, but it was kept to avoid a lockfile change;
-  - the Shell test for the "Add bookmark" dialog (`#/add-bookmark`) sometimes fails, also on
-    older commits. Make it reliable;
   - note in CLAUDE.md that manual runs should clear `PORTLY_PAGES_URL`, or the dev page forwards
     to the real Pages site.
 - **Checks never run on main:** re-run the hybrid pairing check in a real browser, and check

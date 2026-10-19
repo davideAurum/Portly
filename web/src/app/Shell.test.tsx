@@ -162,6 +162,9 @@ describe('Shell', () => {
   });
 
   it('ends the footer with the local server indicator in the Pages build only', async () => {
+    // The indicator is lazily loaded: load its code first, so that on a busy machine its first load
+    // does not count against the wait below.
+    await import('./LocalServerStatus.tsx');
     const fake = fakeLocalServer({ backend: 'server', status: 'connected', server: LOCAL_SERVER, paired: true, permission: 'granted' });
     setLocalServerController(fake.controller);
     const server = renderWithProviders(<Shell />, { apiMocks: shellMocks([profile('p1', 'Home')]) });
@@ -207,6 +210,8 @@ describe('Shell', () => {
   });
 
   it('routes #/settings/<section> to the settings shell with all eleven sections', async () => {
+    // Settings sections are lazily loaded: load About's code first (see the footer test above).
+    await import('../settings/sections/About.tsx');
     renderWithProviders(<Shell />, {
       route: '#/settings/about',
       apiMocks: {
@@ -311,6 +316,8 @@ describe('App', () => {
   });
 
   it('opens the Add bookmark dialog for #/add-bookmark (the extension button) and drops the request when it closes', async () => {
+    // The dialog is lazily loaded: load its code first (see the footer test above).
+    await import('../widgets/launchpad/AddPageDialog.tsx');
     window.history.replaceState(null, '', `/#/add-bookmark?${new URLSearchParams({ url: 'https://example.com/post', title: 'A post' }).toString()}`);
     try {
       renderWithProviders(<Shell />, {
