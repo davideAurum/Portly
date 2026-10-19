@@ -39,6 +39,17 @@ function setup(extra: Record<string, unknown> = {}) {
 }
 
 describe('Settings → Bookmarks', () => {
+  it('shows groups first, then preferences, then import and export together in one card', async () => {
+    setup();
+    await screen.findByRole('list', { name: 'Bookmark groups' });
+    const cards = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+    expect(cards).toEqual(['Groups', 'Preferences', 'Import & export bookmarks']);
+    const card = screen.getByRole('button', { name: 'Import file' }).closest('section');
+    expect(card).not.toBeNull();
+    expect(within(card!).getByRole('button', { name: 'Export bookmarks' })).toBeInTheDocument();
+    expect(within(card!).getByText('Chrome — Personal')).toBeInTheDocument();
+  });
+
   it('imports from a detected browser profile with the chosen strategy and shows the report', async () => {
     const { user, requestsTo } = setup();
     expect(await screen.findByText('Chrome — Personal')).toBeInTheDocument();
