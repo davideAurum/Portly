@@ -59,7 +59,9 @@ Homebase's own folders are left as they were, so you can go back until you delet
   replaced, and its data folder stays where it is. Browsers still copy Homebase's in-browser settings
   on their first visit (see **Browsers** below).
 - **Settings and autostart:** the installer copies your `HOMEBASE_*` user variables to their
-  `PORTLY_*` names (never over one you already set). It stops the **Homebase Server** task just
+  `PORTLY_*` names (never over one you already set). `HOMEBASE_DATA_DIR` is the exception: it only
+  tells Portly where to copy Homebase's data from, and Portly keeps its data in
+  `%LOCALAPPDATA%\Portly`. To keep it somewhere else, set `PORTLY_DATA_DIR` before you install. It stops the **Homebase Server** task just
   before it starts Portly, since both use the same port, and removes that task and the
   `com.homebase.launcher` registrations only once Portly answers. The old task's definition is saved
   as `homebase-task-backup.xml` in Portly's data folder. If Portly doesn't come up, Homebase is

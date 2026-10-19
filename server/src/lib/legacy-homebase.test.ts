@@ -189,6 +189,41 @@ describe('moving over from Homebase', () => {
     );
   });
 
+  it("copies from the folder HOMEBASE_DATA_DIR names into Portly's own folder", async () => {
+    const local = path.join(root, 'Local');
+    const moved = path.join(root, 'D', 'Homebase data');
+    homebaseFolder(moved);
+    const paths = portlyPaths(path.join(local, 'Portly'));
+    requestCopy(paths.dataDir);
+    const result = await migrateFromHomebase(paths, { env: { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: ` ${moved} ` }, platform: 'win32' });
+    expect(result).toEqual({ from: moved, copied: ['homebase.db -> portly.db', 'vault.key'] });
+    expect(userName(paths.db)).toBe('{"userName":"Dana"}');
+    expect(fs.readFileSync(paths.vaultKey, 'utf8')).toBe('old-key');
+    expect(fs.existsSync(path.join(moved, 'portly.db')), "nothing is written to Homebase's folder").toBe(false);
+  });
+
+  it('reads HOMEBASE_DATA_DIR as the only Homebase folder, whatever PORTLY_DATA_DIR says', () => {
+    const local = path.join(root, 'Local');
+    homebaseFolder(path.join(local, 'Homebase'));
+    const moved = path.join(root, 'moved');
+    const portly = path.join(root, 'portly');
+    // Homebase did not use its default folder while HOMEBASE_DATA_DIR was set: an old copy there is not its data.
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: moved }, 'win32')).toBeNull();
+    homebaseFolder(moved);
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: moved }, 'win32')).toBe(path.join(moved, 'homebase.db'));
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: moved, PORTLY_DATA_DIR: portly }, 'win32')).toBe(
+      path.join(moved, 'homebase.db'),
+    );
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: '  ' }, 'win32'), 'blank is unset').toBe(
+      path.join(local, 'Homebase', 'homebase.db'),
+    );
+    // homebase.db in Portly's own folder still comes first (PORTLY_DATA_DIR naming Homebase's folder).
+    homebaseFolder(portly);
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: moved, PORTLY_DATA_DIR: portly }, 'win32')).toBe(
+      path.join(portly, 'homebase.db'),
+    );
+  });
+
   it("puts Homebase's vault key in place of Portly's, which is kept beside it", async () => {
     const local = path.join(root, 'Local');
     homebaseFolder(path.join(local, 'Homebase'));

@@ -6,9 +6,10 @@
  * never copies, so it cannot freeze an early snapshot. Homebase's folder is left exactly as it was.
  *
  * - Where: `homebase.db` in Portly's data folder itself (PORTLY_DATA_DIR naming a folder Homebase
- *   used, as when `scripts/install-autostart.ps1` carried HOMEBASE_DATA_DIR over), else - only while
- *   PORTLY_DATA_DIR is unset - Homebase's default folder (`%LOCALAPPDATA%\Homebase`, or
- *   `$XDG_DATA_HOME/homebase`).
+ *   used, as an earlier installer set it up), else in Homebase's own folder: the one
+ *   HOMEBASE_DATA_DIR names, or - only while PORTLY_DATA_DIR is unset too - Homebase's default
+ *   folder (`%LOCALAPPDATA%\Homebase`, or `$XDG_DATA_HOME/homebase`). HOMEBASE_DATA_DIR only says
+ *   where to copy from: Portly keeps its data in its own folder.
  * - How: `VACUUM INTO` a temporary file (a consistent copy even while an old Homebase still has the
  *   database open; busy and locked errors are retried), then the temporary file is renamed to
  *   `portly.db`. With `"replace": true` an existing `portly.db` is first moved aside to
@@ -89,11 +90,18 @@ export function legacyDefaultDataDir(env: NodeJS.ProcessEnv = process.env, platf
   return path.join(xdg, 'homebase');
 }
 
+/** A trimmed environment variable, or null when it is unset or blank. */
+function setting(value: string | undefined): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
 /** The Homebase database to copy from, or null: see the file comment for the order. */
 export function findLegacyDatabase(dataDir: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string | null {
   const candidates = [path.join(dataDir, LEGACY_DB_FILE)];
-  const custom = env.PORTLY_DATA_DIR;
-  if (typeof custom !== 'string' || custom.trim() === '') candidates.push(path.join(legacyDefaultDataDir(env, platform), LEGACY_DB_FILE));
+  // Resolved like PORTLY_DATA_DIR (config.ts): Homebase never used another folder while it was set.
+  const homebaseDir = setting(env.HOMEBASE_DATA_DIR);
+  if (homebaseDir !== null) candidates.push(path.join(path.resolve(homebaseDir), LEGACY_DB_FILE));
+  else if (setting(env.PORTLY_DATA_DIR) === null) candidates.push(path.join(legacyDefaultDataDir(env, platform), LEGACY_DB_FILE));
   return candidates.find((file) => isFile(file)) ?? null;
 }
 

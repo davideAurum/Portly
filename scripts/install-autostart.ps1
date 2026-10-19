@@ -43,9 +43,10 @@
 
     Coming from Homebase (Portly's name before the rename): first its user variables are copied
     to their PORTLY_ names (HOMEBASE_PAGES_URL -> PORTLY_PAGES_URL, ...; never over a value that is
-    already set). When Portly has no database yet, a request (copy-from-homebase.json in the data
-    folder) asks Portly to copy Homebase's database and vault key at its first start; Homebase's
-    data folder is left alone. Once Portly's task is registered, Homebase's server is stopped (it
+    already set). HOMEBASE_DATA_DIR is not copied: it names the folder Homebase's data is copied
+    from, and Portly keeps its own data folder. When Portly has no database yet, a request
+    (copy-from-homebase.json in the data folder) asks Portly to copy Homebase's database and vault
+    key at its first start; Homebase's data folder is left alone. Once Portly's task is registered, Homebase's server is stopped (it
     holds the port). Only once Portly answers its health check are the "Homebase Server" task (its
     definition saved to homebase-task-backup.xml in the data folder) and the com.homebase.launcher
     registrations removed; if Portly does not come up, Homebase's task is started again. With
@@ -224,7 +225,7 @@ function Invoke-Install {
     }
 
     # Homebase's database is copied by the server at its next start, only when requested here.
-    $homebaseCopy = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    $homebaseCopy = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task)) -HomebaseDataDir (Get-HbHomebaseDataDir -RepoRoot $repoRoot)
     if ($NoHomebaseCopy -and $homebaseCopy.State -in @('request', 'pending', 'portly-has-database')) { $homebaseCopy.State = 'skipped' }
     $homebaseCopyText = switch ($homebaseCopy.State) {
         'none' { 'no Homebase database found' }

@@ -1714,8 +1714,9 @@ data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark impor
 - **Data** (`server/src/lib/legacy-homebase.ts`, start-up phase `legacy` between `port-probe` and `db`): only on an
   explicit request, `<data dir>/copy-from-homebase.json` (`{requestedAt, replace}`), written by `install-autostart.ps1`
   when Homebase's database exists and Portly has none, or by `portly --copy-from-homebase [--replace]`; a plain first
-  start never copies. Source: the first of `<data dir>/homebase.db` and — only with PORTLY_DATA_DIR unset — Homebase's
-  default folder's `homebase.db`. `VACUUM INTO` a temporary file (consistent while an old server still has it open;
+  start never copies. Source: the first of `<data dir>/homebase.db` and the `homebase.db` in Homebase's own folder:
+  the one HOMEBASE_DATA_DIR names (resolved like PORTLY_DATA_DIR), else — only with PORTLY_DATA_DIR unset too —
+  Homebase's default folder. HOMEBASE_DATA_DIR is only read as that source; Portly keeps its own folder. `VACUUM INTO` a temporary file (consistent while an old server still has it open;
   read-only connection first, a normal one when WAL needs it; SQLITE_BUSY/LOCKED, EBUSY, EPERM and EACCES retried, 3
   attempts), then the rename to `portly.db`. An existing `portly.db` is kept (marker `kept-portly-database`, request
   dropped, warning) unless `replace`, which first moves it and its `-wal`/`-shm` to `portly.db.before-homebase-<time>`.
@@ -1732,7 +1733,8 @@ data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark impor
   survive.
 - **User environment, task, native host** (`scripts/lib/Common.ps1`, run by `install-autostart.ps1`, listed by
   `-DryRun`): `Get-HbLegacyPlan`; first `Invoke-HbLegacyEnvCopy` (`HOMEBASE_X` user variables copied to unset
-  `PORTLY_X`, user scope and this process, before the PORTLY_* settings are read); `Get-HbHomebaseCopyPlan` /
+  `PORTLY_X`, user scope and this process, before the PORTLY_* settings are read; never `HOMEBASE_DATA_DIR`, which
+  `Get-HbHomebaseDataDir` reads for the source); `Get-HbHomebaseCopyPlan` /
   `Write-HbHomebaseCopyRequest` after the configuration check; once Portly's task and host are registered,
   `Suspend-HbLegacyServer` stops `\Homebase Server` (and its supervisor processes) without removing it; only when
   `/api/health` answers with `app: 'portly'`, `Remove-HbLegacyInstall` exports the task to

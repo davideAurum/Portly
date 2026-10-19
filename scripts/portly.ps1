@@ -143,7 +143,7 @@ function Invoke-HbCopyFromHomebase {
         }
         return 0
     }
-    $plan = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    $plan = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task)) -HomebaseDataDir (Get-HbHomebaseDataDir -RepoRoot $RepoRoot)
     if ($plan.State -eq 'none') {
         Write-HbFailure "No Homebase database (homebase.db) was found for the data folder $dataDir."
         return 1
@@ -170,7 +170,7 @@ function Invoke-HbCopyFromHomebase {
     Start-HbTask
     $port = (Get-HbPortSetting -Scope Task).Port
     $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
-    $after = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    $after = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task)) -HomebaseDataDir (Get-HbHomebaseDataDir -RepoRoot $RepoRoot)
     if ($health.Ok -and $after.State -eq 'done') {
         Write-HbOk "Copied. Portly is $(Format-HbHealth $health)"
         return 0

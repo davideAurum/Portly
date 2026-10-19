@@ -124,10 +124,13 @@ Write-Host 'Common.ps1 helpers' -ForegroundColor White
 
 # Coming from Homebase: planned and carried out against fakes and temporary folders only (never
 # the real user environment, task, registry or data folder).
-$legacyEnv = @{ HOMEBASE_PAGES_URL = 'https://me.github.io/'; HOMEBASE_PORT = '5800'; PORTLY_PORT = '6000'; HOMEBASE_DATA_DIR = '  ' }
+$legacyEnv = @{ HOMEBASE_PAGES_URL = 'https://me.github.io/'; HOMEBASE_PORT = '5800'; PORTLY_PORT = '6000'; HOMEBASE_LOG_LEVEL = '  '; HOMEBASE_DATA_DIR = 'D:\Homebase data' }
 $legacyChrome = 'Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher'
 $legacyPlan = Get-HbLegacyPlan -EnvReader { param($Name) $legacyEnv[$Name] } -RegistryReader { param($SubKey) if ($SubKey -eq $legacyChrome) { 'C:\x.json' } else { $null } } -TaskReader { $null }
-Assert-That -Name 'Get-HbLegacyPlan copies only HOMEBASE_ variables whose PORTLY_ name is unset, and finds the old host keys' -Condition (
+Assert-That -Name 'The variables carried over from Homebase are all but HOMEBASE_DATA_DIR (the source of the copy)' -Condition (
+    $PortlyLegacyEnvNames -notcontains 'HOMEBASE_DATA_DIR' -and $PortlyLegacyEnvNames -contains 'HOMEBASE_PAGES_URL' -and
+    $PortlyLegacyEnvNames -contains 'HOMEBASE_PAGES_REPO') -Detail ($PortlyLegacyEnvNames -join ', ')
+Assert-That -Name 'Get-HbLegacyPlan copies only HOMEBASE_ variables whose PORTLY_ name is unset (not HOMEBASE_DATA_DIR), and finds the old host keys' -Condition (
     @($legacyPlan.Copy).Count -eq 1 -and $legacyPlan.Copy[0].From -eq 'HOMEBASE_PAGES_URL' -and $legacyPlan.Copy[0].To -eq 'PORTLY_PAGES_URL' -and
     $legacyPlan.Copy[0].Value -eq 'https://me.github.io/' -and @($legacyPlan.RegistryKeys).Count -eq 1 -and $null -eq $legacyPlan.Task -and -not $legacyPlan.Empty)
 Assert-That -Name 'Get-HbLegacyPlan is empty without anything of Homebase' -Condition (
@@ -208,6 +211,16 @@ Assert-That -Name 'Get-HbHomebaseCopyPlan: a failed copy is not done' -Condition
 Set-Content -LiteralPath (Join-Path $copyData 'homebase.db') -Value 'db'
 Assert-That -Name 'Get-HbHomebaseCopyPlan prefers homebase.db in the data folder itself' -Condition (
     (Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal -CustomDataDir).Source -eq (Join-Path $copyData 'homebase.db'))
+# HOMEBASE_DATA_DIR (-HomebaseDataDir) names Homebase's own folder: the source, whatever PORTLY_DATA_DIR says.
+$movedHomebase = Join-Path $workDir 'copy\Moved Homebase'
+$movedData = Join-Path $workDir 'copy\Portly elsewhere'
+Assert-That -Name "Get-HbHomebaseCopyPlan -HomebaseDataDir: Homebase's default folder is not looked at" -Condition (
+    (Get-HbHomebaseCopyPlan -DataDir $movedData -LocalAppData $copyLocal -HomebaseDataDir $movedHomebase).State -eq 'none')
+$null = New-Item -ItemType Directory -Path $movedHomebase -Force
+Set-Content -LiteralPath (Join-Path $movedHomebase 'homebase.db') -Value 'db'
+$movedPlan = Get-HbHomebaseCopyPlan -DataDir $movedData -LocalAppData $copyLocal -HomebaseDataDir $movedHomebase -CustomDataDir
+Assert-That -Name 'Get-HbHomebaseCopyPlan -HomebaseDataDir: request, from that folder (also with a PORTLY_DATA_DIR)' -Condition (
+    $movedPlan.State -eq 'request' -and $movedPlan.Source -eq (Join-Path $movedHomebase 'homebase.db')) -Detail "$($movedPlan.State) $($movedPlan.Source)"
 
 Assert-That -Name 'ConvertTo-HbPort accepts 5757' -Condition ((ConvertTo-HbPort '5757') -eq 5757)
 Assert-That -Name 'ConvertTo-HbPort trims whitespace' -Condition ((ConvertTo-HbPort ' 8080 ') -eq 8080)

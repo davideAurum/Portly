@@ -575,8 +575,10 @@ $PortlyLegacyNativeHostRegistry = @(
     [pscustomobject]@{ Browser = 'Chrome'; SubKey = 'Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher' }
     [pscustomobject]@{ Browser = 'Edge'; SubKey = 'Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher' }
 )
-# The user variables Homebase read, each carried over to its PORTLY_ name.
-$PortlyLegacyEnvNames = @(@($PortlyEnvNames) + 'PORTLY_PAGES_REPO' | ForEach-Object { $_ -replace '^PORTLY_', 'HOMEBASE_' })
+# The user variables Homebase read, each carried over to its PORTLY_ name. Not HOMEBASE_DATA_DIR:
+# it says where Homebase's data is, so it is read as the source of the copy (Get-HbHomebaseDataDir)
+# and Portly keeps its data in its own folder.
+$PortlyLegacyEnvNames = @(@($PortlyEnvNames) + 'PORTLY_PAGES_REPO' | Where-Object { $_ -ne 'PORTLY_DATA_DIR' } | ForEach-Object { $_ -replace '^PORTLY_', 'HOMEBASE_' })
 
 # What install-autostart.ps1 carries over from Homebase: user variables HOMEBASE_X whose PORTLY_X
 # is not set (Copy: From, To, Value), the 'Homebase Server' task (Task, or $null; it would take
@@ -705,8 +707,20 @@ function Remove-HbLegacyInstall {
 $PortlyHomebaseCopyRequest = 'copy-from-homebase.json'
 $PortlyHomebaseCopyMarker = 'migrated-from-homebase.json'
 
+# The folder HOMEBASE_DATA_DIR (user or machine) names, resolved like PORTLY_DATA_DIR
+# (Get-HbDataDir), or $null when it is not set. Homebase kept its data there instead of its default
+# folder; it is where Portly copies from, never where Portly keeps its own data.
+function Get-HbHomebaseDataDir {
+    param([Parameter(Mandatory)][string]$RepoRoot)
+    $raw = Get-HbEnvValue -Name 'HOMEBASE_DATA_DIR' -Scope Task
+    if ($null -eq $raw) { return $null }
+    if (-not [System.IO.Path]::IsPathRooted($raw)) { $raw = Join-Path $RepoRoot $raw }
+    return [System.IO.Path]::GetFullPath($raw)
+}
+
 # Whether Portly should be asked to copy Homebase's database into -DataDir. The source is
-# homebase.db in -DataDir itself, else - only without a PORTLY_DATA_DIR (-CustomDataDir) - in
+# homebase.db in -DataDir itself, else in Homebase's own folder: -HomebaseDataDir
+# (Get-HbHomebaseDataDir) or, only without it and without a PORTLY_DATA_DIR (-CustomDataDir),
 # Homebase's default folder (the server looks in the same places). State is one of:
 #   none                 no Homebase database was found
 #   done                 the marker says it was copied (CopiedAt)
@@ -715,10 +729,14 @@ $PortlyHomebaseCopyMarker = 'migrated-from-homebase.json'
 #   request              nothing copied yet: request it
 # -LocalAppData replaces %LOCALAPPDATA% (tests).
 function Get-HbHomebaseCopyPlan {
-    param([Parameter(Mandatory)][string]$DataDir, [switch]$CustomDataDir, [string]$LocalAppData)
+    param([Parameter(Mandatory)][string]$DataDir, [switch]$CustomDataDir, [string]$HomebaseDataDir, [string]$LocalAppData)
     if (-not $LocalAppData) { $LocalAppData = [System.Environment]::GetFolderPath('LocalApplicationData') }
     $candidates = @(Join-Path $DataDir 'homebase.db')
-    if (-not $CustomDataDir) { $candidates += (Join-Path (Join-Path $LocalAppData 'Homebase') 'homebase.db') }
+    if ($HomebaseDataDir) {
+        $candidates += (Join-Path $HomebaseDataDir 'homebase.db')
+    } elseif (-not $CustomDataDir) {
+        $candidates += (Join-Path (Join-Path $LocalAppData 'Homebase') 'homebase.db')
+    }
     $source = $null
     foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate -PathType Leaf) { $source = $candidate; break }
