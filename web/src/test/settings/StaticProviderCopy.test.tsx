@@ -1,28 +1,31 @@
 /**
  * Pages-build copy in Settings → Search and Settings → Todoist on the in-browser backend
  * (`setCapabilitiesForTests(capabilitiesFor(true, 'browser'))`): suggestions are described as
- * going straight to Wikipedia with the other providers labelled unavailable (the stored enum is
- * unchanged), the Todoist token is described as living in this browser, Todoist's own token help is
+ * going straight to Wikipedia, and the other providers as not available unless this browser turns
+ * on "Wikipedia suggestions instead" (the stored enum is unchanged), the Todoist token is described as living in this browser, Todoist's own token help is
  * linked (the guide in the Portly folder is out of the site's reach) and the vault-locked banner never shows. On the
  * Portly server on this PC (hybrid mode) the server's copy applies, and a locked vault links to
  * this page's own Accounts settings, where it is reset.
  */
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
 import { setLocalServerController } from '../../localServer/store.ts';
-import SearchSettings, { isSuggestProviderAvailable } from '../../settings/sections/Search.tsx';
+import SearchSettings from '../../settings/sections/Search.tsx';
 import TodoistSettingsSection, { TODOIST_TOKEN_HELP_URL } from '../../settings/sections/Todoist.tsx';
+import { isSuggestProviderAvailable, reachableSuggestProvider } from '../../widgets/search/engines.ts';
+import { WIKIPEDIA_FALLBACK_KEY } from '../../widgets/search/wikipediaFallback.ts';
 import { createFakeServer } from '../fakeServer.ts';
 import { health, settings } from '../fixtures.ts';
 import { fakeLocalServer } from '../hybrid.ts';
 import { renderWithProviders } from '../render.tsx';
 
 beforeEach(() => setCapabilitiesForTests(capabilitiesFor(true, 'browser')));
+afterEach(() => window.localStorage.removeItem(WIKIPEDIA_FALLBACK_KEY));
 
 describe('static build: Settings → Search copy', () => {
-  it('describes Wikipedia-only suggestions and labels the other providers unavailable, keeping the enum', async () => {
+  it('describes Wikipedia-only suggestions and labels the other providers as not available, keeping the enum', async () => {
     const server = createFakeServer([]);
     server.settings.bookmarks.autoFetchIcons = false;
     renderWithProviders(<SearchSettings />, { apiMocks: server.mocks });
@@ -30,10 +33,14 @@ describe('static build: Settings → Search copy', () => {
     const items = within(list).getAllByRole('listitem');
     expect(items[0]).toHaveTextContent('Google (not available in this build) suggestions');
     expect(items[4]).toHaveTextContent('Wikipedia suggestions');
-    expect(items[4]).not.toHaveTextContent('not available');
+    expect(items[4]).not.toHaveTextContent('available');
 
-    expect(screen.getByText(/directly from your browser to Wikipedia; Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/For engines with Wikipedia suggestions, sends what you type directly from your browser to Wikipedia\. Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build\./),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/through Portly/)).toBeNull();
+    // The fallback is this browser's choice, off unless turned on.
+    expect(screen.getByRole('switch', { name: 'Wikipedia suggestions instead' })).not.toBeChecked();
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Custom engine' }));
@@ -51,6 +58,38 @@ describe('static build: Settings → Search copy', () => {
     ]);
     expect(isSuggestProviderAvailable('wikipedia')).toBe(true);
     expect(isSuggestProviderAvailable('google')).toBe(false);
+    expect(reachableSuggestProvider('google', false)).toBeNull();
+    expect(reachableSuggestProvider('google', true)).toBe('wikipedia');
+    expect(reachableSuggestProvider('wikipedia', false)).toBe('wikipedia');
+  });
+
+  it('turning on "Wikipedia suggestions instead" saves it in this browser only and relabels the providers', async () => {
+    const server = createFakeServer([]);
+    server.settings.bookmarks.autoFetchIcons = false;
+    const { requestsTo } = renderWithProviders(<SearchSettings />, { apiMocks: server.mocks });
+    const list = await screen.findByRole('list', { name: 'Search engines' });
+    const user = userEvent.setup();
+    const fallback = screen.getByRole('switch', { name: 'Wikipedia suggestions instead' });
+    expect(screen.getByText(/show Wikipedia’s instead, labelled as such\. Sends what you type to Wikipedia/)).toBeInTheDocument();
+    await user.click(fallback);
+
+    expect(fallback).toBeChecked();
+    expect(window.localStorage.getItem(WIKIPEDIA_FALLBACK_KEY)).toBe('1');
+    expect(requestsTo('PATCH /api/settings')).toHaveLength(0);
+    expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Wikipedia suggestions (Google’s aren’t available in this build)');
+
+    await user.click(screen.getByRole('button', { name: 'Custom engine' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add a search engine' });
+    const options = within(within(dialog).getByRole('combobox', { name: 'Suggestions from' })).getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toContain('Google (Wikipedia in this build)');
+  });
+
+  it('greys out "Wikipedia suggestions instead" while suggestions are off', async () => {
+    const server = createFakeServer([]);
+    server.settings.bookmarks.autoFetchIcons = false;
+    server.settings.search.suggestionsEnabled = false;
+    renderWithProviders(<SearchSettings />, { apiMocks: server.mocks });
+    expect(await screen.findByRole('switch', { name: 'Wikipedia suggestions instead' })).toBeDisabled();
   });
 });
 
@@ -96,7 +135,9 @@ describe('Pages build on the Portly server on this PC: Settings → Search and T
     expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Google suggestions');
     expect(screen.queryByText(/not available/)).toBeNull();
     expect(screen.getByText(/through Portly/)).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Wikipedia suggestions instead' })).toBeNull();
     expect(isSuggestProviderAvailable('google')).toBe(true);
+    expect(reachableSuggestProvider('google', false)).toBe('google');
   });
 
   it('keeps the token in the vault, and a locked vault links to this page’s Accounts settings', async () => {

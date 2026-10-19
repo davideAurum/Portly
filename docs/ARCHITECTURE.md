@@ -1052,8 +1052,10 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   host with a port or path, `localhost:port`, IP literals) navigates directly; a bare dotted word with an unknown TLD
   (`next.js`, `index.html`) searches on Enter and offers "Go to" second; dropdown shows bookmark matches (≤ 4)
   then suggestions (≤ 8; debounced 150 ms; aborted on new input; engine provider → default engine's → none when
-  disabled); ↑/↓ navigate, Enter current tab, Ctrl/Shift+Enter new tab. Config `{engineIds: 'all'|string[],
-  showEngineSwitcher, autofocus, placeholder}`.
+  disabled; on the in-browser backend a provider only the server can ask → none, or Wikipedia when this browser
+  opted in, §16); ↑/↓ navigate, Enter
+  current tab, Ctrl/Shift+Enter new tab. Config `{engineIds: 'all'|string[], showEngineSwitcher, autofocus,
+  placeholder}`.
 - **Launch pad** — config `{groupIds: 'all'|string[], iconSize: 's'|'m'|'l', showLabels, columns: 'auto'|number,
   style: 'tiles'|'list'}`. Add/edit dialog: URL → debounced `/api/site-meta` fills title/icon; icon modes auto | upload |
   letter (+ color). Group CRUD with color and collapse. Reorder within/across groups with @dnd-kit (pointer + keyboard)
@@ -1362,7 +1364,15 @@ siteMetaFetch|serverSearchSuggestions` (server backend), `browserBackups` (brows
 backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
 `backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
 feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
-browser / Switch now / Check again). Account setup works the same on the server backend from either build (one page).
+browser / Switch now / Check again). Without `serverSearchSuggestions` an engine whose suggestions only the server can
+ask (Google, DuckDuckGo, Bing, YouTube) shows none and no request is made, unless this browser turned on **Wikipedia
+suggestions instead** in Settings → Search (`widgets/search/wikipediaFallback.ts`, localStorage
+`portly:wikipedia-suggestions-instead`, off by default, kept out of the strict `SearchSettingsSchema` like
+`portly:frosted-glass`). Then the widget asks Wikipedia (the one provider that answers a browser) and labels the list
+"Wikipedia suggestions" (`widgets/search/engines.ts` `reachableSuggestProvider`; the stored provider is unchanged, and
+Settings → Search says which applies). The browser backend's first-run layout (`grid/defaultLayout.ts`) has no mail or calendar widget and
+still fills its 12 × 15 cells: the weather runs down the right-hand side, Todoist sits under the launch pad. Account
+setup works the same on the server backend from either build (one page).
 
 **Controller (`localServer/controller.ts`, every side effect injected, unit-tested under fake timers).** State
 `{backend, status, server: {version, instanceId, appUrl, apiVersion, vault}|null, paired, checkedAt, pendingSwitch,
@@ -1378,15 +1388,19 @@ build and tests). Statuses: `disabled` (hybrid off), `framed`, `idle` (not check
   `granted` (or no permission API), one `GET /api/health` with `mode: 'no-cors'` (same `targetAddressSpace`, carries
   nothing): an opaque answer means something answers on the port but not to this site — state
   `unreachableReason: 'answers-without-cors'` (its `PORTLY_PAGES_URL` names another site, or it predates hybrid
-  mode); the status stays `absent`/`reconnecting` and Settings → Diagnostics explains it (§17).
+  mode); the status stays `absent`/`reconnecting` and Settings → Diagnostics explains it (§17). Once a `no-cors`
+  request found nothing, the probes of the next 5 min skip it (`NO_CORS_RECHECK_MS`; a manual check does not), so a
+  stopped server costs one failed request — one error in the browser's console — per probe instead of two; one that
+  got an answer is repeated every time (an opaque answer is no console error).
 - *When*: never while disabled/framed; not paired → only after the Local Network Access permission (`loopback-network`,
-  older `local-network-access`) is `granted`/unsupported, on boot, focus and visibility, or when the user clicks
-  **Look for Portly on this PC**; paired → on boot, then every 30 s while connected (skipped while requests got
-  answers in the last 30 s), every 2 s while reconnecting, else backoff 5→10→20→30→60 s, reset by visibility, focus,
-  `online`, permission or pairing changes and **Check again**; while the tab is hidden, scheduled probes come at most
-  once a minute (`HIDDEN_PROBE_INTERVAL_MS`: still often enough for the grace to count from when the server went away),
-  and a tab probes at once when it is visible again. One probe at a time; with the permission at `prompt` only while
-  visible.
+  older `local-network-access`) is `granted`/unsupported, on boot, focus and visibility (while `absent`, at most once
+  every 5 min: `ABSENT_EVENT_PROBE_MS`, so a PC without Portly does not log a failed request each time the tab comes
+  to the front), or when the user clicks **Look for Portly on this PC**; paired → on boot, then every 30 s while
+  connected (skipped while requests got answers in the last 30 s), every 2 s while reconnecting, else backoff
+  5→10→20→30→60 s, reset by visibility, focus, `online`, permission or pairing changes and **Check again**; while the
+  tab is hidden, scheduled probes come at most once a minute (`HIDDEN_PROBE_INTERVAL_MS`: still often enough for the
+  grace to count from when the server went away), and a tab probes at once when it is visible again. One probe at a
+  time; with the permission at `prompt` only while visible.
 - *Permission prompt*: the browser shows it only after a TCP connection succeeds and the request stays pending while it
   is open, so a probe is never aborted while the permission may be `prompt`: after 3 s the status becomes
   `waiting-permission` (grace paused). Otherwise a probe times out after 5 s, which is inconclusive when the server
@@ -1455,11 +1469,15 @@ status is debug when it repeats the one last reported in this browser. The event
 token with its sub-reason (`token_revoked {pairingId, removedBy}` …), and a GitHub Pages, loopback or same-domain site
 it does not answer as a foreign origin (`health check from another site (no CORS answer)`). All diagnostics routes are
 `paired()`, so a paired site shows the full Diagnostics page; `#/settings/diagnostics` on Portly's own page never
-forwards, and the site links to it ("Open diagnostics on this PC", `<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`).
+forwards, and the site links to it ("Open diagnostics on this PC", `<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`)
+once something answers on this PC (a status from `unpaired` to `reconnecting`, or `answers-without-cors`): while
+nothing does, the link would open an error page, so it is not shown.
 
 **Build.** `PORTLY_STATIC_SERVER` (default `http://127.0.0.1:5757`; `off` disables; only http(s) origins on
 `localhost`, `*.localhost`, `127.0.0.1` or `[::1]`, anything else fails the build) → `__PORTLY_LOCAL_SERVER__`
-(`''` in the server build and in both vitest web projects). The hybrid-only UI (footer indicator, local server panel,
+(`''` in the server build and in both vitest web projects). The footer indicator shows the status's label ("Not
+checked", "Connected · v0.1.0", …), except "Browser only" for `absent` (the panel's badge still says "Not detected").
+The hybrid-only UI (footer indicator, local server panel,
 pairing page) is loaded on demand, so the server build's main chunk does not carry it.
 
 **Extension** (§11): by default new tabs open the Pages site the server reports (`pagesUrl` in `/api/health`) and
@@ -1667,7 +1685,8 @@ through `scrub`/`scrubFields`:
   browser), log level, requests and outbound calls in progress, Pages site and pairings; a banner when a named
   foreign origin tried to use this server ("A page at <origin> tried to use this server, but PORTLY_PAGES_URL is
   not set / is set to …"). Pages build: a "This site" card (version, backend, hybrid status, local network
-  permission, this browser's counts, **Open diagnostics on this PC**) and, for `answers-without-cors`, "Portly
+  permission, this browser's counts, **Open diagnostics on this PC** once something answers there) and, for
+  `answers-without-cors`, "Portly
   runs on this PC but does not accept this site: set `PORTLY_PAGES_URL=<this site's address>` and restart it".
 - **Connections & sync** — health grouped by account (account, calendar list, calendars, mail) and then by area (ICS
   calendars, feeds, Todoist, weather, search suggestions, sports, scheduled jobs — jobs also from the job stats, so a
@@ -1692,12 +1711,13 @@ through `scrub`/`scrubFields`:
 
 Availability follows the page load's backend: the server (Portly's own page, or the Pages site using it) → every
 tab; a server from before diagnostics (its summary answers the Pages site `403 local_only`, its own page `404`) →
-"Update Portly on this PC to see its diagnostics" with Overview and This browser; the in-browser backend → Overview
-(the "This site" card) and This browser (`static/handlers/unavailable.ts` answers `/api/diagnostics/*` as
-unavailable). `#/settings/diagnostics` on Portly's own page never forwards to the Pages site (`app/pagesForward.ts`,
-like `#/pair`), and the Pages build always links to it (`<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`,
-`http://127.0.0.1:5757` when hybrid mode is built off). Every diagnostics query is unpersisted (`qk.diagnostics` in
-`NON_PERSISTED_ROOTS`); errors render notices, never a broken section.
+"Update Portly on this PC to see its diagnostics" with Overview and This browser; the in-browser backend → its own
+intro (this site, Portly on this PC, what this browser noticed), Overview (the "This site" card) and This browser
+(`static/handlers/unavailable.ts` answers `/api/diagnostics/*` as unavailable). `#/settings/diagnostics` on Portly's
+own page never forwards to the Pages site (`app/pagesForward.ts`, like `#/pair`), and the Pages build links to it
+(`<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`) once something answers on this PC (`localServerAnswers` in
+`app/LocalServerPanel.tsx`; §16). Every diagnostics query is unpersisted (`qk.diagnostics` in `NON_PERSISTED_ROOTS`);
+errors render notices, never a broken section.
 
 ---
 

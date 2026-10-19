@@ -155,7 +155,7 @@ case you are in:
 
 The Pages site's footer shows the **Portly on this PC** status, with an explanation and the next
 step when you click it (also in **Settings → About** on the site). The statuses and their fixes —
-*Blocked by browser*, *Not detected*, *Found, not paired*, *Pairing removed*, *Paired with another
+*Blocked by browser*, *Browser only*, *Found, not paired*, *Pairing removed*, *Paired with another
 Portly*, *Needs update* — are listed in
 [Pages site with Portly on this PC](pages-local-server.md#troubleshooting), and
 [Finding out why](pages-local-server.md#finding-out-why) shows how to trace a connection problem
@@ -314,10 +314,11 @@ http://127.0.0.1:5757/#/settings/diagnostics
 ```
 
 (with your port if you changed `PORTLY_PORT`). Use it when the Pages site, or its connection to
-Portly, is what's broken; on the Pages site, **Open diagnostics on this PC** links there. While
-the Pages site uses this browser's copy, its Diagnostics page shows only **Overview** (the site, its
-connection to Portly, the browser's local network permission) and **This browser**. *Update
-Portly on this PC to see its diagnostics* means Portly is older than the page: update it.
+Portly, is what's broken; on the Pages site, **Open diagnostics on this PC** links there once
+Portly answers. While the Pages site uses this browser's copy, its Diagnostics page shows only
+**Overview** (the site, its connection to Portly, the browser's local network permission) and
+**This browser**. *Update Portly on this PC to see its diagnostics* means Portly is older than the
+page: update it.
 
 ### What each tab shows
 

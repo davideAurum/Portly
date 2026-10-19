@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { WIDGET_TYPES } from '@portly/shared';
+import { capabilitiesFor, setCapabilitiesForTests, type Backend } from '../capabilities.ts';
 import { createDefaultLayout } from '../grid/defaultLayout.ts';
 import { WIDGET_DEFINITIONS, getWidgetDefinition, parseWidgetConfig, stackSizingOf } from './registry.ts';
 
@@ -65,38 +66,52 @@ describe('widget registry', () => {
 describe('default layout', () => {
   const layout = createDefaultLayout();
 
-  it('contains every widget type but feeds and sports once, within the 12-column grid', () => {
+  it('contains every widget type but feeds and sports once', () => {
     expect(layout.items.map((i) => i.type).sort()).toEqual(WIDGET_TYPES.filter((t) => t !== 'feeds' && t !== 'sports').sort());
-    for (const item of layout.items) {
-      const def = getWidgetDefinition(item.type)!;
-      expect(item.x + item.w, item.type).toBeLessThanOrEqual(12);
-      expect(item.w, item.type).toBeGreaterThanOrEqual(def.defaultSize.minW);
-      expect(item.h, item.type).toBeGreaterThanOrEqual(def.defaultSize.minH);
-      if (def.defaultSize.maxH !== undefined) expect(item.h).toBeLessThanOrEqual(def.defaultSize.maxH);
-    }
-  });
-
-  it('ends in one straight bottom edge (UX-8)', () => {
-    const bottoms = new Set(layout.items.filter((i) => i.y === 8).map((i) => i.y + i.h));
-    expect([...bottoms]).toEqual([15]);
-  });
-
-  it('has no overlapping widgets', () => {
-    const cells = new Set<string>();
-    for (const item of layout.items) {
-      for (let x = item.x; x < item.x + item.w; x++) {
-        for (let y = item.y; y < item.y + item.h; y++) {
-          const key = `${x},${y}`;
-          expect(cells.has(key), `${item.type} overlaps at ${key}`).toBe(false);
-          cells.add(key);
-        }
-      }
-    }
   });
 
   it('returns a fresh copy each time', () => {
     const a = createDefaultLayout();
     a.items.pop();
     expect(createDefaultLayout().items).toHaveLength(7);
+  });
+});
+
+describe.each<[string, Backend | null]>([
+  ['Portly', null],
+  ['the browser-only build', 'browser'],
+])('default layout of %s', (_label, backend) => {
+  beforeEach(() => setCapabilitiesForTests(backend === null ? null : capabilitiesFor(true, backend)));
+
+  it('fits the 12-column grid, each widget within its size limits', () => {
+    for (const item of createDefaultLayout().items) {
+      const def = getWidgetDefinition(item.type)!;
+      expect(item.x + item.w, item.type).toBeLessThanOrEqual(12);
+      expect(item.w, item.type).toBeGreaterThanOrEqual(def.defaultSize.minW);
+      expect(item.h, item.type).toBeGreaterThanOrEqual(def.defaultSize.minH);
+      if (def.defaultSize.maxW !== undefined) expect(item.w, item.type).toBeLessThanOrEqual(def.defaultSize.maxW);
+      if (def.defaultSize.maxH !== undefined) expect(item.h, item.type).toBeLessThanOrEqual(def.defaultSize.maxH);
+    }
+  });
+
+  it('fills its rectangle: no gaps, no overlaps, one straight bottom edge (UX-8)', () => {
+    const { items } = createDefaultLayout();
+    const bottom = Math.max(...items.map((i) => i.y + i.h));
+    expect(bottom).toBe(15);
+    const cells = new Map<string, string>();
+    for (const item of items) {
+      for (let x = item.x; x < item.x + item.w; x++) {
+        for (let y = item.y; y < item.y + item.h; y++) {
+          const key = `${x},${y}`;
+          expect(cells.get(key), `${item.type} overlaps at ${key}`).toBeUndefined();
+          cells.set(key, item.type);
+        }
+      }
+    }
+    const gaps: string[] = [];
+    for (let y = 0; y < bottom; y++) {
+      for (let x = 0; x < 12; x++) if (!cells.has(`${x},${y}`)) gaps.push(`${x},${y}`);
+    }
+    expect(gaps).toEqual([]);
   });
 });

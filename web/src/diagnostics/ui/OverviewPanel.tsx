@@ -7,15 +7,16 @@
  * (or none), and (Pages build) Portly answering on this PC but not to this site.
  *
  * The Pages build adds "This site": its version and backend, the local server status and the
- * browser's local network permission, and "Open diagnostics on this PC", which always works on
- * Portly's own page. On the in-browser backend that card (with this browser's counts) is the
- * whole overview.
+ * browser's local network permission, and — once something answers on this PC — "Open
+ * diagnostics on this PC", which always works on Portly's own page (while nothing answers, that
+ * link would only lead to an error page). On the in-browser backend that card (with this
+ * browser's counts) is the whole overview.
  */
 import type { ReactNode } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { KeyRound, LockKeyhole } from 'lucide-react';
 import type { DiagnosticsSummary } from '@portly/shared';
-import { localServerStatusView, useDisplayedLocalServerStatus } from '../../app/LocalServerPanel.tsx';
+import { localServerAnswers, localServerStatusView, useDisplayedLocalServerStatus } from '../../app/LocalServerPanel.tsx';
 import { APP_VERSION } from '../../app/providers.tsx';
 import { getCapabilities } from '../../capabilities.ts';
 import { useFormatters } from '../../lib/format.ts';
@@ -278,12 +279,20 @@ const PERMISSION_TEXT: Readonly<Record<LoopbackPermission, string>> = {
   unsupported: 'Not needed in this browser',
 };
 
-/** The Pages build: this site, the local server as the controller sees it, and the way to full diagnostics. */
+/** What the "This site" card says about itself: with a summary, without one but with Portly on this PC to open, or with neither. */
+function thisSiteDescription(summary: DiagnosticsSummary | null, answers: boolean): string {
+  if (summary !== null) return 'Portly’s own page on this PC shows the same diagnostics, and works even when this site can’t reach it.';
+  if (answers) return 'Full diagnostics (connections, server log, report) are on Portly’s own page on this PC.';
+  return 'This site’s version, where its data lives, and whether Portly runs on this PC.';
+}
+
+/** The Pages build: this site, the local server as the controller sees it, and the way to full diagnostics once something answers. */
 function ThisSiteCard({ summary }: { summary: DiagnosticsSummary | null }) {
   const caps = getCapabilities();
   const state = useLocalServer();
   const status = useDisplayedLocalServerStatus(state);
   const view = localServerStatusView(status, state.server);
+  const answers = localServerAnswers(status, state);
   const events = useClientEvents();
   const now = useNow(60_000);
   const counts = recentBrowserCounts(events, now.getTime());
@@ -324,12 +333,8 @@ function ThisSiteCard({ summary }: { summary: DiagnosticsSummary | null }) {
       <SettingsCard
         id="diagnostics-site"
         title="This site"
-        description={
-          summary === null
-            ? 'Full diagnostics (connections, server log, report) are on Portly’s own page on this PC.'
-            : 'Portly’s own page on this PC shows the same diagnostics, and works even when this site can’t reach it.'
-        }
-        actions={<LocalDiagnosticsLink />}
+        description={thisSiteDescription(summary, answers)}
+        actions={answers ? <LocalDiagnosticsLink /> : null}
       >
         <FactList items={facts} />
       </SettingsCard>

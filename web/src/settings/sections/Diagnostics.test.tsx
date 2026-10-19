@@ -3,8 +3,9 @@
  * on this PC show every panel (the Pages site adds "This site" and the link to the diagnostics
  * page on this PC, and never shows the server's paths); a server older than diagnostics (summary
  * `403 local_only` / `404`) and the in-browser backend show the overview and This browser only,
- * with a notice instead of a broken page; This browser then keeps every event here. Each tab panel
- * is named by its tab. Banners: version skew, a foreign site, and Portly answering on this PC but
+ * with a notice instead of a broken page; This browser then keeps every event here. The
+ * in-browser backend has its own intro, and links to the diagnostics page on this PC only once
+ * something answers there. Each tab panel is named by its tab. Banners: version skew, a foreign site, and Portly answering on this PC but
  * not to this site (with this site's full address). "Show related log lines" switches to the
  * Server log, filtered to that subject around its last failure.
  */
@@ -49,6 +50,7 @@ describe('Diagnostics settings', () => {
     expect(tabNames()).toEqual(TABS);
     // Radix labels each panel by its tab.
     expect(screen.getByRole('tabpanel', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByText(/^Why something doesn’t connect, sync or update: the state of every account, calendar, feed and job, the server’s log/)).toBeInTheDocument();
     expect(await screen.findByText('pid 4242 · Node v24.21.0 · win32 · 120 MB memory')).toBeInTheDocument();
     const card = screen.getByRole('region', { name: 'Portly server' });
     expect(within(card).getByText(/Supervised · restarted 2 times/)).toBeInTheDocument();
@@ -109,7 +111,11 @@ describe('Diagnostics settings', () => {
     ['the Pages site (403 local_only)', true, mockError(403, 'local_only', 'This request is only allowed from Portly itself')],
     ['its own page (404)', false, mockError(404, 'not_found', 'Not found')],
   ])('a server without diagnostics answering %s: the update notice, the overview and This browser only', async (_label, pages, answer) => {
-    if (pages) setCapabilitiesForTests(capabilitiesFor(true, 'server'));
+    if (pages) {
+      setCapabilitiesForTests(capabilitiesFor(true, 'server'));
+      // That server answered this page: the site can link to its own page.
+      setLocalServerController(fakeLocalServer({ backend: 'server', status: 'connected', paired: true, permission: 'granted', server: { version: '0.0.0-test', instanceId: 'i1', appUrl: 'http://127.0.0.1:5757/', apiVersion: 1, vault: 'ready' } }).controller);
+    }
     renderWithProviders(<DiagnosticsSettings />, { apiMocks: { 'GET /api/diagnostics/summary': answer, ...BASE } });
     expect(await screen.findByText('Update Portly on this PC to see its diagnostics')).toBeInTheDocument();
     expect(tabNames()).toEqual(['Overview', 'This browser']);
@@ -137,20 +143,45 @@ describe('Diagnostics settings', () => {
     expect(tabNames()).toEqual(TABS);
   });
 
-  it('in-browser backend: this site, the hybrid state and This browser; never asks a server', async () => {
+  it('in-browser backend: its own intro, this site, the hybrid state and This browser; never asks a server', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
     setLocalServerController(fakeLocalServer({ status: 'absent', permission: 'denied', checkedAt: Date.now() }).controller);
     recordClientEvent('warn', 'hybrid', 'probe result', { kind: 'unreachable', timedOut: true });
     const { requests } = renderWithProviders(<DiagnosticsSettings />, { apiMocks: BASE });
     expect(tabNames()).toEqual(['Overview', 'This browser']);
+    // Nothing here is about a server's accounts, jobs or log.
+    expect(screen.getByText(/^Why something on this site doesn’t connect, sync or load: where its data lives, whether Portly runs on this PC/)).toBeInTheDocument();
+    expect(screen.queryByText(/the server’s log/)).not.toBeInTheDocument();
     const site = screen.getByRole('region', { name: 'This site' });
     expect(within(site).getByText('Saved in this browser')).toBeInTheDocument();
     expect(within(site).getByText('Not detected')).toBeInTheDocument();
     expect(within(site).getByText('Blocked')).toBeInTheDocument();
     expect(within(site).getByText('1 warning, 0 errors')).toBeInTheDocument();
-    expect(within(site).getByRole('link', { name: /Open diagnostics on this PC/ })).toHaveAttribute('href', 'http://127.0.0.1:5757/#/settings/diagnostics');
+    // Nothing answers on this PC: no link to a page that would not open, and no promise of one.
+    expect(screen.queryByRole('link', { name: /Open diagnostics on this PC/ })).not.toBeInTheDocument();
+    expect(within(site).getByText('This site’s version, where its data lives, and whether Portly runs on this PC.')).toBeInTheDocument();
+    expect(screen.queryByText(/Full diagnostics/)).not.toBeInTheDocument();
     expect(screen.queryByText(/does not accept this site/)).not.toBeInTheDocument();
     await waitFor(() => expect(requests.filter((r) => r.path.startsWith('/api/diagnostics'))).toEqual([]));
+  });
+
+  it.each([
+    ['nothing checked yet', { status: 'idle' }, false],
+    ['the browser blocks the check', { status: 'blocked', permission: 'denied' }, false],
+    ['Portly found, not paired', { status: 'unpaired', server: { version: '0.0.0-test', instanceId: 'i1', appUrl: 'http://127.0.0.1:5757/', apiVersion: 1, vault: 'ready' } }, true],
+    ['Portly answering, but not to this site', { status: 'absent', unreachableReason: 'answers-without-cors' }, true],
+  ] as const)('in-browser backend, %s: the link to diagnostics on this PC only once something answers', (_label, state, linked) => {
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    setLocalServerController(fakeLocalServer({ permission: 'granted', checkedAt: Date.now(), ...state }).controller);
+    renderWithProviders(<DiagnosticsSettings />, { apiMocks: BASE });
+    const site = screen.getByRole('region', { name: 'This site' });
+    const link = within(site).queryByRole('link', { name: /Open diagnostics on this PC/ });
+    if (linked) {
+      expect(link).toHaveAttribute('href', 'http://127.0.0.1:5757/#/settings/diagnostics');
+      expect(within(site).getByText(/^Full diagnostics \(connections, server log, report\) are on Portly’s own page on this PC/)).toBeInTheDocument();
+    } else {
+      expect(link).not.toBeInTheDocument();
+    }
   });
 
   it('explains PORTLY_PAGES_URL when Portly answers on this PC but not to this site', async () => {

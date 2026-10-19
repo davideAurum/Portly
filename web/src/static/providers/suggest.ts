@@ -7,7 +7,8 @@
  * query carries `origin=*` (anonymous cross-site requests), while Google, YouTube, DuckDuckGo and
  * Bing send no `Access-Control-Allow-Origin` header at all. {@link fetchSuggestions} therefore
  * only ever calls Wikipedia; the handler answers `[]` for the other providers without a request,
- * which is also what the server answers on any upstream failure. The request stays "simple" (no
+ * which is also what the server answers on any upstream failure (the search widget shows
+ * Wikipedia's suggestions for them instead, labelled as such). The request stays "simple" (no
  * custom `Accept`) so there is no preflight.
  */
 import { MAX_SUGGESTIONS, type SuggestProvider } from '@portly/shared';

@@ -7,7 +7,8 @@
  * - `settings.search.suggestionsEnabled === false` answers `[]` without any network request.
  * - Only Wikipedia is asked (CORS with `origin=*`); Google, YouTube, DuckDuckGo and Bing send no
  *   CORS headers, so those providers answer `[]` without a request — the same answer the server
- *   gives on any upstream failure, and the widget shows no rows either way.
+ *   gives on any upstream failure. The search widget never asks for them on this backend: it asks
+ *   for Wikipedia's suggestions instead and labels them so (`reachableSuggestProvider`).
  * - Results are cached for 5 minutes in memory (key per provider + lower-cased query).
  * - Upstream failures (timeouts, non-2xx, bad JSON, network) answer `[]`, so a flaky provider
  *   never turns keystrokes into a storm of error toasts. Failures are not cached.

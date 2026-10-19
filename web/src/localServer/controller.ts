@@ -12,7 +12,10 @@
  * - hybrid mode off or a framed page: never;
  * - not paired: on boot, focus and visibility, and only once the browser's local network
  *   permission is `granted` (or the browser has none); otherwise only when the user asks
- *   (`lookForServer`, a user gesture that may show the permission prompt);
+ *   (`lookForServer`, a user gesture that may show the permission prompt). While nothing answers
+ *   (`absent`), focus and visibility probe again at most every 5 min
+ *   ({@link ABSENT_EVENT_PROBE_MS}): the browser prints every failed request in its console, and
+ *   a browser-only PC would print one each time the tab comes to the front;
  * - paired: on boot, then every 30 s while connected (skipped while the server answered requests
  *   in the last 30 s), every 2 s while reconnecting, else with a 5→10→20→30→60 s backoff that
  *   visibility, focus, `online`, permission and pairing changes and `checkNow()` reset. While the
@@ -51,7 +54,9 @@
  * A CORS probe that fails with the permission granted (or no such permission) is followed by one
  * `no-cors` health request (`probeHealthWithoutCors`, which carries nothing): an opaque answer means
  * Portly runs on this PC but does not accept this site (`unreachableReason:
- * 'answers-without-cors'` — its `PORTLY_PAGES_URL` is another site).
+ * 'answers-without-cors'` — its `PORTLY_PAGES_URL` is another site). Once that request found
+ * nothing on the port, the probes of the next 5 min skip it ({@link NO_CORS_RECHECK_MS}; a check
+ * the user started does not), so a stopped server costs one failed request per probe, not two.
  *
  * What happens is reported through the `diag` dependency (`boot.ts`: this browser's `hybrid`
  * events, ARCHITECTURE §17): status transitions with the probe that caused them, every probe's
@@ -117,6 +122,10 @@ export const RECONNECT_INTERVAL_MS = 2_000;
 export const BACKOFF_MS: readonly number[] = Object.freeze([5_000, 10_000, 20_000, 30_000, 60_000]);
 /** A hidden tab's scheduled probes come at most this often. */
 export const HIDDEN_PROBE_INTERVAL_MS = 60_000;
+/** Not paired and nothing answering (`absent`): focus, visibility and `online` probe again at most this often. */
+export const ABSENT_EVENT_PROBE_MS = 5 * 60_000;
+/** After a `no-cors` request found nothing on the port, probes skip it for this long (unless the user asked). */
+export const NO_CORS_RECHECK_MS = 5 * 60_000;
 /** How often a pending switch checks whether the page became idle. */
 export const BUSY_POLL_MS = 2_000;
 /** `lastServerSeenAt` is written at most this often. */
@@ -334,6 +343,8 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
   let backoffStep = 0;
   let lastResponseAt: number | null = null;
   let lastHealthyAt: number | null = null;
+  /** When a `no-cors` request last found nothing on the port; null once anything answered since. */
+  let lastSilentNoCorsAt: number | null = null;
   let lastSeenWriteAt: number | null = null;
   let switchRequest: PendingSwitch | null = null;
   /** The requested switch waited while the tab was hidden: it is checked again once visible. */
@@ -480,6 +491,11 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
       if (record === null && permission !== 'granted' && permission !== 'unsupported') return resolved;
       // The prompt cannot show in a background tab: the request would just hang.
       if (permission === 'prompt' && !deps.page.visible()) return resolved;
+      // Not paired, and nothing answered a moment ago: another look on every focus would only add
+      // failed requests to the browser's console.
+      if (trigger === 'event' && record === null && state.status === 'absent' && state.checkedAt !== null && now() - state.checkedAt < ABSENT_EVENT_PROBE_MS) {
+        return resolved;
+      }
       if ((trigger === 'timer' || trigger === 'event') && state.status === 'connected') {
         const at = now();
         if (lastResponseAt !== null && recentResponse(at)) {
@@ -547,6 +563,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     current.details = probed.details;
     const health = probed.result;
     if (health.kind === 'aborted') return { kind: 'aborted' };
+    if (health.kind !== 'unreachable') lastSilentNoCorsAt = null;
     if (health.kind === 'unreachable') {
       // The user may just have answered the prompt with Block: a denial looks like any network error.
       const permission = await permissionNow();
@@ -577,12 +594,16 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
   /**
    * After a failed CORS probe: one `no-cors` request (which carries nothing) tells whether anything
    * answers on the port at all. Only while it cannot be the request that shows the permission
-   * prompt (granted, or no such permission in this browser).
+   * prompt (granted, or no such permission in this browser), and — unless the user asked — not
+   * within {@link NO_CORS_RECHECK_MS} of one that found nothing (it would most likely fail again,
+   * as one more error in the console). One that got an answer is no error: it is always repeated.
    */
   async function withoutCors(current: Probe, permission: LoopbackPermission): Promise<Outcome> {
     if (deps.noCorsFallback === false || (permission !== 'granted' && permission !== 'unsupported') || !running()) return { kind: 'unreachable' };
+    if (!current.manual && lastSilentNoCorsAt !== null && now() - lastSilentNoCorsAt < NO_CORS_RECHECK_MS) return { kind: 'unreachable' };
     const answer = await probeHealthWithoutCors(deps.origin, { fetch: deps.fetch, signal: current.abort.signal, now });
     if (answer.result === 'aborted') return { kind: 'aborted' };
+    lastSilentNoCorsAt = answer.result === 'unreachable' ? now() : null;
     return answer.result === 'answers' ? { kind: 'unreachable', cause: 'answers-without-cors' } : { kind: 'unreachable' };
   }
 

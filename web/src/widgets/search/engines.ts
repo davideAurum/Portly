@@ -1,8 +1,10 @@
 /**
  * Engine selection helpers for the search widget (§10.8): which engines a widget offers, the
- * default, keyword lookup, the suggestion provider in effect and bookmark matching.
+ * default, keyword lookup, the suggestion provider in effect (and the one this page load can ask
+ * for it) and bookmark matching.
  */
 import { buildSearchUrl, type Bookmark, type BookmarkGroup, type SearchEngine, type SearchSettings, type SuggestProvider } from '@portly/shared';
+import { getCapabilities } from '../../capabilities.ts';
 import type { SearchConfig } from './index.ts';
 
 export { buildSearchUrl };
@@ -38,6 +40,28 @@ export function suggestProviderFor(
   if (!settings.suggestionsEnabled) return null;
   const globalDefault = settings.engines.find((e) => e.id === settings.defaultEngineId);
   return engine?.suggest ?? globalDefault?.suggest ?? fallback?.suggest ?? null;
+}
+
+/** The provider every page load can ask: Wikipedia answers a browser directly (CORS). */
+export const BROWSER_SUGGEST_FALLBACK: SuggestProvider = 'wikipedia';
+
+/**
+ * Whether this page load can ask `provider` for suggestions. Portly asks every provider; the
+ * in-browser backend reaches only Wikipedia (Google, DuckDuckGo, Bing and YouTube send no CORS
+ * headers). The stored setting is unchanged either way.
+ */
+export function isSuggestProviderAvailable(provider: SuggestProvider): boolean {
+  return getCapabilities().serverSearchSuggestions || provider === BROWSER_SUGGEST_FALLBACK;
+}
+
+/**
+ * The provider this page load asks for `provider`'s suggestions: itself when it can; otherwise
+ * Wikipedia's when this browser has turned that on (`wikipediaFallback.ts`; the widget then labels
+ * them as Wikipedia's, not the engine's), else none.
+ */
+export function reachableSuggestProvider(provider: SuggestProvider, wikipediaFallback: boolean): SuggestProvider | null {
+  if (isSuggestProviderAvailable(provider)) return provider;
+  return wikipediaFallback ? BROWSER_SUGGEST_FALLBACK : null;
 }
 
 function hostOf(url: string): string {

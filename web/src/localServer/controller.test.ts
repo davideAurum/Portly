@@ -3,7 +3,8 @@
  * of the outcome table for both backends, the grace of a server-backend page, the permission
  * prompt, the probe intervals, the reload policy, `whenServerReady`, what requests report, the
  * pairing record (compare-and-clear, other tabs) and the hints the next page load decides from;
- * the `no-cors` fallback and the diagnostic events.
+ * the `no-cors` fallback, how few failed requests a PC without Portly sees, and the diagnostic
+ * events.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -29,10 +30,12 @@ import {
   type Harness,
 } from './__fixtures__/fakes.ts';
 import {
+  ABSENT_EVENT_PROBE_MS,
   BACKOFF_MS,
   CONNECTED_INTERVAL_MS,
   GRACE_MS,
   HIDDEN_PROBE_INTERVAL_MS,
+  NO_CORS_RECHECK_MS,
   PERMISSION_WAIT_MS,
   PROBE_TIMEOUT_MS,
   RECONNECT_INTERVAL_MS,
@@ -135,6 +138,38 @@ describe('when it probes', () => {
       expect(h.server.fetch).toHaveBeenCalledTimes(4);
       h.controller.stop();
     }
+  });
+
+  it('an unpaired browser that found nothing probes again on focus and visibility at most every 5 minutes', async () => {
+    const h = harness({ permission: 'granted' });
+    h.server.health = down;
+    await start(h);
+    expect(status(h)).toBe('absent');
+    expect(h.server.fetch).toHaveBeenCalledTimes(1);
+    // Each probe would be one more failed request in the browser's console.
+    for (const event of ['focus', 'visible', 'online'] as const) h.page.emit(event);
+    await advance(ABSENT_EVENT_PROBE_MS - 1);
+    h.page.emit('focus');
+    await flush();
+    expect(h.server.fetch).toHaveBeenCalledTimes(1);
+    await advance(1);
+    h.page.emit('focus');
+    await flush();
+    expect(h.server.fetch).toHaveBeenCalledTimes(2);
+    // Asking always looks.
+    h.controller.actions.checkNow();
+    await flush();
+    expect(h.server.fetch).toHaveBeenCalledTimes(3);
+    // Once Portly answers, every focus looks again (as for any found server).
+    h.server.health = healthy();
+    await advance(ABSENT_EVENT_PROBE_MS);
+    h.page.emit('focus');
+    await flush();
+    expect(status(h)).toBe('unpaired');
+    h.page.emit('focus');
+    await flush();
+    expect(h.server.fetch).toHaveBeenCalledTimes(5);
+    h.controller.stop();
   });
 
   it('starts probing once the permission is granted, and shows a denial', async () => {
@@ -1342,6 +1377,49 @@ describe('the no-cors fallback (a server that does not accept this site)', () =>
     prompt.controller.stop();
   });
 
+  it('skips it for 5 minutes after it found nothing, so a stopped server costs one failed request per probe; Check again still asks', async () => {
+    const h = harness({ noCors: true, paired: true });
+    h.server.health = down;
+    await start(h);
+    const noCors = () => h.server.fetch.mock.calls.filter(([, init]) => init?.mode === 'no-cors').length;
+    const cors = () => h.server.fetch.mock.calls.length - noCors();
+    expect([cors(), noCors()]).toEqual([1, 1]);
+    // The backoff probes of the next minutes: CORS only.
+    await advance(BACKOFF_MS[0]! + BACKOFF_MS[1]! + BACKOFF_MS[2]!);
+    expect([cors(), noCors()]).toEqual([4, 1]);
+    expect(status(h)).toBe('absent');
+    // A check the user started asks again (and starts the 5 minutes anew).
+    h.controller.actions.checkNow();
+    await flush();
+    expect([cors(), noCors()]).toEqual([5, 2]);
+    // Portly starts with another site as its PORTLY_PAGES_URL: found by the first no-cors request
+    // after the 5 minutes (or at once with Check again).
+    h.server.health = refusesCors;
+    await advance(NO_CORS_RECHECK_MS - 1);
+    expect(h.controller.getState()).toMatchObject({ status: 'absent', unreachableReason: null });
+    await advance(60_000);
+    expect(h.controller.getState()).toMatchObject({ status: 'absent', unreachableReason: 'answers-without-cors' });
+    // An answer is no error in the console: while it keeps answering, every probe asks again.
+    const asked = noCors();
+    await advance(60_000);
+    expect(noCors()).toBe(asked + 1);
+    h.controller.stop();
+  });
+
+  it('a server-backend page losing the server asks once per 5 minutes, not on every reconnect probe', async () => {
+    const h = harness({ noCors: true, paired: true, backend: 'server' });
+    await start(h);
+    expect(status(h)).toBe('connected');
+    h.server.health = down;
+    h.controller.reportNetworkFailure();
+    await flush();
+    expect(status(h)).toBe('reconnecting');
+    await advance(10 * RECONNECT_INTERVAL_MS);
+    const noCors = h.server.fetch.mock.calls.filter(([, init]) => init?.mode === 'no-cors');
+    expect(noCors).toHaveLength(1);
+    h.controller.stop();
+  });
+
   it('not after a timeout or a non-Portly answer', async () => {
     const h = harness({ noCors: true, paired: true });
     h.server.health = hang;
@@ -1381,17 +1459,17 @@ describe('diagnostic events', () => {
 
   it('a changed result that leaves the status as it was is an info probe result', async () => {
     const h = harness({ paired: true, busy: true, noCors: true });
-    h.server.health = down;
+    h.server.health = refusesCors;
     await start(h);
     const statusEvents = find(h, 'hybrid status changed').length;
-    // Still absent, but now something answers without CORS.
-    h.server.health = refusesCors;
+    // Still absent, but now nothing answers at all.
+    h.server.health = down;
     await advance(BACKOFF_MS[0]!);
     expect(status(h)).toBe('absent');
     expect(find(h, 'hybrid status changed')).toHaveLength(statusEvents);
     expect(find(h, 'probe result').map((event) => [event.level, event.fields.reason])).toEqual([
-      ['debug', 'unreachable'],
-      ['info', 'answers-without-cors'],
+      ['debug', 'answers-without-cors'],
+      ['info', 'unreachable'],
     ]);
   });
 

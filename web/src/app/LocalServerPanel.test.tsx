@@ -83,6 +83,9 @@ describe('status views', () => {
     } as const;
     for (const [status, label] of Object.entries(labels)) expect(localServerStatusView(status as keyof typeof labels, null).label).toBe(label);
     expect(localServerStatusView('connected', SERVER)).toEqual({ label: 'Connected · v0.1.0', tone: 'success' });
+    // The footer says where the data comes from while nothing answers; every other status, its label.
+    expect(localServerStatusView('absent', null).footerLabel).toBe('Browser only');
+    for (const status of Object.keys(labels)) if (status !== 'absent') expect(localServerStatusView(status as keyof typeof labels, null).footerLabel).toBeUndefined();
   });
 
   it('keeps the settled status during a background re-probe, but shows a check the user started', () => {
