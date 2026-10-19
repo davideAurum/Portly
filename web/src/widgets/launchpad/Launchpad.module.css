@@ -188,7 +188,7 @@
   color: var(--hb-text);
   text-decoration: none;
   transition:
-    background-color var(--hb-duration) var(--hb-ease),
+    background-color var(--hb-hover-duration) var(--hb-ease),
     transform 120ms var(--hb-ease);
 }
 
@@ -228,8 +228,8 @@ a.tile:active {
   background: var(--hb-surface);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--hb-text) 8%, transparent);
   transition:
-    box-shadow var(--hb-duration) var(--hb-ease),
-    transform var(--hb-duration) var(--hb-ease);
+    box-shadow var(--hb-hover-duration) var(--hb-ease),
+    transform var(--hb-hover-duration) var(--hb-ease);
 }
 
 a.tile:hover .iconWrap {
@@ -332,7 +332,7 @@ a.tile:hover .iconWrap {
   display: flex;
   gap: 2px;
   opacity: 0;
-  transition: opacity var(--hb-duration) var(--hb-ease);
+  transition: opacity var(--hb-hover-duration) var(--hb-ease);
 }
 
 [data-style='list'] .tileActions {
@@ -371,7 +371,7 @@ a.tile:hover .iconWrap {
   border-radius: var(--hb-radius-sm);
   box-shadow: var(--hb-shadow);
   opacity: 0;
-  transition: opacity var(--hb-duration) var(--hb-ease);
+  transition: opacity var(--hb-hover-duration) var(--hb-ease);
 }
 
 [data-style='list'] .tileMenuButton[data-size] {

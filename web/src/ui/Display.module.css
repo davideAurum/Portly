@@ -18,7 +18,9 @@
     color-mix(in srgb, var(--hb-text) 7%, transparent) 75%
   );
   background-size: 200% 100%;
-  animation: hb-shimmer 1.5s ease-in-out infinite;
+  /* Finite: an endless shimmer keeps the GPU producing frames. The loop starts and ends one tile
+     (200%) away from the resting position, which looks the same, so it stops without a jump. */
+  animation: hb-shimmer 1.5s ease-in-out 3;
 }
 
 .skeleton[data-round='true'] {

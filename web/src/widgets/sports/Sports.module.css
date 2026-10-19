@@ -65,7 +65,7 @@
   border-radius: inherit;
   color: inherit;
   text-decoration: none;
-  transition: background-color var(--hb-duration) var(--hb-ease);
+  transition: background-color var(--hb-hover-duration) var(--hb-ease);
 }
 
 a.game:hover {
@@ -232,29 +232,13 @@ a.game:hover {
   text-transform: uppercase;
 }
 
+/* A steady dot: the red LIVE pill already says the game is on, and an endless pulse would keep
+   the GPU producing frames for as long as a game is live. */
 .liveDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: currentcolor;
-  animation: hb-sports-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes hb-sports-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.25;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .liveDot {
-    animation: none;
-  }
 }
 
 .meta {
