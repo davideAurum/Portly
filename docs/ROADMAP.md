@@ -93,3 +93,29 @@ Each step needs a go-ahead:
   loading it unpacked.
 - Optionally rename the app on the Google and Microsoft sign-in consent screens. The redirect
   addresses don't change.
+
+## Parked follow-ups
+
+Loose ends from earlier work sessions that no phase above covers yet. Pick them up when they fit,
+or fold them into a phase.
+
+- **Tidy-ups:**
+  - remove `@tanstack/query-sync-storage-persister` from `web/package.json`. Nothing uses it
+    since the background-tab work, but it was kept to avoid a lockfile change;
+  - the Shell test for the "Add bookmark" dialog (`#/add-bookmark`) sometimes fails, also on
+    older commits. Make it reliable;
+  - note in CLAUDE.md that manual runs should clear `PORTLY_PAGES_URL`, or the dev page forwards
+    to the real Pages site.
+- **Checks never run on main:** re-run the hybrid pairing check in a real browser, and check
+  hidden-tab behaviour with a real hidden tab instead of a simulated one.
+- **Dependencies:** two dev-only advisories (`shell-quote` through `concurrently`, and
+  `source-map-js`) need a dependency upgrade to clear. This needs a go-ahead.
+- **Versions:** the extension is at 0.5.2 while the app is at 0.1.0. Decide whether they should
+  match when 0.2.0-alpha.1 goes out. After the first release, run `publish-static.ps1`.
+- **Backgrounds:** an SVG background with blur above 0 can look a little softer than intended.
+  It was left alone because it is rare.
+- **Brand:** make animated versions of the logo without its tile and of the lockup with the name,
+  to match `docs/brand/portly-icon-animated.svg`. Optionally make the beam brighter where it
+  crosses the tower. Test the animated logo in Firefox and as the extension's New Tab page.
+- **Several PCs:** the open questions in [design/multi-pc.md](design/multi-pc.md), for example
+  whether Tailscale strips the `Tailscale-User-Login` header, still need checking.
