@@ -17,11 +17,15 @@ import {
   BACKOFF_SCHEDULE_MS,
   CRASH_LOOP_RUNS,
   PERMANENT_FAILURE_LIMIT,
+  SAME_PROGRAM_MTIME_MS,
+  SERVER_PROGRAM,
   STABLE_UPTIME_MS,
   STDERR_TAIL_BYTES,
   STDERR_TAIL_LINES,
+  SUPERVISOR_PROGRAM,
   createLineTail,
   decideRestart,
+  serverProgram,
   startSupervisor,
 } from './supervisor.ts';
 
@@ -143,6 +147,25 @@ describe('startSupervisor (spawns a fake child)', () => {
     expect(supervisor.starts).toBe(1);
   }, 20_000);
 
+  it('switches to the fallback program when the server program cannot be started at all', async () => {
+    const log = createMemoryLogger();
+    const supervisor = startSupervisor({
+      log,
+      command: path.join(dir, 'portly-server.exe'),
+      fallbackCommand: process.execPath,
+      args: [script, counter, '3'],
+      cwd: dir,
+      schedule: [20],
+    });
+    expect(await supervisor.done).toBe(0);
+    expect(supervisor.starts).toBe(2);
+    expect(log.lines.find((l) => l.message === 'could not start the server process')?.fields?.program).toBe('portly-server.exe');
+    expect(log.lines.some((l) => l.message === 'starting the server with the fallback program from now on')).toBe(true);
+    expect(log.lines.find((l) => l.message === 'server started')?.fields?.program).toBe(path.basename(process.execPath));
+    // The fallback ran the child (it exited 3: already running).
+    expect(fs.readFileSync(counter, 'utf8').trim().split('\n')).toHaveLength(1);
+  }, 20_000);
+
   it.runIf(process.platform === 'win32')('takes the server down with it when the supervisor process is killed (Windows job object)', async () => {
     const server = path.join(dir, 'server.mjs');
     const pidFile = path.join(dir, 'server.pid');
@@ -188,6 +211,71 @@ describe('startSupervisor (spawns a fake child)', () => {
       if (serverPid > 0 && isAlive(serverPid)) process.kill(serverPid, 'SIGKILL');
     }
   }, 20_000);
+});
+
+describe('serverProgram (the server runs as portly-server.exe next to portly-supervisor.exe)', () => {
+  let dir: string;
+  let supervisorExe: string;
+  let serverExe: string;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-program-'));
+    supervisorExe = path.join(dir, SUPERVISOR_PROGRAM);
+    serverExe = path.join(dir, SERVER_PROGRAM);
+    // Stand-ins: only names, sizes and times matter here.
+    fs.writeFileSync(supervisorExe, 'node build A');
+    const built = new Date('2026-09-01T10:00:00Z');
+    fs.utimesSync(supervisorExe, built, built);
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it('keeps any other program name as it is and makes nothing', () => {
+    const node = path.join(dir, 'node.exe');
+    fs.copyFileSync(supervisorExe, node);
+    const log = createMemoryLogger();
+    expect(serverProgram(node, log)).toBe(node);
+    expect(fs.existsSync(serverExe)).toBe(false);
+    expect(log.lines).toEqual([]);
+  });
+
+  it('makes portly-server.exe as a hard link of the supervisor program, once', () => {
+    const log = createMemoryLogger();
+    expect(serverProgram(supervisorExe, log)).toBe(serverExe);
+    expect(fs.readFileSync(serverExe, 'utf8')).toBe('node build A');
+    expect(fs.statSync(serverExe).nlink).toBe(2);
+    expect(log.lines.map((l) => [l.message, l.fields?.program])).toEqual([['made the server program', SERVER_PROGRAM]]);
+    // Same build: used as it is.
+    expect(serverProgram(supervisorExe, log)).toBe(serverExe);
+    expect(log.lines).toHaveLength(1);
+    expect(fs.readdirSync(dir).sort()).toEqual([SERVER_PROGRAM, SUPERVISOR_PROGRAM].sort());
+  });
+
+  it('replaces another build, and copies (same modification time) when a hard link cannot be made', () => {
+    fs.writeFileSync(serverExe, 'node build 0 (older)');
+    const noLinks = { ...fs, linkSync: () => { throw Object.assign(new Error('links not supported'), { code: 'EPERM' }); } };
+    const log = createMemoryLogger();
+    expect(serverProgram(supervisorExe, log, noLinks)).toBe(serverExe);
+    expect(fs.readFileSync(serverExe, 'utf8')).toBe('node build A');
+    expect(fs.statSync(serverExe).nlink).toBe(1);
+    expect(Math.abs(fs.statSync(serverExe).mtimeMs - fs.statSync(supervisorExe).mtimeMs)).toBeLessThanOrEqual(SAME_PROGRAM_MTIME_MS);
+    expect(serverProgram(supervisorExe, log, noLinks)).toBe(serverExe);
+    expect(log.lines.filter((l) => l.message === 'made the server program')).toHaveLength(1);
+  });
+
+  it('falls back to the supervisor program when the file cannot be made, and leaves nothing behind', () => {
+    const broken = {
+      ...fs,
+      linkSync: () => { throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }); },
+      copyFileSync: () => { throw Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' }); },
+    };
+    const log = createMemoryLogger();
+    expect(serverProgram(supervisorExe, log, broken)).toBe(supervisorExe);
+    const warning = log.lines.find((l) => l.level === 'warn');
+    expect(warning?.message).toBe('could not make the server program; the server runs as the supervisor program');
+    expect(warning?.fields).toMatchObject({ program: SERVER_PROGRAM, fallback: SUPERVISOR_PROGRAM, errCode: 'ENOSPC' });
+    expect(JSON.stringify(warning?.fields)).not.toContain(dir);
+    expect(fs.readdirSync(dir)).toEqual([SUPERVISOR_PROGRAM]);
+  });
 });
 
 describe('decideRestart: permanent failures (exit code 4)', () => {

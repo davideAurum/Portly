@@ -18,7 +18,8 @@
     portly --settings
         How it is set up: port, folders, logs, autostart, extension, Pages (status.ps1 -View Settings).
     portly --start
-        Start the Portly Server scheduled task.
+        Start the Portly Server scheduled task (first refreshing Portly's named copies of
+        node.exe, portly-supervisor.exe and portly-server.exe, when they are out of date).
     portly --copy-from-homebase [--replace | --cancel]
         Ask Portly to copy the data of Homebase (its name before the rename) at its next start
         and restart the task to do it; --replace copies over Portly's own database (moved
@@ -166,7 +167,7 @@ function Invoke-HbCopyFromHomebase {
     try { Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -ErrorAction Stop } catch { }
     $null = Stop-HbSupervisorProcesses -RepoRoot $RepoRoot
     Start-Sleep -Milliseconds 500
-    Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
+    Start-HbTask
     $port = (Get-HbPortSetting -Scope Task).Port
     $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
     $after = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
@@ -245,7 +246,8 @@ function Invoke-HbCli {
                 Write-HbFailure "The '$PortlyTaskName' task is not installed. Run scripts\install-autostart.ps1 first."
                 return 1
             }
-            Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
+            # Refreshes Portly's copies of node.exe first when they are missing or out of date.
+            Start-HbTask
             $port = (Get-HbPortSetting -Scope Task).Port
             $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
             if ($health.Ok) { Write-HbOk "Portly is $(Format-HbHealth $health)"; return 0 }

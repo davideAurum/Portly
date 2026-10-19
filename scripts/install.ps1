@@ -10,14 +10,16 @@
     2. Downloads the package into a temporary folder and checks its SHA-256.
     3. Unpacks it into <InstallDir>\app.new and checks it is a Portly release for Windows x64.
     4. New install: moves it to <InstallDir>\app.
-       Update: stops the Portly processes running from <InstallDir>\app, copies the database to
+       Update: stops the Portly processes running from <InstallDir>\app (also those running as
+       portly-supervisor.exe / portly-server.exe from %LOCALAPPDATA%\Portly\node), copies the database to
        <data folder>\backups\portly-before-<version>-<time>.db, keeps the old version as
        <InstallDir>\app.previous and moves the new one to <InstallDir>\app. If the new version
        does not start, the old one is put back and started again.
     5. Links node_modules\@portly\shared to the package's shared folder (a junction).
     6. With -PagesUrl: saves the Pages site's address as PORTLY_PAGES_URL (as setup.ps1 does).
-    7. Runs app\scripts\install-autostart.ps1 with app\runtime\node.exe (the scheduled task and the
-       launcher the new-tab extension uses; starts Portly and waits for it), then
+    7. Runs app\scripts\install-autostart.ps1 with app\runtime\node.exe (the scheduled task, run as
+       copies of that node.exe named portly-supervisor.exe and portly-server.exe, and the launcher
+       the new-tab extension uses; starts Portly and waits for it), then
        app\scripts\install-cli.ps1 (the portly command).
     8. New install: shows how to load the new-tab extension from <InstallDir>\app\extension.
        Update: says when the extension changed and needs a Reload.
@@ -267,12 +269,17 @@ function Move-InstFolder {
 }
 
 # Every process whose program lives under $AppDir (the bundled node.exe: supervisor, server and
-# its workers), stopped and waited for. Returns how many there were.
+# its workers), and every one of Portly's named copies of it (portly-supervisor.exe,
+# portly-server.exe in %LOCALAPPDATA%\Portly\node) whose command line names a file under $AppDir,
+# stopped and waited for. Returns how many there were.
 function Stop-InstAppProcesses {
     param([Parameter(Mandatory)][string]$AppDir)
     $prefix = $AppDir.TrimEnd('\') + '\'
+    $copies = (Join-Path $env:LOCALAPPDATA 'Portly\node').TrimEnd('\') + '\'
     $processes = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-            $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)
+            $_.ExecutablePath -and ($_.ExecutablePath.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+                ($_.ExecutablePath.StartsWith($copies, [System.StringComparison]::OrdinalIgnoreCase) -and
+                "$($_.CommandLine)".IndexOf($prefix, [System.StringComparison]::OrdinalIgnoreCase) -ge 0))
         })
     foreach ($process in $processes) {
         try { Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop } catch { }

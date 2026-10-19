@@ -98,7 +98,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.
 | `-NoStart` | Register everything but don't start Portly now. |
 | `-NoNativeHost` | Don't register the launcher. In Browser mode nothing then starts Portly by itself — only useful with `-Trigger Logon`. |
 | `-ExtensionId <id>` | Allow this extension ID instead of the one from `extension\manifest.json` (32 letters a–p). Rarely needed. |
-| `-NodePath <path to node.exe>` | Default: the `node.exe` on your PATH. Use a permanent path (not an fnm/nvm per-shell shim). |
+| `-NodePath <path to node.exe>` | Default: the `node.exe` on your PATH. Use a permanent path (not an fnm/nvm per-shell shim). This is also the `node.exe` that is copied as `portly-supervisor.exe` (see [In Task Manager](#in-task-manager)). |
 | `-TimeoutSeconds <10-600>` | How long to wait for the health check (default 90). |
 | `-DryRun` | Show everything, change nothing. |
 
@@ -123,6 +123,7 @@ launcher is still registered for your user.
 | Scheduled task | `\Portly Server` in the Task Scheduler Library (root folder) |
 | Launcher files | `%LOCALAPPDATA%\Portly\native-host\`: `launcher.cmd` (runs `node.exe launcher.mjs`), `launcher.mjs` (a copy from the repository's `native-host` folder), `com.portly.launcher.json` (the host manifest browsers read), `config.json` (the allowed extension ID) |
 | Launcher log | `%LOCALAPPDATA%\Portly\native-host\launcher.log` — one line per request (time, extension, request, result) |
+| Portly's copies of Node.js | `%LOCALAPPDATA%\Portly\node\`: `portly-supervisor.exe` (a copy of your `node.exe`), `portly-server.exe` (a second name for the same file, so it takes no extra space) and `runtime.json` (which `node.exe` they were copied from) — see [In Task Manager](#in-task-manager) |
 | Chrome registration | `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher`, default value = path of `com.portly.launcher.json` |
 | Edge registration | `HKEY_CURRENT_USER\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher`, same value |
 
@@ -136,7 +137,7 @@ also why you re-run the installer after updating Portly (it refreshes the copy o
 | --- | --- |
 | Name | `Portly Server` (Task Scheduler Library, root folder) |
 | When | Browser mode: no trigger — only when the launcher (or you) runs it. Logon mode: at log on of your user, optionally delayed |
-| Runs | `C:\Windows\System32\conhost.exe --headless "<node.exe>" "<Portly>\server\src\supervisor.ts"` in the Portly folder |
+| Runs | `C:\Windows\System32\conhost.exe --headless "%LOCALAPPDATA%\Portly\node\portly-supervisor.exe" "<Portly>\server\src\supervisor.ts"` in the Portly folder (with `"<node.exe>"` instead if the copy could not be made) |
 | As | Your user, only when you are signed in, normal (not elevated) rights |
 | Limits | No time limit; runs on battery; one instance at a time (a second start request is ignored); starts late if a logon was missed; can be started on demand |
 | On failure to launch | Retried 3 times, 1 minute apart |
@@ -154,6 +155,35 @@ port and data folder the task will use, and warns if a `PORTLY_*` value set only
 PowerShell window differs from what the task will see). If you change the port, update the
 extension options (the extension tells the launcher which port to check) and, for Google, add the
 new redirect URI.
+
+## In Task Manager
+
+Task Manager names a background process after its program file, and Portly is a Node.js
+program, so it would show up as two anonymous `node.exe`. To make it easy to spot, the installer
+copies your `node.exe` to `%LOCALAPPDATA%\Portly\node\portly-supervisor.exe`, and the task runs
+that copy. The supervisor then starts the server as `portly-server.exe` from the same folder
+(a second name for the same file, so the copy takes about 90 MB once, not twice). In Task
+Manager's **Details** tab, and in Resource Monitor, you see:
+
+| Name | What it is |
+| --- | --- |
+| `portly-supervisor.exe` | The supervisor: it starts the server and restarts it if it crashes. Small. |
+| `portly-server.exe` | Portly itself: the page, your data, the background syncs. |
+| `conhost.exe` | The hidden console the task gives them (its command line names `supervisor.ts`). |
+
+The **Processes** tab still lists them as **Node.js JavaScript Runtime**: the copies are
+byte for byte the signed `node.exe`, and their description is not changed. Right-click a
+column header in the Details tab and add **Command line** to see which Portly folder they run.
+Chrome's own task manager (**Shift+Esc** in Chrome) lists the Portly tabs; those belong to the
+browser, not to these processes.
+
+The copies are refreshed when the `node.exe` they came from changes (after a Node.js update):
+by `install-autostart.ps1`, by `portly --start` (while Portly is stopped) and when
+`portly --rebuild` (`update.ps1`) restarts Portly. A browser start doesn't refresh them (the launcher only asks Task Scheduler to run the
+task), so until then Portly keeps running the older Node.js; `status.ps1` warns about it. If the
+copy can't be made or isn't allowed to run (some managed PCs only allow programs from Program
+Files), the installer says so and the task runs `node.exe` itself — Portly works the same, it
+just shows as `node.exe`.
 
 ## Switch modes
 
@@ -179,7 +209,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\status.ps1 -LogLin
 whether the launcher is registered for Chrome and Edge (registry key present, manifest and files
 in place, `allowed_origins` naming the current extension ID, `node.exe` still there; it warns when
 the installed `launcher.mjs` differs from this checkout's, i.e. the installer wasn't re-run after an
-update), the last launcher request, the Portly processes, whether `/api/health` answers (and the vault state), and
+update), the last launcher request, the Portly processes with their program names, what the task
+runs as (and a warning when `portly-supervisor.exe` is missing or an older Node.js than the
+`node.exe` it was copied from), whether `/api/health` answers (and the vault state), and
 where the data and log files are; when Portly isn't answering it also checks the `PORTLY_*`
 settings. `-LogLines` prints the end of `launcher.log`, `supervisor.log` and `server.log`. It exits
 with code 0 when Portly is healthy.
@@ -250,7 +282,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.
 ```
 
 Running the installer again stops the running server, updates the task and the launcher (a new
-`launcher.mjs`, a new `node.exe` location after upgrading Node.js) and starts Portly again. Add
+`launcher.mjs`, a new `node.exe` location after upgrading Node.js), refreshes
+`portly-supervisor.exe` and `portly-server.exe` from the new `node.exe` and starts Portly again. Add
 `-Trigger Logon` if that is the mode you use — the default is Browser mode. Then click **Reload**
 on the extension in `chrome://extensions` / `edge://extensions`.
 
@@ -263,7 +296,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall-autostar
 ```
 
 It deletes the two registry keys above and the `%LOCALAPPDATA%\Portly\native-host` folder — only
-that folder — first, so no browser can start Portly again while the task is being removed. Add `-DryRun` to see what it would do. Your data (the rest of
+that folder — first, so no browser can start Portly again while the task is being removed. Once
+the task is gone it deletes `%LOCALAPPDATA%\Portly\node` (Portly's copies of `node.exe`, only that
+folder). Add `-DryRun` to see what it would do. Your data (the rest of
 `%LOCALAPPDATA%\Portly`) is left untouched; delete that folder yourself if you want to remove
 your settings and stored credentials too. The extension keeps working and shows its
 "Portly isn't running" page.

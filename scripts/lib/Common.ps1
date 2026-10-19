@@ -23,6 +23,10 @@ $PortlyNativeHostRegistry = @(
     [pscustomobject]@{ Browser = 'Edge'; SubKey = 'Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher' }
 )
 $PortlyNodePlaceholder = '{{NODE_EXE}}'
+# Portly's named copies of node.exe in %LOCALAPPDATA%\Portly\node (see "Portly's copies of Node.js").
+$PortlySupervisorProgram = 'portly-supervisor.exe'
+$PortlyServerProgram = 'portly-server.exe'
+$PortlyRuntimeRecord = 'runtime.json'
 # Every environment variable server/src/config.ts reads.
 $PortlyEnvNames = @('PORTLY_PORT', 'PORTLY_BIND', 'PORTLY_ORIGIN', 'PORTLY_DATA_DIR', 'PORTLY_DEV', 'PORTLY_VITE_PORT', 'PORTLY_PAGES_URL', 'PORTLY_LOG_LEVEL')
 
@@ -931,15 +935,256 @@ function Format-HbTaskResult {
         267011 { return "$hex (has not run yet)" }
         267014 { return "$hex (stopped by the user)" }
         2147750687 { return "$hex (an instance is already running)" }
-        2147942402 { return "$hex (file not found - check the node.exe path)" }
+        2147942402 { return "$hex (file not found - the task's node.exe or $PortlySupervisorProgram is missing; run install-autostart.ps1 again)" }
         2147946720 { return "$hex (the operator or administrator refused the request)" }
         default { return $hex }
     }
 }
 
 # --------------------------------------------------------------------------------------------
-# Processes started by the task: conhost -> node supervisor.ts -> node index.ts
-# (Stop-ScheduledTask ends only conhost; the node processes must be stopped explicitly.)
+# Portly's copies of Node.js (ARCHITECTURE section 12)
+#
+# Task Manager's Details tab and Resource Monitor name a process after its program file. So the
+# task runs a copy of node.exe named portly-supervisor.exe, and the supervisor starts the server
+# as portly-server.exe next to it (server/src/supervisor.ts), instead of two plain node.exe. They
+# live in %LOCALAPPDATA%\Portly\node, fixed per user like native-host (the bin folder there is on
+# PATH for the portly command, so not that one). portly-server.exe is a hard link of
+# portly-supervisor.exe (one file on disk), else a second copy. runtime.json records the node.exe
+# they were copied from, so the scripts can bring them up to date when it changes. The copies are
+# byte for byte the signed node.exe: Task Manager's Processes tab still shows "Node.js JavaScript
+# Runtime" (the version resource is not changed).
+# --------------------------------------------------------------------------------------------
+
+# Fixed per-user folder of the copies (not under PORTLY_DATA_DIR, like the native host's).
+function Get-HbRuntimeDir {
+    $localAppData = [System.Environment]::GetFolderPath('LocalApplicationData')
+    if ([string]::IsNullOrWhiteSpace($localAppData)) {
+        throw 'Could not find your local application data folder (%LOCALAPPDATA%).'
+    }
+    return (Join-Path (Join-Path $localAppData 'Portly') 'node')
+}
+
+# $true when $Path is the same build as $Source: both files exist, with the same size and
+# modification times at most 2 s apart (a copy keeps the time; a hard link is the same file).
+function Test-HbSameProgram {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Source)
+    $a = New-Object System.IO.FileInfo -ArgumentList $Path
+    $b = New-Object System.IO.FileInfo -ArgumentList $Source
+    if (-not $a.Exists -or -not $b.Exists) { return $false }
+    return ($a.Length -eq $b.Length -and [Math]::Abs(($a.LastWriteTimeUtc - $b.LastWriteTimeUtc).TotalSeconds) -le 2)
+}
+
+# runtime.json in a copies folder: Source (absolute node.exe path) and NodeVersion, or $null.
+function Read-HbRuntimeRecord {
+    param([Parameter(Mandatory)][string]$Destination)
+    $path = Join-Path $Destination $PortlyRuntimeRecord
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+    try { $json = [System.IO.File]::ReadAllText($path) | ConvertFrom-Json } catch { return $null }
+    $source = Get-HbProperty $json 'source'
+    if (-not ($source -is [string]) -or -not [System.IO.Path]::IsPathRooted($source)) { return $null }
+    return [pscustomobject]@{ Source = $source; NodeVersion = "$(Get-HbProperty $json 'nodeVersion')" }
+}
+
+# The copies in -Destination (default Get-HbRuntimeDir) compared with -NodeExe. State:
+#   current   both are the same build as -NodeExe
+#   stale     both exist, but one or both are another build (that node.exe was updated)
+#   missing   one or both do not exist
+function Get-HbRuntimePlan {
+    param([Parameter(Mandatory)][string]$NodeExe, [string]$Destination)
+    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-HbRuntimeDir }
+    $Destination = [System.IO.Path]::GetFullPath($Destination)
+    $supervisor = Join-Path $Destination $PortlySupervisorProgram
+    $server = Join-Path $Destination $PortlyServerProgram
+    $supervisorCurrent = Test-HbSameProgram -Path $supervisor -Source $NodeExe
+    $serverCurrent = Test-HbSameProgram -Path $server -Source $NodeExe
+    $exist = (Test-Path -LiteralPath $supervisor -PathType Leaf) -and (Test-Path -LiteralPath $server -PathType Leaf)
+    $state = if ($supervisorCurrent -and $serverCurrent) { 'current' } elseif ($exist) { 'stale' } else { 'missing' }
+    return [pscustomobject]@{
+        Source            = $NodeExe
+        Destination       = $Destination
+        SupervisorExe     = $supervisor
+        ServerExe         = $server
+        RecordPath        = (Join-Path $Destination $PortlyRuntimeRecord)
+        State             = $state
+        SupervisorCurrent = $supervisorCurrent
+        ServerCurrent     = $serverCurrent
+    }
+}
+
+# One line about a plan for the installer's summary.
+function Format-HbRuntimePlan {
+    param([Parameter(Mandatory)]$Plan)
+    $names = "$PortlySupervisorProgram and $PortlyServerProgram in $($Plan.Destination)"
+    switch ($Plan.State) {
+        'current' { return "$names (copies of $($Plan.Source), up to date)" }
+        'stale' { return "$names (to be refreshed from $($Plan.Source))" }
+        default { return "$names (to be copied from $($Plan.Source))" }
+    }
+}
+
+# A copy of $Source at $Target with the same modification time. It is written next to $Target
+# first and then swapped in, so a failed copy never leaves a broken program behind. Throws when
+# $Target cannot be replaced (for example while it runs).
+function Copy-HbProgram {
+    param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Target)
+    $temp = "$Target.new"
+    try {
+        [System.IO.File]::Copy($Source, $temp, $true)
+        [System.IO.File]::SetAttributes($temp, [System.IO.FileAttributes]::Normal)
+        [System.IO.File]::SetLastWriteTimeUtc($temp, [System.IO.File]::GetLastWriteTimeUtc($Source))
+        if (Test-Path -LiteralPath $Target) {
+            [System.IO.File]::SetAttributes($Target, [System.IO.FileAttributes]::Normal)
+            [System.IO.File]::Delete($Target)
+        }
+        [System.IO.File]::Move($temp, $Target)
+    } finally {
+        if (Test-Path -LiteralPath $temp) { try { [System.IO.File]::Delete($temp) } catch { } }
+    }
+}
+
+# portly-server.exe as a hard link of portly-supervisor.exe (one file on disk), else a copy.
+# Returns $true for a link.
+function Set-HbServerProgram {
+    param([Parameter(Mandatory)][string]$SupervisorExe, [Parameter(Mandatory)][string]$ServerExe)
+    if (Test-Path -LiteralPath $ServerExe) {
+        [System.IO.File]::SetAttributes($ServerExe, [System.IO.FileAttributes]::Normal)
+        [System.IO.File]::Delete($ServerExe)
+    }
+    try {
+        $null = New-Item -ItemType HardLink -Path $ServerExe -Target $SupervisorExe -ErrorAction Stop
+        return $true
+    } catch {
+        Copy-HbProgram -Source $SupervisorExe -Target $ServerExe
+        return $false
+    }
+}
+
+# Makes the copies of a Get-HbRuntimePlan current, checks that portly-supervisor.exe runs (and
+# reports -NodeVersion when given) and writes runtime.json. Never throws. Returns:
+#   Ok       the copies are current and portly-supervisor.exe runs
+#   Usable   the task can run portly-supervisor.exe anyway: an older copy could not be replaced
+#            (it is in use: try again once Portly is stopped), or only portly-server.exe or
+#            runtime.json failed (the supervisor makes portly-server.exe itself, or runs the server
+#            as portly-supervisor.exe)
+#   Changed  a copy was written
+#   Linked   portly-server.exe is a hard link of portly-supervisor.exe (else a copy)
+#   Version  the Node.js version portly-supervisor.exe reported
+#   Error    what went wrong
+function Update-HbRuntimeCopies {
+    param([Parameter(Mandatory)]$Plan, [string]$NodeVersion)
+    $result = [pscustomobject]@{ Ok = $false; Usable = $false; Changed = $false; Linked = $false; Version = $null; Error = $null }
+    $stage = 'folder'
+    try {
+        $dir = $Plan.Destination
+        if (Test-Path -LiteralPath $dir) {
+            $item = Get-Item -LiteralPath $dir -Force
+            if (-not $item.PSIsContainer) { throw "$dir exists but is not a folder." }
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw "$dir is a link." }
+        } else {
+            $null = [System.IO.Directory]::CreateDirectory($dir)
+        }
+        $stage = 'supervisor'
+        if (-not (Test-HbSameProgram -Path $Plan.SupervisorExe -Source $Plan.Source)) {
+            Copy-HbProgram -Source $Plan.Source -Target $Plan.SupervisorExe
+            $result.Changed = $true
+        }
+        $stage = 'verify'
+        $result.Version = Get-HbNodeVersion -NodeExe $Plan.SupervisorExe
+        if ($NodeVersion -and $result.Version -ne $NodeVersion) {
+            throw "$($Plan.SupervisorExe) reports Node.js v$($result.Version), not v$NodeVersion."
+        }
+        $stage = 'server'
+        if (Test-HbSameProgram -Path $Plan.ServerExe -Source $Plan.SupervisorExe) {
+            $result.Linked = "$(Get-HbProperty (Get-Item -LiteralPath $Plan.ServerExe -Force) 'LinkType')" -eq 'HardLink'
+        } else {
+            $result.Linked = Set-HbServerProgram -SupervisorExe $Plan.SupervisorExe -ServerExe $Plan.ServerExe
+            $result.Changed = $true
+        }
+        $stage = 'record'
+        $record = '{"version":1,"source":' + (ConvertTo-HbJsonString $Plan.Source) + ',"nodeVersion":' + (ConvertTo-HbJsonString "$($result.Version)") + "}`r`n"
+        $current = Read-HbRuntimeRecord -Destination $dir
+        if ($null -eq $current -or $current.Source -ne $Plan.Source -or $current.NodeVersion -ne $result.Version) {
+            [System.IO.File]::WriteAllBytes($Plan.RecordPath, [System.Text.Encoding]::ASCII.GetBytes($record))
+        }
+        $result.Ok = $true
+        $result.Usable = $true
+    } catch {
+        $result.Error = $_.Exception.Message
+        $kept = $stage -eq 'supervisor' -and (Test-Path -LiteralPath $Plan.SupervisorExe -PathType Leaf)
+        $result.Usable = $kept -or $stage -eq 'server' -or $stage -eq 'record'
+    }
+    return $result
+}
+
+# The program a task's action starts (the path after --headless), or $null.
+function Get-HbTaskProgram {
+    param([Parameter(Mandatory)]$Task)
+    $actions = @(Get-HbProperty $Task 'Actions' | Where-Object { $null -ne $_ })
+    if ($actions.Count -eq 0) { return $null }
+    if ("$(Get-HbProperty $actions[0] 'Arguments')" -match '--headless "([^"]+)"') { return $Matches[1] }
+    return $null
+}
+
+# $true when $Path is portly-supervisor.exe in -Destination (default Get-HbRuntimeDir).
+function Test-HbRuntimeProgram {
+    param([AllowNull()][AllowEmptyString()][string]$Path, [string]$Destination)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-HbRuntimeDir }
+    $expected = Join-Path ([System.IO.Path]::GetFullPath($Destination)) $PortlySupervisorProgram
+    try { $full = [System.IO.Path]::GetFullPath($Path) } catch { return $false }
+    return $full -ieq $expected
+}
+
+# Before the task starts Portly again (update.ps1, portly --start, ...): when its action runs
+# portly-supervisor.exe, makes the copies current with the node.exe runtime.json names (a copy is
+# missing, or that node.exe was updated). Quiet when there is nothing to do: returns a line to
+# show, or $null. -DryRun only says what it would do. Never throws.
+function Sync-HbTaskRuntime {
+    param($Task, [string]$Destination, [switch]$DryRun)
+    try {
+        if ($null -eq $Task) { return $null }
+        $program = Get-HbTaskProgram -Task $Task
+        if (-not (Test-HbRuntimeProgram -Path $program -Destination $Destination)) { return $null }
+        $dir = Split-Path -Parent $program
+        $hint = 'run scripts\install-autostart.ps1 again'
+        $present = Test-Path -LiteralPath $program -PathType Leaf
+        $record = Read-HbRuntimeRecord -Destination $dir
+        if ($null -eq $record) {
+            if ($present) { return $null }
+            return "The task's program $program is missing and $PortlyRuntimeRecord does not say what it was copied from: $hint."
+        }
+        if (-not (Test-Path -LiteralPath $record.Source -PathType Leaf)) {
+            if ($present) {
+                return "$($record.Source) no longer exists; Portly keeps running its copy (Node.js v$($record.NodeVersion)). To change Node.js, $hint."
+            }
+            return "The task's program $program is missing, and so is $($record.Source), which it was copied from: $hint."
+        }
+        $plan = Get-HbRuntimePlan -NodeExe $record.Source -Destination $dir
+        if ($plan.State -eq 'current') { return $null }
+        $names = "$PortlySupervisorProgram and $PortlyServerProgram"
+        if ($DryRun) { return "Would bring $names up to date with $($record.Source) (copies $($plan.State))." }
+        $version = $null
+        try { $version = Get-HbNodeVersion -NodeExe $record.Source } catch { $version = $null }
+        $result = Update-HbRuntimeCopies -Plan $plan -NodeVersion $version
+        if ($result.Ok) { return "Brought $names up to date (Node.js v$($result.Version) from $($record.Source))." }
+        if ($result.Usable) { return "Could not update $names ($($result.Error)); Portly starts with the copies it has." }
+        return "Could not make $names ($($result.Error)): $hint (it then runs node.exe)."
+    } catch {
+        return "Could not check Portly's copies of Node.js: $($_.Exception.Message)"
+    }
+}
+
+# Starts the task, after Sync-HbTaskRuntime (its line, if any, is shown).
+function Start-HbTask {
+    $note = Sync-HbTaskRuntime -Task (Get-HbTask)
+    if ($note) { Write-HbInfo $note }
+    Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
+}
+
+# --------------------------------------------------------------------------------------------
+# Processes started by the task: conhost -> supervisor.ts -> index.ts, run by node.exe or by
+# Portly's copies portly-supervisor.exe -> portly-server.exe
+# (Stop-ScheduledTask ends only conhost; the other two must be stopped explicitly.)
 # --------------------------------------------------------------------------------------------
 
 # Lower-case file name of the program a command line starts
@@ -961,8 +1206,10 @@ function Get-HbCommandLineProgram {
 # Pure selection over Win32_Process-like objects (ProcessId, ParentProcessId, CommandLine,
 # CreationDate, optional Name): supervisors whose command line names this repo's supervisor.ts,
 # plus their children (created after the supervisor, so a recycled parent PID never matches).
-# The task's conhost.exe host also has supervisor.ts on its command line but is not a
-# supervisor: it is skipped (it exits by itself once the node supervisor under it is gone).
+# The program does not matter (node.exe, or Portly's copies portly-supervisor.exe and
+# portly-server.exe). The task's conhost.exe host also has supervisor.ts on its command line but
+# is not a supervisor: it is skipped (it exits by itself once the supervisor under it is gone).
+# Each item: SupervisorId, SupervisorName, ChildIds, ChildNames (names '' when not reported).
 function Select-HbSupervisorProcesses {
     param(
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Processes,
@@ -984,8 +1231,10 @@ function Select-HbSupervisorProcesses {
                 $_.CreationDate -ge $process.CreationDate)
             })
         $result.Add([pscustomobject]@{
-                SupervisorId = [int]$process.ProcessId
-                ChildIds     = @($children | ForEach-Object { [int]$_.ProcessId })
+                SupervisorId   = [int]$process.ProcessId
+                SupervisorName = "$(Get-HbProperty $process 'Name')"
+                ChildIds       = @($children | ForEach-Object { [int]$_.ProcessId })
+                ChildNames     = @($children | ForEach-Object { "$(Get-HbProperty $_ 'Name')" })
             })
     }
     return $result.ToArray()
@@ -1017,15 +1266,25 @@ function Stop-HbSupervisorProcesses {
     return $stopped.ToArray()
 }
 
+# "supervisor portly-supervisor.exe PID 10 (server portly-server.exe PID 11)"; processes without a
+# name are listed as before: "supervisor PID 10 (server PID 11, 12)".
 function Format-HbProcessList {
     param([AllowEmptyCollection()][object[]]$Trees)
     if ($null -eq $Trees -or $Trees.Count -eq 0) { return 'none' }
     $parts = foreach ($tree in $Trees) {
+        $supervisorName = "$(Get-HbProperty $tree 'SupervisorName')"
+        $supervisor = if ($supervisorName) { "supervisor $supervisorName PID $($tree.SupervisorId)" } else { "supervisor PID $($tree.SupervisorId)" }
         $children = @($tree.ChildIds)
-        if ($children.Count -gt 0) {
-            "supervisor PID $($tree.SupervisorId) (server PID $($children -join ', '))"
+        $names = Get-HbProperty $tree 'ChildNames'
+        if ($null -eq $names) { $names = @() }
+        $names = @($names)
+        if ($children.Count -eq 0) {
+            $supervisor
+        } elseif ($names.Count -eq $children.Count -and @($names | Where-Object { $_ }).Count -eq $names.Count) {
+            $childText = @(for ($i = 0; $i -lt $children.Count; $i++) { "$($names[$i]) PID $($children[$i])" }) -join ', '
+            "$supervisor (server $childText)"
         } else {
-            "supervisor PID $($tree.SupervisorId)"
+            "$supervisor (server PID $($children -join ', '))"
         }
     }
     return ($parts -join '; ')
@@ -1388,7 +1647,19 @@ function Remove-HbFolderTree {
 # Returns $true when something was removed.
 function Remove-HbNativeHostFolder {
     param([Parameter(Mandatory)][string]$Path)
-    if ([System.IO.Path]::GetFileName($Path.TrimEnd([char]92)) -ne 'native-host') { throw "Refusing to remove '$Path': not a native-host folder." }
+    return (Remove-HbNamedFolder -Path $Path -Name 'native-host')
+}
+
+# Removes only the given folder of Portly's copies of Node.js (Get-HbRuntimeDir), the same way.
+function Remove-HbRuntimeFolder {
+    param([Parameter(Mandatory)][string]$Path)
+    return (Remove-HbNamedFolder -Path $Path -Name 'node')
+}
+
+# Removes the folder $Path, which must be named $Name. Returns $true when something was removed.
+function Remove-HbNamedFolder {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Name)
+    if ([System.IO.Path]::GetFileName($Path.TrimEnd([char]92)) -ne $Name) { throw "Refusing to remove '$Path': not a $Name folder." }
     if (-not (Test-Path -LiteralPath $Path)) { return $false }
     $item = Get-Item -LiteralPath $Path -Force
     if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {

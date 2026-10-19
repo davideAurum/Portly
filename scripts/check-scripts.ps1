@@ -6,19 +6,24 @@
 .DESCRIPTION
     1. Every .ps1 under scripts\ parses without errors, is ASCII-only and uses CRLF endings.
     2. Unit checks of scripts\lib\Common.ps1 (port parsing, access-denied detection, task-result
-       text, process selection, the task definition objects for -Trigger Browser and Logon,
-       extension IDs (the manifest key against Node's crypto, the extension's PINNED_EXTENSION_ID
-       and every ID quoted in the docs), the native host files and their registration - written to a temporary
-       folder with a fake registry - the health check against a loopback fixture server).
+       text, process selection (node.exe and Portly's copies portly-supervisor.exe and
+       portly-server.exe), the copies themselves - made, refreshed, kept while in use and refused
+       when they do not run, in a temporary folder - the task definition objects for -Trigger
+       Browser and Logon, extension IDs (the manifest key against Node's crypto, the extension's
+       PINNED_EXTENSION_ID and every ID quoted in the docs), the native host files and their
+       registration - written to a temporary folder with a fake registry - the health check
+       against a loopback fixture server).
     3. Runs the generated launcher.cmd exactly as Chrome starts a native host
        (cmd.exe /d /s /c) and checks the answers, with schtasks.exe replaced by
        scripts\tests\schtasks-stub.mjs (so the real task is never run).
     4. Runs the native host's node tests (node scripts\check-native-host.mjs).
     5. Runs install-autostart.ps1 -DryRun (both modes), uninstall-autostart.ps1 -DryRun,
-       status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl, update.ps1 -DryRun, the portly command, install-cli.ps1 -DryRun and publish-static.ps1 -DryRun (against throwaway
-       repositories in a temporary folder) in child processes of Windows PowerShell 5.1 and
-       PowerShell 7 (when installed), and verifies that the scheduled task, the native host
-       registry keys and the native host folder did not change.
+       status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl, update.ps1 -DryRun,
+       try-branch.ps1 -DryRun, the portly command, install-cli.ps1 -DryRun and publish-static.ps1
+       -DryRun (against throwaway repositories in a temporary folder) in child processes of
+       Windows PowerShell 5.1 and PowerShell 7 (when installed), and verifies that the scheduled
+       task, the native host registry keys, the native host folder and the folder of Portly's
+       copies of node.exe did not change.
 
 .PARAMETER SkipChildRuns
     Skip step 5.
@@ -253,7 +258,20 @@ $supervisorIds = (@($trees | ForEach-Object { $_.SupervisorId }) -join ',')
 Assert-That -Name 'Select-HbSupervisorProcesses finds this repo''s supervisors only (not their conhost hosts)' -Condition ($supervisorIds -eq '10,20') -Detail $supervisorIds
 Assert-That -Name 'Select-HbSupervisorProcesses keeps real children, skips recycled PIDs' -Condition ((@($trees[0].ChildIds) -join ',') -eq '11' -and @($trees[1].ChildIds).Count -eq 0)
 Assert-That -Name 'Select-HbSupervisorProcesses handles no processes' -Condition (@(Select-HbSupervisorProcesses -Processes @() -RepoRoot $fakeRoot).Count -eq 0)
-Assert-That -Name 'Format-HbProcessList' -Condition ((Format-HbProcessList -Trees $trees) -eq 'supervisor PID 10 (server PID 11); supervisor PID 20' -and (Format-HbProcessList -Trees @()) -eq 'none')
+Assert-That -Name 'Format-HbProcessList (program names where known)' -Condition (
+    (Format-HbProcessList -Trees $trees) -eq 'supervisor node.exe PID 10 (server PID 11); supervisor PID 20' -and (Format-HbProcessList -Trees @()) -eq 'none') -Detail (Format-HbProcessList -Trees $trees)
+# The task running Portly's copies of node.exe: conhost -> portly-supervisor.exe -> portly-server.exe.
+$copyDir = 'C:\Users\you\AppData\Local\Portly\node'
+$namedProcesses = @(
+    [pscustomobject]@{ ProcessId = 40; ParentProcessId = 2; Name = 'conhost.exe'; CreationDate = $t0.AddSeconds(-1); CommandLine = "`"C:\WINDOWS\System32\conhost.exe`" --headless `"$copyDir\portly-supervisor.exe`" `"C:\Repo\Portly\server\src\supervisor.ts`"" }
+    [pscustomobject]@{ ProcessId = 41; ParentProcessId = 40; Name = 'portly-supervisor.exe'; CreationDate = $t0; CommandLine = "`"$copyDir\portly-supervisor.exe`" `"C:\Repo\Portly\server\src\supervisor.ts`"" }
+    [pscustomobject]@{ ProcessId = 42; ParentProcessId = 41; Name = 'portly-server.exe'; CreationDate = $t0.AddSeconds(1); CommandLine = "$copyDir\portly-server.exe --no-warnings C:\Repo\Portly\server\src\index.ts" }
+)
+$namedTrees = @(Select-HbSupervisorProcesses -Processes $namedProcesses -RepoRoot $fakeRoot)
+Assert-That -Name 'Select-HbSupervisorProcesses finds portly-supervisor.exe and its portly-server.exe (not conhost)' -Condition (
+    $namedTrees.Count -eq 1 -and $namedTrees[0].SupervisorId -eq 41 -and (@($namedTrees[0].ChildIds) -join ',') -eq '42' -and
+    (Format-HbProcessList -Trees $namedTrees) -eq 'supervisor portly-supervisor.exe PID 41 (server portly-server.exe PID 42)') -Detail (Format-HbProcessList -Trees $namedTrees)
+Assert-That -Name 'Format-HbTaskResult 0x80070002 names the task''s program' -Condition ((Format-HbTaskResult 2147942402) -match 'portly-supervisor\.exe is missing')
 $logLine = '{"t":"2026-10-11T09:00:00.000Z","lvl":"warn","msg":"feeds failing","area":"feeds","tags":["feeds"],"key":"feed:0123456789","code":"timeout","count":2}'
 Assert-That -Name 'Format-HbLogLine shows a JSON record as time, level, area, message and its other fields' -Condition ((Format-HbLogLine -Line $logLine) -eq '2026-10-11T09:00:00.000Z WARN  [feeds] feeds failing {"key":"feed:0123456789","code":"timeout","count":2}') -Detail (Format-HbLogLine -Line $logLine)
 Assert-That -Name 'Format-HbLogLine keeps text lines and broken JSON as they are' -Condition ((Format-HbLogLine -Line '2026-10-11 starting') -eq '2026-10-11 starting' -and (Format-HbLogLine -Line '{not json') -eq '{not json' -and (Format-HbLogLine -Line '') -eq '')
@@ -301,6 +319,82 @@ Assert-That -Name 'Test-HbServerConfig returns the port and data folder the serv
     $goodConfig.Ok -and $goodConfig.Port -eq 5999 -and $goodConfig.DataDir -eq $expectedDataDir) -Detail "$($goodConfig.Error) $($goodConfig.Port) $($goodConfig.DataDir) (expected $expectedDataDir)"
 $missingNode = Test-HbServerConfig -NodeExe (Join-Path $repoRoot 'no-such-node.exe') -RepoRoot $repoRoot
 Assert-That -Name 'Test-HbServerConfig reports a node.exe that cannot run' -Condition (-not $missingNode.Ok -and $missingNode.Error -match 'could not run') -Detail "$($missingNode.Error)"
+
+# ---------------------------------------------------------------------------------------------
+Write-Host ''
+Write-Host "Portly's copies of Node.js (in a temporary folder; the real one is never written)" -ForegroundColor White
+Assert-That -Name 'the copies'' default folder is %LOCALAPPDATA%\Portly\node' -Condition (
+    (Get-HbRuntimeDir) -eq (Join-Path ([System.Environment]::GetFolderPath('LocalApplicationData')) 'Portly\node'))
+$checkNodeVersion = Get-HbNodeVersion -NodeExe $checkNode
+$copiesDir = Join-Path $workDir 'copies\node'
+$copiesPlan = Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir
+Assert-That -Name 'Get-HbRuntimePlan: missing before the first copy, with both program names in the folder' -Condition (
+    $copiesPlan.State -eq 'missing' -and $copiesPlan.SupervisorExe -eq (Join-Path $copiesDir 'portly-supervisor.exe') -and
+    $copiesPlan.ServerExe -eq (Join-Path $copiesDir 'portly-server.exe') -and (Format-HbRuntimePlan -Plan $copiesPlan) -match 'to be copied from')
+$made = Update-HbRuntimeCopies -Plan $copiesPlan -NodeVersion $checkNodeVersion
+$record = Read-HbRuntimeRecord -Destination $copiesDir
+Assert-That -Name 'Update-HbRuntimeCopies copies node.exe (same build), checks that the copy runs and records its source' -Condition (
+    $made.Ok -and $made.Usable -and $made.Changed -and $made.Version -eq $checkNodeVersion -and
+    (Test-HbSameProgram -Path $copiesPlan.SupervisorExe -Source $checkNode) -and
+    $null -ne $record -and $record.Source -eq $checkNode -and $record.NodeVersion -eq $checkNodeVersion) -Detail "$($made.Error)"
+Assert-That -Name 'portly-server.exe is a hard link of portly-supervisor.exe (one file on disk)' -Condition (
+    $made.Linked -and "$(Get-HbProperty (Get-Item -LiteralPath $copiesPlan.ServerExe) 'LinkType')" -eq 'HardLink' -and
+    (Test-HbSameProgram -Path $copiesPlan.ServerExe -Source $checkNode))
+$again = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion $checkNodeVersion
+Assert-That -Name 'Get-HbRuntimePlan: current after the copy; a second update changes nothing' -Condition (
+    (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'current' -and $again.Ok -and -not $again.Changed) -Detail "$($again.Error)"
+Assert-That -Name 'Update-HbRuntimeCopies refuses a copy that reports another Node.js version' -Condition (
+    -not (Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion '0.0.1').Ok)
+Assert-That -Name 'Test-HbRuntimeProgram: portly-supervisor.exe in that folder only' -Condition (
+    (Test-HbRuntimeProgram -Path $copiesPlan.SupervisorExe -Destination $copiesDir) -and
+    -not (Test-HbRuntimeProgram -Path $checkNode -Destination $copiesDir) -and -not (Test-HbRuntimeProgram -Path $null -Destination $copiesDir))
+
+$copiesTask = [pscustomobject]@{ Actions = @([pscustomobject]@{ Execute = 'conhost.exe'; Arguments = ('--headless "{0}" "C:\Repo\Portly\server\src\supervisor.ts"' -f $copiesPlan.SupervisorExe) }) }
+$nodeTask = [pscustomobject]@{ Actions = @([pscustomobject]@{ Execute = 'conhost.exe'; Arguments = ('--headless "{0}" "C:\Repo\Portly\server\src\supervisor.ts"' -f $checkNode) }) }
+Assert-That -Name 'Get-HbTaskProgram reads the program after --headless (none without an action)' -Condition (
+    (Get-HbTaskProgram -Task $copiesTask) -eq $copiesPlan.SupervisorExe -and $null -eq (Get-HbTaskProgram -Task ([pscustomobject]@{ Actions = @() })))
+Assert-That -Name 'Sync-HbTaskRuntime is quiet when the copies are current or the task runs node.exe itself' -Condition (
+    $null -eq (Sync-HbTaskRuntime -Task $copiesTask -Destination $copiesDir) -and $null -eq (Sync-HbTaskRuntime -Task $nodeTask -Destination $copiesDir) -and
+    $null -eq (Sync-HbTaskRuntime -Task $null -Destination $copiesDir))
+# Another build: the copies' modification time moves (a hard link: both names at once).
+$olderBuild = [System.DateTime]::SpecifyKind((Get-Date '2020-01-01T00:00:00'), [System.DateTimeKind]::Utc)
+[System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild)
+$syncDry = Sync-HbTaskRuntime -Task $copiesTask -Destination $copiesDir -DryRun
+Assert-That -Name 'Sync-HbTaskRuntime -DryRun says it would refresh out-of-date copies and changes nothing' -Condition (
+    "$syncDry" -match '^Would bring portly-supervisor\.exe and portly-server\.exe up to date' -and
+    (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'stale') -Detail "$syncDry"
+$synced = Sync-HbTaskRuntime -Task $copiesTask -Destination $copiesDir
+Assert-That -Name 'Sync-HbTaskRuntime refreshes them from the node.exe in runtime.json' -Condition (
+    "$synced" -match '^Brought ' -and (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'current') -Detail "$synced"
+# In use (a running program cannot be deleted): an older copy is kept and still usable.
+[System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild)
+$held = [System.IO.File]::Open($copiesPlan.SupervisorExe, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+try {
+    $busy = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion $checkNodeVersion
+} finally {
+    $held.Dispose()
+}
+Assert-That -Name 'Update-HbRuntimeCopies keeps a copy in use (not Ok, but usable) and leaves no .new file' -Condition (
+    -not $busy.Ok -and $busy.Usable -and (Test-Path -LiteralPath $copiesPlan.SupervisorExe -PathType Leaf) -and
+    -not (Test-Path -LiteralPath "$($copiesPlan.SupervisorExe).new")) -Detail "$($busy.Error)"
+# A node.exe that does not run (blocked, broken): not usable, so the task runs node.exe itself.
+$brokenNode = Join-Path $workDir 'broken-node\node.exe'
+$null = New-Item -ItemType Directory -Path (Split-Path -Parent $brokenNode) -Force
+[System.IO.File]::WriteAllText($brokenNode, 'not a program')
+$broken = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $brokenNode -Destination (Join-Path $workDir 'broken-copies\node'))
+Assert-That -Name 'Update-HbRuntimeCopies: a copy that does not run is neither Ok nor usable' -Condition (
+    -not $broken.Ok -and -not $broken.Usable -and $broken.Error) -Detail "$($broken.Error)"
+# runtime.json names a node.exe that is gone.
+$goneDir = Join-Path $workDir 'gone-copies\node'
+$null = New-Item -ItemType Directory -Path $goneDir -Force
+[System.IO.File]::WriteAllText((Join-Path $goneDir 'runtime.json'), '{"version":1,"source":"C:\\Missing\\nodejs\\node.exe","nodeVersion":"24.0.0"}')
+$goneTask = [pscustomobject]@{ Actions = @([pscustomobject]@{ Arguments = ('--headless "{0}" "C:\Repo\Portly\server\src\supervisor.ts"' -f (Join-Path $goneDir 'portly-supervisor.exe')) }) }
+Assert-That -Name 'Sync-HbTaskRuntime: copies missing and their node.exe gone -> run install-autostart.ps1 again' -Condition (
+    "$(Sync-HbTaskRuntime -Task $goneTask -Destination $goneDir)" -match 'is missing, and so is C:\\Missing\\nodejs\\node\.exe.*install-autostart\.ps1')
+Assert-Throws -Name 'Remove-HbRuntimeFolder refuses any folder not named node' -Action { Remove-HbRuntimeFolder -Path (Split-Path -Parent $copiesDir) } -Pattern 'Refusing'
+Assert-That -Name 'Remove-HbRuntimeFolder removes the copies folder (only that folder)' -Condition (
+    (Remove-HbRuntimeFolder -Path $copiesDir) -and -not (Test-Path -LiteralPath $copiesDir) -and (Test-Path -LiteralPath (Split-Path -Parent $copiesDir)) -and
+    (Test-Path -LiteralPath $checkNode -PathType Leaf))
 
 if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
     $userId = Get-HbCurrentUserId
@@ -746,7 +840,11 @@ try {
                 (@(Get-ChildItem -LiteralPath $folder -Force | Where-Object { $_.Name -notlike 'launcher.log*' } |
                         ForEach-Object { "$($_.Name):$($_.Length):$($_.LastWriteTimeUtc.Ticks)" }) -join ',')
             } else { '<absent>' }
-            "task=$taskState; $($keys -join '; '); folder=$files"
+            $copiesFolder = Get-HbRuntimeDir
+            $copies = if (Test-Path -LiteralPath $copiesFolder) {
+                (@(Get-ChildItem -LiteralPath $copiesFolder -Force | ForEach-Object { "$($_.Name):$($_.Length):$($_.LastWriteTimeUtc.Ticks)" }) -join ',')
+            } else { '<absent>' }
+            "task=$taskState; $($keys -join '; '); folder=$files; copies=$copies"
         }
         $before = & $snapshot
 
@@ -772,11 +870,14 @@ try {
                 }
             }
 
+            $supervisorCopy = Join-Path (Get-HbRuntimeDir) $PortlySupervisorProgram
             $common = @(
                 'Scheduled task definition (dry run - not registered)',
                 "$env:SystemRoot\System32\conhost.exe",
-                '--headless "',
-                (Join-Path $repoRoot 'server\src\supervisor.ts'),
+                ('--headless "{0}" "{1}"' -f $supervisorCopy, (Join-Path $repoRoot 'server\src\supervisor.ts')),
+                "If $PortlySupervisorProgram cannot be made or does not run, the task runs $checkNode instead.",
+                "$PortlySupervisorProgram and $PortlyServerProgram in $(Get-HbRuntimeDir)",
+                "- check that $PortlySupervisorProgram runs and reports Node.js v$checkNodeVersion",
                 'LogonType Interactive, RunLevel Limited',
                 'IgnoreNew',
                 'PT0S',
@@ -856,7 +957,7 @@ try {
                 $uninstall.ExitCode -eq 0 -and $uninstall.Text.Contains('Dry run complete: nothing was stopped or removed.') -and
                 $uninstall.Text.Contains('Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher') -and
                 $uninstall.Text.Contains('Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher') -and
-                $uninstall.Text.Contains((Get-HbNativeHostDir))) -Detail $uninstall.Text
+                $uninstall.Text.Contains((Get-HbNativeHostDir)) -and $uninstall.Text.Contains((Get-HbRuntimeDir))) -Detail $uninstall.Text
             Assert-That -Name 'uninstall-autostart.ps1 removes the native host before it stops and unregisters the task' -Condition (
                 $hostStep -ge 0 -and $taskStep -gt $hostStep) -Detail $uninstall.Text
 
@@ -1078,6 +1179,15 @@ try {
                 $updateDry.Text.Contains('[dry run] Building the local page') -and
                 -not (Test-Path -LiteralPath (Join-Path $updateCopies.plain 'node_modules'))) -Detail $updateDry.Text
 
+            # try-branch.ps1 -DryRun: only reads (the snapshot below checks the task was not disabled).
+            # Without a data folder (a CI runner) it stops at that check, before anything else.
+            $tryDry = & $run 'try-branch.ps1' @('-DryRun', '-PagesPort', "$(Get-FreePort)")
+            $tryPlanned = $tryDry.ExitCode -eq 0 -and $tryDry.Text.Contains('Dry run complete: nothing was built, stopped, copied or started.') -and
+                $tryDry.Text.Contains("without backups, logs and $(Get-HbRuntimeDir)") -and $tryDry.Text.Contains('- build: npm run build')
+            $tryNoData = $tryDry.ExitCode -eq 1 -and $tryDry.Text.Contains('No data folder at')
+            Assert-That -Name 'try-branch.ps1 -DryRun prints the plan (or finds no data folder) and runs nothing' -Condition (
+                ($tryPlanned -or $tryNoData) -and -not $tryDry.Text.Contains('Building the page')) -Detail $tryDry.Text
+
             # The portly command and its installer (-DryRun only; the PATH is never written here).
             foreach ($copy in $updateCopies.Values) {
                 foreach ($name in @('portly.ps1', 'install-cli.ps1', 'status.ps1')) {
@@ -1120,7 +1230,7 @@ try {
         }
 
         $after = & $snapshot
-        Assert-That -Name 'the scheduled task, the native host registry keys and the native host folder are unchanged' -Condition ($before -ceq $after) -Detail "$before`n-> $after"
+        Assert-That -Name 'the scheduled task, the native host registry keys, the native host folder and the copies of node.exe are unchanged' -Condition ($before -ceq $after) -Detail "$before`n-> $after"
     }
 } finally {
     $fixture.StandardInput.Close()

@@ -11,7 +11,9 @@
        server is stopped first, since it runs from node_modules.
     3. Builds web\dist (npm run build), the page served at http://localhost:<port>.
     4. Restarts the Portly Server scheduled task when it was running, so server code changes
-       take effect, and waits for /api/health. Skipped when the task runs another folder.
+       take effect, and waits for /api/health. Skipped when the task runs another folder. Before
+       the start, Portly's named copies of node.exe (portly-supervisor.exe, portly-server.exe in
+       %LOCALAPPDATA%\Portly\node) are refreshed if the node.exe they came from was updated.
     5. Publishes the browser-only build to the GitHub Pages repository with
        scripts\publish-static.ps1 (which builds web\dist-static itself).
 
@@ -114,7 +116,8 @@ function Stop-UpdateServer {
 
 function Start-UpdateServer {
     param([Parameter(Mandatory)][int]$Port)
-    Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
+    # Refreshes Portly's copies of node.exe first, when the task runs them and they are out of date.
+    Start-HbTask
     Write-HbInfo "Waiting up to $TimeoutSeconds s for http://localhost:$Port/api/health ..."
     $health = Wait-HbHealth -Port $Port -TimeoutSeconds $TimeoutSeconds
     if (-not $health.Ok) { throw "The server did not come back: $(Format-HbHealth $health). Run scripts\status.ps1 -LogLines 30." }
@@ -175,7 +178,10 @@ function Invoke-Update {
 
     if ($restart) {
         Write-HbStep "${prefix}Restarting the server (task '$PortlyTaskName', port $port)"
-        if (-not $DryRun) {
+        if ($DryRun) {
+            $note = Sync-HbTaskRuntime -Task $task -DryRun
+            if ($note) { Write-HbInfo $note }
+        } else {
             if (-not $stopped) { Stop-UpdateServer -RepoRoot $repoRoot }
             Start-UpdateServer -Port $port
         }

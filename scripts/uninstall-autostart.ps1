@@ -8,10 +8,11 @@
     HKCU\Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher and
     HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher, and the folder
     %LOCALAPPDATA%\Portly\native-host (only that folder). Then stops the scheduled task, stops
-    the Portly node processes it started from this folder (Stop-ScheduledTask alone ends only
-    conhost.exe) and unregisters the task (ARCHITECTURE section 12). The rest of your data folder
-    (%LOCALAPPDATA%\Portly or PORTLY_DATA_DIR) is never touched. Safe to run when nothing
-    is installed.
+    the Portly processes it started from this folder (node.exe, or portly-supervisor.exe and
+    portly-server.exe; Stop-ScheduledTask alone ends only conhost.exe), unregisters the task and
+    deletes %LOCALAPPDATA%\Portly\node (only that folder: Portly's copies of node.exe)
+    (ARCHITECTURE section 12). The rest of your data folder (%LOCALAPPDATA%\Portly or
+    PORTLY_DATA_DIR) is never touched. Safe to run when nothing is installed.
 
 .PARAMETER DryRun
     Show what would be stopped and removed without changing anything.
@@ -42,6 +43,8 @@ function Invoke-Uninstall {
     $dataDir = Get-HbDataDir -Scope Task -RepoRoot $repoRoot
     $hostDir = Get-HbNativeHostDir
     $hostDirExists = Test-Path -LiteralPath $hostDir
+    $runtimeDir = Get-HbRuntimeDir
+    $runtimeDirExists = Test-Path -LiteralPath $runtimeDir
     $hostKeys = @(foreach ($entry in $PortlyNativeHostRegistry) {
             [pscustomobject]@{
                 Browser = $entry.Browser
@@ -65,6 +68,7 @@ function Invoke-Uninstall {
         Write-HbField "Host ($($key.Browser))" $state
     }
     Write-HbField 'Host folder' $(if ($hostDirExists) { $hostDir } else { "$hostDir (not present)" })
+    Write-HbField 'Node.js copies' $(if ($runtimeDirExists) { $runtimeDir } else { "$runtimeDir (not present)" })
     Write-Host ''
 
     if ($DryRun) {
@@ -87,6 +91,11 @@ function Invoke-Uninstall {
             Write-HbInfo "- unregister the task '$PortlyTaskName'"
         } else {
             Write-HbInfo '- no task to unregister'
+        }
+        if ($runtimeDirExists) {
+            Write-HbInfo "- delete the folder $runtimeDir ($PortlySupervisorProgram, $PortlyServerProgram; only that folder)"
+        } else {
+            Write-HbInfo "- no folder of Portly's copies of node.exe to delete ($runtimeDir)"
         }
         Write-HbInfo "- leave the data folder untouched: $dataDir"
         Write-Host ''
@@ -126,6 +135,16 @@ function Invoke-Uninstall {
             return 5
         }
         throw
+    }
+
+    if ($runtimeDirExists) {
+        # Nothing runs from it any more: the processes were stopped above.
+        try {
+            $null = Remove-HbRuntimeFolder -Path $runtimeDir
+            Write-HbOk "Removed $runtimeDir (Portly's copies of node.exe)"
+        } catch {
+            Write-Warning "Could not remove $runtimeDir ($($_.Exception.Message)). Delete it yourself once nothing runs from it."
+        }
     }
 
     Start-Sleep -Milliseconds 500
