@@ -484,6 +484,8 @@ describe('other tabs', () => {
     for (let i = 0; i < 50; i++) recordClientEvent('warn', 'app', `mine ${i}`);
     const before = getClientEvents();
     const parse = vi.spyOn(ClientEventSchema, 'safeParse');
+    // Later than every entry of ours, so it sorts last whatever this page's random session id is.
+    vi.setSystemTime(START + 1);
     writeAsOtherTab([...(stored()?.entries ?? []), otherTabEntry('theirs')]);
     expect(parse).toHaveBeenCalledTimes(1);
     expect(messages()).toHaveLength(51);

@@ -37,7 +37,7 @@ const availableCache = new WeakMap<Capabilities, readonly AnyWidgetDefinition[]>
 
 /**
  * The widgets this page load can run (all of them on the server backend; the in-browser backend
- * has no calendar, mail or feeds, see `capabilities.ts`), in registry order. "Add widget" and the
+ * has no mail or feeds, see `capabilities.ts`), in registry order. "Add widget" and the
  * default layout use this list; `getWidgetDefinition` still knows every type so persisted layouts
  * keep their titles. Read at render time; the same array for the same capabilities.
  */
@@ -81,7 +81,7 @@ export const WIDGET_PRELOAD_CAP_MS = 150;
  * then render on the first frame without a Suspense skeleton; the rest suspend as usual.
  */
 export async function preloadWidgets(types: Iterable<string>, capMs: number = WIDGET_PRELOAD_CAP_MS): Promise<void> {
-  // Types this page load cannot show (calendar/mail/feeds on the in-browser backend) render a notice: never load their code.
+  // Types this page load cannot show (mail and feeds on the in-browser backend) render a notice: never load their code.
   const loads = [...new Set(types)]
     .filter((type) => isWidgetTypeAvailable(type))
     .map((type) => getWidgetDefinition(type)?.Component.preload?.().catch(() => undefined));

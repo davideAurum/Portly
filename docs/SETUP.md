@@ -15,6 +15,9 @@ Setup takes three parts — the first is enough to try it out:
 
 ## Install
 
+> No release is published yet, so this method does not work yet. Until the first release, install
+> [from the source code](#from-the-source-code).
+
 The release package carries everything Portly needs, its own Node.js included: no Git, Node.js,
 npm or administrator rights. In PowerShell:
 
@@ -96,10 +99,14 @@ PowerShell:
 irm https://davideaurum.github.io/setup.ps1 | iex
 ```
 
-The Pages site carries a copy of the script (the static build adds it, so every publish updates
-it). With options:
-`& ([scriptblock]::Create((irm https://davideaurum.github.io/setup.ps1))) -InstallDir D:\Portly -DryRun`.
-In a checkout you already have:
+The script comes from the Pages site: the static build adds a copy, so every publish updates it.
+To pass options:
+
+```powershell
+& ([scriptblock]::Create((irm https://davideaurum.github.io/setup.ps1))) -InstallDir D:\Portly -DryRun
+```
+
+If you already have a checkout, run it from there:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
@@ -112,7 +119,7 @@ new tabs open Portly itself at `http://localhost:5757`. `-PagesUrl off` turns th
 again.
 
 Accounts are not copied: the vault is encrypted for this PC's Windows user, so connect them again;
-move layout and settings with **Settings → Export / Import**.
+move layout and settings with **Settings → Import & export**.
 
 ### Quick start
 
@@ -158,9 +165,7 @@ A release install has done step 2 already; load the extension from
    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1
    ```
 
-   Then click **Test launcher** in the extension's options. If you had loaded the extension before
-   this version, remove it and load it unpacked once more first — its ID is now fixed
-   ([details](setup/extension.md#updating-from-an-older-version)).
+   Then click **Test launcher** in the extension's options.
 
 3. Optional: set the browser's startup page and Home button — see
    [Homepage and startup page](setup/extension.md#homepage-and-startup-page-optional).
@@ -196,6 +201,16 @@ environment variables so autostart sees them too):
 | `PORTLY_ORIGIN` | `http://localhost:<port>` | The URL you open Portly at. |
 | `PORTLY_PAGES_URL` | *(unset: off)* | Your Portly Pages site's address, e.g. `https://<user>.github.io/`. Browsers paired with Portly may then use it from that site ([Pages site with Portly on this PC](setup/pages-local-server.md)). |
 | `PORTLY_LOG_LEVEL` | `info` | How much the log keeps normally: `debug`, `info` or `warn`. For a while, **Settings → Diagnostics** can switch to Verbose instead ([Diagnostics page and logs](setup/troubleshooting.md#diagnostics-page-and-logs)). |
+| `PORTLY_PAGES_REPO` | *(unset)* | Your local clone of the public Pages repository. In a checkout, `portly --rebuild` (and `portly --update`) publishes the Pages site there. `install-cli.ps1 -PublicRepoPath` sets it. |
+
+For development only: `PORTLY_DEV=1` (set by `npm run dev`) lets the Vite dev server's origin in,
+and `PORTLY_VITE_PORT` (default `5173`) is that dev server's port. The server reads its variables
+in `server/src/config.ts`.
+
+Build-time, for `npm run build:static` only: `PORTLY_STATIC_BASE` (URL prefix, default `/`) and
+`PORTLY_STATIC_SERVER` (where the site looks for Portly on this PC, default
+`http://127.0.0.1:5757`; `off` disables hybrid mode; loopback addresses only). See
+[static-build.md](setup/static-build.md).
 
 ## Your data
 
@@ -227,29 +242,36 @@ npm run build
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1   # restarts it
 ```
 
-The installer also refreshes the launcher and Portly's copies of `node.exe` (after a Node.js
-update too); add `-Trigger Logon` if that is the mode you use.
-Without autostart, stop Portly (Ctrl+C) and start it again instead of the last line. Then click
-**Reload** on the extension in `chrome://extensions` / `edge://extensions`. If you use the Pages
-site, publish it again too (`scripts\publish-static.ps1`, see
+The installer also refreshes the launcher and Portly's copies of `node.exe`, which matters after a
+Node.js update too. Add `-Trigger Logon` if that is the mode you use. Without autostart, stop
+Portly (Ctrl+C) and start it again instead of running the last line.
+
+Then click **Reload** on the extension in `chrome://extensions` / `edge://extensions`. If you use
+the Pages site, publish it again too (`scripts\publish-static.ps1`, see
 [static-build.md](setup/static-build.md#publish-to-github-pages)) so the site and Portly stay on
 the same version.
 
 ## Uninstalling
 
-1. `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall-autostart.ps1`
-   (removes the task, the launcher's registry keys and folder, and Portly's copies of `node.exe`
-   in `%LOCALAPPDATA%\Portly\node`; in a release install the script
-   is in `%LOCALAPPDATA%\Programs\Portly\app\scripts`), and the `portly` command:
-   the same folder's `install-cli.ps1 -Uninstall`.
+1. Remove autostart and the `portly` command. In a release install the scripts are in
+   `%LOCALAPPDATA%\Programs\Portly\app\scripts`; in a checkout, in `scripts`:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall-autostart.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-cli.ps1 -Uninstall
+   ```
+
+   The first removes the task, the launcher's registry keys and folder, and Portly's copies of
+   `node.exe` in `%LOCALAPPDATA%\Portly\node`. The second removes the `portly` command and its
+   PATH entry.
 2. Remove **Portly New Tab** from `chrome://extensions` / `edge://extensions`.
 3. Revoke access at the providers you connected (Google:
    <https://myaccount.google.com/connections>; Microsoft:
    <https://account.live.com/consent/Manage>; delete Yahoo/iCloud/Fastmail app passwords), and
    delete the Google Cloud project / Entra app registration if you no longer need them.
-4. Delete `%LOCALAPPDATA%\Portly` and the Portly folder (a release install:
-   `%LOCALAPPDATA%\Programs\Portly`), and remove any `PORTLY_*` user
-   environment variables you set (such as `PORTLY_PAGES_URL`).
+4. Delete `%LOCALAPPDATA%\Portly` and the Portly folder (in a release install,
+   `%LOCALAPPDATA%\Programs\Portly`). Remove any `PORTLY_*` user environment variables you set,
+   such as `PORTLY_PAGES_URL`.
 
 ## More
 

@@ -1,6 +1,6 @@
 /**
  * @portly/shared — API contracts (types + zod schemas) shared by the server and the web app.
- * Contract files are frozen after wave 1a; changes go through the orchestrator (§15).
+ * A change that would break a published Pages build bumps `PORTLY_API_VERSION` (core.ts, §7a).
  */
 export * from './errors.ts';
 export * from './core.ts';

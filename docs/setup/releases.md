@@ -3,8 +3,11 @@
 A **release package** is one zip, `portly-<version>-win-x64.zip`, that installs and runs Portly
 on Windows without Git, Node.js, npm or administrator rights. People install it with
 `scripts\install.ps1` (served from the Pages site, so `irm <site>/install.ps1 | iex` works on a new
-PC) and update it with `portly --update`. A Git checkout ([SETUP.md](../SETUP.md#from-the-source-code))
-keeps working as before; it is for developing Portly.
+PC) and update it with `portly --update`. A Git checkout
+([SETUP.md](../SETUP.md#from-the-source-code)) is for developing Portly.
+
+No release is published yet. The repository is still private, and `publish-release.ps1` refuses
+to publish from a private repository.
 
 ## What the package holds
 
@@ -42,12 +45,13 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
 - **Update** (`portly --update`, which runs a temporary copy of the installed `install.ps1`; or
   running `install.ps1` again): the same version is skipped unless `-Force`. Otherwise it stops the
   scheduled task (when it runs this install), every process whose program lives in `app\` and
-  every `portly-supervisor.exe` / `portly-server.exe` running a file in `app\`, copies `portly.db` to `<data folder>\backups\portly-before-<old version>-<time>.db` (the
-  newest three are kept), moves `app` to `app.previous` (replacing the one before) and `app.new` to
-  `app`, then runs the new `install-autostart.ps1`, which refreshes those copies from the new
-  `runtime\node.exe`, starts Portly and waits for it. If it
-  doesn't come up, the new version is moved to `app.failed`, the previous one back to `app`, and
-  that one is started again. The autostart mode (Browser or Logon) is kept. When the extension's
+  every `portly-supervisor.exe` / `portly-server.exe` running a file in `app\`, copies
+  `portly.db` to `<data folder>\backups\portly-before-<old version>-<time>.db` (the newest three
+  are kept), moves `app` to `app.previous` (replacing the one before) and `app.new` to `app`, then
+  runs the new `install-autostart.ps1`, which refreshes those copies from the new
+  `runtime\node.exe`, starts Portly and waits for it. If it doesn't come up, the new version is moved to `app.failed`, the previous one back to `app`, and
+  that one is started again. The autostart mode (Browser or Logon) is kept, unless you run
+  `install.ps1 -Trigger Browser` or `-Trigger Logon` to change it. When the extension's
   version changed, it says to click **Reload** on it.
 - **Already a Git checkout on this PC?** One Portly per Windows user: installing a release
   replaces the scheduled task and launcher of the checkout with the release's. Stop using the
@@ -102,7 +106,7 @@ CI (`ci.yml`) also builds and checks a test package on every push to `main` and 
 
 ### One-time setup
 
-- **Where releases live:** the releases of this public repository, `davideAurum/Portly` (a fork
+- **Where releases live:** the releases of this repository, `davideAurum/Portly` (a fork
   builds with `build-release.ps1 -ReleaseRepo <owner>/<name>`, which goes into each package's
   `release.json` and so into its updates).
 - **For `publish-release.ps1` on your PC:** the GitHub CLI (`winget install GitHub.cli`), signed in

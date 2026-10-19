@@ -1,5 +1,5 @@
-/* Settings shell and the foundation-owned settings sections (General, Appearance, Accounts,
-   Profiles, Import & export, About). */
+/* Styles shared by the settings shell (nav and content) and every settings section: lists,
+   form grids, account rows, the theme preview and the other common pieces. */
 
 .shell {
   display: grid;

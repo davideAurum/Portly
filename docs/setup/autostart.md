@@ -49,9 +49,7 @@ fixed by the `key` in `extension\manifest.json` (`nbaolbakegefnefgojdokagajincnf
 
 - Portly works when started by hand (`npm ci` has been run; `npm start` serves
   `http://localhost:5757`). See [SETUP](../SETUP.md).
-- The [new-tab extension](extension.md) is installed from this copy of Portly. If you loaded it
-  before the launcher existed, **remove it once and load it unpacked again** — its ID changed
-  (details in [Updating from an older version](extension.md#updating-from-an-older-version)).
+- The [new-tab extension](extension.md) is installed from this copy of Portly.
 - Stop any copy you started yourself (Ctrl+C in its window) — the script tells you if one is still
   running.
 - PowerShell blocks scripts by default. The commands below use `-ExecutionPolicy Bypass`, which

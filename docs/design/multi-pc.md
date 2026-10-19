@@ -1,6 +1,6 @@
 # Design: using Portly from several PCs, with a login
 
-**Status:** proposal, not built. This is the ROADMAP Phase 4 item "one server reachable from
+**Status:** proposal, not built. This is the ROADMAP Phase 3 item "one server reachable from
 several PCs, with a login". Until it ships, the server stays on loopback only (ARCHITECTURE
 section 4).
 

@@ -2,8 +2,8 @@
  * Schema migrations (§5). SQL files named `NNN_description.sql` are collected from
  * `db/migrations/` and every `modules/<name>/migrations/` folder, applied in filename order inside
  * one transaction, and tracked in `schema_migrations(name TEXT PK, applied_at)`.
- * Reserved number ranges: 000–099 foundation/accounts/core, 100–199 bookmarks+search,
- * 200–299 weather, 300–399 todoist, 400–499 calendar, 500–599 mail.
+ * A number is used once across all folders (a duplicate fails start-up in `listMigrations`);
+ * a new migration takes the next free number.
  */
 import fs from 'node:fs';
 import path from 'node:path';

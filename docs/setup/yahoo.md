@@ -3,7 +3,7 @@
 Yahoo has no public API for personal accounts, so Portly uses the standard protocols with a Yahoo
 **app password**:
 
-| What | How | In v1 |
+| What | How | What works |
 | --- | --- | --- |
 | Mail | IMAP, `imap.mail.yahoo.com`, port 993, TLS | Unread count, recent messages, mark read/unread, archive (if your mailbox has an Archive folder), trash |
 | Calendar | CalDAV, `https://caldav.calendar.yahoo.com` | **Read-only** (editing Yahoo events is planned for a later version) |

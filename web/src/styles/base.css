@@ -1,4 +1,5 @@
-/* Global base styles (foundation-owned). Feature styles live in CSS Modules and use tokens only. */
+/* Global base styles: resets, document defaults, the backdrop layer, focus rings, helper classes
+   and toast styling. Feature styles live in CSS Modules and use tokens only. */
 
 *,
 *::before,

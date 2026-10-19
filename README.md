@@ -18,6 +18,9 @@ and Edge. There is no cloud service: the only outside traffic is to the provider
 - **Mail** — Gmail, Outlook.com and IMAP (Yahoo, iCloud, Fastmail, …): unread counts, recent
   messages, mark read/unread, archive, trash, open in webmail.
 - **Todoist** — tasks by filter, natural-language quick add, complete with undo.
+- **RSS feeds** — the latest headlines from RSS and Atom feeds, merged newest first.
+- **Sports scores** — live scores, recent results and upcoming games for your teams, with box scores
+  and where to watch.
 - **Weather** (Open-Meteo, no key) and a **clock** with greeting and extra time zones.
 - **Customization** — a 12-column widget grid (add, remove, move, resize, several instances of any
   widget), per-widget settings, themes (light/dark, accent, gradient or image background, fonts,
@@ -82,6 +85,9 @@ client that refuses private-network addresses. Details: [ARCHITECTURE §4](docs/
 
 ## Install
 
+No release is published yet, so until the first one, use the
+[quick start from the source code](#quick-start-from-the-source-code) below. Once a release is out:
+
 ```powershell
 irm https://davideaurum.github.io/install.ps1 | iex
 ```
@@ -108,10 +114,10 @@ and [connect your accounts](docs/SETUP.md#connect-your-accounts).
 ## Browser-only build
 
 Portly can also be built as plain files that run entirely in the browser — no server, hosted on
-GitHub Pages — with search, bookmarks, clock, weather, Todoist, themes, profiles and export/import,
-and Outlook.com calendars (the browser signs in to Microsoft and syncs them itself). Mail, feeds,
-Google and app-password accounts, and ICS links need the server and are left out. Your data lives
-in that browser's storage (IndexedDB), moved between computers with export/import.
+GitHub Pages — with search, bookmarks, clock, weather, Todoist, sports scores, themes, profiles and
+export/import, and Outlook.com calendars (the browser signs in to Microsoft and syncs them itself).
+Mail, feeds, Google and app-password accounts, and ICS links need the server and are left out. Your
+data lives in that browser's storage (IndexedDB), moved between computers with export/import.
 
 ```powershell
 npm run build:static     # web\dist-static; set PORTLY_STATIC_BASE=/<repo>/ for a project site
@@ -119,83 +125,74 @@ npm run preview:static   # http://localhost:5173 (localhost only)
 ```
 
 Publishing goes to a separate **public** repository made for the site (a new, empty one, or your
-`<user>.github.io` user site), since every publish replaces its whole content: `scripts\publish-static.ps1`, or the manual GitHub Actions workflow
+`<user>.github.io` user site), since every publish replaces its whole content:
+`scripts\publish-static.ps1`, or the manual GitHub Actions workflow
 `.github\workflows\static-pages.yml`. What is and isn't available, where the data lives and the
 privacy notes are in [docs/setup/static-build.md](docs/setup/static-build.md).
 
 **Hybrid mode.** When Portly also runs on the PC, the published site can use it: a browser paired
 once on Portly's own page gets Portly's data and every feature while it runs, and the site's own
-in-browser copy otherwise (two separate datasets, no sync). The new-tab extension follows
-Portly on this PC: it opens the Pages site when the server has one. Set-up: [docs/setup/pages-local-server.md](docs/setup/pages-local-server.md)
-(server: `PORTLY_PAGES_URL`; build: `PORTLY_STATIC_SERVER`, default `http://127.0.0.1:5757`,
-`off` to disable).
+in-browser copy otherwise (two separate datasets, no sync). The new-tab extension follows Portly on
+this PC: it opens the Pages site when the server has one. Set-up:
+[docs/setup/pages-local-server.md](docs/setup/pages-local-server.md) (server: `PORTLY_PAGES_URL`;
+build: `PORTLY_STATIC_SERVER`, default `http://127.0.0.1:5757`, `off` to disable).
 
 ## Repository layout
 
-| Path         | Package            | What it is                                                |
-| ------------ | ------------------ | --------------------------------------------------------- |
-| `shared/`    | `@portly/shared` | API contracts: TypeScript types + zod schemas             |
-| `server/`    | `@portly/server` | Hono + `node:sqlite` server, run directly from TypeScript |
-| `web/`       | `@portly/web`    | React 19 + Vite 8 single-page app                         |
-| `extension/` | —                  | Manifest V3 new-tab extension (plain JS)                  |
-| `scripts/`   | —                  | PowerShell start/autostart/status scripts and checks      |
-| `native-host/` | —                | Native messaging host the extension uses to start Portly |
-| `docs/`      | —                  | Architecture and setup guides                             |
+| Path | Package | What it is |
+| --- | --- | --- |
+| `shared/` | `@portly/shared` | API contracts: TypeScript types + zod schemas |
+| `server/` | `@portly/server` | Hono + `node:sqlite` server, run directly from TypeScript |
+| `web/` | `@portly/web` | React 19 + Vite 8 single-page app; `web/src/static/` is the browser-only build's in-browser backend |
+| `extension/` | — | Manifest V3 new-tab extension (plain JS) |
+| `native-host/` | — | Native messaging host the extension uses to start Portly |
+| `scripts/` | — | PowerShell setup, start, status, release and publish scripts, and their checks |
+| `site/` | — | Static home, privacy and terms pages for the Google and Microsoft consent screens |
+| `docs/` | — | Architecture, setup guides, roadmap and brand assets |
 
 ## npm scripts
 
-| Command             | What it does                                                                                     |
-| ------------------- | ------------------------------------------------------------------------------------------------ |
-| `npm ci`            | Install exactly what `package-lock.json` pins (install scripts are disabled in `.npmrc`).        |
-| `npm run dev`       | Server with `node --watch` (`PORTLY_DEV=1`) plus the Vite dev server; open the Vite URL.       |
-| `npm run build`     | Build the web app to `web/dist` (the server needs no build).                                     |
+| Command | What it does |
+| --- | --- |
+| `npm ci` | Install exactly what `package-lock.json` pins (install scripts are disabled in `.npmrc`). |
+| `npm run dev` | Server with `node --watch` (`PORTLY_DEV=1`) plus the Vite dev server; open the Vite URL. |
+| `npm run build` | Build the web app to `web/dist` (the server needs no build). |
 | `npm run build:static` | Build the browser-only app to `web/dist-static` (`vite build --mode static`; `PORTLY_STATIC_BASE` sets the URL prefix). See [docs/setup/static-build.md](docs/setup/static-build.md). |
-| `npm run preview:static` | Serve `web/dist-static` at `http://localhost:5173` to check it (localhost only).           |
-| `npm start`         | Run the server (`node server/src/index.ts`), serving `web/dist`; fails clearly if it is missing. |
-| `npm run typecheck` | `tsc --noEmit` for shared, server and web.                                                       |
-| `npm test`          | `vitest run` (server, web and static projects; one project alone: `node node_modules/vitest/vitest.mjs run --project static`), the extension tests (`npm run test:extension`), the native host tests (`npm run test:native-host`), then `npm audit --omit=dev --audit-level=high`. |
+| `npm run preview:static` | Serve `web/dist-static` at `http://localhost:5173` to check it (localhost only). |
+| `npm start` | Run the server (`node server/src/index.ts`), serving `web/dist`; fails clearly if it is missing. |
+| `npm run typecheck` | `tsc --noEmit` for shared, server, web and the web build's config. |
+| `npm test` | `vitest run` (server, web and static projects; one project alone: `node node_modules/vitest/vitest.mjs run --project static`), the extension tests (`npm run test:extension`), the native host tests (`npm run test:native-host`), then `npm audit --omit=dev --audit-level=high`. |
 
-GitHub Actions runs `npm run typecheck`, `npm test`, both builds and `scripts\check-scripts.ps1` on
-Windows for every push to `main` and every pull request (`.github\workflows\ci.yml`).
+GitHub Actions runs `npm run typecheck`, `npm test`, both builds, `scripts\check-scripts.ps1` and
+`scripts\check-release.ps1` on Windows for every push to `main`, every pull request and on demand
+(`.github\workflows\ci.yml`).
 
-## Other scripts
+## Scripts
 
 Run PowerShell scripts as `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\<name>.ps1`.
+The ones you need most:
 
 | Command | What it does |
 | --- | --- |
-| `scripts\start.ps1` | Foreground run with checks: Node version, builds `web\dist` if missing, refuses to start twice. `-Port`, `-DataDir`, `-Rebuild`. |
-| `scripts\install-autostart.ps1` | Registers the **Portly Server** scheduled task and the native messaging host `com.portly.launcher` (Chrome + Edge, per user), so the extension starts Portly when the browser opens or a new tab needs it (`-Trigger Logon`: at sign-in instead). The task runs a copy of `node.exe` named `portly-supervisor.exe`, and the server runs as `portly-server.exe`, so Task Manager shows Portly by name ([details](docs/setup/autostart.md#in-task-manager)). Starts it and waits for `/api/health`. `-DryRun` prints the task, every file and registry value without changing anything. |
-| `scripts\uninstall-autostart.ps1` | Stops Portly, removes the task, the native host and Portly's copies of `node.exe`; leaves your data alone. |
-| `scripts\status.ps1` | Task state and mode, what it runs as, native host registration, processes (with their program names), health, data folder and logs (`-LogLines N`). |
-| `scripts\publish-static.ps1` | Builds the browser-only app and publishes it to a local clone of your public GitHub Pages repository (`-PublicRepoPath`, `-Base`, `-Message`, `-DryRun`, `-NoPush`, `-ReplaceEverything`). It replaces everything in that repository, so use a new, empty one made for the site. |
-| `scripts\install.ps1` | Installs a release package, or updates an installed one (what `irm <site>/install.ps1 \| iex` and `portly --update` run): `-Version`, `-ZipPath`, `-PagesUrl`, `-Force`, `-DryRun`. See [releases.md](docs/setup/releases.md). |
-| `scripts\build-release.ps1` | Builds `dist-release\portly-<version>-win-x64.zip` and `portly-release.json` (production dependencies, the pinned Node.js runtime). `-NodeExe` and `-AllowDirty` for test builds. |
-| `scripts\check-release.ps1` | Builds (or takes `-ZipPath`) a package and checks install, start, update and refusals in a temporary folder. |
-| `scripts\publish-release.ps1` | Publishes the built package as a release of this repository with `gh` (`-DryRun`). |
-| `scripts\check-scripts.ps1` | Self-checks for the PowerShell scripts (parse in 5.1 and 7, unit checks, dry runs). |
-| `node scripts/check-extension.mjs` | The extension's tests (manifest, pages, icons, new-tab and options logic). |
-| `node scripts/check-native-host.mjs` | The native host's tests (`native-host/launcher.mjs`: framing, origin and request checks, health check, schtasks mapping, end-to-end through `launcher.cmd`). |
-| `node extension/tools/generate-icons.mjs` | Regenerates the extension icons. |
+| `scripts\setup.ps1` | Sets up a new PC from the source code in one go ([one-command setup](docs/SETUP.md#one-command-setup-on-a-new-pc)). |
+| `scripts\start.ps1` | Runs Portly in the foreground with checks: Node version, builds `web\dist` if missing, refuses to start twice. |
+| `scripts\install-autostart.ps1` | Registers the **Portly Server** scheduled task and the launcher the extension uses to start Portly ([Autostart](docs/setup/autostart.md)). `-DryRun` shows everything and changes nothing. |
+| `scripts\uninstall-autostart.ps1` | Removes autostart and the launcher; leaves your data alone. |
+| `scripts\status.ps1` | Health, processes, task, launcher, settings and log tails (also `portly --status` and `portly --settings`). |
+| `scripts\publish-static.ps1` | Builds the browser-only app and publishes it to your public Pages repository ([how](docs/setup/static-build.md#publish-to-github-pages)). |
+| `scripts\check-scripts.ps1` | Self-checks for the PowerShell scripts and the native host (dry runs only). |
+
+Every script with all its options, including the release scripts, `update.ps1`, `try-branch.ps1`
+and the `portly` command: [scripts/README.md](scripts/README.md). The extension and native host
+tests also run alone (`node scripts/check-extension.mjs`, `node scripts/check-native-host.mjs`), and
+`node extension/tools/generate-icons.mjs` regenerates the extension icons.
 
 ## Configuration
 
-All configuration comes from environment variables (see `server/src/config.ts`):
-
-| Variable             | Default                   | Meaning                                               |
-| -------------------- | ------------------------- | ----------------------------------------------------- |
-| `PORTLY_PORT`      | `5757`                    | Server port                                           |
-| `PORTLY_BIND`      | `127.0.0.1,::1`           | Listener addresses                                    |
-| `PORTLY_ORIGIN`    | `http://localhost:<port>` | Public origin (host/origin allowlists derive from it) |
-| `PORTLY_DATA_DIR`  | `%LOCALAPPDATA%\Portly` | Database, vault key, logs, backups                    |
-| `PORTLY_DEV`       | `0`                       | Dev mode (allows the Vite dev server origin)          |
-| `PORTLY_VITE_PORT` | `5173`                    | Vite dev server port                                  |
-| `PORTLY_PAGES_URL` | *(unset: off)*            | The Pages site that paired browsers may use Portly from (hybrid mode); `https://`, or `http://` on loopback |
-| `PORTLY_LOG_LEVEL` | `info` (`debug` in dev)   | Normal log level: `debug`, `info` or `warn` (Settings → Diagnostics can switch to Verbose for a while) |
-
-Build-time, for `npm run build:static` only: `PORTLY_STATIC_BASE` (URL prefix, default `/`) and
-`PORTLY_STATIC_SERVER` (where the site looks for Portly on this PC, default
-`http://127.0.0.1:5757`; `off` disables hybrid mode; loopback addresses only).
+Portly reads its settings from environment variables (`server/src/config.ts`): the port
+(`PORTLY_PORT`, default `5757`), the data folder (`PORTLY_DATA_DIR`), your Pages site
+(`PORTLY_PAGES_URL`) and a few more. Every variable, including the development and build-time ones,
+is listed in [SETUP: Configuration](docs/SETUP.md#configuration).
 
 ## Documentation
 

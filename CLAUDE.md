@@ -79,11 +79,14 @@ Homebase; see "Renamed from Homebase".
 - `release.yml` and `static-pages.yml` are manual and publish publicly.
 
 ## Docs and commits
-- Update README, `docs/SETUP.md`, `docs/setup/*.md` and ARCHITECTURE in the same change as the
-  code. Write in plain English for the user.
+- Update README, `docs/SETUP.md`, `docs/setup/*.md`, ARCHITECTURE and the README of the folder
+  you change (`scripts/`, `extension/`, `native-host/`, `web/src/static/`) in the same change as
+  the code. Write in plain English for the user.
 - Examples use placeholders (`<user>`, `<user>.github.io`, `$env:USERPROFILE\Coding\Portly`,
   `C:\Users\you`). Test fixtures use fictional people. Never put a real name, local path,
-  email or employer in code, tests, docs or commit messages.
+  email or employer in code, tests, docs or commit messages. The one exception is Portly's own
+  repository and Pages site (`davideAurum/Portly`, `davideaurum.github.io`), which the install
+  commands and the release defaults must name.
 - Commit messages:
   - a summary line under about 75 characters ("Area: what" or imperative);
   - a blank line, then a short paragraph on the user-visible effect;
@@ -116,6 +119,8 @@ extension, the native host and the docs.
 - The developer's machine may already run an installed Portly or Homebase on port 5757. For
   manual runs set `PORTLY_PORT`, `PORTLY_VITE_PORT` and `PORTLY_DATA_DIR=<scratch>\data`, never
   the defaults, and stop whatever you start.
+- Also clear `PORTLY_PAGES_URL` for manual runs (it may be set as a user variable). With it set,
+  the server's own page forwards to the real Pages site (`web/src/app/pagesForward.ts`).
 - A scratch `PORTLY_DATA_DIR` is not optional: the default folder is the user's real data. It is
   also where the switch-over leaves its `copy-from-homebase.json` request (section 19), and any
   server started there would carry out that copy.

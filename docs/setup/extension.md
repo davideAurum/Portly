@@ -9,7 +9,7 @@ starts Portly on this PC when it isn't running. A new tab opens one of two pages
   (settings, bookmarks, calendar, mail…); otherwise it uses the copy it keeps in this browser. See
   [Pages site with Portly on this PC](pages-local-server.md).
 
-By default (since version 0.5.0) the extension **follows Portly on this PC**: new tabs open its
+By default the extension **follows Portly on this PC**: new tabs open its
 Pages site when the server has one (`PORTLY_PAGES_URL`, which `scripts\setup.ps1 -PagesUrl`
 sets), and Portly itself otherwise — so a new install needs no extension settings at all. You
 can pin either page in the extension options ([What new tabs open](#what-new-tabs-open)).
@@ -34,11 +34,12 @@ The launcher is a small helper that `scripts\install-autostart.ps1` registers fo
 extension still works — you just start Portly yourself.
 
 It is loaded "unpacked" from your Portly folder — it is not in the Chrome Web Store or Edge
-Add-ons. It asks for three permissions: *storage* (to remember its settings: what new tabs open,
+Add-ons. It asks for four permissions: *storage* (to remember its settings: what new tabs open,
 the Pages site address and the port), *native messaging* (to talk to the Portly launcher — and
-only to it) and access to `http://localhost` (to check whether Portly is running). It has no
-access to the pages you visit, the Pages site included: a new tab simply navigates there. Unpacked
-extensions get these permissions without a prompt.
+only to it), *activeTab* (to read the address and title of the page you're on, only when you click
+its toolbar button) and access to `http://localhost` (to check whether Portly is running).
+Otherwise it has no access to the pages you visit, the Pages site included: a new tab simply
+navigates there. Unpacked extensions get these permissions without a prompt.
 
 **Fixed extension ID.** The extension's `manifest.json` contains a public `key`, so its ID is
 always `nbaolbakegefnefgojdokagajincnfjj` in Chrome and in Edge, wherever your Portly folder is.
@@ -89,27 +90,10 @@ Then check it: open the extension's options (**Details** → **Extension options
 | --- | --- |
 | *The launcher is installed and answering* | All set: new tabs and browser starts can start Portly. |
 | *The launcher isn't installed* | Run `scripts\install-autostart.ps1` (for this browser, the registry key is missing). |
-| *…doesn't accept this extension's ID* | The launcher was installed for another ID (for example an extension copy loaded before the ID was fixed). Run `scripts\install-autostart.ps1` again, and make sure the extension shows the ID `nbaolbakegefnefgojdokagajincnfjj`. |
+| *…doesn't accept this extension's ID* | The launcher was installed for another ID. Run `scripts\install-autostart.ps1` again, and make sure the extension shows the ID `nbaolbakegefnefgojdokagajincnfjj`. |
 | *…didn't answer properly* | Run the installer again; `scripts\status.ps1` shows what is wrong. |
 
 Details, modes and removal: [Start Portly automatically](autostart.md).
-
-## Updating from an older version
-
-Older versions of the extension had no fixed ID (Chrome derived it from the folder path), and the
-launcher only answers the fixed ID. After updating Portly to a version with the launcher, do this
-**once** in each browser you use:
-
-1. Open `chrome://extensions` (or `edge://extensions`).
-2. Click **Remove** on Portly New Tab and confirm. (Don't use **Reload** for this step: the
-   browser only reliably picks up the new ID when the extension is loaded afresh.)
-3. Click **Load unpacked** and select the `extension` folder again.
-4. Check that the card shows **ID nbaolbakegefnefgojdokagajincnfjj**.
-5. If you changed any option (a port other than 5757, what new tabs open, the Pages site address),
-   set it again — removing the extension clears its saved settings.
-6. Choose **Keep it** / **Keep changes** again if the browser asks about the new tab page.
-
-Later updates only need **Reload** (see [Updating the extension](#updating-the-extension)).
 
 ## What new tabs open
 
@@ -148,17 +132,11 @@ the Pages site address is kept either way. To make the default follow Portly its
 browser instead, turn the server's Pages site off: `scripts\setup.ps1 -PagesUrl off` (or remove
 the `PORTLY_PAGES_URL` user environment variable and run `scripts\install-autostart.ps1` again).
 
-**Updating from 0.3.0 or 0.4.0:** if you never changed **New tab opens**, it now follows Portly
-on this PC. With `PORTLY_PAGES_URL` set nothing changes; without it, new tabs open
-`http://localhost:5757` instead of the Pages site address that used to be built in.
-A choice you saved in the options is kept; a saved *The Pages site* without a saved address now
-uses the address Portly reports.
-
 ## Add the page you're on to the launch pad
 
-Since version 0.4.0 the extension's toolbar button adds the page you're looking at to your launch
-pad. Chrome and Edge hide new extension buttons at first: click the puzzle-piece (Extensions) button
-next to the address bar and pin **Portly New Tab**.
+The extension's toolbar button adds the page you're looking at to your launch pad. Chrome and Edge
+hide new extension buttons at first: click the puzzle-piece (Extensions) button next to the address
+bar and pin **Portly New Tab**.
 
 1. On any web page, click the Portly button.
 2. A new tab opens next to it with Portly (the page new tabs open, starting Portly on this PC
@@ -223,12 +201,6 @@ After pulling a new version of Portly, open `chrome://extensions` / `edge://exte
 the **Reload** button on Portly New Tab's card. The settings (what new tabs open, the Pages site
 address and the port) are kept. Also run `scripts\install-autostart.ps1` again so the launcher is
 updated too (see [After updating Portly](autostart.md#after-updating-portly-or-nodejs)).
-Coming from a version without the launcher? See
-[Updating from an older version](#updating-from-an-older-version). Coming from 0.2.0? New tabs now
-open the Pages site; see [Switching back to Portly on this PC](#switching-back-to-portly-on-this-pc).
-Coming from 0.3.0? Pin the new toolbar button (see
-[Add the page you're on to the launch pad](#add-the-page-youre-on-to-the-launch-pad)); the Pages site
-must be published again for the button to open its dialog there.
 
 ## Behaviour notes
 

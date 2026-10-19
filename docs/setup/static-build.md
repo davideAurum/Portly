@@ -19,6 +19,7 @@ browser you have paired with it uses Portly's own data and features while it run
 | **Search** — engines and keywords, URL detection, bookmark matches, suggestions from Wikipedia (the one suggestion provider that allows requests from a browser) | Suggestions from Google, DuckDuckGo or Bing |
 | **Launch pad** — bookmark groups, drag-and-drop ordering, import from an HTML bookmarks file, custom icons; site icons come from DuckDuckGo's icon service | Import straight from the Chrome/Edge profile files; fetching a page's title and icon |
 | **Clock**, **Weather** (Open-Meteo, no key) | — |
+| **Sports scores** — scores, results and schedules straight from ESPN's public feeds | — |
 | **Todoist** — tasks, quick add, complete with undo (token stored in the browser, see below) | — |
 | **Calendar** — your **Outlook.com** calendars, read and written straight from the browser through Microsoft Graph (an app registration you own, see [Outlook.com](microsoft.md#browser-only-build-github-pages)); they sync while the page is open | Google, Yahoo and CalDAV calendars, ICS / webcal subscriptions |
 | **Themes**, background image upload, **profiles**, **export / import** | — |
@@ -165,10 +166,15 @@ pushes. Run it with `-DryRun` first to see the list. Options:
 It refuses to run when the folder is not a git repository, when it is the Portly repository
 itself (or any other Portly checkout), when its working tree has uncommitted changes or untracked
 files, when no branch is checked out, or when the repository holds anything but an earlier
-Portly publish (`index.html` with `<meta name="portly-build" content="static">` — or `homebase-build`
-from before the rename — `assets/`, `install.ps1`, `setup.ps1`,
-`favicon.svg`, `.nojekyll`, `CNAME`, `README.md`) — unless `-ReplaceEverything`. When `origin` is
-on github.com and there is no `CNAME`, `-Base` must match the repository: `/` for
+Portly publish, unless you pass `-ReplaceEverything`. An earlier publish holds only:
+
+- `index.html` with `<meta name="portly-build" content="static">` (or `homebase-build`, from a
+  publish made before the rename);
+- `assets/`, `install.ps1` and `setup.ps1`;
+- the files in `web\public` (today `favicon.svg` and `.nojekyll`);
+- `CNAME` and `README.md`, which a publish never deletes.
+
+When `origin` is on github.com and there is no `CNAME`, `-Base` must match the repository: `/` for
 `<user>.github.io`, `/<repo>/` for any other (for a custom domain, set it up in the repository's
 Pages settings first and pull, so its `CNAME` file is in the clone; `-Base` is then `/`). GitHub
 Pages picks the push up within a minute or two; the script prints the site URL when the remote is

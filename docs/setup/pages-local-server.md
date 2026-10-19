@@ -126,7 +126,7 @@ Only addresses on this PC are accepted — see
 
 After updating Portly, click **Reload** on Portly New Tab in `chrome://extensions` /
 `edge://extensions`. In its options, **New tab opens** should be *Whatever Portly on this PC is
-set up for* (the default since 0.5.0: it opens the address from step 1 and shows it), or *The
+set up for* (the default: it opens the address from step 1 and shows it), or *The
 Pages site* with **Pages site address** empty or the same address as `PORTLY_PAGES_URL`
 ([What new tabs open](extension.md#what-new-tabs-open)).
 
@@ -143,7 +143,7 @@ status (also in **Settings → About** as a card). Click it:
    Check that it is your site, wait a moment until **Approve** is enabled (it arms after the page
    has had your attention for a second) and click it.
 3. The tab returns to the Pages site, says *This browser is now paired with Portly on this PC*,
-   and the status reads **Connected · v0.1.0**. The dashboard now shows Portly's data.
+   and the status reads **Connected · v<version>**. The dashboard now shows Portly's data.
 
 Do this once in each browser (and browser profile) you use. Approve only requests you started
 yourself: a pairing request you didn't ask for may come from someone else's page — click

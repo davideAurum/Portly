@@ -1,4 +1,4 @@
-# Portly — Architecture (v1, rev 2)
+# Portly — Architecture
 
 Portly is a single-user, highly customizable browser home page ("portal to the internet").
 v1 runs entirely on one Windows 11 PC: a small Node server on loopback serves the UI and holds all
@@ -6,8 +6,29 @@ credentials; a tiny browser extension makes it the New Tab page. The same app al
 browser-only site for GitHub Pages, which can use the server on the PC it runs on once a browser is
 paired with it (*hybrid mode*, §16).
 
-This document is the binding contract for implementation. Sections 14–15 define how parallel builders
-split the work. Anything not specified here is the implementer's choice, provided it respects §4.
+This document is the binding contract for implementation. Anything not specified here is the implementer's
+choice, provided it respects §4.
+
+**Contents**
+- [1. Scope](#1-scope)
+- [2. Repository & toolchain](#2-repository--toolchain)
+- [3. Runtime](#3-runtime)
+- [4. Security model (mandatory)](#4-security-model-mandatory)
+- [5. Data model](#5-data-model)
+- [6. Server structure](#6-server-structure)
+- [7. API contract](#7-api-contract)
+- [8. Provider notes](#8-provider-notes-verified-2026-09-25)
+- [9. Sync](#9-sync)
+- [10. Web app](#10-web-app)
+- [11. Extension](#11-extension-chromium-mv3-chrome--edge)
+- [12. Autostart (Windows)](#12-autostart-windows)
+- [13. Quality bar & test harness](#13-quality-bar--test-harness)
+- [14. Build plan (retired)](#14-build-plan--parallel-rules-retired)
+- [15. File ownership (retired)](#15-file-ownership-retired)
+- [16. Hybrid mode](#16-hybrid-mode-pages-site--portly-on-this-pc)
+- [17. Diagnostics](#17-diagnostics)
+- [18. Release packages](#18-release-packages-install-without-a-checkout)
+- [19. Moving over from Homebase](#19-moving-over-from-homebase-the-name-before-portly)
 
 ---
 
@@ -16,7 +37,8 @@ split the work. Anything not specified here is the implementer's choice, provide
 **In v1**
 - Search bar: multiple configurable engines, keyword switching, URL detection, suggestions, bookmark matches.
 - Launch pad: bookmark groups, drag ordering within/across groups, editing, auto-fetched icons,
-  import from Chrome/Edge (local profile files) and HTML bookmark exports.
+  import from Chrome/Edge (local profile files) and HTML bookmark exports, and the page you are on added from
+  the extension's toolbar button (§11).
 - Calendar: **two-way** (create / edit / delete single instances) for Google and Microsoft personal
   (Outlook.com). **Read-only** in v1: CalDAV (Yahoo preset + generic) and ICS/webcal subscriptions
   (covers Proton Calendar share links, Yahoo public ICS links, Outlook published calendars).
@@ -24,14 +46,22 @@ split the work. Anything not specified here is the implementer's choice, provide
   open in webmail — Gmail (API), Outlook.com (Graph), IMAP (Yahoo preset + generic).
 - Todoist: tasks by filter, quick add (natural language), complete (with undo), project chips.
 - Weather: current / hourly / daily via Open-Meteo.
+- RSS feeds: RSS and Atom feeds merged newest first (server only).
+- Sports scores: favorite teams' live, upcoming and final games from ESPN's public API.
 - Clock / greeting widget.
 - Customization: widget grid (add / remove / move / resize, multiple instances per type), per-widget
   settings, global theme, profiles (named layouts, manual switching), config export/import.
+- New Tab extension that starts Portly when the browser opens (§11, §12).
+- Browser-only build for GitHub Pages with its data in the browser, and hybrid mode, where a paired
+  Pages site uses the server on this PC (§16).
+- Diagnostics: the health of every connection and sync, logs, and a shareable report (§17).
+- Release packages that install and update Portly without a Git checkout (§18).
 
 **Deferred (design must not preclude):** CalDAV writes (v1.1, after testing reads against the user's
-Yahoo account), multi-device access (a future mini PC — satisfied in v1 only by deriving bind address,
-origin and port from `config.ts` everywhere), sports & fantasy widgets, automatic profile switching
-(location / network / time), per-profile themes (`profiles.theme` column reserved), sending mail.
+Yahoo account), multi-device access (one server used from several PCs, with a login: `docs/design/multi-pc.md`;
+satisfied in v1 only by deriving bind address, origin and port from `config.ts` everywhere), a fantasy sports
+widget, automatic profile switching (location / network / time), per-profile themes (`profiles.theme` column
+reserved), sending mail.
 
 **Not planned:** Proton Mail (any form); Microsoft work/school accounts (the app is registered for
 personal Microsoft accounts only and the `/consumers` authority is hard-coded).
@@ -44,31 +74,39 @@ personal Microsoft accounts only and the `/consumers` authority is hard-coded).
 /package.json          workspaces ["shared","server","web"]; engines {node:">=24", npm:">=11.10"}
 /.npmrc                ignore-scripts=true, min-release-age=7, engine-strict=true
 /package-lock.json     committed; installs use `npm ci`
+/.gitattributes        LF everywhere; CRLF for .ps1, .cmd and .bat
 /tsconfig.base.json
-/vitest.config.ts      test.projects: server (node env: server/**, shared/**), web (jsdom env: web/src/**)
+/vitest.config.ts      test.projects: server (node: server/**, shared/**), web (jsdom: web/src/** except static/),
+                       static (node + fake-indexeddb: web/src/static/**)
 /shared                @portly/shared — TS contract types + zod schemas; package.json "exports": {".": "./src/index.ts"}
 /server                @portly/server — Node 24, Hono, node:sqlite; runs from TS source (no bundle)
-/web                   @portly/web — Vite 8 + React 19 + TypeScript
+/web                   @portly/web — Vite 8 + React 19 + TypeScript; web/src/static/ = the Pages build's in-browser
+                       backend (§16)
 /extension             Manifest V3 new-tab extension (plain JS, no build; pinned ID via manifest "key")
 /native-host           native messaging host com.portly.launcher (launcher.mjs + launcher.cmd template, §12)
-/scripts               PowerShell: install-autostart.ps1, uninstall-autostart.ps1, status.ps1, start.ps1; node test runners
-/docs                  ARCHITECTURE.md, SETUP.md, setup/*.md
+/scripts               PowerShell install, start, status, update, release and publish scripts with lib/Common.ps1, and
+                       the node test runners check-extension.mjs / check-native-host.mjs (see scripts/README.md)
+/site                  static home, privacy and terms pages for the OAuth consent screens
+/.github/workflows     ci.yml (§13); release.yml (§18) and static-pages.yml (§16), both run by hand, publish publicly
+/docs                  ARCHITECTURE.md, SETUP.md, ROADMAP.md, setup/*.md (user guides), brand/ (the Beacon mark),
+                       design/ (proposals not built yet)
 ```
 
-### 2a. Dependencies (installed by the foundation only; majors pinned)
-If `min-release-age` blocks the newest version of a range, use the newest version older than 7 days.
+### 2a. Dependencies (majors pinned)
+Dependencies are added or upgraded only on request. If `min-release-age` blocks the newest version of a range,
+use the newest version older than 7 days.
 - **shared:** `zod@^4` (zod 4: nested object defaults need `.prefault({})`, not `.default({})`; use `z.email()`/`z.url()`).
 - **server:** `hono@^4.13` (floor 4.12.16), `@hono/node-server@^2.1`, `undici@^8` (safe-fetch only),
   `ical.js@^2.2`, `tsdav@^2.3`, `imapflow@2.0.x` (exact pin), `node-html-parser@^9`, `entities` (HTML
   entity decoding), `tldts` (eTLD+1).
-- **web:** `react@^19`, `react-dom@^19`, `@tanstack/react-query@^5`, `@tanstack/react-query-persist-client`,
+- **web:** `react@^19`, `react-dom@^19`, `zod@^4`, `@tanstack/react-query@^5`, `@tanstack/react-query-persist-client`,
   `@tanstack/query-sync-storage-persister`, `react-grid-layout@^2.2` + `react-resizable` (direct dep, for CSS),
   `@dnd-kit/core@^6.3`, `@dnd-kit/sortable@^10`, `@dnd-kit/utilities`, `radix-ui@^1.6`, `sonner@^2`,
-  `lucide-react`, `date-fns@^4`, `@date-fns/tz@^1`.
+  `lucide-react`, `date-fns@^4`, `@date-fns/tz@^1`, `entities` and `node-html-parser` (the in-browser backend).
 - **root dev:** `typescript@~7.0` (only via `tsc --noEmit`; nothing may import the TS API — if TS 7 blocks
   anything, pin `~6.0` instead), `@types/node@^24`, `@types/react`, `@types/react-dom`, `vite@^8`,
-  `@vitejs/plugin-react@^6`, `vitest@^5`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`,
-  `@testing-library/jest-dom`, `concurrently`.
+  `@vitejs/plugin-react@^6`, `vitest@^5`, `jsdom`, `fake-indexeddb` (static tests), `@testing-library/react`,
+  `@testing-library/user-event`, `@testing-library/jest-dom`, `concurrently`.
 - **Not used:** tsup, tsx, esbuild bundling of the server, `@types/react-grid-layout`, `@dnd-kit/react`,
   web fonts, lodash.merge/deepmerge, googleapis / msgraph SDKs (plain fetch), any native module.
 
@@ -80,11 +118,15 @@ server/shared: `module: nodenext`, `types: ["node"]`. web: `module: esnext`, `mo
 namespaces or parameter properties (use `as const` objects). Type-only imports use `import type`.
 
 ### 2c. Scripts (root package.json)
-- `dev` — `concurrently` of `node --watch server/src/index.ts` (PORTLY_DEV=1) and `vite` (web).
+- `dev` — `concurrently` of `dev:server` (`node --watch --env-file=server/dev.env server/src/index.ts`; the file
+  sets `PORTLY_DEV=1`) and `dev:web` (`vite` in `@portly/web`).
 - `build` — builds web to `web/dist` (server needs no build).
+- `build:static` — `vite build --mode static` to `web/dist-static`, the browser-only build (§16).
+- `preview:static` — `vite preview --mode static` of `web/dist-static`.
 - `start` — `node server/src/index.ts` (serves `web/dist`; fails with a clear message and exit code 4 if missing).
-- `typecheck` — `tsc --noEmit -p` for shared, server, web.
-- `test` — `vitest run` then `npm audit --omit=dev --audit-level=high`.
+- `typecheck` — `tsc --noEmit -p` for shared, server, web and `web/tsconfig.node.json`.
+- `test` — `vitest run`, then `test:extension` (`node scripts/check-extension.mjs`), `test:native-host`
+  (`node scripts/check-native-host.mjs`) and `npm audit --omit=dev --audit-level=high`.
 
 ---
 
@@ -133,7 +175,7 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   modification times more than 2 s apart), then `info 'made the server program'`. When it cannot be made
   (`warn 'could not make the server program; the server runs as the supervisor program'`) or cannot be spawned at all
   (`warn 'starting the server with the fallback program from now on'`), the server runs as the supervisor's own
-  program. Any other program name (plain node.exe, `npm start`, tests) spawns `process.execPath` as before.
+  program. Any other program name (plain node.exe, `npm start`, tests) spawns `process.execPath`.
   `supervisor starting`, `server started` and these lines carry `program` (a file name, never a path).
 - **Start-up, process, shutdown (`index.ts`, `lib/startup.ts`, `lib/exit-codes.ts`):** phases `config → logger →
   web-dist check → port-probe → legacy (§19) → db → migrate → health → pairing → vault → settings → accounts → modules → listen`,
@@ -174,8 +216,8 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
     caller's context.
   - **Memory rings** (the `LogHub` Settings → Diagnostics reads), filled whatever the level: `main` = the last 5,000
     info+ records; the **flight recorder** = the last 400 debug records **per area** (≤ 64 areas, so a chatty area
-    cannot evict a rare one); `client` = the last 1,000 browser events (§17). Health checks and the Diagnostics
-    page's own polling (`quiet`) stay out of the rings below 500. `lastRecordFor(run)` feeds the job watchdog.
+    cannot evict a rare one); `client` = the last 1,000 browser events (§17). *Quiet* requests stay out of the
+    rings (see §17, Request line). `lastRecordFor(run)` feeds the job watchdog.
   - **Repeat suppression:** a call with `repeatKey` (and optional `repeatSig`) is written at its level once per
     30-minute window per key and signature; repeats are written at debug with `repeats: n` and the window closes
     with `info 'repeated' {repeatKey, count, since}` (≤ 1,000 keys). Used by GET request lines, outbound
@@ -229,15 +271,15 @@ accepted (OAuth codes are PKCE-bound; Google codes also need the client secret).
 may call the routes declared `paired()` from that origin. Trust is per **origin**, and `https://<user>.github.io` is
 shared by every Pages site of the account: any script on any page of that origin, in a paired browser, can read the
 pairing token (localStorage) and the persisted copy of server data, call every paired route, and use the browser's
-local-network permission. Accepted for a single user who controls what the origin publishes (since 2026-10-11 that
-includes connecting accounts, OAuth client secrets, the vault reset and listing/revoking pairings: there is one page,
+local-network permission. Accepted for a single user who controls what the origin publishes (that includes
+connecting accounts, OAuth client secrets, the vault reset and listing/revoking pairings: there is one page,
 connected to the server or not); mitigations: approving a pairing stays local-only (403 `local_only`), secrets stay
-write-only, `/api/about` hides the data folder and log path from it, the Pages site never persists account lists or
-OAuth client settings, and the consent page says that the whole origin gets access. A custom domain used only for the
-site removes the risk (docs/setup/pages-local-server.md). The page in turn treats every answer from `127.0.0.1:<port>`
-as untrusted input (it may be a squatter): responses are parsed with the shared schemas, the reported `appUrl` is only
-used when it is a loopback root page, and the server's `instanceId` is a guard against using the wrong server, not
-authentication — the token is.
+write-only, paths that name the Windows user are blanked for it (see §7, `/api/about`), the Pages site never persists
+account lists or OAuth client settings, and the consent page says that the whole origin gets access. A custom domain
+used only for the site removes the risk (docs/setup/pages-local-server.md). The page in turn treats every answer from
+`127.0.0.1:<port>` as untrusted input (it may be a squatter): responses are parsed with the shared schemas, the
+reported `appUrl` is only used when it is a loopback root page, and the server's `instanceId` is a guard against using
+the wrong server, not authentication — the token is.
 
 ### 4.2 Request gate (global middleware, `app.use('*', …)`, in this order)
 1. Reject (400) if the raw request path contains `//`, `\`, `%2f`, `%5c` (case-insensitive) or dot segments.
@@ -279,9 +321,19 @@ authentication — the token is.
   `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`.
 - **HTML:** `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https://a.espncdn.com; connect-src 'self'; font-src 'self' data:; frame-src 'none';
-  object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`. **Invariant:** `script-src` never
-  gains `'unsafe-inline'` or `'unsafe-eval'`. Consequence: all third-party traffic goes through the server, except the
+  object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'` (`htmlCsp()` in
+  `security/headers.ts`). With `PORTLY_PAGES_URL` set, `connect-src` is `'self' <pagesOrigin>`: the server's page checks
+  that the Pages site answers before it forwards there (§16). **Invariant:** `script-src` never gains
+  `'unsafe-inline'` or `'unsafe-eval'`. Consequence: all third-party traffic goes through the server, except the
   sports widget's team logos (`<img>` from ESPN's image host; the mappers accept no other logo host).
+- **Static build** (`staticCsp()` in `web/vite.config.ts`): a `<meta http-equiv>` CSP added at build time, because
+  static hosts send no headers. It matches the HTML CSP except: `img-src` also allows `https://icons.duckduckgo.com`
+  (favicons as `<img>`); `connect-src` is `'self'` plus the hosts the in-browser backend calls directly,
+  `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://api.todoist.com`,
+  `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://login.microsoftonline.com` and
+  `https://graph.microsoft.com` (Outlook.com sign-in and calendar), and in hybrid mode the local server origin
+  (`PORTLY_STATIC_SERVER`, §16); there is no `frame-ancestors` (a meta tag cannot set it). The `script-src` invariant
+  applies here too.
 - **`/api` JSON:** `Cache-Control: no-store`.
 - **`/api/icons/:id`, `/api/uploads/:id`:** `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`,
   `Cache-Control: private, max-age=86400`. IDs are random UUIDv4. Stored content type comes from magic-byte
@@ -305,6 +357,11 @@ authentication — the token is.
 - Web: one `safeHref()` helper (`web/src/lib/openUrl.ts`) used by every `<a href>`, `window.open`,
   `location.assign`. External links: `target="_blank" rel="noopener noreferrer"` (unless the user's
   "open links in same tab" preference applies to launch pad/search).
+- `#/add-bookmark?url=&title=` (§10.1, §11) comes from outside the page, so both values are hostile.
+  `parseAddBookmarkRequest` (`widgets/launchpad/addRequest.ts`) accepts only an `http:`/`https:` URL of at most 2048
+  characters without a username or password, and a title with whitespace collapsed, cut to 300 characters. The request
+  only fills in the Add bookmark dialog; saving goes through the bookmark create schema (SafeHttpUrl) like any other
+  bookmark. The extension applies the same checks before it passes the hash on.
 - **No** `dangerouslySetInnerHTML`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `DOMParser`, `document.write`.
 - Text: Gmail snippets decoded server-side with `entities` `decodeHTML` (never the DOM). Google/Graph HTML
   (and ICS/CalDAV HTML) event descriptions converted to plain text at ingest with the linear-time tag scanner
@@ -421,14 +478,15 @@ ingest; invalid → null.
 
 ---
 
-## 5. Data model (`server/src/db/migrations/001_init.sql`, all v1 tables)
+## 5. Data model
 
+The v1 tables are in `server/src/db/migrations/001_init.sql`; later migrations are listed after them.
 Conventions: every `*_at` column is INTEGER epoch ms; booleans INT 0/1; JSON columns TEXT validated with zod
 on read; SQL uses single-quoted literals and prepared statements only; PATCH handlers map fields to columns
-through static allowlists (never interpolate request keys). Migrations are applied in filename order inside
-a transaction and tracked in `schema_migrations(name TEXT PK, applied_at)`. Reserved migration number ranges:
-000–099 foundation/accounts/core, 100–199 bookmarks+search, 200–299 weather, 300–399 todoist,
-400–499 calendar, 500–599 mail.
+through static allowlists (never interpolate request keys). Migrations (`NNN_name.sql`, from
+`server/src/db/migrations/` and any `server/src/modules/<name>/migrations/`) are applied in filename order inside
+a transaction and tracked in `schema_migrations(name TEXT PK, applied_at)`. A number is used once across all
+folders (a duplicate fails start-up); a new migration takes the next free number.
 
 ```sql
 settings(namespace TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)
@@ -499,14 +557,13 @@ the browser-only build runs the same upgrade once from its settings `ready()` (m
 
 ```
 server/src/
-  index.ts               bootstrap: config → logger → port probe → db/migrate → health → pairing → vault → settings →
-                         accounts → app → listeners → scheduler (§3)
+  index.ts               bootstrap: the start-up phases of §3
   supervisor.ts          autostart supervisor (§3)
   config.ts  app.ts  context.ts
   db/{open,migrate,helpers}.ts, db/migrations/{001_init,002_pairing,003_diagnostics,004_beacon_defaults}.sql
-  security/{gate,headers,vault,safe-fetch,dpapi,pairing,foreign-origins}.ts
+  security/{gate,headers,vault,safe-fetch,private-address,dpapi,pairing,foreign-origins}.ts
   lib/{logger,log-context,health,inflight,provider-errors,exit-codes,startup,ids,errors,cache,scheduler,validate,
-       settings,routes}.ts
+       settings,routes,backups,html-scan,image-sniff,ipc,legacy-homebase,merge-patch,multipart,safe-json}.ts
   testing/{test-context,test-request,fake-fetch,fake-accounts}.ts
   modules/index.ts       static list of all modules (`MODULES`); each register() wrapped in try/catch — a failing
                          module is logged and its route prefix returns 503 `module_unavailable`
@@ -581,7 +638,8 @@ any depth → 400; result validated with `SettingsSchema.parse`; returns full `S
 `POST /api/uploads` (multipart image) → `{id, url}` · `GET /api/uploads/:id` ·
 `GET /api/export` → export file · `POST /api/import/preview` (multipart, ≤ 25 MB) → `{previewId, summary}` ·
 `POST /api/import/commit {previewId}` · `POST /api/vault/reset` · `GET /api/about` → `{version, dataDir, logPath, vault}`
-(`dataDir` and `logPath` are `''` for a paired Pages request: they contain the Windows user name).
+(`dataDir` and `logPath` are `''` for a paired Pages request: they contain the Windows user name; the diagnostics
+summary blanks its directories the same way, §17).
 
 Export file: `{format:'portly-export', version:1, exportedAt, data:{settings, profiles, bookmarkGroups,
 bookmarks, uploads[base64], customIcons[base64]}}` built by an explicit per-entity allowlist serializer.
@@ -612,7 +670,7 @@ path, `fs.realpath`, checks it is under those roots, caps 20 MB, validates JSON)
 `POST /api/todoist/tasks/:id/close` · `POST /api/todoist/tasks/:id/reopen` · `PATCH /api/todoist/tasks/:id` ·
 `GET /api/todoist/projects`.
 
-**Accounts** (foundation) — `GET /api/accounts` · `PATCH /api/accounts/:id {label?, color?, enabledCapabilities?, sort?}` ·
+**Accounts** — `GET /api/accounts` · `PATCH /api/accounts/:id {label?, color?, enabledCapabilities?, sort?}` ·
 `DELETE /api/accounts/:id` · `POST /api/accounts/:id/test` · `GET /api/oauth-clients/:provider` →
 `{clientId|null, hasSecret, redirectUri}` · `PUT /api/oauth-clients/:provider {clientId, clientSecret?}` ·
 `POST /api/oauth/:provider/start {accountId?, returnTo?}` → `{authorizeUrl}` · `GET /api/oauth/:provider/callback` ·
@@ -661,7 +719,7 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
 `PUT /api/diagnostics/level` · `POST /api/diagnostics/jobs/:name/run` · `GET /api/diagnostics/report?redact=0|1` ·
 `POST /api/diagnostics/client-events`. Every answer (API, static file, error) carries `X-Request-Id`.
 
-### 7a. Shared contracts (`shared/src/*`, written by the foundation; features may only add optional fields in their own file)
+### 7a. Shared contracts (`shared/src/*`)
 - **errors.ts** — `ErrorCode = 'bad_request'|'validation_failed'|'forbidden'|'not_found'|'conflict'|'not_configured'|
   'reauth_required'|'provider_error'|'rate_limited'|'upstream_timeout'|'payload_too_large'|'module_unavailable'|'internal'`;
   statuses 400/422/403/404/409/409/409/502/429/504/413/503/500; hybrid mode adds `pairing_required` (401) and
@@ -692,10 +750,10 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
     megapixels and WebP above) by `useBakedBackdrop` (`useTheme.ts`), which bakes again 150 ms after the image, the
     blur or the window size key (CSS size buckets plus device pixel ratio, so browser zoom counts) changes, swaps in
     a copy only once it is decoded, and revokes replaced `blob:` URLs 2 s later. Until a copy exists (first paint,
-    slider drags) or when the browser cannot blur on a canvas, `data-backdrop-filter='live'` keeps the old live
-    `filter: blur()` (`base.css`). An animated image (only one stored before uploads were prepared) bakes its first
-    frame, so a blurred animated background stops moving once the copy is ready;
-  - the uploaded image itself is prepared in the browser before it is stored (§10.5, background uploads): a still
+    slider drags) or when the browser cannot blur on a canvas, `data-backdrop-filter='live'` keeps a live
+    `filter: blur()` (`base.css`). A stored animated image bakes its first frame, so a blurred animated background
+    stops moving once the copy is ready;
+  - the uploaded image itself is prepared in the browser before it is stored (background uploads, below): a still
     copy whose long edge fits the screen (at most 3840), so no tab decodes a 24-megapixel photo or redraws the window
     for the frames of an animation;
   - glass surfaces get `backdrop-filter` only under `data-glass='frosted'` (`tokens.css`), set when frosted glass is
@@ -708,7 +766,30 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
     overlay and the calendar agenda's day headers have none), the animations that could run indefinitely are
     finite (skeleton shimmer, weather location and local-server pulses: 3 runs; no pulse while waiting for the
     browser's permission or on the sports LIVE pill), and react-grid-layout's 200 ms relayout transitions run only
-    in edit mode.
+    in edit mode. New CSS must not add `filter`, `backdrop-filter` or infinite animations on always-visible
+    surfaces; it uses `--hb-glass-filter` / `--hb-widget-glass-filter` and `--hb-hover-duration`.
+- **Theme rendering: background uploads** (`settings/sections/BackgroundImage.tsx`, `theme/prepareBackground.ts`;
+  header-only checks in `theme/backgroundImage.ts`, which treat the bytes as hostile: bounded walks, malformed means
+  "still" or "size unknown"). Every new tab decodes and draws the background, so an upload is prepared in the browser
+  first:
+  - the target long edge is the screen's long edge times `devicePixelRatio`, kept within 2560..3840;
+  - a still PNG, JPEG, GIF, WebP or AVIF whose header says it fits goes up unchanged, without being decoded;
+  - anything else is decoded and redrawn on an `OffscreenCanvas` with its long edge at min(original, target), then
+    encoded as WebP at quality 0.85 (PNG where the browser cannot encode WebP). That covers animations (a GIF with a
+    second image block, a PNG with `acTL` > 1 frame before `IDAT`, a WebP with a second `ANMF`, an AVIF with the `avis`
+    brand), larger photos, BMP and ICO, and SVG. Raster files go through `createImageBitmap` (first frame, EXIF
+    orientation applied); an SVG through an `<img>` on a `blob:` URL (no script, no outside loads, `img-src` allows
+    `blob:`), drawn at the target size;
+  - the original goes up when the APIs are missing, the canvas cannot be read back or the copy is over 10 MB; a file
+    the browser cannot decode is refused with a message (`ImagePrepareError`). The picker takes up to 25 MB before
+    this step; the server's limit and magic-byte sniffing apply unchanged to what is sent, and bookmark icons are
+    uploaded as they are.
+
+  A stored background that would gain from the step (animated, a long edge over 3840, SVG, BMP or ICO; read with
+  `GET /api/uploads/:id`, header only, query `['uploads','background-check',id]`, not persisted) gets an **Optimize
+  image** offer: it prepares the stored bytes the same way with the target fixed at 3840 (so a copy made while the
+  window is on a small monitor still suits a 4K one), uploads the copy and switches `uploadId`, keeping blur and dim.
+  The old upload becomes an orphan and is collected after 24 h.
 - **accounts.ts** — `AccountKind`, `Capability = 'calendar'|'mail'`, `Account {id, kind, label, email|null, color|null,
   capabilities, enabledCapabilities, status: 'ok'|'error'|'reauth', statusMessage|null, createdAt, updatedAt}`,
   per-kind config types, create payloads, `OAuthProvider = 'google'|'microsoft'`, `OAuthResult`.
@@ -733,6 +814,18 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
   `CalendarSettings {syncIntervalMin: 5–60, defaultCalendarId: string|null}`.
 - **mail.ts** — `MailMessage {id, accountId, from: {name, address}, subject, snippet|null, date, unread, webUrl|null}`;
   `MailAccountSummary {accountId, label, email, color, unread, messages, webmailUrl|null, canArchive, canTrash?, error?}`.
+- **feeds.ts** — `Feed {url, feedUrl, title, siteUrl|null, items, fetchedAt}`; `FeedItem {id, title, url|null,
+  published|null, author|null, summary|null}` (plain text; caps `MAX_FEED_ITEMS` 50, `MAX_FEED_SUMMARY` 400,
+  `MAX_FEED_TITLE` 300); `FeedQuerySchema {url: SafeHttpUrl, check?: '1'}`.
+- **sports.ts** — `SPORTS_LEAGUES` (`SportsLeagueInfo {id, sport, league, name, soccer, scoreboardGroups?}`, picker
+  order) and the `SportsLeagueId` enum of their ids; `SportsTeamId` (ESPN's numeric id); `SportsTeam {id, league, name,
+  shortName, abbreviation, logo|null, logoDark|null, color|null}`; `SportsGame {id, league, date, timeValid,
+  state: 'pre'|'in'|'post', completed, detail, situation|null, home, away: SportsCompetitor, note|null, venue|null,
+  boxScoreUrl|null, gameUrl|null, espnWatchUrl|null, broadcasts}`; `SportsTeamGames`; the query schemas of both routes.
+- **export.ts** — `EXPORT_FORMAT = 'portly-export'`, `EXPORT_VERSION = 1`, `isExportFormat` (also accepts
+  `'homebase-export'`, §19); the strict `ExportSchema` of §7 Core (uploads and custom icons embedded as base64, each
+  ≤ 10 MB decoded; ≤ 100 uploads); `MAX_IMPORT_BYTES` (25 MB); `ImportSummary`, `ImportPreviewResponse`,
+  `ImportCommitSchema {previewId}`.
 - **pairing.ts** (hybrid mode) — `PORTLY_API_VERSION` (core.ts; bumped on any change the other side cannot
   ignore), `PAIRING_TOKEN_HEADER = 'X-Portly-Token'`, `MAX_PAIRINGS`, token/nonce schemas (43-char base64url),
   `InstanceIdSchema`, the request/response schemas of §7 Pairing, and the URL helpers `buildPairingRequestUrl` /
@@ -743,7 +836,7 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
 - **diagnostics.ts** (§17) — log levels, `DIAGNOSTIC_AREAS`, `HEALTH_CODES`, `REQUEST_ID_HEADER`, the scrubbers
   (`scrub`, `maskUserPaths`, `scrubFields`, `redactForSharing`) shared by the server and the browser, and the DTOs of
   `/api/diagnostics/*` (log records and queries, health entries and outcome rows, jobs, log level, summary, browser
-  events). Additive: `PORTLY_API_VERSION` was not bumped.
+  events).
 - **Conventions:** API camelCase; DB snake_case; booleans ↔ 0/1; DB timestamps epoch ms, API ISO strings.
 - **web/src/api/keys.ts** exports one `qk` object with every query key (settings, profiles, accounts, oauthClients,
   bookmarks, icons, search.suggest, weather, geocode, todoist.token/tasks/projects, calendar.calendars/events,
@@ -862,8 +955,10 @@ over 512 KB, site-meta lookups and unobserved calendar ranges are not persisted,
 oldest queries, as few as fit (found by halving); the snapshot is written only after a persisted query got new data
 or left it (success, `setQueryData`, removed, failed), at most every 5 s and at once on `visibilitychange` to hidden
 and `pagehide` (`subscribePersistedCache`, not TanStack's subscriber, which dehydrates on every cache event): every
-write reaches every other tab of the origin; the Pages build keeps one snapshot per backend, §16); hand-rolled hash router (`web/src/app/router.ts`:
-home, `#/settings/<section>`, `#/pair?nonce=…`);
+write reaches every other tab of the origin; the Pages build keeps one snapshot per backend, §16); hand-rolled hash
+router (`web/src/app/router.ts`: home, `#/settings/<section>`, `#/pair?nonce=…`; `#/add-bookmark?url=&title=`, from
+the extension's toolbar button (§11), renders home and the shell opens the Add bookmark dialog filled in with that
+page, `widgets/launchpad/addRequest.ts`, §4.4; the hash goes back to `#/` when the dialog closes);
 CSS custom properties (tokens) + CSS Modules for feature styles; `lucide-react`; `date-fns` + `@date-fns/tz`;
 Radix primitives; sonner toasts. Vite dev proxy: `/api` → `PORTLY_PORT`, `changeOrigin: false`; never set
 `server.host` or `server.cors: true`.
@@ -876,15 +971,20 @@ cancel: 'input,textarea,select,button,a,[data-no-grid-drag]'}}`, `resizeConfig={
 Add Widget dialog, remove, per-widget settings dialog (frame options + widget Settings component). Positions saved
 via `PUT /positions` (debounced); config via `PATCH /widgets/:instanceId` — never whole-layout overwrites.
 Below 768 px: widgets stacked full-width in (y, x) order, edit mode disabled; lists (launch pad, agenda, Todoist,
-mail) size to their content up to 70 vh, other widgets keep their row height (`WidgetDefinition.stackSizing`). First run seeds a "Home" profile
-from `web/src/grid/defaultLayout.ts` with all seven widget types.
+mail) size to their content up to 70 vh, other widgets keep their row height (`WidgetDefinition.stackSizing`).
+First run seeds a "Home" profile from `web/src/grid/defaultLayout.ts`: on the server backend seven widgets (search,
+clock, launch pad, weather, calendar, Todoist, mail), on the browser backend five (no mail, and the calendar, which
+needs Outlook.com set up first, is left to Add widget). Feeds and sports start empty, so they are never seeded.
 
 ### 10.3 Widget registry
 Each `web/src/widgets/<type>/index.ts` exports
 `definition: WidgetDefinition<C> = {type, title, description, icon, defaultSize: {w, h, minW, minH, maxW?, maxH?},
 configSchema /* zod, every field defaulted */, Component: lazyWithPreload(() => import('./Widget.tsx')), Settings?: lazy(() => import('./Settings.tsx')), stackSizing?}`
-(amended: `lazyWithPreload` is `React.lazy` plus `preload()`; once preloaded it renders without suspending).
-`web/src/widgets/registry.ts` imports the seven definitions (foundation-frozen).
+(`lazyWithPreload` is `React.lazy` plus `preload()`; once preloaded it renders without suspending).
+`web/src/widgets/registry.ts` lists all nine definitions in "Add widget" order (search, launch pad, calendar, mail,
+Todoist, weather, feeds, sports, clock) and throws at load when they differ from `WIDGET_TYPES`
+(`shared/src/profiles.ts`); `availableWidgetDefinitions()` leaves out the types this page load's backend cannot run
+(§16 Capabilities).
 `WidgetProps<C> = {instanceId, config: C, setConfig(patch: Partial<C>): Promise<void>, size: {w, h}, editMode: boolean}`;
 `WidgetSettingsProps<C> = {value: C, onChange(next: C): void}`. `WidgetFrame` wraps each widget in an ErrorBoundary
 + Suspense (Skeleton fallback), renders the header (icon, title, `<WidgetActions>` slot for widget-specific header
@@ -892,7 +992,7 @@ buttons, drag handle in edit mode) and sets `container-type: inline-size` on the
 `configSchema` on every read (invalid/old config → defaults). Unknown types render an "Unknown widget" placeholder.
 All types allow multiple instances.
 
-### 10.4 UI kit (`web/src/ui/`, foundation)
+### 10.4 UI kit (`web/src/ui/`)
 Button (primary|secondary|ghost|danger; sm|md; loading), IconButton (required aria-label), Input, TextArea, Select,
 Checkbox, Switch, SegmentedControl, Field (label/help/error), Dialog + ConfirmDialog, Popover, Menu, Tooltip, Tabs,
 toast (sonner; supports Undo action), ColorPicker (12 swatches + native color input + hex field), ImageUpload (optional
@@ -905,18 +1005,17 @@ Tokens (`web/src/styles/tokens.css`, light + dark): `--hb-bg, --hb-surface, --hb
 --hb-border, --hb-accent, --hb-accent-contrast, --hb-danger, --hb-warning, --hb-success, --hb-focus,
 --hb-radius-{sm,md,lg}, --hb-space-{1..6}, --hb-font-sans, --hb-font-mono, --hb-text-{xs,sm,md,lg,xl},
 --hb-shadow, --hb-widget-opacity`. Rules: features use tokens only; user-data colors go through
-`readableTextColor()` (`web/src/lib/color.ts`); only the foundation writes global CSS.
+`readableTextColor()` (`web/src/lib/color.ts`); global CSS lives only in `web/src/styles/` (`tokens.css`, `base.css`).
 Visual direction: calm, modern "glass" widgets over the user's background (color/gradient/image with blur+dim),
 generous spacing, clear hierarchy, system font stacks, subtle shadows, excellent dark mode. Glass is translucent
-surface color by default; a live backdrop blur (frosted glass) is an opt-in setting of the browser because of its
-GPU cost (§7a Theme rendering). New CSS must not add `filter`, `backdrop-filter` or infinite animations on always-visible
-surfaces; use `--hb-glass-filter` / `--hb-widget-glass-filter` and `--hb-hover-duration`.
+surface color by default; frosted glass is an opt-in setting of the browser. The rules for blur, filters and
+animations are in §7a Theme rendering.
 
 ### 10.5 Settings
 Hash routes `#/settings/<section>`; nav: general, appearance, search, bookmarks, accounts, calendars, todoist,
-profiles, import-export, diagnostics (§17), about. Foundation implements General, Appearance, Accounts (OAuth client setup with the exact
-redirect URI to copy, connect/reconnect/remove, Yahoo/CalDAV/IMAP forms, vault-locked banner), Profiles, Import/Export,
-About (version, data dir, log path, vault state). Features own Search, Bookmarks, Calendars, Todoist.
+profiles, import-export, diagnostics (§17), about. Accounts holds the OAuth client setup (with the exact redirect URI
+to copy), connect/reconnect/remove, the Yahoo/CalDAV/IMAP forms and the vault-locked banner; About shows the version,
+data dir, log path and vault state.
 The app reads `?oauth=<result>` on load, shows a toast, and strips it from the URL.
 Hybrid mode (§16): About in the server build ends with **Paired browsers** (`PairedBrowsersCard`: the configured Pages
 address or how to set it, every pairing with label, created and last used, "Old address" when not made for the
@@ -928,27 +1027,9 @@ this PC?" with the warning that every page of that origin gets the access and wh
 posts the pairing and follows the redirect only when it is exactly `<pagesUrl>#/paired?…` with the same nonce.
 Cancel → `#/`. In the Pages build the route only says that pairing happens on Portly's own page.
 
-**Appearance background uploads** (`settings/sections/BackgroundImage.tsx`) are prepared in the browser first, because
-every new tab decodes and draws the image (§7a Theme rendering; `theme/prepareBackground.ts`; header-only checks in
-`theme/backgroundImage.ts`, which treat the bytes as hostile: bounded walks, malformed means "still" or "size unknown"):
-- the target long edge is the screen's long edge times `devicePixelRatio`, kept within 2560..3840;
-- a still PNG, JPEG, GIF, WebP or AVIF whose header says it fits goes up unchanged, without being decoded;
-- anything else is decoded and redrawn on an `OffscreenCanvas` with its long edge at min(original, target), then
-  encoded as WebP at quality 0.85 (PNG where the browser cannot encode WebP). That covers animations (a GIF with a
-  second image block, a PNG with `acTL` > 1 frame before `IDAT`, a WebP with a second `ANMF`, an AVIF with the `avis`
-  brand), larger photos, BMP and ICO, and SVG. Raster files go through `createImageBitmap` (first frame, EXIF
-  orientation applied); an SVG through an `<img>` on a `blob:` URL (no script, no outside loads, `img-src` allows
-  `blob:`), drawn at the target size;
-- the original goes up when the APIs are missing, the canvas cannot be read back or the copy is over 10 MB; a file
-  the browser cannot decode is refused with a message (`ImagePrepareError`). The picker takes up to 25 MB before
-  this step; the server's limit and magic-byte sniffing apply unchanged to what is sent, and bookmark icons are
-  uploaded as they are.
-
-A stored background that would gain from the step (animated, a long edge over 3840, SVG, BMP or ICO; read with
-`GET /api/uploads/:id`, header only, query `['uploads','background-check',id]`, not persisted) gets an **Optimize
-image** offer: it prepares the stored bytes the same way with the target fixed at 3840 (so a copy made while the window
-is on a small monitor still suits a 4K one), uploads the copy and switches `uploadId`, keeping blur and dim. The old
-upload becomes an orphan and is collected after 24 h.
+**Appearance background uploads** (`settings/sections/BackgroundImage.tsx`) are prepared in the browser before they
+are stored, and a stored background that would gain from that gets an **Optimize image** offer (see §7a Theme
+rendering: background uploads).
 
 ### 10.6 Hotkeys & focus
 `useHotkey` ignores events from input/textarea/select/contenteditable. `/` focus search; `e` toggle edit mode;
@@ -997,7 +1078,7 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   A page load asks the browser only when `permissions.query({name: 'geolocation'})` says `granted`; otherwise it shows
   the position remembered for 6 hours, or "Show weather for your location" with a **Use my location** button. Only that
   button, turning the option on, or Retry may make the browser prompt, so a one-time "Allow this time" does not bring
-  the prompt back with every new tab. Without the Permissions API it asks as before.
+  the prompt back with every new tab. Without the Permissions API it asks only when no position is remembered.
 - **Clock** — config `{format: 'inherit'|'12h'|'24h', showSeconds, showDate, greeting, extraZones: {label, tz}[]}`;
   greeting uses `general.userName` and time of day.
 - **RSS feeds** (`feeds`) — config `{feeds: {url, title}[] (≤ 20), maxItems: 3–50, showSummary, showSource}`; one query
@@ -1015,7 +1096,7 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
 
 ## 11. Extension (Chromium MV3; Chrome + Edge)
 
-`manifest.json` (version 0.5.0): `chrome_url_overrides.newtab: "newtab.html"`, `options_page`,
+`manifest.json`: `chrome_url_overrides.newtab: "newtab.html"`, `options_page`,
 `background: {service_worker: "background.js", type: "module"}`, `host_permissions: ["http://localhost/*"]`,
 `permissions: ["storage", "nativeMessaging", "activeTab"]` (an unpacked extension gets them without a prompt), `action`
 (the "Add this page" toolbar button), and a public
@@ -1023,13 +1104,13 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
 The `key` pins the ID in Chrome and Edge alike to **`nbaolbakegefnefgojdokagajincnfjj`** (first 16 bytes of
 SHA-256(DER) as hex, digits 0–f mapped to a–p; `extension/tools/extension-id.mjs` prints it, `--origin` prints
 `chrome-extension://<id>/`). `lib/launcher.js` exports it as `PINNED_EXTENSION_ID`; `scripts/check-scripts.ps1`
-fails when the key, that constant, the installer's computation and the IDs quoted in the docs disagree. Before 0.2.0
-the ID was derived from the folder path (`daklamdnkmbdeegnkhmpeccgggbgiole` for example); moving to the
-pinned ID needs a one-time **Remove + Load unpacked** (which also clears `chrome.storage.local`, i.e. the port), and
-the pages detect an extension still running under another ID (`isStaleExtensionId`) and say so. No content scripts, no
-`externally_connectable`; CSP `script-src 'self'`, `connect-src http://localhost:*`; no inline scripts/handlers.
+fails when the key, that constant, the installer's computation and the IDs quoted in the docs disagree. The `key` is
+never changed. A copy loaded from a manifest without the key gets an ID derived from its folder path; the pages detect
+an extension running under any other ID (`isStaleExtensionId`) and say to **Remove + Load unpacked** once (which also
+clears `chrome.storage.local`, i.e. the port). No content scripts, no `externally_connectable`; CSP
+`script-src 'self'`, `connect-src http://localhost:*`; no inline scripts/handlers.
 
-- **Settings** (`chrome.storage.local`, `lib/portly.js`): `target` (`auto`, the default since 0.5.0, `pages` or
+- **Settings** (`chrome.storage.local`, `lib/portly.js`): `target` (`auto`, the default, `pages` or
   `local`), `pagesUrl` (none by default — no owner's site is built in; `https:`, or `http:` on localhost/127.0.0.1/[::1];
   no credentials, `?` or `#`; normalized with a trailing `/`), `port` (default 5757). Invalid stored values read as
   the default. Next to them, `serverSite` = `{port, pagesUrl|null}`: what Portly last reported as `pagesUrl` in
@@ -1062,6 +1143,13 @@ the pages detect an extension still running under another ID (`isStaleExtensionI
   for this ID, Remove + Load unpacked, or start manually), **Try starting again**, Retry with automatic re-checks
   every 5 s (12×), and a Google search box built with `encodeURIComponent`. Each attempt sends at most one launcher
   request; host text is shown via `textContent` only, one line, ≤ 200 characters.
+- **Add this page** (the toolbar `action`, `lib/add-page.js`, registered at the service worker's top level): a click
+  reads the tab's address and title, which `activeTab` allows without a `tabs` permission. An `http:`/`https:` address
+  without credentials and ≤ 2048 characters opens a new tab next to it at `newtab.html#/add-bookmark?url=…&title=…`
+  (title whitespace-collapsed, ≤ 300 characters, left out when it only repeats the address); anything else gets a "!"
+  badge and tooltip on that tab. That tab opens Portly as any new tab does and appends the hash, rebuilt from its
+  validated values (`forwardedHash`; any other hash is dropped), and Portly shows its Add bookmark dialog (§10.1,
+  §4.4). The extension never writes a bookmark itself.
 - **Options page** (`options.html` → `lib/options-page.js`): **New tab opens** (whatever Portly on this PC is set
   up for — showing what that currently is | the Pages site | Portly on this PC; saved on change), **Pages site
   address** (Save; empty or **Use the address Portly reports** removes it), integer port 1024–65535, Test
@@ -1091,6 +1179,9 @@ the pages detect an extension still running under another ID (`isStaleExtensionI
 
 ## 12. Autostart (Windows)
 
+User guide: `docs/setup/autostart.md` (modes, install options, status, the supervisor's log lines). This section is the
+contract: what is registered, how it is started, and what must stay true.
+
 Portly does **not** start at logon by default. It starts when Chrome or Edge opens (service-worker warm-up) and
 from a new tab that finds it not running (§11). The server is only ever started by **Task Scheduler**, never as a
 child of the browser or the native host: Chrome's isolated-browser mode runs native hosts in a kill-on-job-close job
@@ -1100,8 +1191,8 @@ and a second server exits with code 3 when the port is taken (the supervisor the
 
 **Scheduled task** — `scripts/install-autostart.ps1` registers the per-user task `\Portly Server`:
 - `-Trigger Browser` (default): **no trigger** — runs only on demand (`schtasks /run` from the native host, or
-  `Start-ScheduledTask`). `-Trigger Logon` (`-LogonDelaySeconds 0–3600`): AtLogOn of the current user (the previous
-  behaviour; the native host is still registered as a fallback).
+  `Start-ScheduledTask`). `-Trigger Logon` (`-LogonDelaySeconds 0–3600`): AtLogOn of the current user (the native
+  host is still registered as a fallback).
 - Action `Execute = "$env:SystemRoot\System32\conhost.exe"`, `Argument = '--headless "<program>" "<repo>\server\src\supervisor.ts"'`
   with `<program>` = `%LOCALAPPDATA%\Portly\node\portly-supervisor.exe` (below), or the absolute node.exe itself when
   that copy cannot be made or does not run, `WorkingDirectory = <repo>`; principal current user, `-LogonType Interactive -RunLevel Limited` (so it only runs while
@@ -1159,20 +1250,17 @@ administrator rights:
   It writes exactly one frame, appends one line to `launcher.log` (rotated at 64 KB) and exits 0. Nothing from the
   message reaches a command line; the worst a caller can do is start Portly.
 
-**Install flow:** validate (Node 24+, dependencies, `PORTLY_*` via `server/src/config.ts`, manifest key), print
-everything with `-DryRun` (task, every file with content, both registry values, the copies' state; exit 1 if something
-must be fixed), `npm run build` if `web/dist` is missing, make or refresh the named copies, register the task, write
-the host files and keys, stop processes started from this repo's supervisor (then refresh the copies if they were in
-use), then (unless `-NoStart`) start the task and wait for `/api/health` (`-TimeoutSeconds`, default
-90). On `Access is denied` (0x80070005) it tells the user to rerun from an elevated PowerShell. Running it again updates
-everything (also to switch modes or after updating Portly/Node.js). `uninstall-autostart.ps1` removes the host keys
-and folder **first** (so no browser can restart the task meanwhile), then stops the task and its processes,
-unregisters it and deletes `%LOCALAPPDATA%\Portly\node`; the data folder is never touched. Processes are found by
-command line (`supervisor.ts` of this repo, whatever the program; not the `conhost.exe` host) and their children, and
-listed with their program names. `status.ps1` reports the task (mode, last result, what it runs as, a missing program or
-out-of-date copies), both host registrations (manifest, files, `allowed_origins`, `node.exe`, stale `launcher.mjs`
-copy), the last `launcher.log` line, processes and health. Every Node child spawn uses `windowsHide: true`. No
-VBScript, no `-WindowStyle Hidden`.
+**Install and uninstall order:** `install-autostart.ps1` validates first (Node 24+, dependencies, `PORTLY_*` via
+`server/src/config.ts`, manifest key; `-DryRun` prints the task, every file with content, both registry values and the
+copies' state, and exits 1 if something must be fixed), builds `web/dist` if missing, makes or refreshes the named
+copies, registers the task, writes the host files and keys, stops processes started from this repo's supervisor (then
+refreshes the copies if they were in use), and unless `-NoStart` starts the task and waits for `/api/health`. Running
+it again updates everything. `uninstall-autostart.ps1` removes the host keys and folder **first** (so no browser can
+restart the task meanwhile), then stops the task and its processes, unregisters it and deletes
+`%LOCALAPPDATA%\Portly\node`; the data folder is never touched. Processes are found by command line (`supervisor.ts`
+of this repo, whatever the program; not the `conhost.exe` host) and their children. `status.ps1` reports the task, both
+host registrations, the last launcher request, processes and health (autostart.md, "Check on it"). Every Node child
+spawn uses `windowsHide: true`. No VBScript, no `-WindowStyle Hidden`.
 
 **Tests never touch Task Scheduler or the registry:** `npm run test:native-host` (`scripts/check-native-host.mjs`) unit-tests
 the launcher with injected fakes and runs the generated `launcher.cmd` exactly as Chrome does with
@@ -1186,10 +1274,11 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
 ## 13. Quality bar & test harness
 
 - `npm run typecheck`, `npm test`, `npm run build` must pass. No live network in tests. No secrets in the repo.
-  `.github/workflows/ci.yml` runs them, `npm run build:static` and `scripts/check-scripts.ps1` on `windows-latest`
-  for every push to `main` and every pull request (Windows because DPAPI, Task Scheduler and the `launcher.cmd`
-  tests are; not on other branch pushes, to spare private-repository minutes).
-- Foundation harness: `server/src/testing/test-context.ts` — `createTestContext(overrides?)` → AppContext with `:memory:`
+  `.github/workflows/ci.yml` runs them, `npm run build:static`, `scripts/check-scripts.ps1` and
+  `scripts/check-release.ps1` (a test package) on `windows-latest` for every push to `main` and every pull request
+  (Windows because DPAPI, Task Scheduler and the `launcher.cmd` tests need it; not on other branch pushes, to spare
+  private-repository minutes).
+- Test harness: `server/src/testing/test-context.ts` — `createTestContext(overrides?)` → AppContext with `:memory:`
   DB (migrations applied), in-memory vault (fixed key, no DPAPI), fake fetch, `FakeAccountService` (canned tokens and
   secrets), manual scheduler (`runDue()`), a test logger (`createTestLogger()`: rings and `lines()`, no file or
   console) as both `log` and `logs`, the real health tracker on that database and a fresh `runtime`. `test-request.ts` — `testRequest(app, method, path, {body?, headers?})`
@@ -1202,67 +1291,22 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   private, IPv4-mapped IPv6, decimal/octal literals, 302 → 127.0.0.1, gzip bomb), OAuth state/PKCE/consume/upsert,
   favicon HTML parsing, ICS parse/expand incl. RECURRENCE-ID overrides, Windows TZIDs, FREQ=SECONDLY and 100k-VEVENT
   limits, provider response mappers (fixtures), IMAP id/UIDVALIDITY handling, Todoist mapping.
-- Review wave serves the production build and checks there are no CSP violations.
+- The production build runs without CSP violations.
 
 ---
 
-## 14. Build plan & parallel rules
+## 14. Build plan & parallel rules (retired)
 
-**Waves:** 1a Scaffold (one builder) → 1b Foundation services (three parallel builders: server-core, web-shell,
-platform) → review → 2 Features (five parallel builders: A search+launchpad+bookmarks, B weather+clock, C todoist,
-D calendar, E mail) → review + fixes → 3 integration verification.
-
-**Rules for parallel builders (waves 1b and 2):**
-1. Edit only paths you own (§15). If a contract change is needed, stop and report it in your final message; the
-   orchestrator applies it between waves.
-2. No `npm install/uninstall/update` and no package.json edits. Report missing dependencies instead.
-3. No git write commands (add, commit, stash, checkout, restore, reset, clean, rebase).
-4. Manual runs use per-builder env: `PORTLY_PORT` and `PORTLY_VITE_PORT` from your assignment and
-   `PORTLY_DATA_DIR=<your scratch dir>\data`. Never use port 5757/5173 or `%LOCALAPPDATA%\Portly`.
-   Stop any server you start before finishing.
-5. Verify with scoped commands (`npx vitest run <your paths>`, `npm run typecheck`) and fix only errors in owned paths.
-6. Migrations only in your reserved range (§5).
+The parallel build plan was for the first build of Portly. That build is finished and the plan is in git history;
+the section number is kept so later section numbers stay stable. Rules for working in the repository are in
+`CLAUDE.md`.
 
 ---
 
-## 15. File ownership
+## 15. File ownership (retired)
 
-**Wave 1a — Scaffold (creates everything below; later waves own the parts listed for them):**
-- Root: package.json, package-lock.json, .npmrc, .gitignore, .editorconfig, tsconfig.base.json, vitest.config.ts, README.md (stub).
-- shared: package.json, tsconfig.json, `src/index.ts` (barrel re-exporting every file), all contract files of §7a
-  (errors, core, settings, profiles, accounts, bookmarks, search, weather, todoist, calendar, mail) — complete types and
-  zod schemas, including feature namespaces.
-- server: package.json, tsconfig.json, `src/{index,config,app,context}.ts`, `src/db/**` incl. `001_init.sql`,
-  `src/security/{gate,headers}.ts` (complete), `src/security/{vault,dpapi,safe-fetch}.ts` (interfaces + minimal working
-  in-memory/global-fetch implementations), `src/lib/**`, `src/testing/**`, `src/modules/index.ts`, and **stub**
-  `register()` for all 8 modules (each exporting its final symbol names; stubs return 501 `not_configured` where needed).
-- web: package.json, tsconfig.json, vite.config.ts, index.html, `src/main.tsx`, `src/app/{App.tsx,Shell.tsx,router.ts,providers.tsx}`,
-  `src/api/{client,keys}.ts`, `src/widgets/{types,registry}.ts`, all seven `src/widgets/<type>/{index.ts,Widget.tsx,Settings.tsx}`
-  stubs (EmptyState "Coming soon"), `src/settings/{SettingsShell.tsx,nav.ts}` + all ten section stubs, minimal
-  `src/styles/{tokens,base}.css`, `src/test/{setup.ts,render.tsx}`.
-- extension/ and scripts/ placeholders; docs/SETUP.md placeholder.
-- After 1a: `npm run typecheck`, `npm test`, `npm run build` pass and `npm start` serves the shell with seven "Coming soon" widgets.
-
-**Wave 1b owners:**
-- **server-core:** `server/src/security/{vault,dpapi,safe-fetch}.ts`, `server/src/modules/{core,accounts}/**`,
-  `server/src/supervisor.ts`, `server/src/lib/settings.ts` + backups job (may add files under `server/src/lib/` it creates
-  new), tests for all of these.
-- **web-shell:** `web/src/ui/**`, `web/src/styles/**`, `web/src/theme/**`, `web/src/grid/**`, `web/src/app/**`,
-  `web/src/lib/**`, `web/src/api/{settings,profiles,accounts,uploads,about}.ts`, `web/src/settings/SettingsShell.tsx`,
-  `web/src/settings/sections/{General,Appearance,Accounts,Profiles,ImportExport,About}.tsx`, `web/src/test/**`.
-- **platform:** `extension/**`, `native-host/**`, `scripts/**`, `docs/SETUP.md`, `docs/setup/**`, `README.md`.
-
-**Wave 2 owners** (may create any new file under their own folders plus migrations in their range):
-- **A search+launchpad+bookmarks:** `server/src/modules/{bookmarks,search}/**`; `web/src/widgets/{search,launchpad}/**`;
-  `web/src/settings/sections/{Search,Bookmarks}.tsx`; `web/src/api/{bookmarks,search}.ts`.
-- **B weather+clock:** `server/src/modules/weather/**`; `web/src/widgets/{weather,clock}/**`; `web/src/api/weather.ts`.
-- **C todoist:** `server/src/modules/todoist/**`; `web/src/widgets/todoist/**`; `web/src/settings/sections/Todoist.tsx`;
-  `web/src/api/todoist.ts`; `docs/setup/todoist.md`.
-- **D calendar:** `server/src/modules/calendar/**`; `web/src/widgets/calendar/**`; `web/src/settings/sections/Calendars.tsx`;
-  `web/src/api/calendar.ts`.
-- **E mail:** `server/src/modules/mail/**`; `web/src/widgets/mail/**`; `web/src/api/mail.ts`.
-
-Shared contract files (`shared/src/*`) are frozen after wave 1a; changes go through the orchestrator.
+The file ownership list split the first build between parallel builders. That build is finished and the list is in
+git history; the section number is kept so later section numbers stay stable.
 
 ---
 
@@ -1305,7 +1349,7 @@ and never reloads for this.
    grace wins over a recent sighting (no reload loop).
 4. `setPageBackend()`, create the controller (no module top level reads storage), plug it into the store and the
    transport; a server-backend page also gets the server image source.
-5. The browser backend opens IndexedDB as before (a load that will stay in the browser fetches its code alongside the
+5. The browser backend opens IndexedDB (a load that will stay in the browser fetches its code alongside the
    boot chunk), the server backend never does; then paint the persisted theme of that backend's snapshot (whatever its
    age; on the server backend only with that instance's buster), so stored images already resolve to `blob:` URLs;
    restore the snapshot; render; start probing.
@@ -1379,7 +1423,7 @@ browser backend's own pre-import backups) answer 404 without a request.
 checked type, SVG only as a `data:` URL (a same-origin SVG document could run script), 404s remembered, other failures
 retried (by the next request and by the cache itself, until the page leaves the server). `getAssetUrl` is null and
 `resolveAssetUrl` a transparent pixel until loaded; components use `useAssetUrl`. The Pages CSP's `img-src`
-(`'self' data: blob:`) is unchanged; `connect-src` gains the local server origin.
+needs nothing more for them (`blob:` and `data:`, §4.3); `connect-src` gains the local server origin.
 
 **Storage (all keys namespaced by the Pages base path `<base>`; every access guarded, everything read validated):**
 
@@ -1558,16 +1602,13 @@ all of it).**
 
 | Route | Answer |
 | --- | --- |
-| `GET /api/diagnostics/summary` | `DiagnosticsSummary`: `server {version, boot, pid, startedAt, uptimeMs, node, platform, memory, supervised, restart {attempt, lastExit}, dataDir, logDir}` (the two directories `''` for a Pages request, as `/api/about`), `logLevel`, `modules`, `vault`, `hybrid {pagesOrigin, pairings, lastPairedRequestAt, foreignOrigins, foreignOriginRequests}`, `inFlight {count, oldestMs, routes (≤ 10), outbound}`, `jobs`, `health` (labels resolved at read time — account label, calendar name, league name, job name — and `stale` derived), `counts` (warn/error of the last hour, server and browser; distinct warning keys; records in memory) |
+| `GET /api/diagnostics/summary` | `DiagnosticsSummary`: `server {version, boot, pid, startedAt, uptimeMs, node, platform, memory, supervised, restart {attempt, lastExit}, dataDir, logDir}` (the two directories blank for a Pages request, see §7 `/api/about`), `logLevel`, `modules`, `vault`, `hybrid {pagesOrigin, pairings, lastPairedRequestAt, foreignOrigins, foreignOriginRequests}`, `inFlight {count, oldestMs, routes (≤ 10), outbound}`, `jobs`, `health` (labels resolved at read time — account label, calendar name, league name, job name — and `stale` derived), `counts` (warn/error of the last hour, server and browser; distinct warning keys; records in memory) |
 | `GET /api/diagnostics/logs?scope=memory\|files&…` | `LogsResponse {records, lastSeq, truncated, scope}`. `memory`: the rings, merged by `seq` (`after=<lastSeq>` for polling). `files`: `server.log` and `.1`…`.5`, all opened first, read backwards in 64 KB chunks (≤ 20 MB per scan); text lines from before JSON Lines are read best-effort; every record is scrubbed again; `seq` 0. Filters: `since`/`before`, `level` (minimum), `area` (any tag), `src`, `rid`, `job`, `run`, `accountId`, `calendarId`, `feed`, `pairingId`, `key` (a health key → its context field), `q` (substring of message or fields), `limit` ≤ 2,000 |
 | `GET /api/diagnostics/health/:key/history?limit=` | the subject's outcome rows, newest first (default 50, at most 500) |
 | `PUT /api/diagnostics/level` | `{verbose, minutes: 1–10080 \| null, areas: [...] \| null}` → `LogLevelState {level, verbose, until, areas, bootLevel, persisted}`. Timed → `server_meta` `diagnostics.verbose` `{until, areas}`, switched back on after a restart; `minutes: null` (until turned off) → only the marker `diagnostics.verbose.untilOff`, so the next start logs `verbose logging ended {reason: 'restart'}`; `verbose: false` deletes both. The logger logs `log level changed {verbose, until, areas}` and `verbose logging ended {reason: 'expired'}` |
 | `POST /api/diagnostics/jobs/:name/run` | 202 `{started: true}` (not awaited; the job records its own outcome); 404 for an unknown job |
 | `GET /api/diagnostics/report?redact=0\|1` | JSON attachment `portly-diagnostics-YYYYMMDD-HHmm.json` (below); `info 'diagnostic report created' {redact, bytes, ms}` |
 | `POST /api/diagnostics/client-events` | `{sentAt, events (1–100)}` → `{accepted, dropped, acceptDebug}` (below) |
-
-A server from before diagnostics answers the Pages site `403 local_only` (its own page `404`); the page then says
-"Update Portly on this PC to see its diagnostics".
 
 **Report.** `{generatedAt, summary (full; paths masked), accounts [{id, kind, label, status, statusMessage}], calendars
 [{id, accountId, name, source}], health, history (the newest 500 outcome rows), logs {main: the last 3,000 info+
@@ -1650,20 +1691,21 @@ through `scrub`/`scrubFields`:
   emails and names (for sharing publicly)".
 
 Availability follows the page load's backend: the server (Portly's own page, or the Pages site using it) → every
-tab; a server whose summary answers `403 local_only`/`404` → "Update Portly on this PC to see its diagnostics" with
-Overview and This browser; the in-browser backend → Overview (the "This site" card) and This browser
-(`static/handlers/unavailable.ts` answers `/api/diagnostics/*` as unavailable). `#/settings/diagnostics` on Portly's
-own page never forwards to the Pages site (`app/pagesForward.ts`, like `#/pair`), and the Pages build always links to
-it (`<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`, `http://127.0.0.1:5757` when hybrid mode is built off). Every
-diagnostics query is unpersisted (`qk.diagnostics` in `NON_PERSISTED_ROOTS`); errors render notices, never a broken
-section.
+tab; a server from before diagnostics (its summary answers the Pages site `403 local_only`, its own page `404`) →
+"Update Portly on this PC to see its diagnostics" with Overview and This browser; the in-browser backend → Overview
+(the "This site" card) and This browser (`static/handlers/unavailable.ts` answers `/api/diagnostics/*` as
+unavailable). `#/settings/diagnostics` on Portly's own page never forwards to the Pages site (`app/pagesForward.ts`,
+like `#/pair`), and the Pages build always links to it (`<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`,
+`http://127.0.0.1:5757` when hybrid mode is built off). Every diagnostics query is unpersisted (`qk.diagnostics` in
+`NON_PERSISTED_ROOTS`); errors render notices, never a broken section.
 
 ---
 
 ## 18. Release packages (install without a checkout)
 
-User guide and release steps: `docs/setup/releases.md`. A Git checkout (`scripts/setup.ps1`) stays the development
-path; a **release install** runs the same server code from a zip that needs no Git, npm or separate Node.js.
+User guide and release steps: `docs/setup/releases.md` (what the package holds, the install and update walkthrough,
+cutting a release). This section is the contract. A Git checkout (`scripts/setup.ps1`) stays the development path; a
+**release install** runs the same server code from a zip that needs no Git, npm or separate Node.js.
 
 - **Package** (`scripts/build-release.ps1` → `dist-release/portly-<version>-win-x64.zip` + `portly-release.json`
   `{name, version, platform, package, sha256, size, node, commit, builtAt}`): root `package.json` (the version the server
@@ -1680,21 +1722,23 @@ path; a **release install** runs the same server code from a zip that needs no G
   Before a release folder is moved or deleted its junctions are removed first (non-recursive `Directory.Delete`), since
   a moved junction keeps its absolute target.
 - **Scripts in a release install** (`Get-HbReleaseInfo` = `release.json` present): `Resolve-HbNode` prefers
-  `<root>/runtime/node.exe` over PATH (source of the task's named copies §12, `launcher.cmd`, config check); `portly --update` runs a temporary
-  copy of `install.ps1` with `-InstallDir` = the parent of `app`, `--rebuild` refuses (it is `update.ps1`, checkout
-  only), `--version` names the install kind; `install-cli.ps1` skips the `PORTLY_PAGES_REPO` warning; `status.ps1`
-  shows the release version.
-- **Install/update** (`scripts/install.ps1`, self-contained, also `irm | iex`): latest =
-  `github.com/<releaseRepo>/releases/latest/download/portly-release.json` (validated: name, platform, version syntax,
-  package name pattern, 64-hex SHA-256), package checked against that SHA-256 before unpacking into `<InstallDir>/app.new`
-  and checked (release.json, platform, version, required files). Update: same version skipped unless `-Force`; stop the
-  task when its action names `<app>/server/src/supervisor.ts`, stop every process whose executable lives under `<app>`
-  and every named copy (`%LOCALAPPDATA%\Portly\node\*`) whose command line names a file under `<app>`,
-  copy `portly.db` (+ `-wal`/`-shm`) to `<data>/backups/portly-before-<old>-<time>.db` (newest 3 kept), `app` →
-  `app.previous`, `app.new` → `app`, link, `install-autostart.ps1 -Trigger <installed mode> -NodePath <app>/runtime/node.exe`
-  (waits for `/api/health`); on failure `app` → `app.failed`, `app.previous` → `app`, and the old version's
-  `install-autostart.ps1`. A task that runs another copy (a checkout) is left alone with a warning. The data folder is
-  never moved or deleted.
+  `<root>/runtime/node.exe` over PATH (source of the task's named copies §12, `launcher.cmd`, config check);
+  `portly --update` runs a temporary copy of `install.ps1` with `-InstallDir` = the parent of `app`, `--rebuild`
+  refuses (it is `update.ps1`, checkout only), `--version` names the install kind; `install-cli.ps1` skips the
+  `PORTLY_PAGES_REPO` warning; `status.ps1` shows the release version.
+- **Install/update** (`scripts/install.ps1`, self-contained, also `irm | iex`): `portly-release.json` from
+  `github.com/<releaseRepo>/releases/latest/download/` is validated (name, platform, version syntax, package name
+  pattern, 64-hex SHA-256); the package must match that SHA-256 before it is unpacked into `<InstallDir>/app.new`, which
+  is checked (release.json, platform, version, required files) before use. An update stops only what runs from `<app>`:
+  the task when its action names `<app>/server/src/supervisor.ts`, every process whose executable lives under `<app>`
+  and every named copy (`%LOCALAPPDATA%\Portly\node\*`) whose command line names a file under `<app>`. It copies
+  `portly.db` (+ `-wal`/`-shm`) to `<data>/backups/` before anything moves, then `app` → `app.previous`, `app.new` →
+  `app`, relinks and runs `install-autostart.ps1 -Trigger <mode> -NodePath <app>/runtime/node.exe`. The mode is
+  `install.ps1 -Trigger` when given, otherwise the installed task's (Logon when it has a trigger, else Browser;
+  Browser for a new install); `portly --update` never passes `-Trigger`, so it keeps the mode. If that fails, `app` →
+  `app.failed`, `app.previous` → `app`, and the old version's `install-autostart.ps1` runs with the same mode. On an
+  update, a task that runs another copy (a checkout) is left alone with a warning. The data folder is never moved or
+  deleted.
 - **Trust:** the SHA-256 comes from the same release as the package, so it detects corruption, not a
   compromised repository; packages are not code-signed (alpha).
 - **Checks:** `scripts/check-release.ps1` (install, the installed CLI and autostart dry run, a server started from the
