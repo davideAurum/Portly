@@ -119,3 +119,6 @@ or fold them into a phase.
   crosses the tower. Test the animated logo in Firefox and as the extension's New Tab page.
 - **Several PCs:** the open questions in [design/multi-pc.md](design/multi-pc.md), for example
   whether Tailscale strips the `Tailscale-User-Login` header, still need checking.
+- **Launch pad sync for the browser-only site:** a proposal to sync groups, bookmarks and icons
+  between browsers through a file in your own OneDrive, starting with a spike on a real
+  Outlook.com account: [design/launchpad-sync.md](design/launchpad-sync.md).
