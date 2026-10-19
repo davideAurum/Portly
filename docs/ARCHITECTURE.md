@@ -814,6 +814,18 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
   `CalendarSettings {syncIntervalMin: 5–60, defaultCalendarId: string|null}`.
 - **mail.ts** — `MailMessage {id, accountId, from: {name, address}, subject, snippet|null, date, unread, webUrl|null}`;
   `MailAccountSummary {accountId, label, email, color, unread, messages, webmailUrl|null, canArchive, canTrash?, error?}`.
+- **feeds.ts** — `Feed {url, feedUrl, title, siteUrl|null, items, fetchedAt}`; `FeedItem {id, title, url|null,
+  published|null, author|null, summary|null}` (plain text; caps `MAX_FEED_ITEMS` 50, `MAX_FEED_SUMMARY` 400,
+  `MAX_FEED_TITLE` 300); `FeedQuerySchema {url: SafeHttpUrl, check?: '1'}`.
+- **sports.ts** — `SPORTS_LEAGUES` (`SportsLeagueInfo {id, sport, league, name, soccer, scoreboardGroups?}`, picker
+  order) and the `SportsLeagueId` enum of their ids; `SportsTeamId` (ESPN's numeric id); `SportsTeam {id, league, name,
+  shortName, abbreviation, logo|null, logoDark|null, color|null}`; `SportsGame {id, league, date, timeValid,
+  state: 'pre'|'in'|'post', completed, detail, situation|null, home, away: SportsCompetitor, note|null, venue|null,
+  boxScoreUrl|null, gameUrl|null, espnWatchUrl|null, broadcasts}`; `SportsTeamGames`; the query schemas of both routes.
+- **export.ts** — `EXPORT_FORMAT = 'portly-export'`, `EXPORT_VERSION = 1`, `isExportFormat` (also accepts
+  `'homebase-export'`, §19); the strict `ExportSchema` of §7 Core (uploads and custom icons embedded as base64, each
+  ≤ 10 MB decoded; ≤ 100 uploads); `MAX_IMPORT_BYTES` (25 MB); `ImportSummary`, `ImportPreviewResponse`,
+  `ImportCommitSchema {previewId}`.
 - **pairing.ts** (hybrid mode) — `PORTLY_API_VERSION` (core.ts; bumped on any change the other side cannot
   ignore), `PAIRING_TOKEN_HEADER = 'X-Portly-Token'`, `MAX_PAIRINGS`, token/nonce schemas (43-char base64url),
   `InstanceIdSchema`, the request/response schemas of §7 Pairing, and the URL helpers `buildPairingRequestUrl` /
@@ -1721,8 +1733,10 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
   the task when its action names `<app>/server/src/supervisor.ts`, every process whose executable lives under `<app>`
   and every named copy (`%LOCALAPPDATA%\Portly\node\*`) whose command line names a file under `<app>`. It copies
   `portly.db` (+ `-wal`/`-shm`) to `<data>/backups/` before anything moves, then `app` → `app.previous`, `app.new` →
-  `app`, relinks and runs `install-autostart.ps1 -Trigger <installed mode> -NodePath <app>/runtime/node.exe`; if that
-  fails, `app` → `app.failed`, `app.previous` → `app`, and the old version's `install-autostart.ps1` runs. On an
+  `app`, relinks and runs `install-autostart.ps1 -Trigger <mode> -NodePath <app>/runtime/node.exe`. The mode is
+  `install.ps1 -Trigger` when given, otherwise the installed task's (Logon when it has a trigger, else Browser;
+  Browser for a new install); `portly --update` never passes `-Trigger`, so it keeps the mode. If that fails, `app` →
+  `app.failed`, `app.previous` → `app`, and the old version's `install-autostart.ps1` runs with the same mode. On an
   update, a task that runs another copy (a checkout) is left alone with a warning. The data folder is never moved or
   deleted.
 - **Trust:** the SHA-256 comes from the same release as the package, so it detects corruption, not a
