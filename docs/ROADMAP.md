@@ -28,12 +28,6 @@ saved so it can be brought over in phase 1.
    Homebase is removed only once Portly is up. See
    [SETUP: Coming from Homebase](SETUP.md#coming-from-homebase) and
    [ARCHITECTURE section 19](ARCHITECTURE.md#19-moving-over-from-homebase-the-name-before-portly).
-   - Still open from its review:
-     - the extension's health check still accepts Homebase;
-     - the vault key is chosen wrongly when both exist;
-     - `HOMEBASE_DATA_DIR` should be read as the source, not carried over;
-     - the variable copy should happen only once;
-     - a failed in-browser database copy is never retried.
 2. **Outlook.com calendars in the browser-only build** (done). Brought over from Homebase with the
    rename applied. Missing tests were added, a retry loop when browser storage is full was fixed,
    dead settings code was removed, and stale text, comments and privacy notes were brought up to
