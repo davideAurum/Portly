@@ -1,8 +1,9 @@
 /**
- * Settings → Bookmarks (§10.8): export every group as a bookmark HTML file, import from the Chrome/Edge profiles found on this PC or from an
- * exported HTML bookmark file (with a report of what was imported and skipped), group management
- * (create, rename/color, reorder, delete) and the `bookmarks` settings namespace (default group
- * for new bookmarks, automatic website icons).
+ * Settings → Bookmarks (§10.8), top to bottom: group management (create, rename/color, reorder,
+ * delete); one import & export card (import from the Chrome/Edge profiles found on this PC or from
+ * an exported HTML bookmark file, with a report of what was imported and skipped; export every
+ * group as a bookmark HTML file); and the `bookmarks` settings namespace (default group for new
+ * bookmarks, automatic website icons).
  */
 import { useId, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, FileUp, FolderPlus, Globe, Pencil, RefreshCw, Trash } from 'lucide-react';
@@ -45,20 +46,19 @@ export default function BookmarksSettings() {
   const [report, setReport] = useState<{ source: string; report: BookmarkImportReport } | null>(null);
   return (
     <div className={styles.stack}>
-      <ImportCard onReport={(source, r) => setReport({ source, report: r })} />
-      {report ? <ImportReport source={report.source} report={report.report} onDismiss={() => setReport(null)} /> : null}
       <GroupsCard />
-      <ExportCard />
+      <ImportExportCard onReport={(source, r) => setReport({ source, report: r })} />
+      {report ? <ImportReport source={report.source} report={report.report} onDismiss={() => setReport(null)} /> : null}
       <PreferencesCard />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Import
+// Import & export
 // ---------------------------------------------------------------------------
 
-function ImportCard({ onReport }: { onReport(source: string, report: BookmarkImportReport): void }) {
+function ImportExportCard({ onReport }: { onReport(source: string, report: BookmarkImportReport): void }) {
   const [strategy, setStrategy] = useState<Strategy>('folders');
   // The in-browser backend cannot read profile files from disk: the subsection is hidden and the
   // sources are never requested.
@@ -70,6 +70,9 @@ function ImportCard({ onReport }: { onReport(source: string, report: BookmarkImp
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputId = useId();
+  const bookmarks = useBookmarks();
+  const groups = bookmarks.data?.groups ?? [];
+  const count = groups.reduce((n, g) => n + g.bookmarks.length, 0);
 
   const runBrowser = async (id: string, label: string) => {
     setBusyId(id);
@@ -105,10 +108,16 @@ function ImportCard({ onReport }: { onReport(source: string, report: BookmarkImp
     setFile(picked);
   };
 
+  const download = () => {
+    const now = new Date();
+    saveBlob(new Blob([toNetscapeBookmarks(groups, now)], { type: 'text/html' }), bookmarksFilename(now));
+    toast.success(`Exported ${plural(count, 'bookmark')}.`);
+  };
+
   return (
     <SettingsCard
-      title="Import bookmarks"
-      description="Copies bookmarks into Portly; your browser is not changed. Bookmarklets and other non-web addresses are skipped, as are addresses already in the same group."
+      title="Import & export bookmarks"
+      description="Importing copies bookmarks into Portly; your browser is not changed. Bookmarklets and other non-web addresses are skipped, as are addresses already in the same group."
     >
       <div className={own.strategy}>
         <Field label="Put imported bookmarks into">
@@ -205,6 +214,18 @@ function ImportCard({ onReport }: { onReport(source: string, report: BookmarkImp
           {fileError}
         </p>
       ) : null}
+
+      <h3 className={styles.itemTitle}>Export to an HTML file</h3>
+      <p className={styles.intro}>
+        Saves every group as a folder in a bookmark HTML file. Import it into another Portly (choose “One group per folder” to keep your
+        groups) or into Chrome, Edge, Firefox or Safari. Icons and group colors are not included; Settings → Import & export saves your
+        whole setup.
+      </p>
+      <div className={own.fileRow}>
+        <Button size="sm" icon={Download} disabled={count === 0} onClick={download}>
+          Export bookmarks
+        </Button>
+      </div>
     </SettingsCard>
   );
 }
@@ -275,7 +296,7 @@ function GroupsCard() {
           <SkeletonList rows={3} avatar={false} />
         )
       ) : groups.length === 0 ? (
-        <EmptyState icon={FolderPlus} compact title="No groups yet" body="Create a group, or import bookmarks above." />
+        <EmptyState icon={FolderPlus} compact title="No groups yet" body="Create a group, or import bookmarks below." />
       ) : (
         <ul className={styles.list} aria-label="Bookmark groups">
           {groups.map((group, index) => {
@@ -318,34 +339,6 @@ function GroupsCard() {
         }}
       />
     </SettingsCard>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Export
-// ---------------------------------------------------------------------------
-
-function ExportCard() {
-  const bookmarks = useBookmarks();
-  const groups = bookmarks.data?.groups ?? [];
-  const count = groups.reduce((n, g) => n + g.bookmarks.length, 0);
-
-  const download = () => {
-    const now = new Date();
-    saveBlob(new Blob([toNetscapeBookmarks(groups, now)], { type: 'text/html' }), bookmarksFilename(now));
-    toast.success(`Exported ${plural(count, 'bookmark')}.`);
-  };
-
-  return (
-    <SettingsCard
-      title="Export bookmarks"
-      description="Saves every group as a folder in a bookmark HTML file. Import it into another Portly (choose “One group per folder” to keep your groups) or into Chrome, Edge, Firefox or Safari. Icons and group colors are not included; Import & export saves your whole setup."
-      actions={
-        <Button size="sm" icon={Download} disabled={count === 0} onClick={download}>
-          Export bookmarks
-        </Button>
-      }
-    />
   );
 }
 
