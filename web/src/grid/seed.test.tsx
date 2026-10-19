@@ -1,4 +1,5 @@
-import { screen, waitFor } from '@testing-library/react';
+import { useQuery } from '@tanstack/react-query';
+import { act, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { WIDGET_TYPES, type Layout } from '@portly/shared';
 import { Shell } from '../app/Shell.tsx';
@@ -7,7 +8,7 @@ import { createFakeServer } from '../test/fakeServer.ts';
 import { profile, shellMocks, widget } from '../test/fixtures.ts';
 import { createTestQueryClient, mockResponse, renderWithProviders, stubApi } from '../test/render.tsx';
 import { createDefaultLayout } from './defaultLayout.ts';
-import { SEED_LOCK_NAME, seedHomeProfile, seedLockName } from './seed.ts';
+import { SEED_LOCK_NAME, seedHomeProfile, seedLockName, useFirstRunSeed } from './seed.ts';
 
 // Real widget definitions with stand-in components: these tests are about the shell, not the
 // widgets (which render real data and make their own API calls).
@@ -105,6 +106,26 @@ describe('first-run seeding', () => {
     // Profiles: the dashboard's load plus the pre-seed re-check; settings: the initial load only.
     expect(requestsTo('GET /api/profiles')).toHaveLength(2);
     expect(requestsTo('GET /api/settings')).toHaveLength(1);
+  });
+
+  it('a profiles refetch that brings the same list does not re-render the dashboard', async () => {
+    const onRender = vi.fn();
+    function Probe() {
+      // A new array on every fetch, equal in content (TanStack keeps the old one).
+      const profiles = useQuery({ queryKey: ['profiles-probe'], queryFn: async () => [profile('p1', 'Home')] });
+      useFirstRunSeed(profiles);
+      onRender(profiles.data?.length ?? 0);
+      return null;
+    }
+    const { queryClient } = renderWithProviders(<Probe />);
+    await waitFor(() => expect(onRender).toHaveBeenLastCalledWith(1));
+    const renders = onRender.mock.calls.length;
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['profiles-probe'] });
+      // TanStack tells its observers on a later tick.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(onRender.mock.calls.length).toBe(renders);
   });
 
   it('does not seed when profiles exist', async () => {

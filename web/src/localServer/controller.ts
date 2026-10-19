@@ -3,8 +3,10 @@
  * PC, knows whether this browser is paired with it, and decides when this page load should switch
  * backend. The backend itself never changes in place: each page load has one (`browser`, the
  * in-browser copy, or `server`), and a switch persists what the next load needs and reloads the
- * page — at once when the tab is hidden or the user is idle, otherwise once the page is idle again
- * (or the user clicks Switch now).
+ * page — at once when the user is idle, otherwise once the page is idle again (or the user clicks
+ * Switch now). A hidden tab waits until it is visible again and checks the server once more
+ * first, so that a pairing change in one tab does not reload every background tab at once (and
+ * a switch decided long ago is not applied when it no longer holds).
  *
  * When it probes:
  * - hybrid mode off or a framed page: never;
@@ -13,7 +15,9 @@
  *   (`lookForServer`, a user gesture that may show the permission prompt);
  * - paired: on boot, then every 30 s while connected (skipped while the server answered requests
  *   in the last 30 s), every 2 s while reconnecting, else with a 5→10→20→30→60 s backoff that
- *   visibility, focus, `online`, permission and pairing changes and `checkNow()` reset.
+ *   visibility, focus, `online`, permission and pairing changes and `checkNow()` reset. While the
+ *   tab is hidden, at most once a minute (still often enough to know when the server went away,
+ *   which the grace below counts from); at once when it is visible again.
  * One probe at a time. While the permission prompt may be open (`prompt`, or no permission API)
  * a probe is never aborted: after 3 s it reports `waiting-permission` and waits. Otherwise a probe
  * gives up after 5 s, which says nothing when the server answered something in the last 30 s.
@@ -111,6 +115,8 @@ export const RECENT_RESPONSE_MS = 30_000;
 export const RECONNECT_INTERVAL_MS = 2_000;
 /** Probe intervals for every other paired state. */
 export const BACKOFF_MS: readonly number[] = Object.freeze([5_000, 10_000, 20_000, 30_000, 60_000]);
+/** A hidden tab's scheduled probes come at most this often. */
+export const HIDDEN_PROBE_INTERVAL_MS = 60_000;
 /** How often a pending switch checks whether the page became idle. */
 export const BUSY_POLL_MS = 2_000;
 /** `lastServerSeenAt` is written at most this often. */
@@ -330,6 +336,10 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
   let lastHealthyAt: number | null = null;
   let lastSeenWriteAt: number | null = null;
   let switchRequest: PendingSwitch | null = null;
+  /** The requested switch waited while the tab was hidden: it is checked again once visible. */
+  let switchAwaitsVisible = false;
+  /** A probe is checking whether the switch that waited still holds ({@link confirmSwitch}). */
+  let confirmingSwitch = false;
   // Grace of a server-backend page: when this reconnecting spell began, and how much of it was
   // spent waiting for the permission prompt (which does not count).
   let graceStart: number | null = null;
@@ -423,10 +433,13 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
 
   function schedule(ms: number, trigger: Trigger = 'timer'): void {
     cancelSchedule();
-    probeTimer = setTimer(() => {
-      probeTimer = null;
-      void kick(trigger);
-    }, ms);
+    probeTimer = setTimer(
+      () => {
+        probeTimer = null;
+        void kick(trigger);
+      },
+      deps.page.visible() ? ms : Math.max(ms, HIDDEN_PROBE_INTERVAL_MS),
+    );
   }
 
   function scheduleNext(): void {
@@ -598,11 +611,16 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     let outcome = result;
     if (outcome.kind === 'aborted') {
       // Only our own timeout aborts a probe while running; anything else learned nothing.
-      if (!current.timedOut) return;
+      if (!current.timedOut) {
+        if (confirmingSwitch) settleSwitch();
+        return;
+      }
       outcome = recentResponse(now()) ? { kind: 'inconclusive' } : { kind: 'unreachable' };
     }
     const status = statusAfter(outcome, current);
     apply(outcome, current, status, reportProbe(outcome, current, status));
+    // The check of a switch that waited while hidden: it withdrew the switch, or the switch holds.
+    if (confirmingSwitch) settleSwitch();
   }
 
   /** The status a settled probe leads to (what `apply` sets). */
@@ -785,15 +803,42 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     // Now too, in case this tab closes before the reload.
     persistNextBackend(target);
     wake();
-    if (!deps.page.visible()) return reload(false);
-    if (!deps.isBusy()) return reload(true);
+    if (!deps.page.visible()) {
+      switchAwaitsVisible = true;
+      return reportDeferred('hidden');
+    }
+    settleSwitch();
+  }
+
+  /** Applies the requested switch on a visible page: reloads when it is idle, else waits until it is. */
+  function settleSwitch(): void {
+    confirmingSwitch = false;
+    if (switchRequest === null || reloading) return;
+    if (!deps.page.visible()) {
+      switchAwaitsVisible = true;
+      return;
+    }
+    if (!deps.isBusy()) return reload();
     reportDeferred('busy');
     update({ pendingSwitch: switchRequest });
     pollUntilIdle();
   }
 
-  /** The pending switch waits (once per switch): the page is busy, or storage refused the hints. */
-  function reportDeferred(kind: 'busy' | 'hints-refused'): void {
+  /**
+   * The tab is visible again with a switch that waited while it was hidden. What it was decided
+   * from may be old by now (the server went away, or came back, or another tab paired again), so
+   * one more probe goes first; the switch follows when that probe leaves it standing. With no
+   * probe possible (not paired any more and no permission to look), it stands as it was requested.
+   */
+  function confirmSwitch(): void {
+    switchAwaitsVisible = false;
+    confirmingSwitch = true;
+    void kick('change');
+    if (probe === null) settleSwitch();
+  }
+
+  /** The pending switch waits (once per switch): the tab is hidden or busy, or storage refused the hints. */
+  function reportDeferred(kind: 'hidden' | 'busy' | 'hints-refused'): void {
     if (switchDeferredReported || switchRequest === null) return;
     switchDeferredReported = true;
     diag('info', 'backend switch deferred', { target: switchRequest.target, reason: switchRequest.reason, kind });
@@ -804,8 +849,12 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     busyTimer = setTimer(() => {
       busyTimer = null;
       if (switchRequest === null || reloading || stopped) return;
-      if (!deps.page.visible()) reload(false);
-      else if (!deps.isBusy()) reload(true);
+      // Hidden: it waits until the tab is visible again (onPageEvent).
+      if (!deps.page.visible()) {
+        switchAwaitsVisible = true;
+        return;
+      }
+      if (!deps.isBusy()) reload();
       if (!reloading) pollUntilIdle();
     }, BUSY_POLL_MS);
   }
@@ -815,6 +864,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     if (switchRequest?.target !== target || reloading) return;
     diag('info', 'backend switch withdrawn', { target, reason: switchRequest.reason });
     switchRequest = null;
+    switchAwaitsVisible = false;
     clearTimer(busyTimer);
     busyTimer = null;
     update({ pendingSwitch: null });
@@ -833,11 +883,11 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
 
   /**
    * Applies the requested switch: writes the hints again (other tabs and this page's own probes may
-   * have changed them while it waited) and reloads (`announce`: the next load shows what
-   * happened). Unless the user asked (`user`), only when the next load does start on the other
-   * backend: otherwise the switch stays pending (Switch now) and the idle poll retries.
+   * have changed them while it waited) and reloads, the next load announcing what happened. Unless
+   * the user asked (`user`), only when the next load does start on the other backend: otherwise
+   * the switch stays pending (Switch now) and the idle poll retries.
    */
-  function reload(announce: boolean, user = false): void {
+  function reload(user = false): void {
     if (reloading || switchRequest === null) return;
     const persisted = persistNextBackend(switchRequest.target);
     if (!persisted && !user) {
@@ -848,9 +898,9 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     reloading = true;
     haltTimers();
     probe?.abort.abort();
-    if (announce && persisted) writeItem(deps.sessionStorage, MODE_SWITCH_TOAST_KEY, `${switchRequest.target}:${switchRequest.reason}`);
+    if (persisted) writeItem(deps.sessionStorage, MODE_SWITCH_TOAST_KEY, `${switchRequest.target}:${switchRequest.reason}`);
     // Recorded (and stored) before the reload: the next page load shows it.
-    diag('info', 'backend switch performed', { target: switchRequest.target, reason: switchRequest.reason, kind: user ? 'user' : announce ? 'idle' : 'hidden' });
+    diag('info', 'backend switch performed', { target: switchRequest.target, reason: switchRequest.reason, kind: user ? 'user' : 'idle' });
     wake();
     deps.reload();
   }
@@ -860,13 +910,16 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
   function onPageEvent(event: PageEvent): void {
     if (!running()) return;
     if (event === 'hidden') {
-      // Nobody is looking: apply a waiting switch now.
-      if (switchRequest !== null) reload(false);
+      // Nobody is looking: a pending switch waits until the tab is visible again.
+      if (switchRequest !== null) {
+        clearTimer(busyTimer);
+        busyTimer = null;
+        switchAwaitsVisible = true;
+      }
       return;
     }
-    if (event === 'visible' && switchRequest !== null && !deps.isBusy()) reload(true);
-    if (reloading) return;
     backoffStep = 0;
+    if (event === 'visible' && switchRequest !== null && switchAwaitsVisible) return confirmSwitch();
     void kick('event');
   }
 
@@ -974,7 +1027,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
       // The user asked: reload now, busy or not.
       switchRequest = { target: 'browser', reason: 'disconnected' };
       diag('info', 'backend switch requested', { target: 'browser', reason: 'disconnected' });
-      return reload(true, true);
+      return reload(true);
     }
     dropSwitch('server');
     update({ status: unpairedStatus(), unreachableReason: null }, { reason: 'disconnected' });
@@ -989,7 +1042,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
       void beginPairing();
     },
     disconnect,
-    switchNow: () => reload(true, true),
+    switchNow: () => reload(true),
   });
 
   // -- whenServerReady ---------------------------------------------------------------------

@@ -4,17 +4,20 @@
  * log shows them next to the requests and jobs they explain (ARCHITECTURE §17;
  * `POST /api/diagnostics/client-events`). `main.tsx` starts it once the page is up.
  *
- * - Every 15 s and whenever the tab is hidden; one upload at a time (a tick is skipped while one is
- *   on its way), each inside this browser's upload lock (`withUploadLock`: two tabs never send the
- *   same stored events). One upload = `pendingUpload(acceptDebug)` (at most 100: other tabs' and
- *   earlier page loads' events included) posted with `sentAt` under a 10 s timeout, then
- *   `markUploaded` by id — only after a 2xx, so a failed upload sends them again.
+ * - Every 15 s while the tab is visible, and whenever it is hidden (a hidden tab's timer stops: its
+ *   stored events are every tab's, and a visible tab sends them); one upload at a time (a tick is
+ *   skipped while one is on its way), each inside this browser's upload lock (`withUploadLock`: two
+ *   tabs never send the same stored events). One upload = `pendingUpload(acceptDebug)` (at most
+ *   100: other tabs' and earlier page loads' events included) posted with `sentAt` under a 10 s
+ *   timeout, then `markUploaded` by id — only after a 2xx, so a failed upload sends them again.
  * - Never uploaded (`isUploadable`): events recorded on the browser backend, and API events the
  *   server answered with a `rid` (it logged those requests itself).
  * - Debug events go while the server accepts them (`acceptDebug` of its last answer: verbose
- *   logging covers `client`). Until it says so, one debug event a minute goes along to ask (the
- *   server drops it when it does not want it, and it stays unsent: This browser never shows it as
- *   in the server's log).
+ *   logging covers `client`). Until it says so, one debug event goes along to ask (the server drops
+ *   it when it does not want it, and it stays unsent: This browser never shows it as in the
+ *   server's log) — once per page load, then again when the tab is visible after a minute or more
+ *   since the last ask, and right after this page changes the server's log level
+ *   ({@link askAboutDebugEventsAgain}). Any upload's answer says it too.
  * - The server takes at most 120 events and 64 KB of their fields a minute from a caller (this
  *   site's pairing, or Portly's own page) and drops the rest, so a backlog (after an outage)
  *   goes out in batches that stay under that — paced by every tab of this site together: the
@@ -48,7 +51,7 @@ export const UPLOAD_TIMEOUT_MS = 10_000;
 /** The server's per-caller limits: events a minute, and UTF-8 bytes of their serialized fields. */
 export const UPLOAD_EVENTS_PER_MINUTE = 120;
 export const UPLOAD_BYTES_PER_MINUTE = 64 * 1024;
-/** How often a debug event goes along to ask whether the server wants them. */
+/** A tab visible again asks again whether the server wants debug events when its last ask is at least this old. */
 export const DEBUG_ASK_INTERVAL_MS = 60_000;
 const MINUTE_MS = 60_000;
 /** Answers after which this page load stops uploading (a 422 only when it names no event). */
@@ -65,7 +68,7 @@ export interface ClientEventUploadDeps {
   post?: (body: ClientEventsRequest, signal?: AbortSignal) => Promise<ClientEventsResponse>;
   /** Wall clock for `sentAt` and the pacing (default `Date.now`). */
   now?: () => number;
-  /** Default: `document` (null: no visibility uploads). */
+  /** Default: `document` (null: no visibility uploads, and the timer always runs). */
   document?: VisibilitySource | null;
   /** The request's timeout signal (default `AbortSignal.timeout`, where the browser has it). */
   timeoutSignal?: (ms: number) => AbortSignal | undefined;
@@ -87,6 +90,17 @@ interface SentUpload {
   at: number;
   count: number;
   bytes: number;
+}
+
+/** The running uploads' "ask again" callbacks (one per page load; tests start several). */
+const debugAskers = new Set<() => void>();
+
+/**
+ * This page changed the server's log level (Settings → Diagnostics): ask now whether it wants
+ * debug events, with one of them (so a Verbose switched on here sends this page load's at once).
+ */
+export function askAboutDebugEventsAgain(): void {
+  for (const ask of [...debugAskers]) ask();
 }
 
 /** localStorage key of the pacing record every tab of this site shares (beside the stored events). */
@@ -186,21 +200,43 @@ export function startClientEventUpload(deps: ClientEventUploadDeps = {}): Client
   let stopped = false;
   let inFlight: Promise<void> | null = null;
   let acceptDebug = false;
+  /** One debug event goes along to ask whether the server wants them (see the module comment). */
+  let debugAskDue = true;
   let lastDebugAsk = Number.NEGATIVE_INFINITY;
   /** This page load's uploads of the last minute (they count even when storage refused them). */
   let ownSent: SentUpload[] = [];
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  function startTimer(): void {
+    if (!stopped && timer === null) timer = setInterval(() => void flush(), UPLOAD_INTERVAL_MS);
+  }
+
+  function stopTimer(): void {
+    if (timer !== null) clearInterval(timer);
+    timer = null;
+  }
+
   const onVisibility = (): void => {
-    if (doc?.visibilityState === 'hidden') void flush();
+    if (doc?.visibilityState === 'hidden') {
+      stopTimer();
+      void flush();
+      return;
+    }
+    if (now() - lastDebugAsk >= DEBUG_ASK_INTERVAL_MS) debugAskDue = true;
+    startTimer();
+  };
+
+  const askAgain = (): void => {
+    debugAskDue = true;
+    void flush();
   };
 
   function stop(): void {
     if (stopped) return;
     stopped = true;
-    if (timer !== null) clearInterval(timer);
-    timer = null;
+    stopTimer();
     doc?.removeEventListener('visibilitychange', onVisibility);
+    debugAskers.delete(askAgain);
   }
 
   /** Every tab's uploads of the last minute (stored ones, and this page load's own). */
@@ -241,7 +277,7 @@ export function startClientEventUpload(deps: ClientEventUploadDeps = {}): Client
     if (budget <= 0 || room <= 0) return { entries: [], bytes: 0 };
     let candidates = pendingUpload(acceptDebug, budget);
     let asking = false;
-    if (candidates.length === 0 && !acceptDebug && at - lastDebugAsk >= DEBUG_ASK_INTERVAL_MS) {
+    if (candidates.length === 0 && !acceptDebug && debugAskDue) {
       // Only debug events wait: one goes along to learn whether the server wants them now.
       candidates = pendingUpload(true, 1);
       asking = true;
@@ -254,7 +290,10 @@ export function startClientEventUpload(deps: ClientEventUploadDeps = {}): Client
       bytes += size;
       entries.push(entry);
     }
-    if (asking && entries.length > 0) lastDebugAsk = at;
+    if (asking && entries.length > 0) {
+      debugAskDue = false;
+      lastDebugAsk = at;
+    }
     return { entries, bytes };
   }
 
@@ -306,8 +345,9 @@ export function startClientEventUpload(deps: ClientEventUploadDeps = {}): Client
     return inFlight;
   }
 
-  timer = setInterval(() => void flush(), UPLOAD_INTERVAL_MS);
+  if (doc?.visibilityState !== 'hidden') startTimer();
   doc?.addEventListener('visibilitychange', onVisibility);
+  debugAskers.add(askAgain);
 
   return {
     flush,

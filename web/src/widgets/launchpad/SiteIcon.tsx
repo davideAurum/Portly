@@ -16,12 +16,13 @@
  * Many favicons are a single dark (or white) glyph on a transparent background, which vanishes
  * on a surface of the same tone. Once loaded, the icon's tone is measured on a tiny canvas (the
  * image is same-origin); a monochrome icon that matches the current scheme gets a contrasting
- * plate.
+ * plate. The stylesheet decides that from the page's scheme (`data-tone` + `:root[data-theme]`,
+ * as tokens.css does), so no icon subscribes to the settings or the OS preference itself: a
+ * launch pad shows dozens of them.
  */
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { iconUrl } from '@portly/shared';
 import { useAssetUrl } from '../../static/assets.ts';
-import { useColorScheme } from '../../theme/useTheme.ts';
 import { LetterTile } from '../../ui/Badge.tsx';
 import styles from './SiteIcon.module.css';
 
@@ -85,7 +86,6 @@ interface ImageState {
 export function SiteIcon({ label, iconId, letter = false, letterColor = null, size, className }: SiteIconProps) {
   const src = useAssetUrl(letter || !iconId ? null : iconUrl(iconId));
   const [state, setImage] = useState<ImageState>({ src, failed: false, tone: 'other' });
-  const scheme = useColorScheme();
   let image = state;
   if (state.src !== src) {
     // A new URL starts over: no failure, no plate (adjusted while rendering, not in an effect).
@@ -97,7 +97,7 @@ export function SiteIcon({ label, iconId, letter = false, letterColor = null, si
     return <LetterTile label={label} color={letterColor} size={size} className={[styles.tile, className].filter(Boolean).join(' ')} />;
   }
   const tone = image.tone;
-  const plate = (tone === 'dark' && scheme === 'dark') || (tone === 'light' && scheme === 'light');
+  const monochrome = tone !== 'other';
   return (
     <img
       className={[styles.image, className].filter(Boolean).join(' ')}
@@ -108,8 +108,8 @@ export function SiteIcon({ label, iconId, letter = false, letterColor = null, si
       loading="lazy"
       decoding="async"
       draggable={false}
-      data-plate={plate ? 'true' : undefined}
-      style={plate ? { padding: Math.max(2, Math.round(size * 0.14)) } : undefined}
+      data-tone={monochrome ? tone : undefined}
+      style={monochrome ? ({ '--site-icon-plate-padding': `${Math.max(2, Math.round(size * 0.14))}px` } as CSSProperties) : undefined}
       onLoad={(event) => {
         const measured = iconTone(event.currentTarget);
         setImage((current) => (current.src === src ? { ...current, tone: measured } : current));

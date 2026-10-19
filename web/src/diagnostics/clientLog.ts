@@ -24,7 +24,8 @@
  *   project's tests run under Node), blocked, or too full for even one event — the ring then lives
  *   in memory for the rest of the page load (Clear still removes the stored mirror, and stores
  *   again after it). Whatever is read back is validated (`ClientEventSchema`), since another tab,
- *   build or program may have written it.
+ *   build or program may have written it — each entry once: when another tab rewrites the mirror,
+ *   only the entries this tab has not read before are validated.
  *
  * Each event carries a session id (random per page load) and `page = {build, backend, version}`.
  */
@@ -282,7 +283,7 @@ interface ClientLogState {
    * oldest first, no debug events; when storage was full, only the newest of these reached it).
    */
   stored: readonly ClientLogEntry[];
-  /** The string last read or written; `stored` is re-parsed only when another tab changed it. */
+  /** The string last read or written; `stored` is re-read only when another tab changed it (validating new entries only). */
   storedRaw: string | null;
   /** This page load's last 100 debug events (never persisted). */
   local: ClientLogEntry[];
@@ -312,17 +313,24 @@ function isFresh(entry: ClientLogEntry, now: number): boolean {
   return now - eventTime(entry) <= CLIENT_LOG_MAX_AGE_MS;
 }
 
-/** A stored entry, validated; null when it is not one this module writes (or a debug event). */
-function readEntry(value: unknown): ClientLogEntry | null {
+/**
+ * A stored entry, validated; null when it is not one this module writes (or a debug event). An id
+ * already read and validated (`known`) keeps that entry, with the stored upload mark: events never
+ * change once recorded, so only entries not seen before are validated (another tab's write
+ * re-reads the whole mirror, and validating up to 300 events each time adds up).
+ */
+function readEntry(value: unknown, known: ReadonlyMap<string, ClientLogEntry>): ClientLogEntry | null {
   if (value === null || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
   if (typeof raw.id !== 'string' || !ENTRY_ID.test(raw.id) || typeof raw.uploaded !== 'boolean') return null;
+  const seen = known.get(raw.id);
+  if (seen !== undefined) return seen.uploaded === raw.uploaded ? seen : Object.freeze({ ...seen, uploaded: raw.uploaded });
   const event = ClientEventSchema.safeParse(raw.event);
   if (!event.success || event.data.level === 'debug') return null;
   return Object.freeze({ id: raw.id, uploaded: raw.uploaded, event: freezeEvent(event.data) });
 }
 
-function parseStored(raw: string | null, now: number): ClientLogEntry[] {
+function parseStored(raw: string | null, now: number, known: ReadonlyMap<string, ClientLogEntry>): ClientLogEntry[] {
   if (raw === null) return [];
   let value: unknown;
   try {
@@ -336,7 +344,7 @@ function parseStored(raw: string | null, now: number): ClientLogEntry[] {
   const seen = new Set<string>();
   const out: ClientLogEntry[] = [];
   for (const item of entries.slice(-CLIENT_LOG_SIZE)) {
-    const entry = readEntry(item);
+    const entry = readEntry(item, known);
     if (entry === null || seen.has(entry.id) || !isFresh(entry, now)) continue;
     seen.add(entry.id);
     out.push(entry);
@@ -355,7 +363,7 @@ function readStored(s: ClientLogState): readonly ClientLogEntry[] {
     return s.stored;
   }
   if (raw !== s.storedRaw) {
-    s.stored = parseStored(raw, Date.now());
+    s.stored = parseStored(raw, Date.now(), new Map(s.stored.map((entry) => [entry.id, entry])));
     s.storedRaw = raw;
   }
   return s.stored;

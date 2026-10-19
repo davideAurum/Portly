@@ -479,6 +479,26 @@ describe('other tabs', () => {
     expect(listener).toHaveBeenCalledTimes(4);
   });
 
+  it('validates only the entries it has not read before (another tab adds one, marks some)', () => {
+    vi.useFakeTimers({ now: START });
+    for (let i = 0; i < 50; i++) recordClientEvent('warn', 'app', `mine ${i}`);
+    const before = getClientEvents();
+    const parse = vi.spyOn(ClientEventSchema, 'safeParse');
+    writeAsOtherTab([...(stored()?.entries ?? []), otherTabEntry('theirs')]);
+    expect(parse).toHaveBeenCalledTimes(1);
+    expect(messages()).toHaveLength(51);
+    // The entries already read are the same objects.
+    expect(getClientEvents()[0]).toBe(before[0]);
+
+    // Another tab uploaded the first ten: the marks are taken up, nothing is validated again.
+    parse.mockClear();
+    writeAsOtherTab((stored()?.entries ?? []).map((entry, i) => (i < 10 ? { ...entry, uploaded: true } : entry)));
+    expect(parse).not.toHaveBeenCalled();
+    expect(getClientEvents().filter((entry) => entry.uploaded)).toHaveLength(10);
+    expect(Object.isFrozen(getClientEvents()[0])).toBe(true);
+    parse.mockRestore();
+  });
+
   it('follows a clear in another tab, debug events included', () => {
     recordClientEvent('warn', 'app', 'persisted');
     recordClientEvent('debug', 'app', 'debug');

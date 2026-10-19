@@ -8,9 +8,29 @@
   -webkit-user-drag: none;
 }
 
-/* A monochrome glyph that matches the surface tone gets a contrasting plate. */
-.image[data-plate='true'] {
+/*
+ * A monochrome glyph that matches the surface tone gets a contrasting plate: a dark glyph in the
+ * dark scheme, a light one in the light scheme (decided as in tokens.css: `data-theme`, else the
+ * OS preference).
+ */
+:global(:root[data-theme='dark']) .image[data-tone='dark'],
+:global(:root[data-theme='light']) .image[data-tone='light'] {
+  padding: var(--site-icon-plate-padding);
   background: color-mix(in srgb, var(--hb-text) 88%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .image[data-tone='dark'] {
+    padding: var(--site-icon-plate-padding);
+    background: color-mix(in srgb, var(--hb-text) 88%, transparent);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :global(:root:not([data-theme='dark'])) .image[data-tone='light'] {
+    padding: var(--site-icon-plate-padding);
+    background: color-mix(in srgb, var(--hb-text) 88%, transparent);
+  }
 }
 
 .tile {

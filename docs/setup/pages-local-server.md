@@ -14,7 +14,9 @@ the copy it keeps in this browser. This is called *hybrid mode*.
 - **One page load, one source.** A page never mixes the two: it decides when it loads, and when
   the right source changes (Portly started or stopped for good, the pairing was removed) it
   reloads itself. If you are busy — a dialog is open, you are editing the layout or typing — it
-  waits and shows a banner with **Switch now** instead.
+  waits and shows a banner with **Switch now** instead. A tab in the background waits until you
+  switch to it, checks Portly once more and then reloads, so pairing or disconnecting in one tab
+  doesn't reload all your other tabs at the same moment.
 - **Pairing is once per browser.** The server only answers the Pages site for browsers you have
   paired on Portly's own page, and the site never sends anything to a server it hasn't paired
   with.
@@ -223,9 +225,10 @@ another browser then removes the least recently used one).
 (*hybrid status changed*, from → to, with the reason), probe results (time taken, HTTP status,
 timeout, permission), a failed pairing check, *pairing revoked by Portly on this PC*, the
 45-second reconnect grace starting and ending, and every switch between Portly's data and this
-browser's copy (requested, deferred while you were busy, performed). They stay in this browser for
-7 days, survive the reload a switch causes, and are sent to Portly while the page uses it: its
-**Server log** shows them (source *Browsers*, or **Timeline**) next to its own lines.
+browser's copy (requested, deferred while the tab was in the background or you were busy,
+performed). They stay in this browser for 7 days, survive the reload a switch causes, and are sent
+to Portly while a tab that uses it is in front: its **Server log** shows them (source *Browsers*,
+or **Timeline**) next to its own lines.
 
 **Portly runs on this PC but does not accept this site.** When the site can't reach Portly
 although the browser allows it, it asks once more without CORS. If something answers, Portly runs

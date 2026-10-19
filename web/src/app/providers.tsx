@@ -10,6 +10,9 @@
  * empty page. The snapshot is kept small (oversized queries, site-meta lookups and calendar
  * ranges nobody is looking at are not written), and when the origin's storage quota is hit the
  * oldest queries are dropped until it fits, rather than silently keeping an ever older snapshot.
+ * It is written only when a persisted query changed, at most every 5 s, and at once when the tab
+ * is hidden or the page goes ({@link subscribePersistedCache}): every write of it reaches every
+ * other tab of the origin.
  *
  * Each backend has its own snapshot ({@link persistOptionsFor}): the server build's; in the Pages
  * build the in-browser backend's and, in hybrid mode, the one of the Portly server on this PC
@@ -19,9 +22,8 @@
  * (one per page load), decided by the first restore or render.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { IsRestoringProvider, QueryClient, QueryClientProvider, defaultShouldDehydrateQuery, type Query } from '@tanstack/react-query';
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
-import { persistQueryClientRestore, persistQueryClientSubscribe, removeOldestQuery, type PersistRetryer, type Persister } from '@tanstack/react-query-persist-client';
+import { IsRestoringProvider, QueryClient, QueryClientProvider, defaultShouldDehydrateQuery, dehydrate, type Query, type QueryCacheNotifyEvent } from '@tanstack/react-query';
+import { persistQueryClientRestore, type PersistedClient, type Persister } from '@tanstack/react-query-persist-client';
 import { Toaster } from 'sonner';
 import { ApiError } from '../api/client.ts';
 import type { Backend } from '../capabilities.ts';
@@ -174,16 +176,58 @@ function removeSnapshots(storage: Storage | undefined, keys: readonly string[]):
 }
 
 /**
- * The persister of the snapshot under `key`. On a storage quota error it first drops the
- * snapshots under `otherKeys` (another backend's) and tries again, then drops the oldest query
- * until the snapshot fits (instead of keeping a stale one).
+ * Writes `client` without its oldest queries (by `dataUpdatedAt`), dropping as few as fit. The
+ * snapshot only shrinks as more are dropped, so halving finds that number in a few attempts
+ * instead of one serialization per query. Nothing is written when not even an empty one fits.
  */
-export function createQueryPersister(storage: Storage | undefined, throttleTime = 1000, key: string = QUERY_CACHE_STORAGE_KEY, otherKeys: readonly string[] = []): Persister {
-  const retry: PersistRetryer = (props) => {
-    if (props.errorCount === 1 && removeSnapshots(storage, otherKeys)) return props.persistedClient;
-    return removeOldestQuery(props);
+function writeNewestThatFit(client: PersistedClient, write: (client: PersistedClient) => boolean): void {
+  const { queries } = client.clientState;
+  const oldestFirst = [...queries].sort((a, b) => a.state.dataUpdatedAt - b.state.dataUpdatedAt);
+  const without = (count: number): PersistedClient => {
+    const dropped = new Set(oldestFirst.slice(0, count));
+    return { ...client, clientState: { ...client.clientState, queries: queries.filter((query) => !dropped.has(query)) } };
   };
-  return createSyncStoragePersister({ storage, key, throttleTime, retry });
+  // The smallest count that fits, between `low` and `high`. A failed write leaves the stored value
+  // as it was, so the last write that succeeded (the smallest count tried that fits) is the one kept.
+  let low = 1;
+  let high = queries.length;
+  while (low <= high) {
+    const count = Math.floor((low + high) / 2);
+    if (write(without(count))) high = count - 1;
+    else low = count + 1;
+  }
+}
+
+/**
+ * The persister of the snapshot under `key`. It writes at once ({@link subscribePersistedCache}
+ * decides when), so the save made when the tab is hidden or closed lands before the page goes.
+ * On a storage quota error it first drops the snapshots under `otherKeys` (another backend's) and
+ * tries again, then drops the oldest queries until the snapshot fits (instead of keeping a stale
+ * one).
+ */
+export function createQueryPersister(storage: Storage | undefined, key: string = QUERY_CACHE_STORAGE_KEY, otherKeys: readonly string[] = []): Persister {
+  const write = (client: PersistedClient): boolean => {
+    try {
+      storage?.setItem(key, JSON.stringify(client));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  return {
+    persistClient(client) {
+      if (storage === undefined || write(client)) return;
+      if (removeSnapshots(storage, otherKeys) && write(client)) return;
+      writeNewestThatFit(client, write);
+    },
+    restoreClient() {
+      const raw = storage?.getItem(key);
+      return raw ? (JSON.parse(raw) as PersistedClient) : undefined;
+    },
+    removeClient() {
+      storage?.removeItem(key);
+    },
+  };
 }
 
 /** How one backend's snapshot is persisted. */
@@ -221,7 +265,7 @@ export function persistOptionsFor(backend: Backend, instanceId: string | null = 
   const otherKeys = !pagesBuild ? [] : [remote ? BROWSER_QUERY_CACHE_KEY : LOCAL_SERVER_QUERY_CACHE_KEY];
   const persist: QueryPersistOptions = Object.freeze({
     key,
-    persister: createQueryPersister(storage, 1000, key, otherKeys),
+    persister: createQueryPersister(storage, key, otherKeys),
     maxAge: remote ? LOCAL_SERVER_QUERY_CACHE_MAX_AGE_MS : QUERY_CACHE_MAX_AGE_MS,
     buster,
     dehydrateOptions: remote ? REMOTE_SERVER_DEHYDRATE_OPTIONS : PERSIST_DEHYDRATE_OPTIONS,
@@ -249,8 +293,65 @@ function bindPersistOptions(client: QueryClient, persist: QueryPersistOptions | 
   return options;
 }
 
-function persistClientOptions(client: QueryClient, persist: QueryPersistOptions) {
-  return { queryClient: client, persister: persist.persister, maxAge: persist.maxAge, buster: persist.buster, dehydrateOptions: persist.dehydrateOptions };
+function restoreOptions(client: QueryClient, persist: QueryPersistOptions) {
+  return { queryClient: client, persister: persist.persister, maxAge: persist.maxAge, buster: persist.buster };
+}
+
+/** The snapshot is written at most this often (and at once when the tab is hidden or the page goes). */
+export const PERSIST_THROTTLE_MS = 5_000;
+
+/**
+ * Keeps `persist`'s snapshot of `client` up to date; returns the unsubscribe function (a pending
+ * save is dropped). TanStack's `persistQueryClientSubscribe` dehydrates the whole cache on every
+ * cache event (each fetch start, invalidation and mutation) and writes it up to once a second,
+ * and every write reaches every other tab of the origin. This saves only after a change the
+ * snapshot shows — new data of a query it persists (success, `setQueryData`), or a query leaving
+ * it (removed, failed, grown too large) — at most every {@link PERSIST_THROTTLE_MS}, and writes a
+ * pending save right away when the tab is hidden or on `pagehide`, so a new tab or the next page
+ * load still finds the latest data. A restored page invalidates everything anyway
+ * ({@link refreshAfterRestore}), so fetch and invalidation states never need saving.
+ */
+export function subscribePersistedCache(client: QueryClient, persist: QueryPersistOptions): () => void {
+  const persisted = persist.dehydrateOptions.shouldDehydrateQuery;
+  const cache = client.getQueryCache();
+  /** The queries of the last snapshot written (at first, those the restored cache holds). */
+  let saved = new Set(cache.getAll().filter(persisted).map((query) => query.queryHash));
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const save = (): void => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+    const clientState = dehydrate(client, persist.dehydrateOptions);
+    saved = new Set(clientState.queries.map((query) => query.queryHash));
+    void persist.persister.persistClient({ buster: persist.buster, timestamp: Date.now(), clientState });
+  };
+
+  const changesSnapshot = (event: QueryCacheNotifyEvent): boolean => {
+    if (event.type === 'removed') return saved.has(event.query.queryHash);
+    if (event.type !== 'updated') return false;
+    const type = event.action.type;
+    if (type === 'success' || type === 'setState') return saved.has(event.query.queryHash) || persisted(event.query);
+    return type === 'error' && saved.has(event.query.queryHash);
+  };
+
+  const unsubscribe = cache.subscribe((event) => {
+    if (timer === null && changesSnapshot(event)) timer = setTimeout(save, PERSIST_THROTTLE_MS);
+  });
+  const flush = (): void => {
+    if (timer !== null) save();
+  };
+  const onVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden') flush();
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('pagehide', flush);
+  return () => {
+    unsubscribe();
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('pagehide', flush);
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  };
 }
 
 /** Bottom offset while a bottom bar (the edit toolbar) is shown: bar height + its margin + a gap. */
@@ -294,7 +395,7 @@ export function restorePersistedCache(client: QueryClient, persist?: QueryPersis
   const existing = restores.get(client);
   if (existing) return existing.promise;
   const state: RestoreState = { promise: Promise.resolve(), done: false };
-  state.promise = persistQueryClientRestore(persistClientOptions(client, options))
+  state.promise = persistQueryClientRestore(restoreOptions(client, options))
     .catch(() => undefined)
     .then(() => refreshAfterRestore(client))
     .catch(() => undefined)
@@ -336,7 +437,7 @@ export function AppProviders({ client, persist, children }: AppProvidersProps) {
         live = false;
       };
     }
-    return persistQueryClientSubscribe(persistClientOptions(client, options));
+    return subscribePersistedCache(client, options);
   }, [client, options, restoring]);
 
   return (

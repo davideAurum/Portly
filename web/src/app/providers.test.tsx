@@ -1,5 +1,5 @@
 import { QueryObserver, dehydrate, onlineManager } from '@tanstack/react-query';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { qk } from '../api/keys.ts';
 import { settings } from '../test/fixtures.ts';
 import {
@@ -8,6 +8,7 @@ import {
   LOCAL_SERVER_QUERY_CACHE_MAX_AGE_MS,
   MAX_PERSISTED_QUERY_CHARS,
   PERSIST_DEHYDRATE_OPTIONS,
+  PERSIST_THROTTLE_MS,
   QUERY_CACHE_MAX_AGE_MS,
   createQueryClient,
   createQueryPersister,
@@ -15,6 +16,7 @@ import {
   persistOptionsOf,
   refreshAfterRestore,
   restorePersistedCache,
+  subscribePersistedCache,
 } from './providers.tsx';
 
 describe('query client (§10.1)', () => {
@@ -96,17 +98,44 @@ describe('persisted cache size (WEB-1, DOS-3)', () => {
       getItem: () => null,
       removeItem: () => {},
     } as unknown as Storage;
-    const persister = createQueryPersister(storage, 0);
+    const persister = createQueryPersister(storage);
 
     const client = createQueryClient();
     client.setQueryData(['old-and-big'], 'x'.repeat(3_000), { updatedAt: 1 });
     client.setQueryData(qk.settings(), settings(), { updatedAt: 2 });
     await persister.persistClient({ buster: 'b', timestamp: Date.now(), clientState: dehydrate(client, PERSIST_DEHYDRATE_OPTIONS) });
-    await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(written).toHaveLength(1);
     const saved = JSON.parse(written[0]!) as { clientState: { queries: { queryKey: unknown[] }[] } };
     expect(saved.clientState.queries.map((q) => q.queryKey)).toEqual([qk.settings()]);
+  });
+
+  it('finds how many to drop in a few attempts, not one serialization per query', async () => {
+    const { storage, items } = quotaStorage(12_000);
+    const setItem = vi.spyOn(storage, 'setItem');
+    const persister = createQueryPersister(storage, 'cache');
+    const client = createQueryClient();
+    // 40 queries of more than 480 characters each, oldest first: only some of them fit.
+    for (let i = 0; i < 40; i++) client.setQueryData(['q', i], 'x'.repeat(480), { updatedAt: i + 1 });
+    await persister.persistClient({ buster: 'b', timestamp: 1, clientState: dehydrate(client, PERSIST_DEHYDRATE_OPTIONS) });
+
+    expect(setItem.mock.calls.length).toBeLessThanOrEqual(8);
+    const kept = (JSON.parse(items.get('cache')!) as { clientState: { queries: { queryKey: [string, number] }[] } }).clientState.queries.map((q) => q.queryKey[1]);
+    // The newest that fit, and not one more: the next older one would not.
+    const first = kept[0]!;
+    expect(kept).toEqual(Array.from({ length: 40 - first }, (_, i) => first + i));
+    const withOneMore = { buster: 'b', timestamp: 1, clientState: dehydrate(client, { shouldDehydrateQuery: (q) => (q.queryKey[1] as number) >= first - 1 }) };
+    expect(JSON.stringify(withOneMore).length).toBeGreaterThan(12_000);
+  });
+
+  it('writes nothing when not even an empty snapshot fits (the stored one stays)', async () => {
+    const { storage, items } = quotaStorage(10);
+    items.set('cache', 'old');
+    const persister = createQueryPersister(storage, 'cache');
+    const client = createQueryClient();
+    client.setQueryData(qk.settings(), settings());
+    await persister.persistClient({ buster: 'b', timestamp: 1, clientState: dehydrate(client, PERSIST_DEHYDRATE_OPTIONS) });
+    expect(items.get('cache')).toBe('old');
   });
 });
 
@@ -172,7 +201,6 @@ describe('persisted cache per backend (hybrid mode)', () => {
   });
 
   it("on a quota error drops the other backend's snapshot before trimming its own", async () => {
-    vi.useFakeTimers();
     const { storage, items } = quotaStorage(3_000);
     items.set('portly:query-cache:static:/', 'b'.repeat(2_000));
     const remote = persistOptionsFor('server', 'instance-1', { pagesBuild: true, storage });
@@ -181,8 +209,6 @@ describe('persisted cache per backend (hybrid mode)', () => {
     client.setQueryData(['older'], 'x'.repeat(500), { updatedAt: 1 });
     client.setQueryData(qk.settings(), settings(), { updatedAt: 2 });
     await remote.persister.persistClient({ buster: remote.buster, timestamp: Date.now(), clientState: dehydrate(client, remote.dehydrateOptions) });
-    // The persister writes at most once a second.
-    await vi.advanceTimersByTimeAsync(1_000);
 
     expect(items.has('portly:query-cache:static:/')).toBe(false);
     const saved = JSON.parse(items.get(LOCAL_SERVER_QUERY_CACHE_KEY)!) as { clientState: { queries: { queryKey: unknown[] }[] } };
@@ -201,5 +227,99 @@ describe('persisted cache per backend (hybrid mode)', () => {
     expect(persistOptionsOf(client)).toBe(remote);
     // A client nobody restored uses the build's default (the server build here).
     expect(persistOptionsOf(createQueryClient()).key).toBe('portly:query-cache');
+  });
+});
+
+describe('when the snapshot is written', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  /** A client with a restored settings query, subscribed to a snapshot in an in-memory storage. */
+  function persisted() {
+    const { storage, items } = quotaStorage(1e6);
+    const setItem = vi.spyOn(storage, 'setItem');
+    const persist = persistOptionsFor('server', null, { pagesBuild: false, storage });
+    const client = createQueryClient();
+    client.setQueryData(qk.settings(), settings(), { updatedAt: 1 });
+    const stop = subscribePersistedCache(client, persist);
+    const saved = () => (JSON.parse(items.get(persist.key)!) as { clientState: { queries: { queryKey: unknown[] }[] } }).clientState.queries.map((q) => q.queryKey);
+    return { client, setItem, saved, stop };
+  }
+
+  function setVisibility(state: DocumentVisibilityState): void {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(state);
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  it('only after a persisted query changed, at most every 5 s, all changes in one write', async () => {
+    const h = persisted();
+    // Invalidations, fetches of queries it never writes and mutations change nothing it shows.
+    await h.client.invalidateQueries();
+    h.client.setQueryData(qk.mail.summary(), [{ subject: 'Your bank statement' }]);
+    await h.client.fetchQuery({ queryKey: qk.health(), queryFn: async () => ({ vault: 'locked' }), meta: { persist: false } });
+    await h.client.getMutationCache().build(h.client, { mutationFn: async () => 1 }).execute(undefined);
+    await vi.advanceTimersByTimeAsync(2 * PERSIST_THROTTLE_MS);
+    expect(h.setItem).not.toHaveBeenCalled();
+
+    h.client.setQueryData(qk.settings(), settings({ activeProfileId: 'p2' }));
+    await vi.advanceTimersByTimeAsync(1_000);
+    h.client.setQueryData(qk.bookmarks.all(), { groups: [] });
+    await vi.advanceTimersByTimeAsync(PERSIST_THROTTLE_MS - 1_001);
+    expect(h.setItem).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(h.setItem).toHaveBeenCalledTimes(1);
+    expect(h.saved()).toEqual([qk.settings(), qk.bookmarks.all()]);
+    h.stop();
+  });
+
+  it('when a query leaves it: removed, or its refetch failed', async () => {
+    const h = persisted();
+    h.client.setQueryData(qk.bookmarks.all(), { groups: [] });
+    await vi.advanceTimersByTimeAsync(PERSIST_THROTTLE_MS);
+    expect(h.saved()).toEqual([qk.settings(), qk.bookmarks.all()]);
+
+    h.client.removeQueries({ queryKey: qk.bookmarks.all() });
+    await vi.advanceTimersByTimeAsync(PERSIST_THROTTLE_MS);
+    expect(h.saved()).toEqual([qk.settings()]);
+
+    await h.client.fetchQuery({ queryKey: qk.settings(), queryFn: () => Promise.reject(new Error('down')), retry: false }).catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(PERSIST_THROTTLE_MS);
+    expect(h.setItem).toHaveBeenCalledTimes(3);
+    expect(h.saved()).toEqual([]);
+    h.stop();
+  });
+
+  it('writes a pending save at once when the tab is hidden or the page goes, and nothing else', async () => {
+    const h = persisted();
+    setVisibility('hidden');
+    window.dispatchEvent(new Event('pagehide'));
+    expect(h.setItem).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    h.client.setQueryData(qk.settings(), settings({ activeProfileId: 'p2' }));
+    setVisibility('hidden');
+    expect(h.setItem).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(PERSIST_THROTTLE_MS);
+    expect(h.setItem).toHaveBeenCalledTimes(1);
+
+    h.client.setQueryData(qk.settings(), settings({ activeProfileId: 'p3' }));
+    window.dispatchEvent(new Event('pagehide'));
+    expect(h.setItem).toHaveBeenCalledTimes(2);
+    h.stop();
+  });
+
+  it('stops listening when unsubscribed', async () => {
+    const h = persisted();
+    h.client.setQueryData(qk.settings(), settings({ activeProfileId: 'p2' }));
+    h.stop();
+    window.dispatchEvent(new Event('pagehide'));
+    await vi.advanceTimersByTimeAsync(2 * PERSIST_THROTTLE_MS);
+    expect(h.setItem).not.toHaveBeenCalled();
   });
 });

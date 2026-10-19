@@ -1,6 +1,6 @@
 /**
- * The upload of this browser's diagnostic events to the server: every 15 s and when the tab is
- * hidden, one at a time, under the upload lock; only uploadable events (server backend, not an API
+ * The upload of this browser's diagnostic events to the server: every 15 s while the tab is
+ * visible and when it is hidden, one at a time, under the upload lock; only uploadable events (server backend, not an API
  * event the server answered), debug ones only while the server accepts them; marked uploaded after
  * a 2xx only (only those taken when the server's limit dropped some); paced under the server's
  * per-minute limits by every tab together; stopped by the answers that mean "no diagnostics here",
@@ -16,6 +16,7 @@ import {
   UPLOAD_BYTES_PER_MINUTE,
   UPLOAD_INTERVAL_MS,
   UPLOAD_TIMEOUT_MS,
+  askAboutDebugEventsAgain,
   startClientEventUpload,
   uploadPacingKey,
   type ClientEventUpload,
@@ -39,6 +40,10 @@ function fakeDocument() {
     removeEventListener: target.removeEventListener.bind(target),
     hide() {
       doc.visibilityState = 'hidden';
+      target.dispatchEvent(new Event('visibilitychange'));
+    },
+    show() {
+      doc.visibilityState = 'visible';
       target.dispatchEvent(new Event('visibilitychange'));
     },
   };
@@ -103,12 +108,20 @@ describe('client event upload', () => {
     expect(post).toHaveBeenCalledTimes(1);
   });
 
-  it('uploads when the tab is hidden', async () => {
+  it('uploads when the tab is hidden, then waits until it is visible again', async () => {
     record(1);
     const { post, doc } = start(answer());
     doc.hide();
     await vi.advanceTimersByTimeAsync(0);
     expect(post).toHaveBeenCalledTimes(1);
+    // Recorded while hidden (a visible tab would send it: the stored events are every tab's).
+    record(1);
+    await vi.advanceTimersByTimeAsync(10 * UPLOAD_INTERVAL_MS);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+    doc.show();
+    await vi.advanceTimersByTimeAsync(UPLOAD_INTERVAL_MS);
+    expect(post).toHaveBeenCalledTimes(2);
   });
 
   it('runs one upload at a time (a tick while one is on its way is skipped)', async () => {
@@ -211,7 +224,7 @@ describe('client event upload', () => {
     expect(uploadedCount()).toBe(1);
   });
 
-  it('sends debug events only while the server accepts them, asking once a minute', async () => {
+  it('sends debug events only while the server accepts them, asking once per page load', async () => {
     record(3, 'debug');
     let accept = false;
     // As the server answers: debug events it does not want are dropped (never in its log).
@@ -224,17 +237,47 @@ describe('client event upload', () => {
     // Only one goes along, to ask; dropped, it stays unsent (This browser must not say "Sent").
     expect(sent(0)).toEqual(['event 0']);
     expect(uploadedCount()).toBe(0);
-    await vi.advanceTimersByTimeAsync(DEBUG_ASK_INTERVAL_MS - UPLOAD_INTERVAL_MS);
+    // It does not ask again on its own.
+    await vi.advanceTimersByTimeAsync(10 * DEBUG_ASK_INTERVAL_MS);
     expect(post).toHaveBeenCalledTimes(1);
     accept = true;
-    // A minute later the same one asks again, and is taken this time.
+    // The answer to an upload of other events tells too: the debug ones go from then on.
+    record(1, 'warn');
     await vi.advanceTimersByTimeAsync(UPLOAD_INTERVAL_MS);
     expect(sent(1)).toEqual(['event 0']);
-    expect(uploadedMessages()).toEqual(['event 0']);
     await vi.advanceTimersByTimeAsync(UPLOAD_INTERVAL_MS);
-    // Accepted now: the rest goes at once.
+    expect(sent(2)).toEqual(['event 0', 'event 1', 'event 2']);
+    expect(getClientEvents().every((entry) => entry.uploaded)).toBe(true);
+  });
+
+  it('asks again when the tab is visible after a minute, or right after this page changed the log level', async () => {
+    record(2, 'debug');
+    let accept = false;
+    const { post, doc, upload: handle } = start(async (body) => {
+      const debug = body.events.filter((event) => event.level === 'debug').length;
+      return accept ? { accepted: body.events.length, dropped: 0, acceptDebug: true } : { accepted: body.events.length - debug, dropped: debug, acceptDebug: false };
+    });
+    await handle.flush();
+    expect(post).toHaveBeenCalledTimes(1);
+    // Back within the minute: no new ask.
+    doc.hide();
+    doc.show();
+    await vi.advanceTimersByTimeAsync(UPLOAD_INTERVAL_MS);
+    expect(post).toHaveBeenCalledTimes(1);
+    // Back after a minute or more: one more.
+    await vi.advanceTimersByTimeAsync(DEBUG_ASK_INTERVAL_MS);
+    doc.hide();
+    doc.show();
+    await vi.advanceTimersByTimeAsync(UPLOAD_INTERVAL_MS);
+    expect(post).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(5 * UPLOAD_INTERVAL_MS);
+    expect(post).toHaveBeenCalledTimes(2);
+    // Verbose switched on from this page: it asks at once, and the events go.
+    accept = true;
+    askAboutDebugEventsAgain();
+    await vi.advanceTimersByTimeAsync(0);
     expect(post).toHaveBeenCalledTimes(3);
-    expect(sent(2)).toEqual(['event 1', 'event 2']);
+    await vi.advanceTimersByTimeAsync(UPLOAD_INTERVAL_MS);
     expect(getClientEvents().every((entry) => entry.uploaded)).toBe(true);
   });
 
@@ -321,6 +364,8 @@ describe('client event upload', () => {
     const { post, doc, upload: handle } = start(answer());
     handle.stop();
     doc.hide();
+    doc.show();
+    askAboutDebugEventsAgain();
     await vi.advanceTimersByTimeAsync(5 * UPLOAD_INTERVAL_MS);
     expect(post).not.toHaveBeenCalled();
   });

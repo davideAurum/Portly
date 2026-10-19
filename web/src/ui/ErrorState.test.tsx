@@ -3,9 +3,11 @@
  * the Pages build with its data in this browser, and the Pages build using Portly on this PC
  * (reconnecting, or switching to the copy in this browser once server mode has ended);
  * and `reauth_required` on the Pages build using Portly on this PC, which reconnects in place as the
- * server build does.
+ * server build does; and QueryView re-rendering for a refetch that brings the same data only when
+ * its children read when the data was updated.
  * (The server build's mapping of every code is covered in `ui.test.tsx`.)
  */
+import { useQuery } from '@tanstack/react-query';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -16,7 +18,7 @@ import type { LocalServerState } from '../localServer/types.ts';
 import { account } from '../test/fixtures.ts';
 import { fakeLocalServer } from '../test/hybrid.ts';
 import { renderWithProviders } from '../test/render.tsx';
-import { ErrorState } from './ErrorState.tsx';
+import { ErrorState, QueryView } from './ErrorState.tsx';
 
 const NETWORK = new ApiError(0, 'network_error', 'Portly is not reachable');
 
@@ -102,5 +104,42 @@ describe('ErrorState reauth_required on the Pages build using Portly on this PC'
     await userEvent.click(await screen.findByRole('button', { name: 'Reconnect' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/v2/auth?x=1'));
     expect(requestsTo('POST /api/oauth/google/start')).toHaveLength(1);
+  });
+});
+
+describe('QueryView', () => {
+  function Items({ onRender, showUpdated }: { onRender: () => void; showUpdated: boolean }) {
+    // A new array on every fetch, equal in content: TanStack keeps the old one (structural sharing).
+    const query = useQuery({ queryKey: ['items'], queryFn: async () => ['a', 'b'] });
+    onRender();
+    return (
+      <QueryView query={query}>
+        {(items, meta) => (
+          <p>
+            {items.join(',')}
+            {showUpdated ? ` updated ${meta.updatedAt > 0 ? 'yes' : 'no'}` : ''}
+          </p>
+        )}
+      </QueryView>
+    );
+  }
+
+  it.each([
+    [false, 0],
+    [true, 1],
+  ])('a refetch with the same data re-renders it only when the children read updatedAt (%s)', async (showUpdated, extra) => {
+    const onRender = vi.fn();
+    const { queryClient } = renderWithProviders(<Items onRender={onRender} showUpdated={showUpdated} />);
+    expect(await screen.findByText(showUpdated ? 'a,b updated yes' : 'a,b')).toBeInTheDocument();
+    const renders = onRender.mock.calls.length;
+    // A minute later (a refetch in the same millisecond would not change dataUpdatedAt).
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60_000);
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['items'] });
+      // TanStack tells its observers on a later tick.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    now.mockRestore();
+    expect(onRender.mock.calls.length).toBe(renders + extra);
   });
 });

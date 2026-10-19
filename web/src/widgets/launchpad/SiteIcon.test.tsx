@@ -2,7 +2,8 @@
  * SiteIcon's image URL through `useAssetUrl`: the URL itself in the server build; on the Pages
  * build's server backend (hybrid mode) the letter tile until the Portly server on this PC has
  * delivered the icon, then the loaded `blob:` URL — never the raw `/api/icons/…` path — and a
- * failed image falls back to the letter tile only until the URL changes.
+ * failed image falls back to the letter tile only until the URL changes; a monochrome icon is
+ * marked with its tone (the stylesheet gives it a plate in the scheme of the same tone).
  */
 import { act, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -16,7 +17,17 @@ import { SiteIcon } from './SiteIcon.tsx';
 const ICON_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ICON_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
-afterEach(() => setServerAssetSource(null));
+afterEach(() => {
+  setServerAssetSource(null);
+  vi.restoreAllMocks();
+});
+
+/** A 2D context whose pixels are a dark glyph on a transparent background. */
+function darkGlyphContext(): CanvasRenderingContext2D {
+  const data = new Uint8ClampedArray(24 * 24 * 4);
+  for (let i = 0; i < data.length / 2; i += 4) data[i + 3] = 255;
+  return { drawImage: () => {}, getImageData: () => ({ data }) } as unknown as CanvasRenderingContext2D;
+}
 
 describe('SiteIcon', () => {
   it('server build: the stored icon URL itself', () => {
@@ -66,5 +77,17 @@ describe('SiteIcon', () => {
     // Back to the first icon: its URL is resolved anew, so it gets another chance.
     rerender(<SiteIcon label="Github" iconId={ICON_A} size={32} />);
     expect(container.querySelector('img')).toHaveAttribute('src', 'blob:http://pages.example/a');
+  });
+
+  // SiteIcon.module.css gives a dark glyph a plate in the dark scheme and a light one in the light
+  // scheme (jsdom applies no stylesheet): the icon only says what it measured.
+  it('marks a monochrome icon with its tone and the padding of its plate', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(darkGlyphContext() as never);
+    const { container } = renderWithProviders(<SiteIcon label="Github" iconId={ICON_A} size={32} />, { toaster: false });
+    const img = container.querySelector('img')!;
+    expect(img).not.toHaveAttribute('data-tone');
+    fireEvent.load(img);
+    expect(img).toHaveAttribute('data-tone', 'dark');
+    expect(img.style.getPropertyValue('--site-icon-plate-padding')).toBe('4px');
   });
 });
