@@ -129,9 +129,9 @@ export function moduleUnavailable(message = 'Module unavailable'): Handler {
 }
 
 /**
- * Handler answering 501 `not_configured` for stub routes that are not implemented yet (§15:
- * "stubs return 501 `not_configured`"). The status is explicitly 501 rather than the canonical
- * 409 of `not_configured` (§7a) so it is distinguishable from a feature the user has not set up.
+ * Handler answering 501 `not_configured` for a route that is declared but not implemented yet.
+ * The status is explicitly 501 rather than the canonical 409 of `not_configured` (§7a) so it is
+ * distinguishable from a feature the user has not set up.
  */
 export function notImplemented(message = 'Not implemented yet'): Handler {
   return (c) => errorResponse(c, 'not_configured', message, { status: 501 });
