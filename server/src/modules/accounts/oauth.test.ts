@@ -205,6 +205,41 @@ describe('POST /api/oauth/:provider/start', () => {
     expect(await json(locked)).toMatchObject({ error: { code: 'reauth_required' } });
   });
 
+  it('asks only for the scopes of the services picked, and records them with the state', async () => {
+    configureClients(h);
+    const google = await start('google', { capabilities: ['calendar'] });
+    expect(google.searchParams.get('scope')).toBe(`openid email profile ${CAL} ${CAL_LIST}`);
+    expect(google.searchParams.get('include_granted_scopes')).toBe('true');
+    h.clock.advance(1);
+    const ms = await start('microsoft', { capabilities: ['mail'] });
+    expect(ms.searchParams.get('scope')).toBe('openid profile email offline_access User.Read Mail.ReadWrite');
+    expect(h.ctx.db.all('SELECT provider, capabilities FROM oauth_states ORDER BY created_at')).toEqual([
+      { provider: 'google', capabilities: '["calendar"]' },
+      { provider: 'microsoft', capabilities: '["mail"]' },
+    ]);
+    // Named in any order, the scopes keep the provider's order; no list at all asks for every service.
+    expect((await start('google', { capabilities: ['mail', 'calendar'] })).searchParams.get('scope')).toBe(ALL_GOOGLE);
+    expect((await start('google')).searchParams.get('scope')).toBe(ALL_GOOGLE);
+  });
+
+  it('a reconnect asks for the services the account was granted plus the ones added (incremental consent)', async () => {
+    configureClients(h);
+    seedAccount(h, { id: 'm1', kind: 'microsoft', capabilities: ['calendar'], refreshToken: 'rt' });
+    expect((await start('microsoft', { accountId: 'm1' })).searchParams.get('scope')).toBe('openid profile email offline_access User.Read Calendars.ReadWrite');
+    expect((await start('microsoft', { accountId: 'm1', capabilities: ['mail'] })).searchParams.get('scope')).toBe(MICROSOFT_SCOPES.join(' '));
+    seedAccount(h, { id: 'g1', kind: 'google', capabilities: ['mail'], refreshToken: 'rt' });
+    expect((await start('google', { accountId: 'g1', capabilities: ['calendar'] })).searchParams.get('scope')).toBe(ALL_GOOGLE);
+  });
+
+  it('refuses an empty or unknown list of services', async () => {
+    configureClients(h);
+    for (const capabilities of [[], ['contacts'], 'calendar']) {
+      const res = await testRequest(h.app, 'POST', '/api/oauth/google/start', { body: { capabilities } });
+      expect(res.status, JSON.stringify(capabilities)).toBe(422);
+    }
+    expect(stateCount()).toBe(0);
+  });
+
   it('keeps at most 20 pending states (oldest deleted)', async () => {
     configureClients(h);
     const first = (await start('google')).searchParams.get('state');
@@ -424,14 +459,56 @@ describe('GET /api/oauth/:provider/callback', () => {
     h.service.setStatus('g1', 'reauth', 'Reconnect');
     h.ctx.db.run(`UPDATE accounts SET enabled_capabilities = '[]' WHERE id = 'g1'`);
     googleTokenRoute();
-    const state = (await start('google', { accountId: 'g1' })).searchParams.get('state') ?? '';
-    const res = await callback('google', `code=c1&state=${state}`);
+    const url = await start('google', { accountId: 'g1', capabilities: ['mail'] });
+    expect(url.searchParams.get('scope')).toBe(ALL_GOOGLE);
+    const res = await callback('google', `code=c1&state=${url.searchParams.get('state') ?? ''}`);
     expect(res.headers.get('location')).toBe(`${APP}/?oauth=reconnected#/settings/accounts`);
     expect(accounts()).toHaveLength(1);
-    // calendar stays disabled (user choice); mail is newly granted → enabled.
+    // calendar stays disabled (user choice); mail is newly granted and was asked for → enabled.
     expect(h.service.get('g1')).toMatchObject({ label: 'Personal', status: 'ok', statusMessage: null, capabilities: ['calendar', 'mail'], enabledCapabilities: ['mail'] });
     expect(storedRefreshToken(h, 'g1')).toBe('g-rt');
     expect(await h.service.getAccessToken('g1')).toBe('g-at');
+  });
+
+  it('redeems the code with the requested scopes; services granted earlier but not asked for start switched off', async () => {
+    // Microsoft returns every scope the user has ever consented to for this app.
+    microsoftTokenRoute();
+    const state = (await start('microsoft', { capabilities: ['calendar'] })).searchParams.get('state') ?? '';
+    expect((await callback('microsoft', `code=c1&state=${state}`)).headers.get('location')).toBe(`${APP}/?oauth=connected#/settings/accounts`);
+    expect(formsSentTo(h.fake, MICROSOFT_TOKEN_ENDPOINT)[0]?.scope).toBe('openid profile email offline_access User.Read Calendars.ReadWrite');
+    expect(accounts()[0]).toMatchObject({ capabilities: ['calendar', 'mail'], enabledCapabilities: ['calendar'] });
+  });
+
+  it('Microsoft without a scope in the token response: the requested services are granted', async () => {
+    microsoftTokenRoute({ scope: undefined });
+    const state = (await start('microsoft', { capabilities: ['calendar'] })).searchParams.get('state') ?? '';
+    await callback('microsoft', `code=c1&state=${state}`);
+    expect(accounts()[0]).toMatchObject({ capabilities: ['calendar'], enabledCapabilities: ['calendar'] });
+  });
+
+  it('a grant that covers none of the requested services → denied, nothing stored', async () => {
+    googleTokenRoute({ scope: `openid email profile ${CAL}` });
+    const state = (await start('google', { capabilities: ['mail'] })).searchParams.get('state') ?? '';
+    expect((await callback('google', `code=c1&state=${state}`)).headers.get('location')).toBe(`${APP}/?oauth=denied#/settings/accounts`);
+    expect(accounts()).toHaveLength(0);
+    expect(h.ctx.vault.list('account:')).toEqual([]);
+  });
+
+  it('a plain reconnect leaves a service granted elsewhere listed but switched off', async () => {
+    seedAccount(h, { id: 'm1', kind: 'microsoft', externalId: '00000000-0000-0000-aaaa-bbbbccccdddd', capabilities: ['calendar'], refreshToken: 'old' });
+    microsoftTokenRoute();
+    const state = (await start('microsoft', { accountId: 'm1' })).searchParams.get('state') ?? '';
+    expect((await callback('microsoft', `code=c1&state=${state}`)).headers.get('location')).toBe(`${APP}/?oauth=reconnected#/settings/accounts`);
+    expect(h.service.get('m1')).toMatchObject({ capabilities: ['calendar', 'mail'], enabledCapabilities: ['calendar'] });
+  });
+
+  it('a pending sign-in stored before services were recorded asks for every service', async () => {
+    microsoftTokenRoute();
+    const state = (await start('microsoft', { capabilities: ['calendar'] })).searchParams.get('state') ?? '';
+    h.ctx.db.run('UPDATE oauth_states SET capabilities = NULL');
+    await callback('microsoft', `code=c1&state=${state}`);
+    expect(formsSentTo(h.fake, MICROSOFT_TOKEN_ENDPOINT)[0]?.scope).toBe(MICROSOFT_SCOPES.join(' '));
+    expect(accounts()[0]).toMatchObject({ capabilities: ['calendar', 'mail'], enabledCapabilities: ['calendar', 'mail'] });
   });
 
   it('reconnecting with a different subject creates a new account and never touches the original', async () => {

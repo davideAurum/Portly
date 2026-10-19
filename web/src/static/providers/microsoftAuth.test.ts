@@ -9,6 +9,8 @@ import { createFakeFetch, failingFetch } from './__fixtures__/fakeFetch.ts';
 import { MICROSOFT_CLIENT_ID, SUBJECT, microsoftIdToken, tokenError, tokenOk } from './__fixtures__/microsoft.ts';
 import {
   MICROSOFT_AUTHORIZE_ENDPOINT,
+  MICROSOFT_STATIC_CAPABILITIES,
+  MICROSOFT_STATIC_SCOPES,
   MICROSOFT_TOKEN_ENDPOINT,
   authorizeUrl,
   capabilitiesOf,
@@ -17,6 +19,7 @@ import {
   microsoftIdentity,
   pkceChallenge,
   requestToken,
+  scopesFor,
 } from './microsoftAuth.ts';
 
 const NOW = Date.parse('2026-10-11T12:00:00.000Z');
@@ -28,7 +31,7 @@ afterEach(() => {
 describe('authorization URL', () => {
   it('asks the consumers authority for a code with PKCE and the calendar scopes only', () => {
     const url = new URL(
-      authorizeUrl({ clientId: MICROSOFT_CLIENT_ID, redirectUri: 'https://user.github.io/', state: 'S', codeChallenge: 'C' }),
+      authorizeUrl({ clientId: MICROSOFT_CLIENT_ID, redirectUri: 'https://user.github.io/', state: 'S', codeChallenge: 'C', scopes: scopesFor(['calendar']) }),
     );
     expect(`${url.origin}${url.pathname}`).toBe(MICROSOFT_AUTHORIZE_ENDPOINT);
     expect(Object.fromEntries(url.searchParams)).toEqual({
@@ -45,7 +48,15 @@ describe('authorization URL', () => {
 
   it('adds prompt=none and the account as login_hint for the automatic sign-in', () => {
     const url = new URL(
-      authorizeUrl({ clientId: MICROSOFT_CLIENT_ID, redirectUri: 'https://user.github.io/', state: 'S', codeChallenge: 'C', silent: true, loginHint: 'bob@outlook.com' }),
+      authorizeUrl({
+        clientId: MICROSOFT_CLIENT_ID,
+        redirectUri: 'https://user.github.io/',
+        state: 'S',
+        codeChallenge: 'C',
+        scopes: MICROSOFT_STATIC_SCOPES,
+        silent: true,
+        loginHint: 'bob@outlook.com',
+      }),
     );
     expect(url.searchParams.get('prompt')).toBe('none');
     expect(url.searchParams.get('login_hint')).toBe('bob@outlook.com');
@@ -120,9 +131,19 @@ describe('id_token', () => {
 });
 
 describe('scopes', () => {
+  it('offers the calendar only and maps services to scopes like the server', () => {
+    expect(MICROSOFT_STATIC_CAPABILITIES).toEqual(['calendar']);
+    expect(MICROSOFT_STATIC_SCOPES).toEqual(['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Calendars.ReadWrite']);
+    expect(scopesFor(['calendar'])).toEqual(MICROSOFT_STATIC_SCOPES);
+    // Mail is not offered here: it adds no scope.
+    expect(scopesFor(['mail'])).toEqual(['openid', 'profile', 'email', 'offline_access', 'User.Read']);
+  });
+
+
   it('normalizes granted scopes and unlocks the calendar only', () => {
     expect(grantedScopes('https://graph.microsoft.com/Calendars.ReadWrite openid User.Read')).toEqual(['calendars.readwrite', 'openid', 'user.read']);
     expect(grantedScopes(undefined)).toContain('calendars.readwrite');
+    expect(grantedScopes(undefined, scopesFor([]))).not.toContain('calendars.readwrite');
     expect(capabilitiesOf(['calendars.readwrite', 'mail.readwrite'])).toEqual(['calendar']);
     expect(capabilitiesOf(['openid', 'user.read'])).toEqual([]);
   });

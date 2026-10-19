@@ -8,7 +8,9 @@
  * - `GET  /api/oauth-clients/microsoft` → `{clientId, hasSecret: false, redirectUri}` (the redirect
  *   URI is this site's own address; register it as a *Single-page application*)
  * - `PUT  /api/oauth-clients/microsoft {clientId}` (a secret is refused: public client)
- * - `POST /api/oauth/microsoft/start {accountId?, returnTo?}` → `{authorizeUrl}`
+ * - `POST /api/oauth/microsoft/start {accountId?, returnTo?, capabilities?}` → `{authorizeUrl}`; the
+ *   services are checked against what the static build offers (the calendar) and mapped to their
+ *   scopes as on the server (a reconnect asks for the granted services plus the ones named)
  * - `GET /api/accounts`, `PATCH /api/accounts/:id`, `DELETE /api/accounts/:id` (its calendars and
  *   their events go with it), `POST /api/accounts/:id/test` (forces a token refresh)
  * Google answers `409 not_configured`; app-password accounts stay in handlers/unavailable.ts. The
@@ -58,7 +60,7 @@ import {
   CLIENT_ID_REGEX,
   MICROSOFT_DEFAULT_LABEL,
   MICROSOFT_DISPLAY_NAME,
-  MICROSOFT_STATIC_SCOPES,
+  MICROSOFT_STATIC_CAPABILITIES,
   MICROSOFT_TOKEN_ENDPOINT,
   SPA_SESSION_MS,
   authorizeUrl,
@@ -68,6 +70,7 @@ import {
   microsoftIdentity,
   pkceChallenge,
   requestToken,
+  scopesFor,
   type TokenFailure,
   type TokenSet,
 } from '../providers/microsoftAuth.ts';
@@ -106,6 +109,8 @@ export const MESSAGES = Object.freeze({
 });
 
 const NOT_IN_STATIC = 'Google accounts are not available in the browser-only build.';
+
+const CAPABILITY_NAMES: Readonly<Record<Capability, string>> = { calendar: 'Calendar', mail: 'Mail' };
 
 // ---------------------------------------------------------------------------
 // Rows
@@ -204,19 +209,48 @@ function requireClientId(ctx: StaticContext, accountId?: string): string {
 export interface StartInput {
   accountId?: string | undefined;
   returnTo?: string | undefined;
+  /** The services to ask for (a reconnect adds the account's granted ones). */
+  capabilities?: Capability[] | undefined;
   /** Automatic re-sign-in (`prompt=none`). */
   silent?: boolean;
   loginHint?: string | null;
 }
 
-/** Stores a pending authorization (PKCE verifier, account, route) and returns Microsoft's sign-in URL. */
+/** 422 for services the static build does not offer (one issue per service, path `capabilities`). */
+function checkCapabilities(named: readonly Capability[] | undefined): void {
+  const unsupported = (named ?? []).filter((c) => !MICROSOFT_STATIC_CAPABILITIES.includes(c));
+  if (unsupported.length === 0) return;
+  const issues: ValidationIssue[] = unsupported.map((c) => ({
+    path: 'capabilities',
+    message: `${CAPABILITY_NAMES[c]} is not available in the browser-only build`,
+    code: 'custom',
+  }));
+  throw new StaticApiError('validation_failed', 'Not available in the browser-only build', issues);
+}
+
+/**
+ * The services a sign-in asks for (the server's rule): a reconnect the account's granted ones plus
+ * `named`; a new connection `named`, or everything offered when nothing is named. Never empty.
+ */
+function requestedCapabilities(named: readonly Capability[] | undefined, granted: readonly Capability[] | null): Capability[] {
+  const wanted = [...(granted ?? []), ...(named ?? [])];
+  const requested = MICROSOFT_STATIC_CAPABILITIES.filter((c) => wanted.includes(c));
+  return requested.length > 0 ? requested : [...MICROSOFT_STATIC_CAPABILITIES];
+}
+
+/** Stores a pending authorization (PKCE verifier, account, route, services) and returns Microsoft's sign-in URL. */
 export async function startAuthorization(ctx: StaticContext, input: StartInput): Promise<string> {
   const clientId = requireClientId(ctx);
+  checkCapabilities(input.capabilities);
   let accountId: string | null = null;
+  let granted: Capability[] | null = null;
   if (input.accountId !== undefined) {
-    if (!findAccount(ctx, input.accountId)) throw accountNotFound();
+    const account = findAccount(ctx, input.accountId);
+    if (!account) throw accountNotFound();
     accountId = input.accountId;
+    granted = account.capabilities;
   }
+  const capabilities = requestedCapabilities(input.capabilities, granted);
   const codeVerifier = newToken(32);
   const codeChallenge = await pkceChallenge(codeVerifier);
   const state = newToken(32);
@@ -224,11 +258,29 @@ export async function startAuthorization(ctx: StaticContext, input: StartInput):
   const returnTo = input.returnTo !== undefined && OAUTH_RETURN_TO_REGEX.test(input.returnTo) ? input.returnTo : DEFAULT_OAUTH_RETURN_TO;
 
   const pending = getOAuthStates(ctx).filter((s) => s.expiresAt > now);
-  pending.push({ state, provider: 'microsoft', codeVerifier, accountId, returnTo, silent: input.silent === true, createdAt: now, expiresAt: now + STATE_TTL_MS });
+  pending.push({
+    state,
+    provider: 'microsoft',
+    codeVerifier,
+    accountId,
+    returnTo,
+    silent: input.silent === true,
+    capabilities,
+    createdAt: now,
+    expiresAt: now + STATE_TTL_MS,
+  });
   ctx.state.set(SLICE.oauthStates, pending.slice(-MAX_PENDING_STATES));
   await ctx.state.commit(SLICE.oauthStates);
 
-  return authorizeUrl({ clientId, redirectUri: ctx.appUrl, state, codeChallenge, silent: input.silent, loginHint: input.loginHint });
+  return authorizeUrl({
+    clientId,
+    redirectUri: ctx.appUrl,
+    state,
+    codeChallenge,
+    scopes: scopesFor(capabilities),
+    silent: input.silent,
+    loginHint: input.loginHint,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -294,7 +346,9 @@ export async function completeAuthorization(ctx: StaticContext, query: CallbackQ
   if (typeof query.code !== 'string' || query.code.length === 0 || query.code.length > MAX_CODE_LENGTH) return quiet('error');
 
   try {
-    const result = await connect(ctx, query.code, consumed.codeVerifier, consumed.accountId);
+    // A sign-in started before the services were recorded asked for everything offered.
+    const requested = consumed.capabilities ?? [...MICROSOFT_STATIC_CAPABILITIES];
+    const result = await connect(ctx, { code: query.code, codeVerifier: consumed.codeVerifier, reconnectId: consumed.accountId, requested });
     // A quiet renewal of the same account needs no message; anything else is worth one.
     return consumed.silent && result === 'reconnected' ? { result: null, returnTo } : { result, returnTo };
   } catch (err) {
@@ -308,9 +362,19 @@ function sessionEnd(now: number, tokens: TokenSet, fallback: number): number {
   return tokens.refreshExpiresInSec !== null ? now + tokens.refreshExpiresInSec * 1000 : fallback;
 }
 
-async function connect(ctx: StaticContext, code: string, codeVerifier: string, reconnectId: string | null): Promise<OAuthResult> {
+interface ConnectInput {
+  code: string;
+  codeVerifier: string;
+  reconnectId: string | null;
+  /** The services the sign-in asked for: the only ones that may start switched on. */
+  requested: readonly Capability[];
+}
+
+async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthResult> {
+  const { code, codeVerifier, reconnectId, requested } = input;
   const clientId = getOAuthClients(ctx).microsoft?.clientId;
   if (!clientId) return 'error';
+  const requestedScopes = scopesFor(requested);
 
   const exchange = await requestToken({
     client_id: clientId,
@@ -318,7 +382,7 @@ async function connect(ctx: StaticContext, code: string, codeVerifier: string, r
     code,
     redirect_uri: ctx.appUrl,
     code_verifier: codeVerifier,
-    scope: MICROSOFT_STATIC_SCOPES.join(' '),
+    scope: requestedScopes.join(' '),
   });
   if (!exchange.ok) {
     console.warn('[Portly] Microsoft refused the sign-in code', { failure: exchange.failure, status: exchange.status });
@@ -334,7 +398,7 @@ async function connect(ctx: StaticContext, code: string, codeVerifier: string, r
     recordProviderFailure('microsoft', SIGN_IN_HOST, { code: `id_token_${verdict.reason}` });
     return 'error';
   }
-  const granted = grantedScopes(tokens.scope);
+  const granted = grantedScopes(tokens.scope, requestedScopes);
   const capabilities = capabilitiesOf(granted);
   if (capabilities.length === 0) return 'denied';
   if (tokens.refreshToken === null) return 'error';
@@ -351,7 +415,9 @@ async function connect(ctx: StaticContext, code: string, codeVerifier: string, r
   let result: OAuthResult;
   if (existing) {
     existing.email = identity.email ?? existing.email;
-    existing.enabledCapabilities = mergeEnabledCapabilities(existing.capabilities, existing.enabledCapabilities, capabilities);
+    // Services granted for the first time start switched on when the sign-in asked for them.
+    const offered = capabilities.filter((c) => existing.capabilities.includes(c) || requested.includes(c));
+    existing.enabledCapabilities = mergeEnabledCapabilities(existing.capabilities, existing.enabledCapabilities, offered);
     existing.capabilities = capabilities;
     existing.grantedScopes = granted;
     existing.status = 'ok';
@@ -360,6 +426,9 @@ async function connect(ctx: StaticContext, code: string, codeVerifier: string, r
     accountId = existing.id;
     result = !reconnecting || existing.id === target.id ? 'reconnected' : 'different_account';
   } else {
+    // Services granted to Portly earlier but not asked for now are listed, switched off.
+    const enabled = capabilities.filter((c) => requested.includes(c));
+    if (enabled.length === 0) return 'denied';
     accountId = ctx.newId();
     accounts.push({
       id: accountId,
@@ -369,7 +438,7 @@ async function connect(ctx: StaticContext, code: string, codeVerifier: string, r
       externalId: identity.subject,
       color: null,
       capabilities,
-      enabledCapabilities: capabilities,
+      enabledCapabilities: enabled,
       grantedScopes: granted,
       status: 'ok',
       statusMessage: null,
@@ -516,7 +585,8 @@ async function refresh(ctx: StaticContext, account: StoredAccount, record: Store
     client_id: clientId,
     grant_type: 'refresh_token',
     refresh_token: used,
-    scope: MICROSOFT_STATIC_SCOPES.join(' '),
+    // Only the granted services' scopes: Microsoft refuses a refresh for more than was consented to.
+    scope: scopesFor(account.capabilities).join(' '),
   });
   // Re-read after the request: a reload (another tab's change) replaces the slice objects.
   const now = ctx.now();

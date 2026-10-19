@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { SETTINGS_SECTION_IDS } from '../settings/nav.ts';
-import { hashFocus, navigate, parseHash, routeHref, useRoute } from './router.ts';
+import { clearHashFocus, hashFocus, navigate, parseHash, routeHref, useRoute } from './router.ts';
 
 const NONCE = 'N0nce_-abcdefghijklmnopqrstuvwxyz0123456789';
 
@@ -33,6 +33,22 @@ describe('hash router', () => {
     expect(hashFocus('#/settings/calendars?focus=ics')).toBe('ics');
     expect(hashFocus('#/settings/calendars')).toBeNull();
     expect(hashFocus('#/settings/calendars?focus=<script>')).toBeNull();
+  });
+
+  it('opens a moved section in its new home: #/settings/todoist is Todoist in Accounts', () => {
+    expect(SETTINGS_SECTION_IDS).not.toContain('todoist');
+    expect(parseHash('#/settings/todoist')).toEqual({ name: 'settings', section: 'accounts' });
+    expect(hashFocus('#/settings/todoist')).toBe('todoist');
+    expect(hashFocus('#/settings/accounts?focus=todoist')).toBe('todoist');
+    expect(parseHash('#/settings/constructor')).toEqual({ name: 'settings', section: 'general' });
+    expect(hashFocus('#/settings/constructor')).toBeNull();
+
+    window.history.replaceState(null, '', '/#/settings/todoist');
+    clearHashFocus();
+    expect(window.location.hash).toBe('#/settings/accounts');
+    window.history.replaceState(null, '', '/#/settings/accounts?focus=todoist');
+    clearHashFocus();
+    expect(window.location.hash).toBe('#/settings/accounts');
   });
 
   it('round-trips every section through routeHref', () => {

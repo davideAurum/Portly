@@ -130,7 +130,7 @@ describe('remedies', () => {
   });
 
   it('fits the subject: a rejected token is Todoist’s API token, or an account to reconnect', () => {
-    expect(remedyFor('token_rejected', 'todoist')!.remedy).toMatch(/Settings → Todoist/);
+    expect(remedyFor('token_rejected', 'todoist')!.remedy).toMatch(/Todoist → Manage in Settings → Accounts/);
     for (const key of ['account:g1', 'calendar-list:g1', 'calendar:cal-1', 'mail:m1']) {
       const remedy = remedyFor('token_rejected', key)!;
       expect(remedy.remedy, key).toMatch(/Reconnect the account in Settings → Accounts/);

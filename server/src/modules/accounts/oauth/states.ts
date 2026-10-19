@@ -1,11 +1,12 @@
 /**
  * Pending OAuth authorizations (`oauth_states`, §4.7): random 32-byte base64url `state`, PKCE S256
- * `code_verifier`, optional account being reconnected and the SPA route to return to. Rows expire
+ * `code_verifier`, optional account being reconnected, the SPA route to return to and the services
+ * (capabilities) the sign-in asked for. Rows expire
  * after 10 minutes, at most 20 are pending (oldest deleted first), and a state is consumed
  * atomically (`DELETE … RETURNING`) before any token exchange, so it can be used at most once.
  */
 import { createHash } from 'node:crypto';
-import type { OAuthProvider } from '@portly/shared';
+import { CAPABILITIES, type Capability, type OAuthProvider } from '@portly/shared';
 import type { Db } from '../../../db/open.ts';
 import { newToken } from '../../../lib/ids.ts';
 
@@ -36,6 +37,8 @@ export interface NewOAuthState {
   codeVerifier: string;
   accountId: string | null;
   returnTo: string;
+  /** The services the sign-in asks for. */
+  capabilities: readonly Capability[];
   now: number;
 }
 
@@ -45,9 +48,18 @@ export function createOAuthState(db: Db, input: NewOAuthState): string {
   db.tx(() => {
     db.run('DELETE FROM oauth_states WHERE expires_at <= ?', [input.now]);
     db.run(
-      `INSERT INTO oauth_states (state, provider, code_verifier, account_id, return_to, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [state, input.provider, input.codeVerifier, input.accountId, input.returnTo, input.now, input.now + STATE_TTL_MS],
+      `INSERT INTO oauth_states (state, provider, code_verifier, account_id, return_to, capabilities, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        state,
+        input.provider,
+        input.codeVerifier,
+        input.accountId,
+        input.returnTo,
+        JSON.stringify(input.capabilities),
+        input.now,
+        input.now + STATE_TTL_MS,
+      ],
     );
     db.run(
       `DELETE FROM oauth_states WHERE rowid IN (
@@ -62,6 +74,21 @@ export interface ConsumedOAuthState {
   codeVerifier: string;
   accountId: string | null;
   returnTo: string;
+  /** The services the sign-in asked for; null for a row stored before they were recorded (or unreadable). */
+  capabilities: Capability[] | null;
+}
+
+/** The stored capabilities column: a JSON list of known capabilities, else null. */
+function parseRequested(raw: string | null): Capability[] | null {
+  if (raw === null) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!Array.isArray(value) || value.length === 0) return null;
+    if (!value.every((c) => (CAPABILITIES as readonly unknown[]).includes(c))) return null;
+    return CAPABILITIES.filter((c) => value.includes(c));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -69,12 +96,18 @@ export interface ConsumedOAuthState {
  * unknown, already used, expired, or belongs to another provider (the row is then left alone).
  */
 export function consumeOAuthState(db: Db, input: { state: string; provider: OAuthProvider; now: number }): ConsumedOAuthState | null {
-  const row = db.get<{ code_verifier: string; account_id: string | null; return_to: string }>(
-    'DELETE FROM oauth_states WHERE state = ? AND provider = ? AND expires_at > ? RETURNING code_verifier, account_id, return_to',
+  const row = db.get<{ code_verifier: string; account_id: string | null; return_to: string; capabilities: string | null }>(
+    `DELETE FROM oauth_states WHERE state = ? AND provider = ? AND expires_at > ?
+     RETURNING code_verifier, account_id, return_to, capabilities`,
     [input.state, input.provider, input.now],
   );
   if (!row) return null;
-  return { codeVerifier: row.code_verifier, accountId: row.account_id, returnTo: row.return_to };
+  return {
+    codeVerifier: row.code_verifier,
+    accountId: row.account_id,
+    returnTo: row.return_to,
+    capabilities: parseRequested(row.capabilities),
+  };
 }
 
 /** Deletes expired rows (hourly job); returns how many were removed. */

@@ -42,7 +42,7 @@ import type { SafeFetch } from '../../security/safe-fetch.ts';
 import { VaultLockedError, type Vault } from '../../security/vault.ts';
 import type { LookupFn } from './net.ts';
 import { loadOAuthClient } from './oauth/clients.ts';
-import { specForKind } from './oauth/providers.ts';
+import { scopesFor, specForKind } from './oauth/providers.ts';
 import { requestToken, type TokenEndpointFailure } from './oauth/token-endpoint.ts';
 import type { OAuthClient, OAuthProviderSpec } from './oauth/types.ts';
 import { ProbeRegistry } from './probes.ts';
@@ -55,6 +55,7 @@ import {
   getAccountRow,
   isAppPasswordKind,
   listAccountRows,
+  parseCapabilities,
   parsePasswordSecret,
   parseRefreshTokenSecret,
   refreshTokenSecret,
@@ -354,7 +355,13 @@ export function createAccountService(deps: AccountServiceDeps): AccountService {
       log,
       spec,
       grant: 'refresh_token',
-      params: { client_id: client.clientId, grant_type: 'refresh_token', refresh_token: used, ...spec.tokenParams(client) },
+      // Only the granted services' scopes: Microsoft refuses a refresh for more than was consented to.
+      params: {
+        client_id: client.clientId,
+        grant_type: 'refresh_token',
+        refresh_token: used,
+        ...spec.tokenParams(client, scopesFor(spec, parseCapabilities(row.capabilities))),
+      },
     });
     const ms = Date.now() - startedAt;
     if (!result.ok) return refreshFailure(id, spec, used, result, attempt, ms);

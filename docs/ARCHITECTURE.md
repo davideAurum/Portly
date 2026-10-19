@@ -342,13 +342,23 @@ ingest; invalid → null.
 - **Secrets are never returned to the client** (APIs return `{configured: true}` / host-only displays).
 
 ### 4.7 OAuth (Google, Microsoft) — owned by the accounts module
-- `POST /api/oauth/:provider/start {accountId?, returnTo?}` (non-exempt) → `{authorizeUrl}`; the SPA does
-  `location.assign(authorizeUrl)` in the same tab (never a popup). `returnTo` must match `^#/[a-z0-9/_-]*$`
+- `POST /api/oauth/:provider/start {accountId?, returnTo?, capabilities?}` (non-exempt) → `{authorizeUrl}`; the SPA
+  does `location.assign(authorizeUrl)` in the same tab (never a popup). `returnTo` must match `^#/[a-z0-9/_-]*$`
   (default `#/settings/accounts`).
-- `oauth_states`: random 32-byte base64url `state`, PKCE S256 `code_verifier`, `account_id`, `return_to`,
-  `expires_at` (+10 min). At most 20 pending (oldest deleted); expired rows purged hourly.
+- **Scopes follow the services picked (incremental consent).** Each provider spec has `baseScopes` (identity; Microsoft
+  also `offline_access User.Read`) and `capabilityScopes` (Google calendar: `calendar.events` +
+  `calendar.calendarlist.readonly`, mail: `gmail.modify`; Microsoft calendar: `Calendars.ReadWrite`, mail:
+  `Mail.ReadWrite`); its keys are the services it offers (`OAUTH_PROVIDER_CAPABILITIES` in shared). `capabilities` (a
+  non-empty list of known capabilities) is checked against them (422 `validation_failed`, path `capabilities`). A new
+  connection asks for the services named, or all offered when the field is absent (the behaviour before the field
+  existed); a reconnect (`accountId`) asks for the account's granted capabilities plus the ones named. The authorize
+  request carries `scopesFor(services)`: base scopes, then each service's, in capability order. Google keeps
+  `include_granted_scopes=true` (a new grant includes the earlier ones); Microsoft gets the union explicitly.
+- `oauth_states`: random 32-byte base64url `state`, PKCE S256 `code_verifier`, `account_id`, `return_to`, the requested
+  `capabilities` (JSON; `005_oauth_state_capabilities.sql`, NULL on older rows = all offered), `expires_at` (+10 min).
+  At most 20 pending (oldest deleted); expired rows purged hourly.
 - Callback reads only `code`, `state`, `error`. It consumes state atomically:
-  `DELETE FROM oauth_states WHERE state=? AND provider=? AND expires_at>? RETURNING code_verifier, account_id, return_to`
+  `DELETE FROM oauth_states WHERE state=? AND provider=? AND expires_at>? RETURNING code_verifier, account_id, return_to, capabilities`
   before any token exchange; always responds `302` to `${appOrigin}/?oauth=<result>${returnTo}` with
   `Cache-Control: no-store`, never reflecting provider text. `result` ∈
   `connected|reconnected|different_account|denied|expired|error`.
@@ -357,7 +367,18 @@ ingest; invalid → null.
   Upsert by `(kind, external_id)`. A reconnect for `accountId` whose subject differs creates a new
   account (`different_account`) and never overwrites the original.
 - Granted scopes recorded in `accounts.granted_scopes`; capabilities derived from them (Google: calendar
-  if `calendar.events` granted, mail if `gmail.modify` granted).
+  if `calendar.events` granted, mail if `gmail.modify` granted; Microsoft: `Calendars.ReadWrite`, `Mail.ReadWrite`; a
+  Microsoft token response without `scope` covers the requested scopes). The code is redeemed with the requested scopes
+  (Microsoft repeats `scope` at the token endpoint). Only requested services start enabled: a provider may also return
+  services granted to this client earlier, which are listed in `capabilities` but stay off in `enabled_capabilities`.
+  On an existing account a newly granted service starts enabled only if it was requested, and services the user
+  switched off stay off. A new connection whose grant covers none of the requested services → `denied` (nothing
+  stored). Switching a service off is `PATCH enabledCapabilities` only; nothing is revoked at the provider.
+- Refresh requests (Microsoft) ask for `scopesFor(account.capabilities)`: Microsoft refuses a refresh for more scopes
+  than were consented to.
+- The in-browser backend (`web/src/static/handlers/accounts.ts`, `static/providers/microsoftAuth.ts`) applies the same
+  rules to its Microsoft sign-in, with the calendar as the only service it offers (`capabilities: ['mail']` → 422); its
+  pending sign-ins keep the requested services in the `oauth-states` slice.
 - `DELETE /api/accounts/:id`: deletes the account, its secrets and (cascade) calendars/events in one
   transaction; Google tokens revoked best-effort via `https://oauth2.googleapis.com/revoke`.
 - `AccountService.getAccessToken` is single-flight per account (in-memory `Map<id, Promise>`); access
@@ -449,7 +470,8 @@ secrets(id TEXT PRIMARY KEY, key_version INTEGER NOT NULL DEFAULT 1, alg TEXT NO
 oauth_clients(provider TEXT PRIMARY KEY, client_id TEXT NOT NULL, has_secret INTEGER NOT NULL DEFAULT 0,
          updated_at INTEGER NOT NULL)
 oauth_states(state TEXT PRIMARY KEY, provider TEXT NOT NULL, code_verifier TEXT NOT NULL, account_id TEXT NULL,
-         return_to TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)
+         return_to TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+         capabilities TEXT NULL /* 005: JSON list of the services the sign-in asked for */)
 accounts(id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('google','microsoft','yahoo','caldav','imap')),
          label TEXT NOT NULL, email TEXT NULL, external_id TEXT NULL, config TEXT NOT NULL DEFAULT '{}',
          capabilities TEXT NOT NULL DEFAULT '[]', enabled_capabilities TEXT NOT NULL DEFAULT '[]',
@@ -492,6 +514,9 @@ Machine-local: never exported or imported.
 defaults (accent `#2563eb`; the `#1e3a8a` to `#6d28d9` gradient at 160 degrees) to the Beacon ones, matching colors
 case-insensitively; anything the user chose is kept. Mirrors `upgradeLegacyThemeDefaults()` in `shared/src/theme.ts`;
 the browser-only build runs the same upgrade once from its settings `ready()` (marker in the `upgrades` slice).
+
+`005_oauth_state_capabilities.sql`: `ALTER TABLE oauth_states ADD COLUMN capabilities TEXT NULL`, the services a
+pending sign-in asked for (§4.7). NULL (a sign-in started before the upgrade) means every service the provider offers.
 
 ---
 
@@ -615,7 +640,7 @@ path, `fs.realpath`, checks it is under those roots, caps 20 MB, validates JSON)
 **Accounts** (foundation) — `GET /api/accounts` · `PATCH /api/accounts/:id {label?, color?, enabledCapabilities?, sort?}` ·
 `DELETE /api/accounts/:id` · `POST /api/accounts/:id/test` · `GET /api/oauth-clients/:provider` →
 `{clientId|null, hasSecret, redirectUri}` · `PUT /api/oauth-clients/:provider {clientId, clientSecret?}` ·
-`POST /api/oauth/:provider/start {accountId?, returnTo?}` → `{authorizeUrl}` · `GET /api/oauth/:provider/callback` ·
+`POST /api/oauth/:provider/start {accountId?, returnTo?, capabilities?}` → `{authorizeUrl}` (§4.7) · `GET /api/oauth/:provider/callback` ·
 `POST /api/accounts/yahoo {email, appPassword}` · `POST /api/accounts/caldav {label, serverUrl, username, password, insecureLan?}` ·
 `POST /api/accounts/imap {label, host, port, security:'tls'|'starttls', username, password, webmailUrl?}`.
 
@@ -755,7 +780,8 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
 ## 8. Provider notes (verified 2026-09-25)
 
 **Google** — OAuth client type *Web application*; redirect `http://localhost:5757/api/oauth/google/callback`
-(from config). Scopes: `openid email profile https://www.googleapis.com/auth/calendar.events
+(from config). Scopes (all services; a sign-in asks for `openid email profile` plus those of the services picked,
+§4.7): `openid email profile https://www.googleapis.com/auth/calendar.events
 https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/gmail.modify`;
 `access_type=offline`, `prompt=consent`, `include_granted_scopes=true`, PKCE S256; `client_secret` required at
 token exchange. The consent screen must be **In production** (unverified, personal-use exemption) — "Testing"
@@ -774,7 +800,9 @@ free-account signup with their personal MSA (identity verification by card; no c
 registration: *Personal Microsoft accounts only*; platform **Mobile and desktop applications** (public client,
 no secret, 90-day sliding refresh tokens); redirect `http://localhost/api/oauth/microsoft/callback` (Entra ignores
 the port for localhost); no Web/SPA redirect on the same path. Authority `https://login.microsoftonline.com/consumers`.
-Scopes: `openid profile email offline_access User.Read Calendars.ReadWrite Mail.ReadWrite`. PKCE; no client
+Scopes (all services; a sign-in asks for `openid profile email offline_access User.Read` plus those of the services
+picked, a refresh for those of the granted services, §4.7): `openid profile email offline_access User.Read
+Calendars.ReadWrite Mail.ReadWrite`. PKCE; no client
 secret at the token endpoint (Node fetch sends no Origin header). Persist rotated refresh tokens. Require
 id_token `tid` = consumer tenant.
 Calendar: `/me/calendars`; `/me/calendars/{id}/calendarView?startDateTime&endDateTime&$top=500` paging via
@@ -913,10 +941,32 @@ GPU cost (§7a Theme rendering). New CSS must not add `filter`, `backdrop-filter
 surfaces; use `--hb-glass-filter` / `--hb-widget-glass-filter` and `--hb-hover-duration`.
 
 ### 10.5 Settings
-Hash routes `#/settings/<section>`; nav: general, appearance, search, bookmarks, accounts, calendars, todoist,
-profiles, import-export, diagnostics (§17), about. Foundation implements General, Appearance, Accounts (OAuth client setup with the exact
-redirect URI to copy, connect/reconnect/remove, Yahoo/CalDAV/IMAP forms, vault-locked banner), Profiles, Import/Export,
-About (version, data dir, log path, vault state). Features own Search, Bookmarks, Calendars, Todoist.
+Hash routes `#/settings/<section>`; nav: general, appearance, search, bookmarks, accounts, calendars, profiles,
+import-export, diagnostics (§17), about. Foundation implements General, Appearance, Accounts, Profiles, Import/Export,
+About (version, data dir, log path, vault state). Features own Search, Bookmarks, Calendars. The Todoist section moved
+into Accounts: `#/settings/todoist` still resolves (to `accounts`, with `focus=todoist`; `MOVED_SETTINGS_SECTIONS` in
+`settings/nav.ts`), and Todoist links use `#/settings/accounts?focus=todoist`.
+
+**Accounts** (`settings/sections/Accounts.tsx`, parts in `settings/sections/accounts/`) is "connect a main account,
+then choose what it is used for":
+- *Connected accounts* on top: one row per account (name, email, status, the enabled services as chips; **Manage**,
+  **Reconnect** for OAuth kinds, **Test**, **Remove**) plus Todoist while its token is saved (status from
+  `GET /api/todoist/token` and the projects query; Test fetches the projects; Remove deletes the token). Todoist is not
+  an `accounts` row: the token stays write-only in the vault (server) or the browser slice (in-browser backend).
+  **Manage** renames, recolors and switches services (`PATCH enabledCapabilities`); for Google/Microsoft it offers
+  **Add** for a service the account was not granted (start with `{accountId, capabilities: [service]}`, §4.7). Todoist's
+  Manage holds Replace token and the default filter.
+- *Add a connection*: tiles Google, Microsoft, Yahoo, Todoist, Other (`accounts/connections.ts`, data-driven: per
+  connection the services it offers with a one-line description; a new service is one entry plus its scopes). A tile
+  opens a connect dialog: **App registration** (Google/Microsoft, only while the client is not configured; console
+  link, steps, exact redirect URI, client ID/secret) → **Services** (checkboxes; only built services) → **Sign in**
+  (start with the services ticked; disabled while the vault is locked) or the credential form (Yahoo app password;
+  Other: CalDAV calendar or IMAP mail) with per-service probe results, or the Todoist token. Yahoo services left
+  unticked are switched off after creation. *App registrations* under the tiles shows each provider's status (Ready /
+  Setup needed / Credentials locked) with **Edit**.
+- The vault-locked banner with **Reset credentials** (server vault only).
+- What a page load offers follows `getCapabilities()`: on the in-browser backend only Microsoft (calendar only, browser
+  sign-in with a single-page-app redirect) and Todoist, with a line saying the others need the Portly server.
 The app reads `?oauth=<result>` on load, shows a toast, and strips it from the URL.
 Hybrid mode (§16): About in the server build ends with **Paired browsers** (`PairedBrowsersCard`: the configured Pages
 address or how to set it, every pairing with label, created and last used, "Old address" when not made for the
@@ -956,7 +1006,7 @@ upload becomes an orphan and is collected after 24 h.
 widget with `autofocus` focuses its input.
 
 ### 10.7 Widget definition of done (every widget)
-1. Not-configured state with a CTA deep link (e.g. `#/settings/todoist`, `#/settings/accounts`; weather "Set location" opens widget settings).
+1. Not-configured state with a CTA deep link (e.g. `#/settings/accounts?focus=todoist`, `#/settings/accounts`; weather "Set location" opens widget settings).
 2. Skeleton on first load. 3. Error state with Retry; `reauth_required` shows the account and Reconnect.
 4. Stale data kept on refetch failure with "Updated N min ago" and a warning indicator.
 5. Renders at minW×minH and adapts upward via container queries. 6. Light + dark via tokens only.
@@ -1256,7 +1306,8 @@ D calendar, E mail) → review + fixes → 3 integration verification.
 - **A search+launchpad+bookmarks:** `server/src/modules/{bookmarks,search}/**`; `web/src/widgets/{search,launchpad}/**`;
   `web/src/settings/sections/{Search,Bookmarks}.tsx`; `web/src/api/{bookmarks,search}.ts`.
 - **B weather+clock:** `server/src/modules/weather/**`; `web/src/widgets/{weather,clock}/**`; `web/src/api/weather.ts`.
-- **C todoist:** `server/src/modules/todoist/**`; `web/src/widgets/todoist/**`; `web/src/settings/sections/Todoist.tsx`;
+- **C todoist:** `server/src/modules/todoist/**`; `web/src/widgets/todoist/**`; `web/src/settings/sections/Todoist.tsx`
+  (since moved to `web/src/settings/sections/accounts/Todoist.tsx`);
   `web/src/api/todoist.ts`; `docs/setup/todoist.md`.
 - **D calendar:** `server/src/modules/calendar/**`; `web/src/widgets/calendar/**`; `web/src/settings/sections/Calendars.tsx`;
   `web/src/api/calendar.ts`.

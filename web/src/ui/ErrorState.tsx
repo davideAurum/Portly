@@ -31,7 +31,7 @@ import styles from './Display.module.css';
 export interface ErrorStateProps {
   error: unknown;
   onRetry?: () => void;
-  /** Where "Set up" leads for `not_configured` (an in-app route such as `#/settings/todoist`). */
+  /** Where "Set up" leads for `not_configured` (an in-app route such as `#/settings/accounts?focus=todoist`). */
   setupHref?: string;
   setupLabel?: string;
   /** Overrides the default title. */

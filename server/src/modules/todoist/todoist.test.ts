@@ -544,7 +544,7 @@ describe('todoist: health (diagnostics)', () => {
       status: 'failing',
       lastCode: 'token_rejected',
       lastStatus: 401,
-      lastMessage: 'Todoist rejected the saved API token. Paste a new one in Settings → Todoist.',
+      lastMessage: 'Todoist rejected the saved API token. Paste a new one under Todoist in Settings → Accounts.',
       consecutiveFailures: 2,
       detail: { errorTag: 'AUTH_INVALID_TOKEN', upstreamStatus: 401, errReason: 'token_rejected' },
     });

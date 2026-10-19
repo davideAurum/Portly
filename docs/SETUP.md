@@ -170,6 +170,22 @@ A release install has done step 2 already; load the extension from
 All accounts are added in **Settings → Accounts** (`http://localhost:5757/#/settings/accounts`),
 calendar subscriptions in **Settings → Calendars**.
 
+The page has two parts:
+
+- **Connected accounts** lists what is connected: each account's name, email and status, and the
+  services Portly uses it for (Calendar, Mail, Tasks). **Manage** renames an account, changes its
+  color and switches services on or off; **Reconnect** signs in again (Google, Outlook.com),
+  **Test** checks it, **Remove** disconnects it.
+- **Add a connection** has a tile per provider: **Google**, **Microsoft** (Outlook.com),
+  **Yahoo**, **Todoist** and **Other** (a CalDAV calendar or an IMAP mailbox). A tile walks you
+  through connecting: the one-time app registration (Google and Microsoft, only the first time),
+  then ticking what Portly should use the account for, then signing in (or entering the app
+  password or token). Portly asks the provider only for access to what you ticked. To add a
+  service later, open **Manage** on the account and click **Add**: you sign in once more and the
+  provider asks only for the new part. Switching a service off only stops Portly using it; nothing
+  is changed or revoked at the provider. **App registrations**, under the tiles, shows whether
+  Google and Microsoft are set up and lets you edit a registration.
+
 | Service | Calendar | Mail | Guide |
 | --- | --- | --- | --- |
 | Google (Gmail, Google Calendar) | read + write | yes | [google.md](setup/google.md) — your own Google Cloud OAuth client, ~15 min |

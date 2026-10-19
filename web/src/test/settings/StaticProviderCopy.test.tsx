@@ -1,11 +1,11 @@
 /**
- * Pages-build copy in Settings → Search and Settings → Todoist on the in-browser backend
- * (`setCapabilitiesForTests(capabilitiesFor(true, 'browser'))`): suggestions are described as
- * going straight to Wikipedia with the other providers labelled unavailable (the stored enum is
- * unchanged), the Todoist token is described as living in this browser, Todoist's own token help is
- * linked (the guide in the Portly folder is out of the site's reach) and the vault-locked banner never shows. On the
- * Portly server on this PC (hybrid mode) the server's copy applies, and a locked vault links to
- * this page's own Accounts settings, where it is reset.
+ * Pages-build copy in Settings → Search and in Todoist's Manage dialog (Settings → Accounts) on the
+ * in-browser backend (`setCapabilitiesForTests(capabilitiesFor(true, 'browser'))`): suggestions are
+ * described as going straight to Wikipedia with the other providers labelled unavailable (the
+ * stored enum is unchanged), the Todoist token is described as living in this browser, Todoist's
+ * own token help is linked (the guide in the Portly folder is out of the site's reach) and the
+ * vault-locked notice never shows. On the Portly server on this PC (hybrid mode) the server's copy
+ * applies, and a locked vault is reset on this same Accounts page.
  */
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
 import { setLocalServerController } from '../../localServer/store.ts';
 import SearchSettings, { isSuggestProviderAvailable } from '../../settings/sections/Search.tsx';
-import TodoistSettingsSection, { TODOIST_TOKEN_HELP_URL } from '../../settings/sections/Todoist.tsx';
+import { TODOIST_TOKEN_HELP_URL, TodoistManageDialog } from '../../settings/sections/accounts/Todoist.tsx';
 import { createFakeServer } from '../fakeServer.ts';
 import { health, settings } from '../fixtures.ts';
 import { fakeLocalServer } from '../hybrid.ts';
@@ -54,9 +54,9 @@ describe('static build: Settings → Search copy', () => {
   });
 });
 
-describe('static build: Settings → Todoist copy', () => {
+describe('static build: Todoist copy', () => {
   it('says where the token lives, links the hosted guide and ignores a "locked" vault', async () => {
-    renderWithProviders(<TodoistSettingsSection />, {
+    renderWithProviders(<TodoistManageDialog open onOpenChange={() => {}} />, {
       apiMocks: {
         'GET /api/health': health('locked'),
         'GET /api/settings': settings(),
@@ -77,11 +77,9 @@ describe('static build: Settings → Todoist copy', () => {
     expect(screen.getByText(/Portly checks it with Todoist before storing it/)).toBeInTheDocument();
 
     // A "locked" health answer is meaningless without a vault: no banner, nothing disabled.
-    expect(await screen.findByText('Connected')).toBeInTheDocument();
+    expect(await screen.findByText(/Working — 1 project found/)).toBeInTheDocument();
     expect(screen.queryByText('Saved credentials are locked')).toBeNull();
-    expect(screen.queryByText('Locked')).toBeNull();
     expect(screen.getByLabelText('Replace token')).not.toBeDisabled();
-    expect(screen.getByText(/1 project found/)).toBeInTheDocument();
   });
 });
 
@@ -99,7 +97,7 @@ describe('Pages build on the Portly server on this PC: Settings → Search and T
     expect(isSuggestProviderAvailable('google')).toBe(true);
   });
 
-  it('keeps the token in the vault, and a locked vault links to this page’s Accounts settings', async () => {
+  it('keeps the token in the vault, and a locked vault is reset on this same page', async () => {
     const fake = fakeLocalServer({
       backend: 'server',
       status: 'connected',
@@ -108,7 +106,7 @@ describe('Pages build on the Portly server on this PC: Settings → Search and T
       server: { version: '0.1.0', instanceId: 'i1', appUrl: 'https://evil.example/', apiVersion: 1, vault: 'locked' },
     });
     act(() => setLocalServerController(fake.controller));
-    renderWithProviders(<TodoistSettingsSection />, {
+    renderWithProviders(<TodoistManageDialog open onOpenChange={() => {}} />, {
       apiMocks: {
         'GET /api/health': health('locked'),
         'GET /api/settings': settings(),
@@ -117,11 +115,8 @@ describe('Pages build on the Portly server on this PC: Settings → Search and T
     });
     expect(await screen.findByText('Saved credentials are locked')).toBeInTheDocument();
     expect(screen.getByText(/stored encrypted on this PC/)).toBeInTheDocument();
-    expect(screen.getByText(/Reset credentials in Settings → Accounts, then add your token here again/)).toBeInTheDocument();
+    expect(screen.getByText(/Reset credentials with the banner on this page, then connect Todoist again/)).toBeInTheDocument();
     expect(screen.queryByText(/Portly's own page/)).toBeNull();
-    const link = screen.getByRole('link', { name: 'Open Accounts' });
-    expect(link).toHaveAttribute('href', '#/settings/accounts');
-    expect(link).not.toHaveAttribute('target');
     expect(screen.queryByRole('link', { name: /Open Portly on this PC/ })).toBeNull();
     for (const each of screen.queryAllByRole('link')) expect(each.getAttribute('href') ?? '').not.toContain('evil.example');
     expect(screen.getByLabelText('Replace token')).toBeDisabled();

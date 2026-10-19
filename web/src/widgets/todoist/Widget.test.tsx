@@ -190,7 +190,7 @@ describe('Todoist widget: states', () => {
       mocks: { 'GET /api/todoist/tasks': mockError(409, 'not_configured', 'Todoist is not connected.', { details: { reason: 'no_token' } }) },
     });
     expect(await screen.findByText('Connect Todoist')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Set up Todoist/ })).toHaveAttribute('href', '#/settings/todoist');
+    expect(screen.getByRole('link', { name: /Set up Todoist/ })).toHaveAttribute('href', '#/settings/accounts?focus=todoist');
     expect(screen.queryByRole('textbox', { name: 'Add a task' })).toBeNull();
   });
 
@@ -199,7 +199,7 @@ describe('Todoist widget: states', () => {
       mocks: { 'GET /api/todoist/tasks': mockError(409, 'not_configured', 'Todoist rejected the saved API token.', { details: { reason: 'token_rejected' } }) },
     });
     expect(await screen.findByText('Todoist token rejected')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Set up Todoist/ })).toHaveAttribute('href', '#/settings/todoist');
+    expect(screen.getByRole('link', { name: /Set up Todoist/ })).toHaveAttribute('href', '#/settings/accounts?focus=todoist');
   });
 
   it('a locked vault points to Settings → Accounts', async () => {
@@ -241,7 +241,7 @@ describe('Todoist widget: states', () => {
     expect(openSettings).toHaveBeenCalledTimes(1);
   });
 
-  it('a broken default filter links to Settings → Todoist', async () => {
+  it('a broken default filter links to Todoist in Settings → Accounts', async () => {
     renderWidget({
       settings: settings({ todoist: { defaultFilter: '((' } }),
       mocks: {
@@ -251,7 +251,7 @@ describe('Todoist widget: states', () => {
       },
     });
     expect(await screen.findByText('Check the filter')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Edit default filter/ })).toHaveAttribute('href', '#/settings/todoist');
+    expect(screen.getByRole('link', { name: /Edit default filter/ })).toHaveAttribute('href', '#/settings/accounts?focus=todoist');
   });
 
   it('other errors offer Retry', async () => {

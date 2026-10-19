@@ -424,6 +424,8 @@ export interface StoredOAuthState {
   returnTo: string;
   /** Started automatically (`prompt=none`): failures are not reported to the user. */
   silent: boolean;
+  /** The services the sign-in asked for (absent on a sign-in started before they were recorded: all). */
+  capabilities?: Capability[];
   createdAt: number;
   expiresAt: number;
 }
@@ -436,6 +438,7 @@ function isOAuthStateRow(row: unknown): boolean {
     typeof row.codeVerifier === 'string' &&
     typeof row.returnTo === 'string' &&
     typeof row.silent === 'boolean' &&
+    (row.capabilities === undefined || isCapabilityList(row.capabilities)) &&
     Number.isFinite(row.expiresAt)
   );
 }

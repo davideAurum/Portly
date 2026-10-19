@@ -24,14 +24,18 @@ The Todoist desktop app has the same **Settings → Integrations → Developer**
 
 ## 2. Add it to Portly
 
-1. Open Portly → **Settings → Todoist** (`http://localhost:5757/#/settings/todoist`).
-2. Paste the token into **API token** (use the eye button to check what you pasted) and click
+1. Open Portly → **Settings → Accounts** (`http://localhost:5757/#/settings/accounts`).
+2. Under **Add a connection**, click the **Todoist** tile.
+3. Paste the token into **API token** (use the eye button to check what you pasted) and click
    **Save token**.
-3. Portly first asks Todoist whether the token works and only then stores it. The card then shows
-   **Connected** and how many projects it found.
+4. Portly first asks Todoist whether the token works and only then stores it. Todoist then shows
+   under **Connected accounts** as **Connected**, with **Tasks** as its service.
 
-To replace the token later, paste the new one into **Replace token**. **Remove token** (with
-confirmation) deletes it from Portly; nothing changes in your Todoist account.
+To replace the token later, click **Manage** on the Todoist row and paste the new one into
+**Replace token**. **Test** asks Todoist whether the saved token still works. **Remove** (with
+confirmation) deletes the token from Portly; nothing changes in your Todoist account.
+
+The old address `#/settings/todoist` still works: it opens Todoist in Settings → Accounts.
 
 ## 3. Add a Todoist widget
 
@@ -39,7 +43,8 @@ confirmation) deletes it from Portly; nothing changes in your Todoist account.
 2. Open the widget's settings (gear icon) to choose:
    - **Filter** — any Todoist filter query, or a preset: **Today** (`today | overdue`),
      **Overdue**, **Next 7 days** (`7 days`), **No date**, **Priority 1** (`p1`). Leave it empty to
-     use the **Default filter** from Settings → Todoist (initially `today | overdue`).
+     use the **Default filter** (initially `today | overdue`), which you set under **Manage** on
+     the Todoist row in Settings → Accounts.
    - **List title** — shown above the tasks (default: the preset's name or the query).
    - **Sort tasks by** — Todoist's own order, due date, or priority. Also available from the
      widget's ↕ menu.
@@ -82,10 +87,10 @@ recurring tasks). Click a task's text to open it in Todoist.
 | **"Todoist rejected this token"** when saving | The pasted text isn't a valid token (partly copied, an old token, or another service's key). Copy it again with **Copy API token**. |
 | **"That doesn't look like a Todoist API token"** | The text contains spaces, quotes or a URL. The token is a single run of 40 letters and digits. |
 | Widget: **Connect Todoist** | No token is saved yet. Follow step 2. |
-| Widget: **Todoist token rejected** / Settings: **Token rejected** | The saved token was reset or revoked in Todoist. Copy the current one and use **Replace token**. |
-| **Saved credentials are locked** | Portly can't read its encryption key (for example after moving the data folder to another PC or Windows user). See [Vault locked](troubleshooting.md#vault-locked); after **Reset credentials**, add the Todoist token again. |
+| Widget: **Todoist token rejected** / Settings → Accounts: **Token rejected** | The saved token was reset or revoked in Todoist. Copy the current one, click **Manage** on the Todoist row and use **Replace token**. |
+| **Saved credentials are locked** | Portly can't read its encryption key (for example after moving the data folder to another PC or Windows user). See [Vault locked](troubleshooting.md#vault-locked); after **Reset credentials**, connect Todoist again with its tile. |
 | **"Todoist is rate limiting requests. Try again in N s."** | Todoist limits how many requests an account can make in a 15-minute window (other apps using your token count too). Portly pauses Todoist requests for the time Todoist asks for; the widget keeps showing the last list meanwhile. |
-| Widget: **Check the filter** ("Todoist could not understand this filter") | The widget's filter (or your default filter) has a syntax error. **Edit filter** opens the widget's settings (**Edit default filter** opens Settings → Todoist). Try the query in Todoist's own filter editor, then paste the working one. |
+| Widget: **Check the filter** ("Todoist could not understand this filter") | The widget's filter (or your default filter) has a syntax error. **Edit filter** opens the widget's settings (**Edit default filter** opens Todoist's **Manage** dialog in Settings → Accounts). Try the query in Todoist's own filter editor, then paste the working one. |
 | **"Todoist is having problems (HTTP 5xx)"** or **"The provider timed out"** | Todoist or your connection is having trouble. The widget keeps the last list (with a warning next to "Updated … ago") and retries on the next refresh. |
 | A new task doesn't appear in the widget | It was added, but it doesn't match the widget's filter (for example it has no date and the filter is `today \| overdue`). |
 | A completed task came back with a new date | It is a recurring task; completing it moves it to the next occurrence, as in Todoist. |

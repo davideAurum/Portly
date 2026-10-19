@@ -1,18 +1,24 @@
-/** Settings → Todoist (web/src/settings/sections/Todoist.tsx). */
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+/**
+ * Todoist in Settings → Accounts (accounts/Todoist.tsx): the token form of its connect dialog, and
+ * its Manage dialog (replace the token, the default filter). The row and the tile are covered in
+ * src/test/settings/Accounts.test.tsx.
+ */
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { SettingsPatch } from '@portly/shared';
-import TodoistSettingsSection from '../../settings/sections/Todoist.tsx';
-import { health, settings } from '../../test/fixtures.ts';
-import { mockError, renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';
+import { health, settings } from '../../../test/fixtures.ts';
+import { mockError, renderWithProviders, type ApiMock, type MockRequest } from '../../../test/render.tsx';
+import { TodoistManageDialog, TodoistTokenForm } from './Todoist.tsx';
 
 const TOKEN = '0123456789abcdef0123456789abcdef01234567';
 
+/** The Manage dialog when Todoist is connected, else the connect dialog's token form. */
 function renderSection(options: { configured?: boolean; vault?: 'ready' | 'locked'; mocks?: Record<string, ApiMock> } = {}) {
   const state = { configured: options.configured ?? false, settings: settings() };
   const patches: SettingsPatch[] = [];
-  const result = renderWithProviders(<TodoistSettingsSection />, {
+  const ui = state.configured ? <TodoistManageDialog open onOpenChange={() => {}} /> : <TodoistTokenForm />;
+  const result = renderWithProviders(ui, {
     apiMocks: {
       'GET /api/health': health(options.vault ?? 'ready'),
       'GET /api/settings': () => state.settings,
@@ -39,11 +45,10 @@ function renderSection(options: { configured?: boolean; vault?: 'ready' | 'locke
   return Object.assign(result, { state, patches });
 }
 
-describe('Settings → Todoist: token', () => {
+describe('Todoist: token', () => {
   it('explains where to find the token and saves a trimmed token', async () => {
     const user = userEvent.setup();
     const h = renderSection();
-    expect(await screen.findByText('Not connected')).toBeInTheDocument();
     expect(screen.getByText('Settings → Integrations → Developer')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open it directly/ })).toHaveAttribute('href', 'https://app.todoist.com/app/settings/integrations/developer');
 
@@ -57,9 +62,19 @@ describe('Settings → Todoist: token', () => {
     await waitFor(() => expect(h.requestsTo('PUT /api/todoist/token')).toHaveLength(1));
     expect(h.requestsTo('PUT /api/todoist/token')[0]!.body).toEqual({ token: TOKEN });
     expect(await screen.findByText('Todoist connected.')).toBeInTheDocument();
-    expect(await screen.findByText('Connected')).toBeInTheDocument();
-    expect(await screen.findByText(/1 project found/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Replace token')).toHaveValue('');
+    expect(field).toHaveValue('');
+  });
+
+  it('replaces the saved token from Manage, saying the token works', async () => {
+    const user = userEvent.setup();
+    const h = renderSection({ configured: true });
+    expect(await screen.findByText(/Working — 1 project found/)).toBeInTheDocument();
+    const field = screen.getByLabelText('Replace token');
+    await user.type(field, TOKEN);
+    await user.click(screen.getByRole('button', { name: 'Replace token' }));
+    await waitFor(() => expect(h.requestsTo('PUT /api/todoist/token')).toHaveLength(1));
+    expect(await screen.findByText('Todoist token updated.')).toBeInTheDocument();
+    expect(field).toHaveValue('');
   });
 
   it('catches obviously wrong input before calling the server', async () => {
@@ -88,41 +103,29 @@ describe('Settings → Todoist: token', () => {
     expect(field).toHaveValue(TOKEN);
   });
 
-  it('removes the token after confirmation', async () => {
-    const user = userEvent.setup();
-    const h = renderSection({ configured: true });
-    await user.click(await screen.findByRole('button', { name: 'Remove token' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Remove the Todoist token?' });
-    expect(h.requestsTo('DELETE /api/todoist/token')).toHaveLength(0);
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove token' }));
-    await waitFor(() => expect(h.requestsTo('DELETE /api/todoist/token')).toHaveLength(1));
-    expect(await screen.findByText('Not connected')).toBeInTheDocument();
-  });
-
   it('flags a token Todoist no longer accepts', async () => {
     renderSection({
       configured: true,
       mocks: { 'GET /api/todoist/projects': mockError(409, 'not_configured', 'Todoist rejected the saved API token.', { details: { reason: 'token_rejected' } }) },
     });
     expect(await screen.findByText('Todoist rejected the saved token')).toBeInTheDocument();
-    expect(screen.getByText('Token rejected')).toBeInTheDocument();
+    expect(screen.queryByText(/Working/)).toBeNull();
   });
 
   it('explains a locked vault and disables saving', async () => {
-    renderSection({ configured: true, vault: 'locked' });
+    const h = renderSection({ configured: true, vault: 'locked' });
     expect(await screen.findByText('Saved credentials are locked')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Accounts' })).toHaveAttribute('href', '#/settings/accounts');
-    expect(screen.getByLabelText('Replace token')).toBeDisabled();
-    // A token that can't be decrypted is not "Connected".
-    expect(await screen.findByText('Locked')).toBeInTheDocument();
-    expect(screen.queryByText('Connected')).toBeNull();
+    expect(screen.getByText(/Reset credentials with the banner on this page/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('Replace token')).toBeDisabled());
+    // A token that can't be decrypted is not asked about.
+    expect(h.requestsTo('GET /api/todoist/projects')).toHaveLength(0);
   });
 });
 
-describe('Settings → Todoist: default filter', () => {
+describe('Todoist: default filter', () => {
   it('saves a preset or typed filter and can reset to the default', async () => {
     const user = userEvent.setup();
-    const h = renderSection();
+    const h = renderSection({ configured: true });
     const input = await screen.findByRole('textbox', { name: 'Filter' });
     await waitFor(() => expect(input).toHaveValue('today | overdue'));
     expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
@@ -144,7 +147,7 @@ describe('Settings → Todoist: default filter', () => {
 
   it('refuses an empty filter', async () => {
     const user = userEvent.setup();
-    const h = renderSection();
+    const h = renderSection({ configured: true });
     const input = await screen.findByRole('textbox', { name: 'Filter' });
     await waitFor(() => expect(input).toHaveValue('today | overdue'));
     await user.clear(input);

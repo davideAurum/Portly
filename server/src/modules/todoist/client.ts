@@ -84,13 +84,13 @@ export function unexpectedResponse(httpStatus = 200): TodoistUpstreamError {
 }
 
 export function tokenRejected(): HttpError {
-  return new HttpError(409, 'not_configured', 'Todoist rejected the saved API token. Paste a new one in Settings → Todoist.', {
+  return new HttpError(409, 'not_configured', 'Todoist rejected the saved API token. Paste a new one under Todoist in Settings → Accounts.', {
     reason: 'token_rejected',
   });
 }
 
 export function notConnected(): HttpError {
-  return new HttpError(409, 'not_configured', 'Todoist is not connected. Add your API token in Settings → Todoist.', {
+  return new HttpError(409, 'not_configured', 'Todoist is not connected. Connect it in Settings → Accounts.', {
     reason: 'no_token',
   });
 }

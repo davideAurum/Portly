@@ -190,7 +190,7 @@ describe('todoist: tasks', () => {
     expect(res.status).toBe(409);
     expect(res.body.error).toEqual({
       code: 'not_configured',
-      message: 'Todoist is not connected. Add your API token in Settings → Todoist.',
+      message: 'Todoist is not connected. Connect it in Settings → Accounts.',
       details: { reason: 'no_token' },
     });
     expect(fake.calls).toHaveLength(0);
@@ -289,7 +289,7 @@ describe('todoist: upstream error mapping', () => {
     expect(res.status).toBe(409);
     expect(res.body.error).toEqual({
       code: 'not_configured',
-      message: 'Todoist rejected the saved API token. Paste a new one in Settings → Todoist.',
+      message: 'Todoist rejected the saved API token. Paste a new one under Todoist in Settings → Accounts.',
       details: { reason: 'token_rejected' },
     });
     expect(res.text).not.toContain(TOKEN);

@@ -26,6 +26,16 @@ export function isOAuthProvider(value: unknown): value is OAuthProvider {
   return typeof value === 'string' && (OAUTH_PROVIDERS as readonly string[]).includes(value);
 }
 
+/**
+ * The services (capabilities) a sign-in can ask for, per provider, on the Portly server. Each one
+ * maps to its own OAuth scopes (the provider specs on the server); a sign-in asks only for the
+ * scopes of the services picked. The browser-only build offers fewer (Microsoft: calendar only).
+ */
+export const OAUTH_PROVIDER_CAPABILITIES: Readonly<Record<OAuthProvider, readonly Capability[]>> = Object.freeze({
+  google: ['calendar', 'mail'],
+  microsoft: ['calendar', 'mail'],
+});
+
 /** Outcome reported to the SPA as `/?oauth=<result>#<returnTo>`. */
 export const OAUTH_RESULTS = ['connected', 'reconnected', 'different_account', 'denied', 'expired', 'error'] as const;
 export const OAuthResultSchema = z.enum(OAUTH_RESULTS);
@@ -232,11 +242,16 @@ export interface AccountTestResult {
 // OAuth
 // ---------------------------------------------------------------------------
 
-/** `POST /api/oauth/:provider/start {accountId?, returnTo?}` */
+/**
+ * `POST /api/oauth/:provider/start {accountId?, returnTo?, capabilities?}`. `capabilities` are the
+ * services to ask for: a new connection asks for only these (absent: every service the provider
+ * offers); a reconnect asks for the account's granted services plus these (incremental consent).
+ */
 export const OAuthStartSchema = z
   .object({
     accountId: EntityId.optional(),
     returnTo: z.string().max(200).regex(OAUTH_RETURN_TO_REGEX).optional(),
+    capabilities: z.array(CapabilitySchema).min(1).max(CAPABILITIES.length).optional(),
   })
   .strict();
 export type OAuthStart = z.output<typeof OAuthStartSchema>;

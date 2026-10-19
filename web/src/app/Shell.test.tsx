@@ -206,7 +206,7 @@ describe('Shell', () => {
     expect(fake.actions.switchNow).toHaveBeenCalledOnce();
   });
 
-  it('routes #/settings/<section> to the settings shell with all eleven sections', async () => {
+  it('routes #/settings/<section> to the settings shell with all ten sections', async () => {
     renderWithProviders(<Shell />, {
       route: '#/settings/about',
       apiMocks: {
@@ -216,7 +216,9 @@ describe('Shell', () => {
     });
     expect(await screen.findByRole('heading', { level: 1, name: 'About' })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Settings sections' });
-    expect(within(nav).getAllByRole('listitem')).toHaveLength(11);
+    expect(within(nav).getAllByRole('listitem')).toHaveLength(10);
+    // Todoist is a connection in Accounts, not a section of its own.
+    expect(within(nav).queryByRole('link', { name: 'Todoist' })).not.toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'About' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'Import & export' })).toHaveAttribute('href', '#/settings/import-export');
     // Diagnostics comes right before About.

@@ -148,33 +148,40 @@ mail and never sends mail.
 ## 5. Enter the client in Portly
 
 1. Open Portly → **Settings → Accounts** (`http://localhost:5757/#/settings/accounts`).
-2. In the **Google** card (under *Google and Outlook.com*), paste the **Client ID** and
-   **Client secret** and click **Save**.
+2. Under **Add a connection**, click the **Google** tile. The first step is **App registration**:
+   paste the **Client ID** and **Client secret** and click **Save and continue**.
 
 The secret is stored encrypted in Portly's vault (DPAPI-protected key) and is never sent back to
-the browser.
+the browser. To change the client later, use **Edit** next to Google under **App registrations**
+(below the tiles).
 
 ## 6. Connect your Google account
 
-1. In the same card, click **Connect Google**. The tab goes to Google's sign-in page.
-2. Choose your account.
-3. **"Google hasn't verified this app"** appears. This is expected: it is your own app, requesting
-   Gmail and Calendar access, and you are its only user. Click **Advanced**, then
-   **Go to Portly (unsafe)**.
-4. On the consent screen, tick **every** checkbox (or **Select all**) and click **Continue**.
-   If you leave Gmail or Calendar unticked, Portly connects with only what you granted; connect
-   again later to add the rest.
-5. You land back in Portly with a "connected" message. Calendars appear under
-   **Settings → Calendars** and the Mail widget shows your inbox.
+1. **Services:** tick what Portly should use the account for, **Calendar** and/or **Mail**
+   (Gmail), and click **Continue**. Portly asks Google only for access to what you tick.
+2. **Sign in:** click **Sign in with Google**. The tab goes to Google's sign-in page.
+3. Choose your account.
+4. **"Google hasn't verified this app"** appears. This is expected: it is your own app, and you
+   are its only user. Click **Advanced**, then **Go to Portly (unsafe)**.
+5. On the consent screen, tick **every** checkbox (or **Select all**) and click **Continue**.
+   A box you leave unticked leaves that service off.
+6. You land back in Portly with a "connected" message. The account appears under
+   **Connected accounts**; calendars appear under **Settings → Calendars** and the Mail widget
+   shows your inbox.
 
-Connect more Google accounts the same way; they all use the same OAuth client.
+To add a service later (for example Mail on an account you connected for Calendar only), open
+**Manage** on the account and click **Add** next to it: you sign in again and Google asks only for
+the new part. Switching a service off under **Manage** only stops Portly using it; nothing is
+revoked at Google.
+
+Connect more Google accounts with the same tile; they all use the same OAuth client.
 
 ## Good to know
 
 - **Staying connected.** Google revokes a refresh token that has not been used for 6 months, when
   you change your Google password (because Gmail scopes are granted), or when you remove access at
-  <https://myaccount.google.com/connections>. Portly then marks the account **Reconnect**; click
-  it and repeat step 6.
+  <https://myaccount.google.com/connections>. Portly then marks the account **Reconnect needed**;
+  click **Reconnect** and sign in again.
 - **Unused OAuth clients are deleted.** Google deletes OAuth clients that have not been used for
   six months (with an email 30 days before). A Portly that runs daily keeps the client active.
 - **Removing an account** in Portly deletes its tokens and cached events and revokes the token

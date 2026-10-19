@@ -1,4 +1,4 @@
-/* Todoist widget, widget settings and the Settings → Todoist section. Tokens only. */
+/* Todoist widget, its settings, and the Todoist parts of Settings → Accounts. Tokens only. */
 
 .root {
   display: flex;
@@ -280,11 +280,6 @@ a.content:focus-visible {
   color: var(--hb-text-subtle);
 }
 
-.hint {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
-}
-
 /* ---- States ---- */
 
 .state {
@@ -352,26 +347,12 @@ a.content:focus-visible {
   }
 }
 
-/* ---- Widget settings & settings section ---- */
+/* ---- Widget settings & Settings → Accounts ---- */
 
 .presets {
   display: flex;
   flex-wrap: wrap;
   gap: var(--hb-space-2);
-}
-
-.steps {
-  display: grid;
-  gap: var(--hb-space-2);
-  margin: 0;
-  padding-left: 1.3em;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
-}
-
-.steps strong {
-  color: var(--hb-text);
-  font-weight: 600;
 }
 
 .code {
@@ -383,16 +364,3 @@ a.content:focus-visible {
   color: var(--hb-text);
 }
 
-.formStack {
-  display: grid;
-  gap: var(--hb-space-4);
-}
-
-.connection {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--hb-space-2);
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
-}
