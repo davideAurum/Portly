@@ -51,7 +51,6 @@ saved so it can be brought over in phase 1.
    - an update rollback also restores the database backup;
    - longer timeouts for the credential vault tests;
    - a clearer message from `setup.ps1` about updating;
-   - two doc fixes (a broken paragraph in SETUP, the publish file list in the static build guide);
    - a test that ties the web build's files to what `publish-static.ps1` allows;
    - an observed value for the extension ID test.
 5. **Version 0.2.0-alpha.1** with a CHANGELOG.
@@ -103,9 +102,7 @@ or fold them into a phase.
   - remove `@tanstack/query-sync-storage-persister` from `web/package.json`. Nothing uses it
     since the background-tab work, but it was kept to avoid a lockfile change;
   - the Shell test for the "Add bookmark" dialog (`#/add-bookmark`) sometimes fails, also on
-    older commits. Make it reliable;
-  - note in CLAUDE.md that manual runs should clear `PORTLY_PAGES_URL`, or the dev page forwards
-    to the real Pages site.
+    older commits. Make it reliable.
 - **Checks never run on main:** re-run the hybrid pairing check in a real browser, and check
   hidden-tab behaviour with a real hidden tab instead of a simulated one.
 - **Dependencies:** two dev-only advisories (`shell-quote` through `concurrently`, and

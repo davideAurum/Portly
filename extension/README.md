@@ -1,10 +1,9 @@
 # Portly new-tab extension
 
-A Chromium Manifest V3 extension (Chrome and Edge) that makes Portly your New Tab page — since
-0.2.0 it starts Portly when it isn't running, since 0.3.0 a new tab can open the Portly Pages
-site instead of Portly on this PC, since 0.4.0 its toolbar button adds the current page to the
-launch pad, and since 0.5.0 it follows Portly on this PC by default: its Pages site when the server
-has one, otherwise Portly itself. Plain JavaScript, no build step.
+A Chromium Manifest V3 extension (Chrome and Edge) that makes Portly your New Tab page. It starts
+Portly when it isn't running, follows Portly on this PC by default (its Pages site when the server
+has one, otherwise Portly itself; the options can pin either), and its toolbar button adds the
+current page to the launch pad. Plain JavaScript, no build step.
 Installation: [docs/setup/extension.md](../docs/setup/extension.md).
 
 ## Extension ID (pinned)
@@ -23,23 +22,10 @@ add one to the repository.
 prints `chrome-extension://<id>/`, `--json` both), so installers never hard-code it:
 ID = the first 16 bytes of SHA-256(DER key) as hex, with the digits 0–f written as the letters a–p.
 
-### One-time step when upgrading from 0.1.0
-
-Before 0.2.0 the ID came from the folder path (for example `daklamdnkmbdeegnkhmpeccgggbgiole`).
-Adding the `key` changes it, and the browser only reliably registers the new ID when the
-extension is loaded afresh, so instead of **Reload**, once:
-
-1. On `chrome://extensions` (or `edge://extensions`), click **Remove** on Portly New Tab.
-2. Click **Load unpacked** and select the `extension` folder again.
-3. Open a new tab and choose **Keep it** if the browser asks about the new tab page.
-4. If you use a port other than 5757, set it again in the extension options — removing the
-   extension clears its saved settings (`chrome.storage.local`).
-5. Run `scripts\install-autostart.ps1` (it installs the launcher for this ID).
-
-If the browser still runs the extension under another ID, the launcher refuses it ("forbidden")
-and running the installer again can't help. The extension spots this (`chrome.runtime.id` isn't
+If the browser runs the extension under another ID, the launcher refuses it ("forbidden") and
+running the installer again can't help. The extension spots this (`chrome.runtime.id` isn't
 the pinned ID, `PINNED_EXTENSION_ID` in `lib/launcher.js`): the New Tab fallback and the options
-page then show the Remove + Load unpacked steps instead, and the service worker's log says so.
+page then show the Remove + Load unpacked steps, and the service worker's log says so.
 
 ## How it works
 
@@ -153,9 +139,9 @@ runs the **Portly Server** scheduled task, so the server isn't part of the brows
 | `background.service_worker` (module) | Start Portly when the browser starts, and when a new tab with the Pages site asks; handle the toolbar button. |
 | `key` | Pin the extension ID (see above). |
 
-0.5.0 added no permission (the `auto` target reads `/api/health`, already allowed). 0.4.0 added `activeTab` and the `action` (toolbar button). 0.3.0 added no permission: messages between the extension's own pages and its service worker need
-none, and opening the Pages site is a plain navigation of the tab (no host permission for it). No
-content scripts, no `externally_connectable`, no web-accessible resources. The extension-page CSP
+Messages between the extension's own pages and its service worker need no permission, and
+opening the Pages site is a plain navigation of the tab (no host permission for it). No content
+scripts, no `externally_connectable`, no web-accessible resources. The extension-page CSP
 (which also covers the service worker) is tightened to
 `default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src http://localhost:*; img-src 'self'; style-src 'self'`.
 

@@ -4,7 +4,7 @@ Use these for providers without a dedicated guide — iCloud, Fastmail, Nextclou
 own domain, and so on. Google, Outlook.com and Yahoo have their own guides:
 [Google](google.md) · [Microsoft](microsoft.md) · [Yahoo](yahoo.md).
 
-| Account type | Protocol | In v1 |
+| Account type | Protocol | What works |
 | --- | --- | --- |
 | CalDAV | calendars over HTTPS | **Read-only** |
 | IMAP | mail | Unread count, recent messages (no preview text), mark read/unread, trash, archive (when the server has an Archive folder) |
@@ -86,7 +86,7 @@ provider's groupware.
 - Enter the server's base URL or the CalDAV root. Portly follows the standard
   `/.well-known/caldav` discovery, but only to addresses on the **same site** (same registrable
   domain) — your password is never sent anywhere else, even if the server redirects there.
-- Calendars are read-only in v1; you can still hide them, recolor them or pick which ones a
+- Calendars are read-only for now; you can still hide them, recolor them or pick which ones a
   Calendar widget shows (**Settings → Calendars**).
 
 ## Any other IMAP server

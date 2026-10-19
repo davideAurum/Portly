@@ -52,8 +52,9 @@ Labels use `%` (for example `%errands`); Todoist still accepts the older `@` for
 ### Quick add
 
 Type into **Add a task…** and press **Enter** (Esc clears the field). Todoist parses the text
-exactly as in its own apps: dates and times (`tomorrow 5pm`, `every monday`), `#Project`,
-`#Project` (plus `/Section`, as in `#Work /Meetings`), `%label`, and `p1`–`p3`. Portly then shows the task as Todoist understood it.
+exactly as in its own apps: dates and times (`tomorrow 5pm`, `every monday`), `#Project` (plus
+`/Section`, as in `#Work /Meetings`), `%label`, and `p1`–`p3`. Portly then shows the task as
+Todoist understood it.
 If the new task doesn't match the widget's filter, the confirmation says so.
 
 ### Completing tasks
