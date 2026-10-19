@@ -31,13 +31,18 @@ saved so it can be brought over in phase 1.
 2. **Outlook.com calendars in the browser-only build** (done). Brought over from Homebase with the
    rename applied. Missing tests were added, a retry loop when browser storage is full was fixed,
    dead settings code was removed, and stale text, comments and privacy notes were brought up to
-   date. Still to do: a test against a real Outlook.com account, which needs the Pages address
-   registered as a *Single-page application* redirect ([Outlook.com](setup/microsoft.md)).
+   date. Tested with a real Outlook.com account on 2026-10-19: a local copy of the site, on a
+   `localhost` *Single-page application* redirect, connected the account and synced its
+   calendars ([design/launchpad-sync.md](design/launchpad-sync.md) section 13). Still to do on
+   the published Pages address, which needs to be registered as a *Single-page application*
+   redirect ([Outlook.com](setup/microsoft.md)): the same check, the automatic 24-hour renewal,
+   and writing an event.
 3. **Browser-only polish** (done). The footer says *Browser only* while Portly isn't found on this
    PC, and such a PC sees far fewer failed checks in the browser's console. Engines whose
-   suggestions need Portly show Wikipedia's instead, labelled as such. The first-run layout has no
-   gaps, and the Diagnostics page has its own intro and links to Portly on this PC only once it
-   answers. See [Browser-only build](setup/static-build.md).
+   suggestions need Portly can show Wikipedia's instead, labelled as such, once you turn on
+   **Wikipedia suggestions instead** (off by default). The first-run layout has no gaps, and the
+   Diagnostics page has its own intro and links to Portly on this PC only once it answers. See
+   [Browser-only build](setup/static-build.md).
 4. **Smaller fixes:**
    - an update rollback also restores the database backup;
    - longer timeouts for the credential vault tests;
@@ -107,3 +112,8 @@ or fold them into a phase.
   crosses the tower. Test the animated logo in Firefox and as the extension's New Tab page.
 - **Several PCs:** the open questions in [design/multi-pc.md](design/multi-pc.md), for example
   whether Tailscale strips the `Tailscale-User-Login` header, still need checking.
+- **Launch pad sync for the browser-only site:** a proposal to sync groups, bookmarks and icons
+  between browsers through a file in your own OneDrive, as a service you tick on a Microsoft
+  connection. A spike on a real Outlook.com account says go: a page can read and write the
+  OneDrive app folder. Next is phase 1 of
+  [design/launchpad-sync.md](design/launchpad-sync.md).
