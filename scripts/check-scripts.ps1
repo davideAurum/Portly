@@ -831,7 +831,7 @@ try {
     Write-Host 'Health checks' -ForegroundColor White
     $okHealth = Test-HbHealth -Port $ports.ok
     Assert-That -Name 'Test-HbHealth reads a Portly health answer' -Condition (
-        $okHealth.Ok -and $okHealth.Version -eq '9.9.9-fixture' -and $okHealth.Vault -eq 'locked') -Detail "$($okHealth.Error)"
+        $okHealth.Ok -and $okHealth.App -eq 'portly' -and $okHealth.Version -eq '9.9.9-fixture' -and $okHealth.Vault -eq 'locked') -Detail "$($okHealth.Error)"
     Assert-That -Name 'Format-HbHealth (ok)' -Condition (
         (Format-HbHealth $okHealth) -eq "running at http://localhost:$($ports.ok) (version 9.9.9-fixture, vault locked)")
     $notJson = Test-HbHealth -Port $ports.notJson
