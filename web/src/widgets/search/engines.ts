@@ -55,11 +55,13 @@ export function isSuggestProviderAvailable(provider: SuggestProvider): boolean {
 }
 
 /**
- * The provider this page load asks for `provider`'s suggestions: itself when it can, else
- * Wikipedia's (the widget then labels them as Wikipedia's, not the engine's).
+ * The provider this page load asks for `provider`'s suggestions: itself when it can; otherwise
+ * Wikipedia's when this browser has turned that on (`wikipediaFallback.ts`; the widget then labels
+ * them as Wikipedia's, not the engine's), else none.
  */
-export function reachableSuggestProvider(provider: SuggestProvider): SuggestProvider {
-  return isSuggestProviderAvailable(provider) ? provider : BROWSER_SUGGEST_FALLBACK;
+export function reachableSuggestProvider(provider: SuggestProvider, wikipediaFallback: boolean): SuggestProvider | null {
+  if (isSuggestProviderAvailable(provider)) return provider;
+  return wikipediaFallback ? BROWSER_SUGGEST_FALLBACK : null;
 }
 
 function hostOf(url: string): string {

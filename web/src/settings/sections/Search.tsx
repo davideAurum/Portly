@@ -50,6 +50,7 @@ import {
 import { SiteIcon } from '../../widgets/launchpad/SiteIcon.tsx';
 import { useEngineIcons } from '../../widgets/search/engineIcons.ts';
 import { BROWSER_SUGGEST_FALLBACK, isSuggestProviderAvailable } from '../../widgets/search/engines.ts';
+import { useWikipediaFallback, writeWikipediaFallback } from '../../widgets/search/wikipediaFallback.ts';
 import { SearchFocusSwitch } from './SearchFocus.tsx';
 import styles from '../../styles/settings.module.css';
 import own from '../../widgets/search/SearchSettingsPage.module.css';
@@ -73,18 +74,22 @@ function serverSuggestionsReachable(): boolean {
 
 /**
  * A provider in the "Suggestions from" list. One this page load cannot ask (the in-browser backend
- * reaches only Wikipedia) says that the search box shows Wikipedia's instead; the stored enum is
- * unchanged.
+ * reaches only Wikipedia) says so, and that the search box shows Wikipedia's instead when this
+ * browser has turned that on (`wikipediaFallback.ts`); the stored enum is unchanged.
  */
-function suggestProviderLabel(provider: SuggestProvider): string {
+function suggestProviderLabel(provider: SuggestProvider, wikipediaFallback: boolean): string {
   if (isSuggestProviderAvailable(provider)) return SUGGEST_PROVIDER_LABELS[provider];
   const fallback = SUGGEST_PROVIDER_LABELS[BROWSER_SUGGEST_FALLBACK];
-  return `${SUGGEST_PROVIDER_LABELS[provider]} (${serverSuggestionsReachable() ? `needs Portly on this PC, else ${fallback}` : `${fallback} in this build`})`;
+  if (serverSuggestionsReachable()) {
+    return `${SUGGEST_PROVIDER_LABELS[provider]} (${wikipediaFallback ? `needs Portly on this PC, else ${fallback}` : 'needs Portly on this PC'})`;
+  }
+  return `${SUGGEST_PROVIDER_LABELS[provider]} (${wikipediaFallback ? `${fallback} in this build` : 'not available in this build'})`;
 }
 
 /** An engine's suggestions in the engine list: the provider's, or Wikipedia's when the search box falls back to them. */
-function engineSuggestionsText(provider: SuggestProvider): string {
+function engineSuggestionsText(provider: SuggestProvider, wikipediaFallback: boolean): string {
   if (isSuggestProviderAvailable(provider)) return `${SUGGEST_PROVIDER_LABELS[provider]} suggestions`;
+  if (!wikipediaFallback) return `${suggestProviderLabel(provider, false)} suggestions`;
   const name = SUGGEST_PROVIDER_LABELS[provider];
   return `${SUGGEST_PROVIDER_LABELS[BROWSER_SUGGEST_FALLBACK]} suggestions (${name}’s ${serverSuggestionsReachable() ? 'need Portly on this PC' : 'aren’t available in this build'})`;
 }
@@ -94,8 +99,15 @@ function suggestionsDescription(): string {
     return 'Sends what you type to the engine’s suggestion service (Google, DuckDuckGo, Bing, Wikipedia or YouTube) through Portly.';
   }
   return serverSuggestionsReachable()
-    ? 'Sends what you type directly from your browser to Wikipedia. Google, DuckDuckGo, Bing and YouTube suggestions work while this browser is connected to Portly on this PC; until then, engines that use them show Wikipedia’s, labelled as such.'
-    : 'Sends what you type directly from your browser to Wikipedia. Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build, so engines that use them show Wikipedia’s, labelled as such.';
+    ? 'For engines with Wikipedia suggestions, sends what you type directly from your browser to Wikipedia. Google, DuckDuckGo, Bing and YouTube suggestions work while this browser is connected to Portly on this PC.'
+    : 'For engines with Wikipedia suggestions, sends what you type directly from your browser to Wikipedia. Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build.';
+}
+
+function wikipediaFallbackDescription(): string {
+  const when = serverSuggestionsReachable()
+    ? 'While this browser isn’t connected to Portly on this PC, engines whose suggestions need it'
+    : 'Engines whose suggestions aren’t available in this build';
+  return `${when} (Google, DuckDuckGo, Bing, YouTube) show Wikipedia’s instead, labelled as such. Sends what you type to Wikipedia, which you didn’t pick as the engine. A setting of this browser.`;
 }
 
 export default function SearchSettings() {
@@ -108,6 +120,7 @@ export default function SearchSettings() {
 
 function SearchSettingsForm({ search, autoIcons }: { search: SearchSettings; autoIcons: boolean }) {
   const update = useUpdateSettings();
+  const wikipediaFallback = useWikipediaFallback();
   const [editing, setEditing] = useState<SearchEngine | 'new' | null>(null);
   const [deleting, setDeleting] = useState<SearchEngine | null>(null);
   const [resetting, setResetting] = useState(false);
@@ -209,7 +222,7 @@ function SearchSettingsForm({ search, autoIcons }: { search: SearchSettings; aut
                       </>
                     ) : null}
                     {' · '}
-                    {engine.suggest ? engineSuggestionsText(engine.suggest) : 'default engine’s suggestions'}
+                    {engine.suggest ? engineSuggestionsText(engine.suggest, wikipediaFallback) : 'default engine’s suggestions'}
                   </p>
                 </div>
                 <div className={styles.itemActions}>
@@ -250,6 +263,16 @@ function SearchSettingsForm({ search, autoIcons }: { search: SearchSettings; aut
             checked={search.suggestionsEnabled}
             onCheckedChange={(suggestionsEnabled) => void save({ suggestionsEnabled })}
           />
+          {getCapabilities().serverSearchSuggestions ? null : (
+            // Not part of the synced settings: a setting of this browser, off unless turned on.
+            <Switch
+              label="Wikipedia suggestions instead"
+              description={wikipediaFallbackDescription()}
+              checked={wikipediaFallback}
+              disabled={!search.suggestionsEnabled}
+              onCheckedChange={writeWikipediaFallback}
+            />
+          )}
           <Switch
             label="Matching bookmarks"
             description="Shows up to four of your bookmarks above the suggestions. Never leaves this PC."
@@ -334,6 +357,7 @@ interface EngineDialogProps {
 }
 
 function EngineDialog({ open, engine, engines, onOpenChange, onSave }: EngineDialogProps) {
+  const wikipediaFallback = useWikipediaFallback();
   const [name, setName] = useState('');
   const [template, setTemplate] = useState('');
   const [keyword, setKeyword] = useState('');
@@ -422,7 +446,7 @@ function EngineDialog({ open, engine, engines, onOpenChange, onSave }: EngineDia
             <Select
               value={suggest}
               onChange={(event) => setSuggest(event.currentTarget.value as SuggestProvider | '')}
-              options={[{ value: '', label: 'Default engine’s' }, ...SUGGEST_PROVIDERS.map((p) => ({ value: p, label: suggestProviderLabel(p) }))]}
+              options={[{ value: '', label: 'Default engine’s' }, ...SUGGEST_PROVIDERS.map((p) => ({ value: p, label: suggestProviderLabel(p, wikipediaFallback) }))]}
             />
           </Field>
         </div>

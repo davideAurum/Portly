@@ -971,7 +971,8 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   host with a port or path, `localhost:port`, IP literals) navigates directly; a bare dotted word with an unknown TLD
   (`next.js`, `index.html`) searches on Enter and offers "Go to" second; dropdown shows bookmark matches (≤ 4)
   then suggestions (≤ 8; debounced 150 ms; aborted on new input; engine provider → default engine's → none when
-  disabled; on the in-browser backend a provider only the server can ask → Wikipedia, §16); ↑/↓ navigate, Enter
+  disabled; on the in-browser backend a provider only the server can ask → none, or Wikipedia when this browser
+  opted in, §16); ↑/↓ navigate, Enter
   current tab, Ctrl/Shift+Enter new tab. Config `{engineIds: 'all'|string[], showEngineSwitcher, autofocus,
   placeholder}`.
 - **Launch pad** — config `{groupIds: 'all'|string[], iconSize: 's'|'m'|'l', showLabels, columns: 'auto'|number,
@@ -1319,10 +1320,13 @@ siteMetaFetch|serverSearchSuggestions` (server backend), `browserBackups` (brows
 backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
 `backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
 feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
-browser / Switch now / Check again). Without `serverSearchSuggestions` the search widget asks Wikipedia (the one
-provider that answers a browser) in place of Google, DuckDuckGo, Bing or YouTube and labels the list "Wikipedia
-suggestions" (`widgets/search/engines.ts` `reachableSuggestProvider`; the stored provider is unchanged, and Settings →
-Search says so). The browser backend's first-run layout (`grid/defaultLayout.ts`) has no mail or calendar widget and
+browser / Switch now / Check again). Without `serverSearchSuggestions` an engine whose suggestions only the server can
+ask (Google, DuckDuckGo, Bing, YouTube) shows none and no request is made, unless this browser turned on **Wikipedia
+suggestions instead** in Settings → Search (`widgets/search/wikipediaFallback.ts`, localStorage
+`portly:wikipedia-suggestions-instead`, off by default, kept out of the strict `SearchSettingsSchema` like
+`portly:frosted-glass`). Then the widget asks Wikipedia (the one provider that answers a browser) and labels the list
+"Wikipedia suggestions" (`widgets/search/engines.ts` `reachableSuggestProvider`; the stored provider is unchanged, and
+Settings → Search says which applies). The browser backend's first-run layout (`grid/defaultLayout.ts`) has no mail or calendar widget and
 still fills its 12 × 15 cells: the weather runs down the right-hand side, Todoist sits under the launch pad. Account
 setup works the same on the server backend from either build (one page).
 

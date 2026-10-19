@@ -8,6 +8,7 @@ import { renderWithProviders, type ApiMock, type MockRequest } from '../../test/
 import { settings as makeSettings } from '../../test/fixtures.ts';
 import { searchConfigSchema, type SearchConfig } from './index.ts';
 import SearchWidget from './Widget.tsx';
+import { WIKIPEDIA_FALLBACK_KEY, writeWikipediaFallback } from './wikipediaFallback.ts';
 
 const openUrl = vi.hoisted(() => vi.fn((_url: unknown, _options?: { newTab?: boolean }) => true));
 vi.mock('../../lib/openUrl.ts', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../lib/openUrl.ts')>()), openUrl }));
@@ -211,17 +212,34 @@ describe('Search widget', () => {
     expect(requestsTo('GET /api/search/suggest').map((r) => r.search)).toEqual(['?provider=google&q=moon']);
   });
 
-  it('in-browser backend: an engine whose suggestions need Portly shows Wikipedia’s, labelled as such, and still searches that engine', async () => {
+  it('in-browser backend: an engine whose suggestions need Portly shows none, and asks nobody, unless this browser opted in', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
-    const { user, requestsTo } = setup();
-    await user.type(await input(), 'moon');
-    const group = await screen.findByRole('group', { name: 'Wikipedia suggestions' });
-    expect(within(group).getAllByRole('option').map((o) => o.textContent)).toEqual(['moon one', 'moon two']);
+    const base = makeSettings();
+    const { user, requestsTo } = setup({ settings: { search: { ...base.search, showBookmarkMatches: true } } });
+    await user.type(await input(), 'git');
+    expect(await screen.findByRole('option', { name: /GitHub/ })).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 250));
+    expect(requestsTo('GET /api/search/suggest')).toHaveLength(0);
+    expect(screen.queryByRole('group', { name: 'Wikipedia suggestions' })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Google suggestions' })).toBeNull();
-    // Only Wikipedia is asked: the other providers cannot answer a browser.
-    expect(requestsTo('GET /api/search/suggest').map((r) => r.search)).toEqual(['?provider=wikipedia&q=moon']);
-    await user.click(within(group).getAllByRole('option')[0]!);
-    expect(openUrl).toHaveBeenLastCalledWith('https://www.google.com/search?q=moon%20one', { newTab: false });
+  });
+
+  it('in-browser backend, "Wikipedia suggestions instead" on: Wikipedia’s, labelled as such, and still searches that engine', async () => {
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    writeWikipediaFallback(true);
+    try {
+      const { user, requestsTo } = setup();
+      await user.type(await input(), 'moon');
+      const group = await screen.findByRole('group', { name: 'Wikipedia suggestions' });
+      expect(within(group).getAllByRole('option').map((o) => o.textContent)).toEqual(['moon one', 'moon two']);
+      expect(screen.queryByRole('group', { name: 'Google suggestions' })).toBeNull();
+      // Only Wikipedia is asked: the other providers cannot answer a browser.
+      expect(requestsTo('GET /api/search/suggest').map((r) => r.search)).toEqual(['?provider=wikipedia&q=moon']);
+      await user.click(within(group).getAllByRole('option')[0]!);
+      expect(openUrl).toHaveBeenLastCalledWith('https://www.google.com/search?q=moon%20one', { newTab: false });
+    } finally {
+      window.localStorage.removeItem(WIKIPEDIA_FALLBACK_KEY);
+    }
   });
 
   it('in-browser backend: no suggestions at all while they are turned off', async () => {

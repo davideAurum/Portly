@@ -4,7 +4,8 @@
  * `node.js`, `example.com` — the dropdown also offers searching for the text), dropdown with
  * bookmark matches (≤ 4) then suggestions (≤ 8; debounced 150 ms; the previous request is aborted on new input; provider
  * = engine's → default engine's → none when disabled; on the in-browser backend a provider only
- * Portly can ask is replaced by Wikipedia, labelled "Wikipedia suggestions"). ↑/↓ navigate, Enter opens in the current
+ * Portly can ask gives none, or Wikipedia's, labelled "Wikipedia suggestions", when this browser has
+ * turned that on in `wikipediaFallback.ts`). ↑/↓ navigate, Enter opens in the current
  * tab (or a new one when `general.openLinksInNewTab`), Ctrl/Shift+Enter (and Ctrl/middle click)
  * open a new tab. `/` focuses the first search box (shell hotkey via `data-hb-search-input`), and
  * the first widget with `autofocus` takes focus on load (e.g. `?src=newtab`).
@@ -29,6 +30,7 @@ import { bookmarkHost, buildSearchUrl, defaultEngine, engineForKeyword, matchBoo
 import type { SearchConfig } from './index.ts';
 import { useEngineIcons } from './engineIcons.ts';
 import { addressCandidate, detectUrl } from './url.ts';
+import { useWikipediaFallback } from './wikipediaFallback.ts';
 import styles from './Search.module.css';
 
 export const SUGGEST_DEBOUNCE_MS = 150;
@@ -88,6 +90,7 @@ function SearchBox({ search, openLinksInNewTab, autoIcons, config }: SearchBoxPr
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const debounced = useDebounced(text, SUGGEST_DEBOUNCE_MS);
+  const wikipediaFallback = useWikipediaFallback();
   useEngineIcons(search, autoIcons);
 
   const engines = useMemo(() => widgetEngines(search, config.engineIds), [search, config.engineIds]);
@@ -102,8 +105,9 @@ function SearchBox({ search, openLinksInNewTab, autoIcons, config }: SearchBoxPr
   /** `next.js`, `index.html`: searched on Enter, the address offered second. */
   const maybeUrl = urlTarget === null ? addressCandidate(text) : null;
   const wanted = urlTarget ? null : suggestProviderFor(search, engine, fallback);
-  // A provider this page load cannot ask (the in-browser backend): Wikipedia's suggestions, labelled as such.
-  const provider = wanted === null ? null : reachableSuggestProvider(wanted);
+  // A provider this page load cannot ask (the in-browser backend): none, or Wikipedia's suggestions,
+  // labelled as such, when this browser has turned that on.
+  const provider = wanted === null ? null : reachableSuggestProvider(wanted, wikipediaFallback);
   const fellBack = provider !== null && provider !== wanted;
   const suggestions = useSuggestions(provider, provider ? debounced : '');
   const bookmarks = useBookmarks({ enabled: search.showBookmarkMatches });
