@@ -2,8 +2,8 @@
  * `renderWithProviders(ui, {apiMocks})` (§13): renders inside a fresh QueryClient (no retries, no
  * persistence) with `fetch` stubbed, plus a sonner Toaster so toasts can be asserted. `apiMocks`
  * maps `'METHOD /api/path'` (optionally with the query string) to a JSON value, a
- * {@link mockResponse}, or a function of the request. Unmocked API calls answer 501 and are
- * recorded in `unmatched`.
+ * {@link mockResponse}, a `Response` (answered as it is, e.g. image bytes), or a function of the
+ * request. Unmocked API calls answer 501 and are recorded in `unmatched`.
  */
 import type { ReactElement, ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -39,7 +39,7 @@ export function mockError(status: number, code: string, message = code, extra: {
   return mockResponse(status, { error: { code, message, ...extra } });
 }
 
-export type ApiMock = unknown | MockResponse | ((req: MockRequest) => unknown | MockResponse | Promise<unknown | MockResponse>);
+export type ApiMock = unknown | MockResponse | Response | ((req: MockRequest) => unknown | MockResponse | Response | Promise<unknown | MockResponse | Response>);
 
 export interface RenderWithProvidersOptions {
   apiMocks?: Record<string, ApiMock>;
@@ -129,6 +129,7 @@ export function stubApi(apiMocks: Record<string, ApiMock>): { requests: MockRequ
       return jsonResponse(501, { error: { code: 'internal', message: `No API mock for ${method} ${url.pathname}` } });
     }
     const value = typeof mock === 'function' ? await (mock as (r: MockRequest) => unknown)(req) : mock;
+    if (value instanceof Response) return value.clone();
     return isMockResponse(value) ? jsonResponse(value.status, value.body) : jsonResponse(200, value);
   });
   vi.stubGlobal('fetch', fetchMock);

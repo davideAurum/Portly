@@ -355,8 +355,11 @@ especially on 4K or high-DPI screens:
   each have their own). Turn it off if the page or the mouse stutters.
 - A photo's **Blur** is prepared once, so any value is fine. The page only uses a live blur for a
   moment while the photo loads or while you drag the slider.
-- An animated background (GIF or animated WebP) with **Blur** at 0 redraws the whole window on
-  every frame. Use a still photo. (With a blur above 0 it shows its first frame and stands still.)
+- A new background keeps only the first frame of an animated image and is stored at your
+  screen's size (see [The background image](#the-background-image)). One saved earlier may still
+  animate, which with **Blur** at 0 redraws the whole window on every frame (with a blur above 0
+  it stands still), or be a very large photo that every new tab has to decode: use **Optimize
+  image** under it.
 
 To see what Portly costs, press **Shift+Esc** in Chrome or Edge: the browser's own Task Manager
 lists each Portly tab with its CPU and memory, and a separate **GPU Process** row for the drawing
@@ -375,6 +378,26 @@ location for good: click the icon at the left of the address bar, then **Site se
 **Location** → **Allow**. A fixed city, chosen in the widget's settings (for that widget, or as the
 default for every Weather widget), never asks at all. Each address counts as its own site, so `localhost:5757` and your Pages site are
 allowed separately.
+
+## The background image
+
+When you choose a photo in **Settings → Appearance**, the browser prepares it before it is
+saved, because every new tab has to load and draw it:
+
+- A photo bigger than your screen is scaled down so its long side matches your screen (between
+  2,560 and 3,840 pixels; a 4K screen gets 3,840) and saved as WebP. A photo that already fits
+  is saved unchanged.
+- An animated GIF, PNG, WebP or AVIF keeps only its first frame: an animation makes the page
+  redraw the whole window many times a second.
+- An SVG drawing becomes a picture sized for your screen.
+
+You can choose a file of up to 25 MB; what is saved is much smaller. If you move to a bigger
+screen and the background looks soft, choose the photo again on that screen.
+
+A background saved before this shows **Optimize image** under the picture when a lighter copy
+would help: an animation, a drawing, or a photo with a long side over 3,840 pixels. The copy
+suits every screen up to 4K; it replaces the background and keeps the blur and dim. If the
+browser can't open a file at all, Portly says so: save it as a JPEG or PNG and try again.
 
 ## Restoring a backup or starting over
 

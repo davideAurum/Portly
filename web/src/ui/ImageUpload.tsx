@@ -3,11 +3,13 @@
  * upload id. The preview is always `/api/uploads/<id>` (never a URL from elsewhere), resolved
  * through `useAssetUrl`: while the image is not loaded yet (a Pages page load backed by the
  * Portly server on this PC) or when it fails to load, the empty drop zone stands in for it.
+ * With `prepare`, the chosen file is first turned into the one to upload (the Appearance
+ * background's screen-sized copy, `theme/prepareBackground.ts`).
  */
 import { useId, useRef, useState, type DragEvent } from 'react';
 import { ImagePlus, Trash } from 'lucide-react';
 import { uploadUrl } from '@portly/shared';
-import { UPLOAD_ACCEPT, checkImageFile, uploadImage } from '../api/uploads.ts';
+import { ImagePrepareError, MAX_UPLOAD_BYTES, UPLOAD_ACCEPT, checkImageFile, uploadImage } from '../api/uploads.ts';
 import { useAssetUrl } from '../static/assets.ts';
 import { Button } from './Button.tsx';
 import { useField } from './Field.tsx';
@@ -25,14 +27,31 @@ export interface ImageUploadProps {
   removable?: boolean;
   hint?: string;
   disabled?: boolean;
+  /**
+   * Turns the chosen file into the one to upload, which must still fit the upload limit. An
+   * {@link ImagePrepareError}'s message is shown as it is.
+   */
+  prepare?(file: File): Promise<File>;
+  /** The largest file accepted before `prepare` (default: the upload limit). */
+  maxSourceBytes?: number;
 }
 
-export function ImageUpload({ value, onChange, removable = true, hint, disabled, ...aria }: ImageUploadProps) {
+export function ImageUpload({
+  value,
+  onChange,
+  removable = true,
+  hint,
+  disabled,
+  prepare,
+  maxSourceBytes = MAX_UPLOAD_BYTES,
+  ...aria
+}: ImageUploadProps) {
   const field = useField();
   const inputId = useId();
   const statusId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<'preparing' | 'uploading' | null>(null);
+  const busy = phase !== null;
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const src = useAssetUrl(value ? uploadUrl(value) : null);
@@ -47,20 +66,30 @@ export function ImageUpload({ value, onChange, removable = true, hint, disabled,
 
   const handleFile = async (file: File | undefined) => {
     if (!file || busy) return;
-    const problem = checkImageFile(file);
+    const problem = checkImageFile(file, prepare ? maxSourceBytes : MAX_UPLOAD_BYTES);
     if (problem) {
       setError(problem);
       return;
     }
     setError(null);
-    setBusy(true);
     try {
-      const uploaded = await uploadImage(file);
+      let upload = file;
+      if (prepare) {
+        setPhase('preparing');
+        upload = await prepare(file);
+        const tooLarge = checkImageFile(upload);
+        if (tooLarge) {
+          setError(tooLarge);
+          return;
+        }
+      }
+      setPhase('uploading');
+      const uploaded = await uploadImage(upload);
       onChange(uploaded.id);
     } catch (err) {
-      setError(errorMessage(err, 'The image could not be uploaded.'));
+      setError(err instanceof ImagePrepareError ? err.message : errorMessage(err, 'The image could not be uploaded.'));
     } finally {
-      setBusy(false);
+      setPhase(null);
       if (inputRef.current) inputRef.current.value = '';
     }
   };
@@ -95,7 +124,7 @@ export function ImageUpload({ value, onChange, removable = true, hint, disabled,
         ) : null}
         <span className={styles.prompt} data-over-image={showPreview ? 'true' : undefined}>
           {busy ? <Spinner size={18} /> : <ImagePlus aria-hidden="true" className={styles.icon} />}
-          <span>{busy ? 'Uploading…' : value ? 'Replace image' : 'Choose an image or drop it here'}</span>
+          <span>{phase === 'preparing' ? 'Preparing…' : phase === 'uploading' ? 'Uploading…' : value ? 'Replace image' : 'Choose an image or drop it here'}</span>
         </span>
         <input
           ref={inputRef}

@@ -693,8 +693,11 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
     blur or the window size key (CSS size buckets plus device pixel ratio, so browser zoom counts) changes, swaps in
     a copy only once it is decoded, and revokes replaced `blob:` URLs 2 s later. Until a copy exists (first paint,
     slider drags) or when the browser cannot blur on a canvas, `data-backdrop-filter='live'` keeps the old live
-    `filter: blur()` (`base.css`). An animated image bakes its first frame, so a blurred animated background stops
-    moving once the copy is ready;
+    `filter: blur()` (`base.css`). An animated image (only one stored before uploads were prepared) bakes its first
+    frame, so a blurred animated background stops moving once the copy is ready;
+  - the uploaded image itself is prepared in the browser before it is stored (§10.5, background uploads): a still
+    copy whose long edge fits the screen (at most 3840), so no tab decodes a 24-megapixel photo or redraws the window
+    for the frames of an animation;
   - glass surfaces get `backdrop-filter` only under `data-glass='frosted'` (`tokens.css`), set when frosted glass is
     on and a photo is on screen. Frosted glass is a setting of the browser, not of the theme
     (`theme/glassPreference.ts`, localStorage `portly:frosted-glass`, per address like other `portly:` keys): its
@@ -889,7 +892,8 @@ All types allow multiple instances.
 ### 10.4 UI kit (`web/src/ui/`, foundation)
 Button (primary|secondary|ghost|danger; sm|md; loading), IconButton (required aria-label), Input, TextArea, Select,
 Checkbox, Switch, SegmentedControl, Field (label/help/error), Dialog + ConfirmDialog, Popover, Menu, Tooltip, Tabs,
-toast (sonner; supports Undo action), ColorPicker (12 swatches + native color input + hex field), ImageUpload,
+toast (sonner; supports Undo action), ColorPicker (12 swatches + native color input + hex field), ImageUpload (optional
+`prepare` step that turns the chosen file into the one uploaded),
 Spinner, Skeleton, EmptyState {icon | media, title, body, action}, BrandMark / BrandLockup (the Beacon lighthouse,
 full drawing at 48 px and up), ErrorState (maps ApiError codes: `reauth_required` →
 ReconnectButton, `not_configured` → "Set up" link, else Retry), Badge, LetterTile, ExternalLink, RelativeTime, Kbd,
@@ -920,6 +924,28 @@ this PC?" with the warning that every page of that origin gets the access and wh
 **Approve** is enabled only after the page has been visible and focused for 1 s (re-armed on blur / hidden); it
 posts the pairing and follows the redirect only when it is exactly `<pagesUrl>#/paired?…` with the same nonce.
 Cancel → `#/`. In the Pages build the route only says that pairing happens on Portly's own page.
+
+**Appearance background uploads** (`settings/sections/BackgroundImage.tsx`) are prepared in the browser first, because
+every new tab decodes and draws the image (§7a Theme rendering; `theme/prepareBackground.ts`; header-only checks in
+`theme/backgroundImage.ts`, which treat the bytes as hostile: bounded walks, malformed means "still" or "size unknown"):
+- the target long edge is the screen's long edge times `devicePixelRatio`, kept within 2560..3840;
+- a still PNG, JPEG, GIF, WebP or AVIF whose header says it fits goes up unchanged, without being decoded;
+- anything else is decoded and redrawn on an `OffscreenCanvas` with its long edge at min(original, target), then
+  encoded as WebP at quality 0.85 (PNG where the browser cannot encode WebP). That covers animations (a GIF with a
+  second image block, a PNG with `acTL` > 1 frame before `IDAT`, a WebP with a second `ANMF`, an AVIF with the `avis`
+  brand), larger photos, BMP and ICO, and SVG. Raster files go through `createImageBitmap` (first frame, EXIF
+  orientation applied); an SVG through an `<img>` on a `blob:` URL (no script, no outside loads, `img-src` allows
+  `blob:`), drawn at the target size;
+- the original goes up when the APIs are missing, the canvas cannot be read back or the copy is over 10 MB; a file
+  the browser cannot decode is refused with a message (`ImagePrepareError`). The picker takes up to 25 MB before
+  this step; the server's limit and magic-byte sniffing apply unchanged to what is sent, and bookmark icons are
+  uploaded as they are.
+
+A stored background that would gain from the step (animated, a long edge over 3840, SVG, BMP or ICO; read with
+`GET /api/uploads/:id`, header only, query `['uploads','background-check',id]`, not persisted) gets an **Optimize
+image** offer: it prepares the stored bytes the same way with the target fixed at 3840 (so a copy made while the window
+is on a small monitor still suits a 4K one), uploads the copy and switches `uploadId`, keeping blur and dim. The old
+upload becomes an orphan and is collected after 24 h.
 
 ### 10.6 Hotkeys & focus
 `useHotkey` ignores events from input/textarea/select/contenteditable. `/` focus search; `e` toggle edit mode;

@@ -26,6 +26,10 @@ export const qk = {
     siteMeta: (url: string) => ['bookmarks', 'site-meta', url] as const,
   },
   icons: (iconId: string) => ['icons', iconId] as const,
+  uploads: {
+    /** What the stored Appearance background would gain from being prepared (not persisted). */
+    backgroundCheck: (uploadId: string) => ['uploads', 'background-check', uploadId] as const,
+  },
   search: {
     all: () => ['search'] as const,
     suggest: (provider: SuggestProvider, q: string) => ['search', 'suggest', provider, q] as const,
