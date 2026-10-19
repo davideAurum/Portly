@@ -28,13 +28,22 @@ function transactionDone(tx: IDBTransaction): Promise<void> {
   });
 }
 
-export function openStaticDatabase(factory: IDBFactory = indexedDB, name = STATIC_DB_NAME): Promise<IDBDatabase> {
+/**
+ * Opens (and creates or upgrades) the database. `onCreate` runs in the transaction that creates
+ * it, so whatever it writes exists exactly when the database does.
+ */
+export function openStaticDatabase(
+  factory: IDBFactory = indexedDB,
+  name = STATIC_DB_NAME,
+  onCreate?: (tx: IDBTransaction) => void,
+): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = factory.open(name, STATIC_DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
       if (!db.objectStoreNames.contains(KV)) db.createObjectStore(KV);
       if (!db.objectStoreNames.contains(BLOBS)) db.createObjectStore(BLOBS, { keyPath: 'id' });
+      if (event.oldVersion === 0 && req.transaction !== null) onCreate?.(req.transaction);
     };
     req.onsuccess = () => {
       const db = req.result;
@@ -50,43 +59,110 @@ export function openStaticDatabase(factory: IDBFactory = indexedDB, name = STATI
 /** Database names before the rename to Portly: `homebase-static:<base path>`. */
 const LEGACY_PREFIX = 'homebase-static:';
 const PREFIX = 'portly-static:';
+/**
+ * `kv` key of a database {@link copyLegacyStaticDatabase} created and has not filled yet:
+ * `{attempts}`. Written in the transaction that creates the database, removed in the one that
+ * writes the copied records. No slice or backup key looks like it, so the app never reads it.
+ */
+export const LEGACY_COPY_PENDING_KEY = 'copy:homebase-pending';
+/** Page loads that try the copy before the database is kept as it is. */
+export const LEGACY_COPY_ATTEMPTS = 3;
+
+/** The attempts recorded in a pending marker, or null when there is none. */
+function pendingAttempts(value: unknown): number | null {
+  if (value === undefined) return null;
+  const attempts = typeof value === 'object' && value !== null ? (value as { attempts?: unknown }).attempts : undefined;
+  return typeof attempts === 'number' && Number.isFinite(attempts) ? attempts : 0;
+}
+
+/** Counts one more attempt on a database still waiting for the copy; false when none is due. */
+async function startCopyAttempt(db: IDBDatabase): Promise<boolean> {
+  const tx = db.transaction(KV, 'readwrite');
+  const done = transactionDone(tx);
+  const kv = tx.objectStore(KV);
+  let due = false;
+  const marker = kv.get(LEGACY_COPY_PENDING_KEY);
+  marker.onsuccess = () => {
+    const attempts = pendingAttempts(marker.result);
+    if (attempts === null || attempts >= LEGACY_COPY_ATTEMPTS) return;
+    kv.put({ attempts: attempts + 1 }, LEGACY_COPY_PENDING_KEY);
+    due = true;
+  };
+  await done;
+  return due;
+}
 
 /**
- * The first time this deployment opens its database, copies the one Homebase (Portly's name before
- * the rename) kept under `homebase-static:<base path>`: both stores, every record. Only when the
- * new database does not exist yet and the old one does; the old one is left as it is. Browsers
- * without `indexedDB.databases()` skip it. Returns whether anything was copied; never rejects.
+ * Replaces everything in `db` with the records read from Homebase's database and removes the
+ * pending marker, in one transaction: all of it or none. Writes nothing when the marker is gone
+ * (another tab finished the copy meanwhile). Returns whether it wrote.
+ */
+async function writeCopy(db: IDBDatabase, keys: IDBValidKey[], values: unknown[], blobs: unknown[]): Promise<boolean> {
+  const tx = db.transaction([KV, BLOBS], 'readwrite');
+  const done = transactionDone(tx);
+  const kv = tx.objectStore(KV);
+  const blobStore = tx.objectStore(BLOBS);
+  let wrote = false;
+  const marker = kv.get(LEGACY_COPY_PENDING_KEY);
+  marker.onsuccess = () => {
+    if (marker.result === undefined) return;
+    try {
+      kv.clear();
+      blobStore.clear();
+      keys.forEach((key, i) => kv.put(values[i], key));
+      for (const blob of blobs) blobStore.put(blob);
+      kv.delete(LEGACY_COPY_PENDING_KEY);
+      wrote = true;
+    } catch {
+      // A record that could not even be written: none of them is (`done` rejects).
+      wrote = false;
+      tx.abort();
+    }
+  };
+  await done;
+  return wrote;
+}
+
+/**
+ * Copies the database Homebase (Portly's name before the rename) kept under
+ * `homebase-static:<base path>` into this deployment's `portly-static:<base path>`: both stores,
+ * every record; the old one is left as it is. Only into a database this copy created: it is
+ * created with {@link LEGACY_COPY_PENDING_KEY}, which goes in the same transaction as the copied
+ * records. A copy cut off part-way (an error, a full disk, a closed tab) leaves the marker, so a
+ * later page load tries again and replaces what that database holds by then, for
+ * {@link LEGACY_COPY_ATTEMPTS} loads in all; after that the database is kept as it is. A database
+ * Portly made itself, or one the copy filled, is never touched. Browsers without
+ * `indexedDB.databases()` skip it. Returns whether the records were copied; never rejects.
  */
 export async function copyLegacyStaticDatabase(factory: IDBFactory, name: string): Promise<boolean> {
   if (!name.startsWith(PREFIX) || typeof factory.databases !== 'function') return false;
   const legacyName = `${LEGACY_PREFIX}${name.slice(PREFIX.length)}`;
+  let target: IDBDatabase | null = null;
   try {
     const names = (await factory.databases()).map((info) => info.name);
-    if (names.includes(name) || !names.includes(legacyName)) return false;
+    if (!names.includes(legacyName)) return false;
+    target = await openStaticDatabase(factory, name, (tx) => tx.objectStore(KV).put({ attempts: 0 }, LEGACY_COPY_PENDING_KEY));
+    if (!(await startCopyAttempt(target))) return false;
     const legacy = await openStaticDatabase(factory, legacyName);
+    let keys: IDBValidKey[];
+    let values: unknown[];
+    let blobs: unknown[];
     try {
       const read = legacy.transaction([KV, BLOBS], 'readonly');
-      const [keys, values, blobs] = await Promise.all([
+      [keys, values, blobs] = await Promise.all([
         request(read.objectStore(KV).getAllKeys()),
-        request(read.objectStore(KV).getAll()),
-        request(read.objectStore(BLOBS).getAll()),
+        request<unknown[]>(read.objectStore(KV).getAll()),
+        request<unknown[]>(read.objectStore(BLOBS).getAll()),
       ]);
-      const target = await openStaticDatabase(factory, name);
-      try {
-        const write = target.transaction([KV, BLOBS], 'readwrite');
-        const done = transactionDone(write);
-        keys.forEach((key, i) => write.objectStore(KV).put(values[i], key));
-        for (const blob of blobs) write.objectStore(BLOBS).put(blob);
-        await done;
-      } finally {
-        target.close();
-      }
     } finally {
       legacy.close();
     }
-    return true;
-  } catch {
+    return await writeCopy(target, keys, values, blobs);
+  } catch (err) {
+    console.warn(`[Portly] Could not copy Homebase's in-browser data (${LEGACY_COPY_ATTEMPTS} page loads try in all)`, err);
     return false;
+  } finally {
+    target?.close();
   }
 }
 

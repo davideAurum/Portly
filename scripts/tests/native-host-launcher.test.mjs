@@ -500,18 +500,21 @@ describe('health check', () => {
         res.end();
         return;
       }
-      json(200, { ok: true, version: '9.9.9', vault: 'ready' })(req, res);
+      json(200, { ok: true, app: 'portly', version: '9.9.9', vault: 'ready' })(req, res);
     });
-    servers.notOk = await listen(json(200, { ok: false }));
-    servers.okString = await listen(json(200, { ok: 'true' }));
-    servers.error = await listen(json(503, { ok: true }));
+    servers.notOk = await listen(json(200, { ok: false, app: 'portly' }));
+    servers.okString = await listen(json(200, { ok: 'true', app: 'portly' }));
+    // Homebase, the name before Portly, and a server that does not say what it is.
+    servers.homebase = await listen(json(200, { ok: true, app: 'homebase', version: '9.9.9', vault: 'ready' }));
+    servers.unnamed = await listen(json(200, { ok: true, version: '9.9.9', vault: 'ready' }));
+    servers.error = await listen(json(503, { ok: true, app: 'portly' }));
     servers.html = await listen((_req, res) => {
       res.writeHead(200, { 'content-type': 'text/html' });
       res.end('<!doctype html><title>Other app</title>');
     });
     servers.huge = await listen((_req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(`{"ok":true,"pad":"${'x'.repeat(64 * 1024)}"}`);
+      res.end(`{"ok":true,"app":"portly","pad":"${'x'.repeat(64 * 1024)}"}`);
     });
     servers.hang = await listen(() => {
       // never answers
@@ -530,7 +533,7 @@ describe('health check', () => {
     assert.equal(await checkHealth(portOf('ok')), true);
   });
 
-  for (const name of ['notOk', 'okString', 'error', 'html', 'huge']) {
+  for (const name of ['notOk', 'okString', 'homebase', 'unnamed', 'error', 'html', 'huge']) {
     it(`rejects ${name}`, async () => {
       assert.equal(await checkHealth(portOf(name)), false);
     });
@@ -596,7 +599,7 @@ describe('launcher.cmd end to end (cmd.exe /d /s /c, as Chrome runs native hosts
     fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ version: 1, allowedOrigins: [ORIGIN] }));
     server = http.createServer((_req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end('{"ok":true}');
+      res.end('{"ok":true,"app":"portly"}');
     });
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   });

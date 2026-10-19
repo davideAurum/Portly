@@ -28,12 +28,6 @@ saved so it can be brought over in phase 1.
    Homebase is removed only once Portly is up. See
    [SETUP: Coming from Homebase](SETUP.md#coming-from-homebase) and
    [ARCHITECTURE section 19](ARCHITECTURE.md#19-moving-over-from-homebase-the-name-before-portly).
-   - Still open from its review:
-     - the extension's health check still accepts Homebase;
-     - the vault key is chosen wrongly when both exist;
-     - `HOMEBASE_DATA_DIR` should be read as the source, not carried over;
-     - the variable copy should happen only once;
-     - a failed in-browser database copy is never retried.
 2. **Outlook.com calendars in the browser-only build** (done). Brought over from Homebase with the
    rename applied. Missing tests were added, a retry loop when browser storage is full was fixed,
    dead settings code was removed, and stale text, comments and privacy notes were brought up to
@@ -107,7 +101,7 @@ or fold them into a phase.
   hidden-tab behaviour with a real hidden tab instead of a simulated one.
 - **Dependencies:** two dev-only advisories (`shell-quote` through `concurrently`, and
   `source-map-js`) need a dependency upgrade to clear. This needs a go-ahead.
-- **Versions:** the extension is at 0.5.2 while the app is at 0.1.0. Decide whether they should
+- **Versions:** the extension is at 0.5.3 while the app is at 0.1.0. Decide whether they should
   match when 0.2.0-alpha.1 goes out. After the first release, run `publish-static.ps1`.
 - **Backgrounds:** an SVG background with blur above 0 can look a little softer than intended.
   It was left alone because it is rare.

@@ -18,7 +18,7 @@ function listen(handler) {
 const servers = {
   ok: await listen((_req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, version: '9.9.9-fixture', vault: 'locked' }));
+    res.end(JSON.stringify({ ok: true, app: 'portly', version: '9.9.9-fixture', vault: 'locked' }));
   }),
   notJson: await listen((_req, res) => {
     res.writeHead(200, { 'content-type': 'text/html' });

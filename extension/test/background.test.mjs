@@ -15,7 +15,7 @@ import {
   warmUp,
 } from '../lib/warm-up.js';
 import {
-  HEALTHY,
+  HEALTH_BODY,
   NATIVE_ERRORS,
   OLD_PATH_EXTENSION_ID,
   PINNED_EXTENSION_ID,
@@ -85,7 +85,7 @@ describe('warmUp', () => {
 
   it('records what a healthy Portly says about its Pages site (the "auto" new tab follows it)', async () => {
     const storage = createStorage({ port: 6001, serverSite: { port: 6001, pagesUrl: null } });
-    const fetch = createFetch(() => jsonResponse({ ...HEALTHY, pagesUrl: 'https://me.github.io/portly' }));
+    const fetch = createFetch(() => jsonResponse({ ...HEALTH_BODY, pagesUrl: 'https://me.github.io/portly' }));
     await warmUp({ storage, fetch, launcher: null });
     assert.deepEqual(storage.data.serverSite, { port: 6001, pagesUrl: 'https://me.github.io/portly/' });
     await warmUp({ storage, fetch, launcher: null });

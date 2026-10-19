@@ -10,7 +10,7 @@ import {
   describeLaunchEnd,
 } from '../lib/newtab-page.js';
 import {
-  HEALTHY,
+  HEALTH_BODY,
   NATIVE_ERRORS,
   OLD_PATH_EXTENSION_ID,
   PINNED_EXTENSION_ID,
@@ -121,7 +121,7 @@ describe('new tab: Portly running', () => {
   });
 
   it('still redirects when the vault is locked (Portly shows its own banner)', async () => {
-    const t = setup({ fetch: createFetch(() => jsonResponse({ ok: true, version: '0.1.0', vault: 'locked' })) });
+    const t = setup({ fetch: createFetch(() => jsonResponse({ ...HEALTH_BODY, vault: 'locked' })) });
     await t.page.start();
     assert.equal(t.location.replaced.length, 1);
   });
@@ -157,7 +157,7 @@ function siteKnown(items = {}, options = {}) {
 }
 
 /** A health answer from a Portly that names `pagesUrl` (null: hybrid mode off). */
-const healthNaming = (pagesUrl) => () => jsonResponse({ ...HEALTHY, pagesUrl });
+const healthNaming = (pagesUrl) => () => jsonResponse({ ...HEALTH_BODY, pagesUrl });
 
 describe('new tab: the Pages site', () => {
   it('auto (the default): asks the service worker for a warm-up, then opens the site Portly reported', async () => {

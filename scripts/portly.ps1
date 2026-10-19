@@ -143,7 +143,7 @@ function Invoke-HbCopyFromHomebase {
         }
         return 0
     }
-    $plan = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    $plan = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task)) -HomebaseDataDir (Get-HbHomebaseDataDir -RepoRoot $RepoRoot)
     if ($plan.State -eq 'none') {
         Write-HbFailure "No Homebase database (homebase.db) was found for the data folder $dataDir."
         return 1
@@ -153,7 +153,7 @@ function Invoke-HbCopyFromHomebase {
         return 0
     }
     if ($plan.State -eq 'portly-has-database' -and -not $Replace) {
-        Write-HbFailure "Portly already has a database in $dataDir. To replace it with Homebase's (the current one is kept beside it as portly.db.before-homebase-<time>), add --replace."
+        Write-HbFailure "Portly already has a database in $dataDir. To replace it with Homebase's (the current one and its vault key are kept beside it as portly.db.before-homebase-<time> and vault.key.before-homebase-<time>), add --replace."
         return 1
     }
     $requestPath = Write-HbHomebaseCopyRequest -DataDir $dataDir -Replace:$Replace
@@ -170,7 +170,7 @@ function Invoke-HbCopyFromHomebase {
     Start-HbTask
     $port = (Get-HbPortSetting -Scope Task).Port
     $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
-    $after = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    $after = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task)) -HomebaseDataDir (Get-HbHomebaseDataDir -RepoRoot $RepoRoot)
     if ($health.Ok -and $after.State -eq 'done') {
         Write-HbOk "Copied. Portly is $(Format-HbHealth $health)"
         return 0

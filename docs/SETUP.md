@@ -53,25 +53,33 @@ Homebase's own folders are left as they were, so you can go back until you delet
   start, and the log says why. To try again later run `portly --copy-from-homebase`; to give up and
   start without Homebase's data run `portly --copy-from-homebase --cancel`. If Portly already has
   data of its own, the installer warns and copies nothing; `portly --copy-from-homebase --replace`
-  copies Homebase's over it and keeps Portly's old database beside it
-  (`portly.db.before-homebase-<time>`).
+  copies Homebase's data and vault key over it and keeps Portly's old database and key beside them
+  (`portly.db.before-homebase-<time>` and `vault.key.before-homebase-<time>`). A database always
+  keeps the key it was made with, so the accounts saved in it keep working.
 - **Starting from scratch instead:** run `setup.ps1 -NoHomebaseCopy` (or
   `install-autostart.ps1 -NoHomebaseCopy`). Portly then starts with empty data and copies neither
-  Homebase's database and vault key nor its `HOMEBASE_*` variables. Homebase's task is still
-  replaced, and its data folder stays where it is. Browsers still copy Homebase's in-browser settings
-  on their first visit (see **Browsers** below).
+  Homebase's database and vault key nor its `HOMEBASE_*` variables (later runs without the switch
+  don't copy the variables either). Homebase's task is still replaced, and its data folder stays
+  where it is. Browsers still copy Homebase's in-browser settings on their first visit (see
+  **Browsers** below).
 - **Settings and autostart:** the installer copies your `HOMEBASE_*` user variables to their
-  `PORTLY_*` names (never over one you already set). It stops the **Homebase Server** task just
-  before it starts Portly, since both use the same port, and removes that task and the
-  `com.homebase.launcher` registrations only once Portly answers. The old task's definition is saved
-  as `homebase-task-backup.xml` in Portly's data folder. If Portly doesn't come up, Homebase is
-  started again and nothing of it is removed. With `-NoStart`, Homebase stays installed.
-  `-DryRun` shows exactly what it would do.
+  `PORTLY_*` names once (never over one you already set). It notes that in
+  `homebase-variables-copied.json` in Portly's data folder, so later runs and updates leave them
+  alone and a variable you remove stays removed. `HOMEBASE_DATA_DIR` is the exception: it only tells
+  Portly where to copy Homebase's data from, and Portly keeps its data in `%LOCALAPPDATA%\Portly`.
+  To keep it somewhere else, set `PORTLY_DATA_DIR` before you install. The installer stops the
+  **Homebase Server** task just before it starts Portly, since both use the same port, and removes
+  that task and the `com.homebase.launcher` registrations only once Portly answers. The old task's
+  definition is saved as `homebase-task-backup.xml` in Portly's data folder. If Portly doesn't come
+  up, Homebase is started again and nothing of it is removed. With `-NoStart`, Homebase stays
+  installed. `-DryRun` shows exactly what it would do.
 - **The `homebase` command:** `install-cli.ps1` (which `setup.ps1` runs) installs `portly` and then
   removes the old `homebase` command and its PATH entry. Open a new terminal afterwards.
 - **Browsers:** a browser paired with Homebase stays paired, and the Pages site keeps the data it
   kept in the browser: on its first load Portly copies Homebase's `homebase:` settings and its
-  in-browser database to the new names. Export files from Homebase import as they are.
+  in-browser database to the new names. If copying the database fails part-way, the next two loads
+  try again and replace whatever that browser showed in between. Export files from Homebase import
+  as they are.
 - **By hand:** in `chrome://extensions` (or `edge://extensions`) **Remove** *Homebase New Tab* and
   **Load unpacked** Portly's `extension` folder (same extension ID, so nothing else changes).
   Publish the Pages site again from Portly (`publish-static.ps1` accepts the Homebase publish it

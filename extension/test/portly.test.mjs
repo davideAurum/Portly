@@ -28,7 +28,7 @@ import {
   writePort,
   writeTarget,
 } from '../lib/portly.js';
-import { HEALTHY, createFetch, createStorage, createTimers, down, jsonResponse, ok } from './helpers.mjs';
+import { HEALTHY, HEALTH_BODY, createFetch, createStorage, createTimers, down, jsonResponse, ok } from './helpers.mjs';
 
 describe('parsePort / isValidPort', () => {
   const valid = [
@@ -368,14 +368,14 @@ describe('checkHealth', () => {
   });
 
   it('reports a locked vault and tolerates missing optional fields', async () => {
-    const locked = await checkHealth(5757, { fetch: createFetch(() => jsonResponse({ ...HEALTHY, vault: 'locked' })) });
+    const locked = await checkHealth(5757, { fetch: createFetch(() => jsonResponse({ ...HEALTH_BODY, vault: 'locked' })) });
     assert.deepEqual(locked, { ok: true, version: '0.1.0', vault: 'locked' });
-    const bare = await checkHealth(5757, { fetch: createFetch(() => jsonResponse({ ok: true, vault: 'weird' })) });
+    const bare = await checkHealth(5757, { fetch: createFetch(() => jsonResponse({ ok: true, app: 'portly', vault: 'weird' })) });
     assert.deepEqual(bare, { ok: true, version: null, vault: null });
   });
 
   it('reads the Pages site the server names, null for none, and drops one it would not open', async () => {
-    const health = (pagesUrl) => checkHealth(5757, { fetch: createFetch(() => jsonResponse({ ...HEALTHY, pagesUrl })) });
+    const health = (pagesUrl) => checkHealth(5757, { fetch: createFetch(() => jsonResponse({ ...HEALTH_BODY, pagesUrl })) });
     assert.deepEqual(await health('https://me.github.io/x'), { ...HEALTHY, pagesUrl: 'https://me.github.io/x/' });
     assert.deepEqual(await health(null), { ...HEALTHY, pagesUrl: null });
     for (const bad of ['http://me.github.io/', 'javascript:alert(1)', '', 5, {}]) {
@@ -393,9 +393,16 @@ describe('checkHealth', () => {
   });
 
   it('rejects bodies that are not Portly health JSON', async () => {
-    for (const body of ['<html>hi</html>', 'null', '[]', '{"ok":"true"}', '{"status":"ok"}']) {
+    for (const body of ['<html>hi</html>', 'null', '[]', '{"ok":"true","app":"portly"}', '{"status":"ok"}']) {
       const fetch = createFetch(() => new Response(body, { status: 200 }));
       assert.deepEqual(await checkHealth(5757, { fetch }), { ok: false, reason: 'unexpected' }, body);
+    }
+  });
+
+  it('does not take Homebase (the name before Portly) or an unnamed server for Portly', async () => {
+    for (const app of ['homebase', undefined, 'Portly']) {
+      const fetch = createFetch(() => jsonResponse({ ...HEALTH_BODY, app }));
+      assert.deepEqual(await checkHealth(5757, { fetch }), { ok: false, reason: 'unexpected' }, String(app));
     }
   });
 

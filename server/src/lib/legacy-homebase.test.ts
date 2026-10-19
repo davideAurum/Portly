@@ -151,13 +151,14 @@ describe('moving over from Homebase', () => {
     expect(log.lines().some((line) => line.level === 'warn' && line.msg.includes('--replace'))).toBe(true);
   });
 
-  it('moves an existing database aside, with its WAL, when the request says replace', async () => {
+  it('moves an existing database aside, with its WAL and its vault key, when the request says replace', async () => {
     const local = path.join(root, 'Local');
     homebaseFolder(path.join(local, 'Homebase'));
     const paths = portlyPaths(path.join(local, 'Portly'));
     requestCopy(paths.dataDir, { replace: true });
     fs.writeFileSync(paths.db, 'portly data');
     fs.writeFileSync(`${paths.db}-wal`, 'portly wal');
+    fs.writeFileSync(paths.vaultKey, 'portly-key');
     const result = await migrateFromHomebase(paths, {
       env: { LOCALAPPDATA: local },
       platform: 'win32',
@@ -169,6 +170,13 @@ describe('moving over from Homebase', () => {
     expect(fs.readFileSync(`${aside}-wal`, 'utf8')).toBe('portly wal');
     expect(fs.existsSync(`${paths.db}-wal`)).toBe(false);
     expect(userName(paths.db)).toBe('{"userName":"Dana"}');
+    // The key goes with its database: Homebase's with the copy, Portly's beside its old database.
+    const keyAside = `${paths.vaultKey}.before-homebase-2026-10-12T12-00-00-000Z`;
+    expect(result?.replacedKey, 'the same time as its database').toBe(keyAside);
+    expect(fs.readFileSync(keyAside, 'utf8')).toBe('portly-key');
+    expect(fs.readFileSync(paths.vaultKey, 'utf8')).toBe('old-key');
+    expect(result?.copied).toEqual(['homebase.db -> portly.db', 'vault.key']);
+    expect(marker(paths.dataDir)).toMatchObject({ status: 'copied', replaced: aside, replacedKey: keyAside });
   });
 
   it("looks in Homebase's default folder only while PORTLY_DATA_DIR is unset", () => {
@@ -181,15 +189,99 @@ describe('moving over from Homebase', () => {
     );
   });
 
-  it("never replaces Portly's own vault key", async () => {
+  it("copies from the folder HOMEBASE_DATA_DIR names into Portly's own folder", async () => {
+    const local = path.join(root, 'Local');
+    const moved = path.join(root, 'D', 'Homebase data');
+    homebaseFolder(moved);
+    const paths = portlyPaths(path.join(local, 'Portly'));
+    requestCopy(paths.dataDir);
+    const result = await migrateFromHomebase(paths, { env: { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: ` ${moved} ` }, platform: 'win32' });
+    expect(result).toEqual({ from: moved, copied: ['homebase.db -> portly.db', 'vault.key'] });
+    expect(userName(paths.db)).toBe('{"userName":"Dana"}');
+    expect(fs.readFileSync(paths.vaultKey, 'utf8')).toBe('old-key');
+    expect(fs.existsSync(path.join(moved, 'portly.db')), "nothing is written to Homebase's folder").toBe(false);
+  });
+
+  it('reads HOMEBASE_DATA_DIR as the only Homebase folder, whatever PORTLY_DATA_DIR says', () => {
+    const local = path.join(root, 'Local');
+    homebaseFolder(path.join(local, 'Homebase'));
+    const moved = path.join(root, 'moved');
+    const portly = path.join(root, 'portly');
+    // Homebase did not use its default folder while HOMEBASE_DATA_DIR was set: an old copy there is not its data.
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: moved }, 'win32')).toBeNull();
+    homebaseFolder(moved);
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: moved }, 'win32')).toBe(path.join(moved, 'homebase.db'));
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: moved, PORTLY_DATA_DIR: portly }, 'win32')).toBe(
+      path.join(moved, 'homebase.db'),
+    );
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: '  ' }, 'win32'), 'blank is unset').toBe(
+      path.join(local, 'Homebase', 'homebase.db'),
+    );
+    // homebase.db in Portly's own folder still comes first (PORTLY_DATA_DIR naming Homebase's folder).
+    homebaseFolder(portly);
+    expect(findLegacyDatabase(portly, { LOCALAPPDATA: local, HOMEBASE_DATA_DIR: moved, PORTLY_DATA_DIR: portly }, 'win32')).toBe(
+      path.join(portly, 'homebase.db'),
+    );
+  });
+
+  it("puts Homebase's vault key in place of Portly's, which is kept beside it", async () => {
     const local = path.join(root, 'Local');
     homebaseFolder(path.join(local, 'Homebase'));
     const paths = portlyPaths(path.join(local, 'Portly'));
     requestCopy(paths.dataDir);
     fs.writeFileSync(paths.vaultKey, 'portly-key');
+    const result = await migrateFromHomebase(paths, {
+      env: { LOCALAPPDATA: local },
+      platform: 'win32',
+      now: () => new Date('2026-10-12T12:00:00Z'),
+    });
+    const keyAside = `${paths.vaultKey}.before-homebase-2026-10-12T12-00-00-000Z`;
+    expect(result).toEqual({ from: path.join(local, 'Homebase'), copied: ['homebase.db -> portly.db', 'vault.key'], replacedKey: keyAside });
+    expect(fs.readFileSync(paths.vaultKey, 'utf8'), 'the key of the database copied in').toBe('old-key');
+    expect(fs.readFileSync(keyAside, 'utf8')).toBe('portly-key');
+  });
+
+  it("moves Portly's vault key aside even when Homebase has none: it does not belong to the copy", async () => {
+    const local = path.join(root, 'Local');
+    homebaseFolder(path.join(local, 'Homebase'), { key: null });
+    const paths = portlyPaths(path.join(local, 'Portly'));
+    requestCopy(paths.dataDir);
+    fs.writeFileSync(paths.vaultKey, 'portly-key');
     const result = await migrateFromHomebase(paths, { env: { LOCALAPPDATA: local }, platform: 'win32' });
     expect(result?.copied).toEqual(['homebase.db -> portly.db']);
-    expect(fs.readFileSync(paths.vaultKey, 'utf8')).toBe('portly-key');
+    expect(fs.existsSync(paths.vaultKey)).toBe(false);
+    expect(fs.readFileSync(result?.replacedKey ?? '', 'utf8')).toBe('portly-key');
+  });
+
+  it("keeps a vault key that already is Homebase's (an earlier attempt cut off before the end)", async () => {
+    const local = path.join(root, 'Local');
+    homebaseFolder(path.join(local, 'Homebase'));
+    const paths = portlyPaths(path.join(local, 'Portly'));
+    requestCopy(paths.dataDir);
+    fs.writeFileSync(paths.vaultKey, 'old-key');
+    const result = await migrateFromHomebase(paths, { env: { LOCALAPPDATA: local }, platform: 'win32' });
+    expect(result).toEqual({ from: path.join(local, 'Homebase'), copied: ['homebase.db -> portly.db', 'vault.key'] });
+    expect(fs.readdirSync(paths.dataDir).filter((name) => name.includes('before-homebase'))).toEqual([]);
+  });
+
+  it('puts the database and the key back as they were when the copy cannot be put in place', async () => {
+    const local = path.join(root, 'Local');
+    homebaseFolder(path.join(local, 'Homebase'));
+    const paths = portlyPaths(path.join(local, 'Portly'));
+    requestCopy(paths.dataDir, { replace: true });
+    fs.writeFileSync(paths.db, 'portly data');
+    fs.writeFileSync(`${paths.db}-wal`, 'portly wal');
+    fs.writeFileSync(paths.vaultKey, 'portly-key');
+    // No temporary file appears, so the last step (renaming it to portly.db) fails.
+    const err = await failure(paths, { env: { LOCALAPPDATA: local }, platform: 'win32', copyDatabase: () => {} });
+    expect(err.code).toBe('homebase_copy_failed');
+    expect(err.exitCode).toBe(EXIT_STARTUP_FAILURE);
+    expect(fs.readFileSync(paths.db, 'utf8')).toBe('portly data');
+    expect(fs.readFileSync(`${paths.db}-wal`, 'utf8')).toBe('portly wal');
+    expect(fs.readFileSync(paths.vaultKey, 'utf8'), "Portly's key stays with Portly's database").toBe('portly-key');
+    expect(fs.readdirSync(paths.dataDir).sort()).toEqual([COPY_REQUEST, MIGRATION_MARKER, 'portly.db', 'portly.db-wal', 'vault.key'].sort());
+    expect(readCopyRequest(paths.dataDir), 'the next start tries again').not.toBeNull();
+    expect(marker(paths.dataDir)).toMatchObject({ status: 'failed', code: 'homebase_copy_failed', copied: ['homebase.db -> portly.db'] });
   });
 
   it('takes a consistent copy while Homebase still has the database open', async () => {

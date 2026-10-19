@@ -92,7 +92,10 @@ export function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 }
 
+/** What checkHealth makes of {@link HEALTH_BODY}. */
 export const HEALTHY = Object.freeze({ ok: true, version: '0.1.0', vault: 'ready' });
+/** A Portly server's /api/health answer (the fields the extension reads). */
+export const HEALTH_BODY = Object.freeze({ ...HEALTHY, app: 'portly' });
 
 /**
  * Scripted fetch: each call takes the next handler (the last one repeats). A handler is a
@@ -118,7 +121,7 @@ export function createFetch(...handlers) {
   return fetchImpl;
 }
 
-export const ok = () => jsonResponse(HEALTHY);
+export const ok = () => jsonResponse(HEALTH_BODY);
 export const down = () => new TypeError('Failed to fetch');
 
 export function createLocation() {

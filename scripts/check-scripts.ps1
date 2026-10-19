@@ -124,10 +124,13 @@ Write-Host 'Common.ps1 helpers' -ForegroundColor White
 
 # Coming from Homebase: planned and carried out against fakes and temporary folders only (never
 # the real user environment, task, registry or data folder).
-$legacyEnv = @{ HOMEBASE_PAGES_URL = 'https://me.github.io/'; HOMEBASE_PORT = '5800'; PORTLY_PORT = '6000'; HOMEBASE_DATA_DIR = '  ' }
+$legacyEnv = @{ HOMEBASE_PAGES_URL = 'https://me.github.io/'; HOMEBASE_PORT = '5800'; PORTLY_PORT = '6000'; HOMEBASE_LOG_LEVEL = '  '; HOMEBASE_DATA_DIR = 'D:\Homebase data' }
 $legacyChrome = 'Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher'
 $legacyPlan = Get-HbLegacyPlan -EnvReader { param($Name) $legacyEnv[$Name] } -RegistryReader { param($SubKey) if ($SubKey -eq $legacyChrome) { 'C:\x.json' } else { $null } } -TaskReader { $null }
-Assert-That -Name 'Get-HbLegacyPlan copies only HOMEBASE_ variables whose PORTLY_ name is unset, and finds the old host keys' -Condition (
+Assert-That -Name 'The variables carried over from Homebase are all but HOMEBASE_DATA_DIR (the source of the copy)' -Condition (
+    $PortlyLegacyEnvNames -notcontains 'HOMEBASE_DATA_DIR' -and $PortlyLegacyEnvNames -contains 'HOMEBASE_PAGES_URL' -and
+    $PortlyLegacyEnvNames -contains 'HOMEBASE_PAGES_REPO') -Detail ($PortlyLegacyEnvNames -join ', ')
+Assert-That -Name 'Get-HbLegacyPlan copies only HOMEBASE_ variables whose PORTLY_ name is unset (not HOMEBASE_DATA_DIR), and finds the old host keys' -Condition (
     @($legacyPlan.Copy).Count -eq 1 -and $legacyPlan.Copy[0].From -eq 'HOMEBASE_PAGES_URL' -and $legacyPlan.Copy[0].To -eq 'PORTLY_PAGES_URL' -and
     $legacyPlan.Copy[0].Value -eq 'https://me.github.io/' -and @($legacyPlan.RegistryKeys).Count -eq 1 -and $null -eq $legacyPlan.Task -and -not $legacyPlan.Empty)
 Assert-That -Name 'Get-HbLegacyPlan is empty without anything of Homebase' -Condition (
@@ -136,6 +139,35 @@ $legacyCalls = New-Object System.Collections.Generic.List[string]
 Invoke-HbLegacyEnvCopy -Plan $legacyPlan -EnvWriter { param($Name, $Value) $legacyCalls.Add("env $Name=$Value") }
 Assert-That -Name 'Invoke-HbLegacyEnvCopy copies only the variables' -Condition (
     ($legacyCalls -join '|') -ceq 'env PORTLY_PAGES_URL=https://me.github.io/') -Detail ($legacyCalls -join '|')
+
+# The variables are copied once: the record in the data folder keeps later runs from copying one
+# the user has removed since (the fake environment below still lacks PORTLY_PAGES_URL).
+$envData = Join-Path $workDir 'legacy-env\data'
+$envReader = { param($Name) $legacyEnv[$Name] }
+$envPlan = Get-HbLegacyPlan -DataDir $envData -EnvReader $envReader -RegistryReader { param($SubKey) $null } -TaskReader { $null }
+Assert-That -Name 'Get-HbLegacyPlan -DataDir: the first run copies, and will record it' -Condition (
+    @($envPlan.Copy).Count -eq 1 -and $envPlan.RecordEnv -and -not $envPlan.EnvDone -and -not $envPlan.Empty -and
+    $envPlan.EnvRecord -eq (Join-Path $envData 'homebase-variables-copied.json')) -Detail "$($envPlan.EnvRecord)"
+$legacyCalls.Clear()
+Invoke-HbLegacyEnvCopy -Plan $envPlan -EnvWriter { param($Name, $Value) $legacyCalls.Add("env $Name=$Value") }
+$envRecordText = [System.IO.File]::ReadAllText($envPlan.EnvRecord)
+$envRecord = $envRecordText | ConvertFrom-Json
+Assert-That -Name 'Invoke-HbLegacyEnvCopy records the names it copied, never the values' -Condition (
+    ($legacyCalls -join '|') -ceq 'env PORTLY_PAGES_URL=https://me.github.io/' -and @($envRecord.copied).Count -eq 1 -and
+    $envRecord.copied[0] -eq 'PORTLY_PAGES_URL' -and "$($envRecord.at)" -ne '' -and -not $envRecordText.Contains('github.io')) -Detail $envRecordText
+$envAgain = Get-HbLegacyPlan -DataDir $envData -EnvReader $envReader -RegistryReader { param($SubKey) $null } -TaskReader { $null }
+Assert-That -Name 'Get-HbLegacyPlan -DataDir: a later run copies nothing, not even a variable removed since' -Condition (
+    @($envAgain.Copy).Count -eq 0 -and $envAgain.EnvDone -and -not $envAgain.RecordEnv -and $envAgain.Empty -and
+    "$($envAgain.EnvCopiedAt)" -eq "$($envRecord.at)") -Detail "$($envAgain.EnvCopiedAt)"
+Assert-That -Name 'Get-HbLegacyPlan -DataDir records nothing on a PC without HOMEBASE_ variables' -Condition (
+    -not (Get-HbLegacyPlan -DataDir (Join-Path $workDir 'legacy-env\none') -EnvReader { param($Name) $null } -RegistryReader { param($SubKey) $null } -TaskReader { $null }).RecordEnv)
+# -NoHomebaseCopy empties Copy (install-autostart.ps1): nothing is copied, and that is recorded too.
+$skipPlan = Get-HbLegacyPlan -DataDir (Join-Path $workDir 'legacy-env\skip') -EnvReader $envReader -RegistryReader { param($SubKey) $null } -TaskReader { $null }
+$skipPlan.Copy = @()
+Invoke-HbLegacyEnvCopy -Plan $skipPlan -EnvWriter { param($Name, $Value) throw "copied $Name" }
+$skipRecord = [System.IO.File]::ReadAllText($skipPlan.EnvRecord) | ConvertFrom-Json
+Assert-That -Name 'Invoke-HbLegacyEnvCopy with nothing to copy (-NoHomebaseCopy) still records it' -Condition (
+    @($skipRecord.copied).Count -eq 0 -and "$($skipRecord.at)" -ne '')
 
 $legacyTask = [pscustomobject]@{ TaskName = 'Homebase Server'; TaskPath = '\' }
 $legacyTaskPlan = Get-HbLegacyPlan -EnvReader { param($Name) $null } -RegistryReader { param($SubKey) if ($SubKey -eq $legacyChrome) { 'C:\x.json' } else { $null } } -TaskReader { $legacyTask }
@@ -208,6 +240,16 @@ Assert-That -Name 'Get-HbHomebaseCopyPlan: a failed copy is not done' -Condition
 Set-Content -LiteralPath (Join-Path $copyData 'homebase.db') -Value 'db'
 Assert-That -Name 'Get-HbHomebaseCopyPlan prefers homebase.db in the data folder itself' -Condition (
     (Get-HbHomebaseCopyPlan -DataDir $copyData -LocalAppData $copyLocal -CustomDataDir).Source -eq (Join-Path $copyData 'homebase.db'))
+# HOMEBASE_DATA_DIR (-HomebaseDataDir) names Homebase's own folder: the source, whatever PORTLY_DATA_DIR says.
+$movedHomebase = Join-Path $workDir 'copy\Moved Homebase'
+$movedData = Join-Path $workDir 'copy\Portly elsewhere'
+Assert-That -Name "Get-HbHomebaseCopyPlan -HomebaseDataDir: Homebase's default folder is not looked at" -Condition (
+    (Get-HbHomebaseCopyPlan -DataDir $movedData -LocalAppData $copyLocal -HomebaseDataDir $movedHomebase).State -eq 'none')
+$null = New-Item -ItemType Directory -Path $movedHomebase -Force
+Set-Content -LiteralPath (Join-Path $movedHomebase 'homebase.db') -Value 'db'
+$movedPlan = Get-HbHomebaseCopyPlan -DataDir $movedData -LocalAppData $copyLocal -HomebaseDataDir $movedHomebase -CustomDataDir
+Assert-That -Name 'Get-HbHomebaseCopyPlan -HomebaseDataDir: request, from that folder (also with a PORTLY_DATA_DIR)' -Condition (
+    $movedPlan.State -eq 'request' -and $movedPlan.Source -eq (Join-Path $movedHomebase 'homebase.db')) -Detail "$($movedPlan.State) $($movedPlan.Source)"
 
 Assert-That -Name 'ConvertTo-HbPort accepts 5757' -Condition ((ConvertTo-HbPort '5757') -eq 5757)
 Assert-That -Name 'ConvertTo-HbPort trims whitespace' -Condition ((ConvertTo-HbPort ' 8080 ') -eq 8080)
@@ -789,7 +831,7 @@ try {
     Write-Host 'Health checks' -ForegroundColor White
     $okHealth = Test-HbHealth -Port $ports.ok
     Assert-That -Name 'Test-HbHealth reads a Portly health answer' -Condition (
-        $okHealth.Ok -and $okHealth.Version -eq '9.9.9-fixture' -and $okHealth.Vault -eq 'locked') -Detail "$($okHealth.Error)"
+        $okHealth.Ok -and $okHealth.App -eq 'portly' -and $okHealth.Version -eq '9.9.9-fixture' -and $okHealth.Vault -eq 'locked') -Detail "$($okHealth.Error)"
     Assert-That -Name 'Format-HbHealth (ok)' -Condition (
         (Format-HbHealth $okHealth) -eq "running at http://localhost:$($ports.ok) (version 9.9.9-fixture, vault locked)")
     $notJson = Test-HbHealth -Port $ports.notJson

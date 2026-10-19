@@ -384,8 +384,9 @@ export function googleSearchUrl(query) {
 
 /**
  * GET http://localhost:<port>/api/health with a hard timeout covering headers *and* body.
- * Success requires a 2xx JSON body with `ok: true` (so some other service squatting on the port
- * does not get the redirect). Never throws.
+ * Success requires a 2xx JSON body with `ok: true` and `app: 'portly'`, so neither Homebase (the
+ * name before Portly, which answers the same way on the same port) nor some other service squatting
+ * on the port gets the redirect. Never throws.
  * @param {number} port
  * @param {HealthDeps} deps
  * @returns {Promise<HealthResult>}
@@ -413,9 +414,9 @@ export async function checkHealth(port, deps) {
     if (!response.ok) return { ok: false, reason: 'http', status: response.status };
     /** @type {unknown} */
     const body = await response.json();
-    if (typeof body !== 'object' || body === null || /** @type {{ok?: unknown}} */ (body).ok !== true) {
-      return { ok: false, reason: 'unexpected' };
-    }
+    if (typeof body !== 'object' || body === null) return { ok: false, reason: 'unexpected' };
+    const { ok, app } = /** @type {{ok?: unknown, app?: unknown}} */ (body);
+    if (ok !== true || app !== 'portly') return { ok: false, reason: 'unexpected' };
     const { version, vault, pagesUrl } = /** @type {{version?: unknown, vault?: unknown, pagesUrl?: unknown}} */ (body);
     /** @type {HealthOk} */
     const result = {

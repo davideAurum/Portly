@@ -41,11 +41,13 @@
     http://localhost:<port>/api/health answers - this checks the installation end to end (use
     -NoStart to skip it). Running it again updates everything (also to switch modes).
 
-    Coming from Homebase (Portly's name before the rename): first its user variables are copied
-    to their PORTLY_ names (HOMEBASE_PAGES_URL -> PORTLY_PAGES_URL, ...; never over a value that is
-    already set). When Portly has no database yet, a request (copy-from-homebase.json in the data
-    folder) asks Portly to copy Homebase's database and vault key at its first start; Homebase's
-    data folder is left alone. Once Portly's task is registered, Homebase's server is stopped (it
+    Coming from Homebase (Portly's name before the rename): first its user variables are copied,
+    once, to their PORTLY_ names (HOMEBASE_PAGES_URL -> PORTLY_PAGES_URL, ...; never over a value
+    that is already set; homebase-variables-copied.json in the data folder records it, so later
+    runs leave them alone). HOMEBASE_DATA_DIR is not copied: it names the folder Homebase's data is copied
+    from, and Portly keeps its own data folder. When Portly has no database yet, a request
+    (copy-from-homebase.json in the data folder) asks Portly to copy Homebase's database and vault
+    key at its first start; Homebase's data folder is left alone. Once Portly's task is registered, Homebase's server is stopped (it
     holds the port). Only once Portly answers its health check are the "Homebase Server" task (its
     definition saved to homebase-task-backup.xml in the data folder) and the com.homebase.launcher
     registrations removed; if Portly does not come up, Homebase's task is started again. With
@@ -90,7 +92,8 @@
 
 .PARAMETER NoHomebaseCopy
     Start Portly from scratch on a PC that ran Homebase: copy neither its database and vault key
-    nor its HOMEBASE_* user variables (a copy request already waiting is withdrawn). Homebase's
+    nor its HOMEBASE_* user variables (a copy request already waiting is withdrawn; the variables
+    are recorded as done, so later runs without this switch do not copy them either). Homebase's
     task and native host are still stopped and removed as usual, and its data folder stays.
 
 .EXAMPLE
@@ -149,14 +152,18 @@ function Invoke-Install {
     $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
     $scriptPath = Join-Path $PSScriptRoot 'install-autostart.ps1'
 
-    # Coming from Homebase (ARCHITECTURE section 19). Only the variables are copied now, before
-    # anything reads the PORTLY_* settings; Homebase's server is stopped once Portly's task is
-    # registered and removed only once Portly answers (below).
-    $legacy = Get-HbLegacyPlan
+    # Coming from Homebase (ARCHITECTURE section 19). Only the variables are copied now (once:
+    # the record of it is kept in the data folder), before anything reads the PORTLY_* settings;
+    # Homebase's server is stopped once Portly's task is registered and removed only once Portly
+    # answers (below). PORTLY_DATA_DIR is never among the variables copied, so the data folder is
+    # already known; a value the configuration check rejects below just skips the record.
+    $legacyDataDir = $null
+    try { $legacyDataDir = Get-HbDataDir -Scope Task -RepoRoot $repoRoot } catch { $legacyDataDir = $null }
+    $legacy = Get-HbLegacyPlan -DataDir $legacyDataDir
     if ($NoHomebaseCopy) {
-        # From scratch: none of Homebase's settings either.
+        # From scratch: none of Homebase's settings either (still recorded, so it stays that way).
         $legacy.Copy = @()
-        $legacy.Empty = ($null -eq $legacy.Task -and @($legacy.RegistryKeys).Count -eq 0)
+        $legacy.Empty = (-not $legacy.RecordEnv -and $null -eq $legacy.Task -and @($legacy.RegistryKeys).Count -eq 0)
     }
     if (-not $legacy.Empty) {
         Write-HbStep "$(if ($DryRun) { '[dry run] ' } else { '' })Moving over from Homebase (Portly's name before the rename)"
@@ -224,7 +231,7 @@ function Invoke-Install {
     }
 
     # Homebase's database is copied by the server at its next start, only when requested here.
-    $homebaseCopy = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task))
+    $homebaseCopy = Get-HbHomebaseCopyPlan -DataDir $dataDir -CustomDataDir:($null -ne (Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope Task)) -HomebaseDataDir (Get-HbHomebaseDataDir -RepoRoot $repoRoot)
     if ($NoHomebaseCopy -and $homebaseCopy.State -in @('request', 'pending', 'portly-has-database')) { $homebaseCopy.State = 'skipped' }
     $homebaseCopyText = switch ($homebaseCopy.State) {
         'none' { 'no Homebase database found' }
@@ -459,7 +466,7 @@ function Invoke-Install {
     $nextStart = if ($Trigger -eq 'Logon') { 'at your next sign-in' } else { 'when Chrome or Edge next opens (or a new tab finds it not running)' }
     if ($NoStart) {
         Write-HbOk "Not started now (-NoStart). It starts $nextStart, or any time with: Start-ScheduledTask -TaskName '$PortlyTaskName'"
-        if (-not $legacy.Empty) {
+        if ($null -ne $legacy.Task -or @($legacy.RegistryKeys).Count -gt 0) {
             Write-HbInfo "Homebase is still installed: it is removed only once Portly answers. Run this script again without -NoStart to switch over."
         }
         Write-HbExtensionReminder -Plan $nativeHost
@@ -484,7 +491,7 @@ function Invoke-Install {
             Write-Warning ("Portly is already $(Format-HbHealth $already), started outside the task (npm start or scripts\start.ps1?). " +
                 "The task will start Portly $nextStart. To switch now, stop the other instance (Ctrl+C in its window) and run: " +
                 "Start-ScheduledTask -TaskName '$PortlyTaskName'")
-            if (-not $legacy.Empty) { Write-HbInfo 'Homebase is still installed. Run this script again once the task runs Portly to remove it.' }
+            if ($null -ne $legacy.Task -or @($legacy.RegistryKeys).Count -gt 0) { Write-HbInfo 'Homebase is still installed. Run this script again once the task runs Portly to remove it.' }
             Write-HbExtensionReminder -Plan $nativeHost
             return 0
         }

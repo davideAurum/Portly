@@ -49,7 +49,8 @@
 
 .PARAMETER NoHomebaseCopy
     Passed to install-autostart.ps1: on a PC that ran Homebase, start Portly from scratch instead
-    of copying Homebase's data and HOMEBASE_* variables (Homebase's task is still removed).
+    of copying Homebase's data and HOMEBASE_* variables (Homebase's task is still removed). Later
+    runs without it do not copy the variables either.
 
 .PARAMETER SkipAutostart
     Do not register the scheduled task and native host (start Portly with scripts\start.ps1).
