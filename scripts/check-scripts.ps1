@@ -140,6 +140,35 @@ Invoke-HbLegacyEnvCopy -Plan $legacyPlan -EnvWriter { param($Name, $Value) $lega
 Assert-That -Name 'Invoke-HbLegacyEnvCopy copies only the variables' -Condition (
     ($legacyCalls -join '|') -ceq 'env PORTLY_PAGES_URL=https://me.github.io/') -Detail ($legacyCalls -join '|')
 
+# The variables are copied once: the record in the data folder keeps later runs from copying one
+# the user has removed since (the fake environment below still lacks PORTLY_PAGES_URL).
+$envData = Join-Path $workDir 'legacy-env\data'
+$envReader = { param($Name) $legacyEnv[$Name] }
+$envPlan = Get-HbLegacyPlan -DataDir $envData -EnvReader $envReader -RegistryReader { param($SubKey) $null } -TaskReader { $null }
+Assert-That -Name 'Get-HbLegacyPlan -DataDir: the first run copies, and will record it' -Condition (
+    @($envPlan.Copy).Count -eq 1 -and $envPlan.RecordEnv -and -not $envPlan.EnvDone -and -not $envPlan.Empty -and
+    $envPlan.EnvRecord -eq (Join-Path $envData 'homebase-variables-copied.json')) -Detail "$($envPlan.EnvRecord)"
+$legacyCalls.Clear()
+Invoke-HbLegacyEnvCopy -Plan $envPlan -EnvWriter { param($Name, $Value) $legacyCalls.Add("env $Name=$Value") }
+$envRecordText = [System.IO.File]::ReadAllText($envPlan.EnvRecord)
+$envRecord = $envRecordText | ConvertFrom-Json
+Assert-That -Name 'Invoke-HbLegacyEnvCopy records the names it copied, never the values' -Condition (
+    ($legacyCalls -join '|') -ceq 'env PORTLY_PAGES_URL=https://me.github.io/' -and @($envRecord.copied).Count -eq 1 -and
+    $envRecord.copied[0] -eq 'PORTLY_PAGES_URL' -and "$($envRecord.at)" -ne '' -and -not $envRecordText.Contains('github.io')) -Detail $envRecordText
+$envAgain = Get-HbLegacyPlan -DataDir $envData -EnvReader $envReader -RegistryReader { param($SubKey) $null } -TaskReader { $null }
+Assert-That -Name 'Get-HbLegacyPlan -DataDir: a later run copies nothing, not even a variable removed since' -Condition (
+    @($envAgain.Copy).Count -eq 0 -and $envAgain.EnvDone -and -not $envAgain.RecordEnv -and $envAgain.Empty -and
+    "$($envAgain.EnvCopiedAt)" -eq "$($envRecord.at)") -Detail "$($envAgain.EnvCopiedAt)"
+Assert-That -Name 'Get-HbLegacyPlan -DataDir records nothing on a PC without HOMEBASE_ variables' -Condition (
+    -not (Get-HbLegacyPlan -DataDir (Join-Path $workDir 'legacy-env\none') -EnvReader { param($Name) $null } -RegistryReader { param($SubKey) $null } -TaskReader { $null }).RecordEnv)
+# -NoHomebaseCopy empties Copy (install-autostart.ps1): nothing is copied, and that is recorded too.
+$skipPlan = Get-HbLegacyPlan -DataDir (Join-Path $workDir 'legacy-env\skip') -EnvReader $envReader -RegistryReader { param($SubKey) $null } -TaskReader { $null }
+$skipPlan.Copy = @()
+Invoke-HbLegacyEnvCopy -Plan $skipPlan -EnvWriter { param($Name, $Value) throw "copied $Name" }
+$skipRecord = [System.IO.File]::ReadAllText($skipPlan.EnvRecord) | ConvertFrom-Json
+Assert-That -Name 'Invoke-HbLegacyEnvCopy with nothing to copy (-NoHomebaseCopy) still records it' -Condition (
+    @($skipRecord.copied).Count -eq 0 -and "$($skipRecord.at)" -ne '')
+
 $legacyTask = [pscustomobject]@{ TaskName = 'Homebase Server'; TaskPath = '\' }
 $legacyTaskPlan = Get-HbLegacyPlan -EnvReader { param($Name) $null } -RegistryReader { param($SubKey) if ($SubKey -eq $legacyChrome) { 'C:\x.json' } else { $null } } -TaskReader { $legacyTask }
 $legacyCalls.Clear()

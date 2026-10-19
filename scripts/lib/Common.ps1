@@ -579,35 +579,59 @@ $PortlyLegacyNativeHostRegistry = @(
 # it says where Homebase's data is, so it is read as the source of the copy (Get-HbHomebaseDataDir)
 # and Portly keeps its data in its own folder.
 $PortlyLegacyEnvNames = @(@($PortlyEnvNames) + 'PORTLY_PAGES_REPO' | Where-Object { $_ -ne 'PORTLY_DATA_DIR' } | ForEach-Object { $_ -replace '^PORTLY_', 'HOMEBASE_' })
+# The record in Portly's data folder that the variables were copied (Invoke-HbLegacyEnvCopy).
+$PortlyHomebaseEnvRecord = 'homebase-variables-copied.json'
 
 # What install-autostart.ps1 carries over from Homebase: user variables HOMEBASE_X whose PORTLY_X
 # is not set (Copy: From, To, Value), the 'Homebase Server' task (Task, or $null; it would take
 # Portly's port) and the com.homebase.launcher registry keys that exist (RegistryKeys). Homebase's
 # data folder is never touched (the server copies the database when asked to, Get-HbHomebaseCopyPlan).
+# The variables are copied once: with -DataDir, the first run that finds any of them records it
+# there (RecordEnv; EnvRecord is the record's path), and once that record exists (EnvDone,
+# EnvCopiedAt) Copy stays empty, so a variable removed since is not brought back.
 # -EnvReader { param($Name) }, -RegistryReader { param($SubKey) } and -TaskReader { } replace the
 # user environment, HKCU and Task Scheduler (tests).
 function Get-HbLegacyPlan {
-    param([scriptblock]$EnvReader, [scriptblock]$RegistryReader, [scriptblock]$TaskReader)
+    param([string]$DataDir, [scriptblock]$EnvReader, [scriptblock]$RegistryReader, [scriptblock]$TaskReader)
     if ($null -eq $EnvReader) { $EnvReader = { param([string]$Name) [System.Environment]::GetEnvironmentVariable($Name, 'User') } }
     if ($null -eq $RegistryReader) { $RegistryReader = { param([string]$SubKey) Get-HbRegistryDefaultValue -SubKey $SubKey } }
     if ($null -eq $TaskReader) {
         $TaskReader = { Get-ScheduledTask -TaskName $PortlyLegacyTaskName -TaskPath '\' -ErrorAction SilentlyContinue | Select-Object -First 1 }
     }
     $copy = New-Object System.Collections.Generic.List[object]
+    $found = 0
     foreach ($name in $PortlyLegacyEnvNames) {
         $value = & $EnvReader $name
         if ([string]::IsNullOrWhiteSpace($value)) { continue }
+        $found += 1
         $target = $name -replace '^HOMEBASE_', 'PORTLY_'
         if (-not [string]::IsNullOrWhiteSpace((& $EnvReader $target))) { continue }
         $copy.Add([pscustomobject]@{ From = $name; To = $target; Value = "$value".Trim() })
     }
+    $envRecord = $null
+    $envDone = $false
+    $envCopiedAt = $null
+    if ($DataDir) {
+        $envRecord = Join-Path $DataDir $PortlyHomebaseEnvRecord
+        if (Test-Path -LiteralPath $envRecord -PathType Leaf) {
+            # Done, even when the record cannot be read.
+            $envDone = $true
+            $copy.Clear()
+            try { $envCopiedAt = Get-HbProperty (Get-Content -LiteralPath $envRecord -Raw | ConvertFrom-Json) 'at' } catch { $envCopiedAt = $null }
+        }
+    }
+    $recordEnv = ($null -ne $envRecord -and -not $envDone -and $found -gt 0)
     $task = & $TaskReader
     $keys = @($PortlyLegacyNativeHostRegistry | Where-Object { $null -ne (& $RegistryReader $_.SubKey) })
     return [pscustomobject]@{
         Copy         = $copy.ToArray()
+        RecordEnv    = $recordEnv
+        EnvRecord    = $envRecord
+        EnvDone      = $envDone
+        EnvCopiedAt  = $envCopiedAt
         Task         = $task
         RegistryKeys = $keys
-        Empty        = ($copy.Count -eq 0 -and $null -eq $task -and $keys.Count -eq 0)
+        Empty        = ($copy.Count -eq 0 -and -not $recordEnv -and $null -eq $task -and $keys.Count -eq 0)
     }
 }
 
@@ -618,6 +642,11 @@ function Get-HbLegacyPlan {
 function Write-HbLegacyPlan {
     param([Parameter(Mandatory)]$Plan)
     foreach ($entry in @($Plan.Copy)) { Write-HbInfo "- copy the user variable $($entry.From) to $($entry.To) = $($entry.Value)" }
+    if ($Plan.RecordEnv) {
+        Write-HbInfo "- note in $($Plan.EnvRecord) that Homebase's user variables are done with, so later runs leave them alone"
+    } elseif ($Plan.EnvDone) {
+        Write-HbInfo "- leave Homebase's user variables alone: they were dealt with once already ($($Plan.EnvCopiedAt))"
+    }
     if ($null -ne $Plan.Task) {
         Write-HbInfo "- once Portly's task is registered, stop the scheduled task '$PortlyLegacyTaskName' (it holds the port)"
         Write-HbInfo "- once Portly answers, save that task's definition and remove it; if Portly does not come up, start it again"
@@ -627,7 +656,10 @@ function Write-HbLegacyPlan {
 }
 
 # Copies the HOMEBASE_X user variables of a Get-HbLegacyPlan to their PORTLY_X names (user scope
-# and this process). -EnvWriter { param($Name, $Value) } replaces the user environment (tests).
+# and this process), then, when the plan says so (RecordEnv), writes the record that keeps later
+# runs from copying them again: {at, copied} with the names copied (none with -NoHomebaseCopy),
+# never their values. A record that cannot be written is only a warning.
+# -EnvWriter { param($Name, $Value) } replaces the user environment (tests).
 function Invoke-HbLegacyEnvCopy {
     param([Parameter(Mandatory)]$Plan, [scriptblock]$EnvWriter)
     if ($null -eq $EnvWriter) {
@@ -638,6 +670,15 @@ function Invoke-HbLegacyEnvCopy {
         }
     }
     foreach ($entry in @($Plan.Copy)) { & $EnvWriter $entry.To $entry.Value }
+    if (-not $Plan.RecordEnv) { return }
+    try {
+        $folder = Split-Path -Parent $Plan.EnvRecord
+        if (-not (Test-Path -LiteralPath $folder -PathType Container)) { $null = New-Item -ItemType Directory -Force -Path $folder }
+        $record = [ordered]@{ at = [System.DateTime]::UtcNow.ToString('o'); copied = @(@($Plan.Copy) | ForEach-Object { $_.To }) }
+        [System.IO.File]::WriteAllText($Plan.EnvRecord, ($record | ConvertTo-Json -Compress), (New-Object System.Text.UTF8Encoding($false)))
+    } catch {
+        Write-Warning "Could not write $($Plan.EnvRecord) ($($_.Exception.Message)): a later run may copy a HOMEBASE_* user variable again."
+    }
 }
 
 # Stops Homebase's server (its task, and the supervisor processes it started from its checkout)

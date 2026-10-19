@@ -55,11 +55,14 @@ Homebase's own folders are left as they were, so you can go back until you delet
   keeps the key it was made with, so the accounts saved in it keep working.
 - **Starting from scratch instead:** run `setup.ps1 -NoHomebaseCopy` (or
   `install-autostart.ps1 -NoHomebaseCopy`). Portly then starts with empty data and copies neither
-  Homebase's database and vault key nor its `HOMEBASE_*` variables. Homebase's task is still
+  Homebase's database and vault key nor its `HOMEBASE_*` variables (later runs without the switch
+  don't copy the variables either). Homebase's task is still
   replaced, and its data folder stays where it is. Browsers still copy Homebase's in-browser settings
   on their first visit (see **Browsers** below).
 - **Settings and autostart:** the installer copies your `HOMEBASE_*` user variables to their
-  `PORTLY_*` names (never over one you already set). `HOMEBASE_DATA_DIR` is the exception: it only
+  `PORTLY_*` names once (never over one you already set). It notes that in
+  `homebase-variables-copied.json` in Portly's data folder, so later runs and updates leave them
+  alone and a variable you remove stays removed. `HOMEBASE_DATA_DIR` is the exception: it only
   tells Portly where to copy Homebase's data from, and Portly keeps its data in
   `%LOCALAPPDATA%\Portly`. To keep it somewhere else, set `PORTLY_DATA_DIR` before you install. It stops the **Homebase Server** task just
   before it starts Portly, since both use the same port, and removes that task and the

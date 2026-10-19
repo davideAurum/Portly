@@ -1734,14 +1734,17 @@ data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark impor
 - **User environment, task, native host** (`scripts/lib/Common.ps1`, run by `install-autostart.ps1`, listed by
   `-DryRun`): `Get-HbLegacyPlan`; first `Invoke-HbLegacyEnvCopy` (`HOMEBASE_X` user variables copied to unset
   `PORTLY_X`, user scope and this process, before the PORTLY_* settings are read; never `HOMEBASE_DATA_DIR`, which
-  `Get-HbHomebaseDataDir` reads for the source); `Get-HbHomebaseCopyPlan` /
+  `Get-HbHomebaseDataDir` reads for the source). The copy happens once: the first real run that finds any `HOMEBASE_X`
+  writes `<data dir>/homebase-variables-copied.json` (`{at, copied}`, the names only), and while it exists
+  `Get-HbLegacyPlan -DataDir` copies nothing, so a variable removed since stays removed; `Get-HbHomebaseCopyPlan` /
   `Write-HbHomebaseCopyRequest` after the configuration check; once Portly's task and host are registered,
   `Suspend-HbLegacyServer` stops `\Homebase Server` (and its supervisor processes) without removing it; only when
   `/api/health` answers with `app: 'portly'`, `Remove-HbLegacyInstall` exports the task to
   `<data dir>/homebase-task-backup.xml`, unregisters it and removes the `com.homebase.launcher` HKCU keys. Any other
   outcome (start failure, port taken, an error) runs `Resume-HbLegacyServer` in a `finally`. `-NoStart` leaves Homebase
-  alone. `-NoHomebaseCopy` (also on `setup.ps1`) starts from scratch: no variable copy, no copy request (a waiting one is
-  withdrawn); the task and host are still replaced. Homebase's data and native-host folders stay.
+  alone. `-NoHomebaseCopy` (also on `setup.ps1`) starts from scratch: no variable copy (still recorded, with `copied: []`,
+  so a later run without it copies none either), no copy request (a waiting one is withdrawn); the task and host are
+  still replaced. Homebase's data and native-host folders stay.
 - **Health checks:** Homebase answers `/api/health` on the same port with `ok: true` too, so the extension
   (`checkHealth`, `extension/lib/portly.js`) and the native host (`probeHealth`) take an answer for Portly only with
   `app: 'portly'`, like `install-autostart.ps1`; the web app's probe never takes another `app` for Portly either.
