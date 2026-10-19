@@ -97,13 +97,29 @@ describe('LocalServerStatus', () => {
     expect(button).toHaveAttribute('data-tone', 'warning');
   });
 
+  it('says "Browser only" while nothing answers on this PC; the popover names the status', async () => {
+    const user = userEvent.setup();
+    const { controller } = renderStatus({ status: 'absent' });
+    const button = screen.getByRole('button', { name: 'Browser only (Portly on this PC: Not detected)' });
+    expect(button).toHaveTextContent(/^Browser only$/);
+    expect(screen.queryByText('Not detected')).not.toBeInTheDocument();
+    await user.click(button);
+    const popover = await screen.findByRole('dialog', { name: 'Portly on this PC' });
+    expect(within(popover).getByText('Not detected')).toBeInTheDocument();
+    expect(within(popover).getByText(/This page uses the copy saved in this browser/)).toBeInTheDocument();
+    // Every other status keeps its own label there.
+    controller.set({ status: 'unpaired', server: SERVER });
+    expect(button).toHaveAccessibleName('Portly on this PC: Found, not paired');
+    expect(button).toHaveTextContent(/^Found, not paired$/);
+  });
+
   it('announces real status changes only: nothing on load or for a background re-probe', () => {
     const { controller } = renderStatus({ status: 'absent' });
     expect(liveRegion()).toHaveAttribute('aria-live', 'polite');
     expect(liveRegion()).toBeEmptyDOMElement();
 
     controller.set({ status: 'checking', manual: false });
-    expect(screen.getByRole('button', { name: 'Portly on this PC: Not detected' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Browser only (Portly on this PC: Not detected)' })).toBeInTheDocument();
     expect(liveRegion()).toBeEmptyDOMElement();
     controller.set({ status: 'absent', checkedAt: 1_700_000_030_000 });
     expect(liveRegion()).toBeEmptyDOMElement();

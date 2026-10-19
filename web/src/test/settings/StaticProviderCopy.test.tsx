@@ -1,8 +1,8 @@
 /**
  * Pages-build copy in Settings → Search and Settings → Todoist on the in-browser backend
  * (`setCapabilitiesForTests(capabilitiesFor(true, 'browser'))`): suggestions are described as
- * going straight to Wikipedia with the other providers labelled unavailable (the stored enum is
- * unchanged), the Todoist token is described as living in this browser, Todoist's own token help is
+ * going straight to Wikipedia, and the other providers as showing Wikipedia's instead (the stored
+ * enum is unchanged), the Todoist token is described as living in this browser, Todoist's own token help is
  * linked (the guide in the Portly folder is out of the site's reach) and the vault-locked banner never shows. On the
  * Portly server on this PC (hybrid mode) the server's copy applies, and a locked vault links to
  * this page's own Accounts settings, where it is reset.
@@ -12,8 +12,9 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
 import { setLocalServerController } from '../../localServer/store.ts';
-import SearchSettings, { isSuggestProviderAvailable } from '../../settings/sections/Search.tsx';
+import SearchSettings from '../../settings/sections/Search.tsx';
 import TodoistSettingsSection, { TODOIST_TOKEN_HELP_URL } from '../../settings/sections/Todoist.tsx';
+import { isSuggestProviderAvailable, reachableSuggestProvider } from '../../widgets/search/engines.ts';
 import { createFakeServer } from '../fakeServer.ts';
 import { health, settings } from '../fixtures.ts';
 import { fakeLocalServer } from '../hybrid.ts';
@@ -22,17 +23,19 @@ import { renderWithProviders } from '../render.tsx';
 beforeEach(() => setCapabilitiesForTests(capabilitiesFor(true, 'browser')));
 
 describe('static build: Settings → Search copy', () => {
-  it('describes Wikipedia-only suggestions and labels the other providers unavailable, keeping the enum', async () => {
+  it('describes Wikipedia-only suggestions and labels the other providers as showing Wikipedia’s, keeping the enum', async () => {
     const server = createFakeServer([]);
     server.settings.bookmarks.autoFetchIcons = false;
     renderWithProviders(<SearchSettings />, { apiMocks: server.mocks });
     const list = await screen.findByRole('list', { name: 'Search engines' });
     const items = within(list).getAllByRole('listitem');
-    expect(items[0]).toHaveTextContent('Google (not available in this build) suggestions');
+    expect(items[0]).toHaveTextContent('Wikipedia suggestions (Google’s aren’t available in this build)');
     expect(items[4]).toHaveTextContent('Wikipedia suggestions');
-    expect(items[4]).not.toHaveTextContent('not available');
+    expect(items[4]).not.toHaveTextContent('available');
 
-    expect(screen.getByText(/directly from your browser to Wikipedia; Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/directly from your browser to Wikipedia\. Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build, so engines that use them show Wikipedia’s, labelled as such/),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/through Portly/)).toBeNull();
 
     const user = userEvent.setup();
@@ -43,14 +46,15 @@ describe('static build: Settings → Search copy', () => {
     expect(options.map((o) => (o as HTMLOptionElement).value)).toEqual(['', 'google', 'ddg', 'bing', 'wikipedia', 'youtube']);
     expect(options.map((o) => o.textContent)).toEqual([
       'Default engine’s',
-      'Google (not available in this build)',
-      'DuckDuckGo (not available in this build)',
-      'Bing (not available in this build)',
+      'Google (Wikipedia in this build)',
+      'DuckDuckGo (Wikipedia in this build)',
+      'Bing (Wikipedia in this build)',
       'Wikipedia',
-      'YouTube (not available in this build)',
+      'YouTube (Wikipedia in this build)',
     ]);
     expect(isSuggestProviderAvailable('wikipedia')).toBe(true);
     expect(isSuggestProviderAvailable('google')).toBe(false);
+    expect(reachableSuggestProvider('google')).toBe('wikipedia');
   });
 });
 
@@ -97,6 +101,7 @@ describe('Pages build on the Portly server on this PC: Settings → Search and T
     expect(screen.queryByText(/not available/)).toBeNull();
     expect(screen.getByText(/through Portly/)).toBeInTheDocument();
     expect(isSuggestProviderAvailable('google')).toBe(true);
+    expect(reachableSuggestProvider('google')).toBe('google');
   });
 
   it('keeps the token in the vault, and a locked vault links to this page’s Accounts settings', async () => {

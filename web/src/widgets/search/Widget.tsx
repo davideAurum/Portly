@@ -3,7 +3,8 @@
  * empty input reverts), URL-looking input navigates directly (when the address was inferred —
  * `node.js`, `example.com` — the dropdown also offers searching for the text), dropdown with
  * bookmark matches (≤ 4) then suggestions (≤ 8; debounced 150 ms; the previous request is aborted on new input; provider
- * = engine's → default engine's → none when disabled). ↑/↓ navigate, Enter opens in the current
+ * = engine's → default engine's → none when disabled; on the in-browser backend a provider only
+ * Portly can ask is replaced by Wikipedia, labelled "Wikipedia suggestions"). ↑/↓ navigate, Enter opens in the current
  * tab (or a new one when `general.openLinksInNewTab`), Ctrl/Shift+Enter (and Ctrl/middle click)
  * open a new tab. `/` focuses the first search box (shell hotkey via `data-hb-search-input`), and
  * the first widget with `autofocus` takes focus on load (e.g. `?src=newtab`).
@@ -24,7 +25,7 @@ import { Popover, PopoverAnchor, PopoverContent } from '../../ui/Popover.tsx';
 import { Skeleton } from '../../ui/Skeleton.tsx';
 import { SiteIcon } from '../launchpad/SiteIcon.tsx';
 import type { WidgetProps } from '../types.ts';
-import { bookmarkHost, buildSearchUrl, defaultEngine, engineForKeyword, matchBookmarks, suggestProviderFor, widgetEngines } from './engines.ts';
+import { bookmarkHost, buildSearchUrl, defaultEngine, engineForKeyword, matchBookmarks, reachableSuggestProvider, suggestProviderFor, widgetEngines } from './engines.ts';
 import type { SearchConfig } from './index.ts';
 import { useEngineIcons } from './engineIcons.ts';
 import { addressCandidate, detectUrl } from './url.ts';
@@ -100,7 +101,10 @@ function SearchBox({ search, openLinksInNewTab, autoIcons, config }: SearchBoxPr
   const inferredUrl = urlTarget !== null && !/^[a-z][a-z0-9+.-]*:\/\//i.test(query);
   /** `next.js`, `index.html`: searched on Enter, the address offered second. */
   const maybeUrl = urlTarget === null ? addressCandidate(text) : null;
-  const provider = urlTarget ? null : suggestProviderFor(search, engine, fallback);
+  const wanted = urlTarget ? null : suggestProviderFor(search, engine, fallback);
+  // A provider this page load cannot ask (the in-browser backend): Wikipedia's suggestions, labelled as such.
+  const provider = wanted === null ? null : reachableSuggestProvider(wanted);
+  const fellBack = provider !== null && provider !== wanted;
   const suggestions = useSuggestions(provider, provider ? debounced : '');
   const bookmarks = useBookmarks({ enabled: search.showBookmarkMatches });
 
@@ -284,7 +288,7 @@ function SearchBox({ search, openLinksInNewTab, autoIcons, config }: SearchBoxPr
   });
   const rows: ReactNode[] = sections.map((section) => {
     if (section.kind === 'url' || section.kind === 'search') return section.entries.map(({ item, index }) => renderOption(item, index));
-    const label = section.kind === 'bookmark' ? 'Bookmarks' : `${engine?.name ?? 'Search'} suggestions`;
+    const label = section.kind === 'bookmark' ? 'Bookmarks' : fellBack ? 'Wikipedia suggestions' : `${engine?.name ?? 'Search'} suggestions`;
     const labelId = `${listboxId}-${section.kind}`;
     return (
       <div key={section.kind} role="group" aria-labelledby={labelId} className={styles.section}>

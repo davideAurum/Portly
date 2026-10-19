@@ -9,8 +9,8 @@
  * - **a server without diagnostics** (older than this page: the summary answers `403 local_only`
  *   or `404`): the Overview says "Update Portly on this PC to see its diagnostics", plus This
  *   browser.
- * - **the in-browser backend**: the Overview of this site (hybrid status, permission, "Open
- *   diagnostics on this PC") and This browser.
+ * - **the in-browser backend**: its own intro, the Overview of this site (hybrid status,
+ *   permission, and "Open diagnostics on this PC" once something answers there) and This browser.
  *
  * Every diagnostics query is unpersisted (`api/diagnostics.ts`); errors render notices, never a
  * broken section.
@@ -19,7 +19,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } 
 import type { DiagnosticsSummary } from '@portly/shared';
 import { useAccounts } from '../../api/accounts.ts';
 import { useDiagnosticsSummary } from '../../api/diagnostics.ts';
-import { getCapabilities } from '../../capabilities.ts';
+import { getCapabilities, type Backend } from '../../capabilities.ts';
 import { BrowserEventsPanel } from '../../diagnostics/ui/BrowserEventsPanel.tsx';
 import { ConnectionsPanel } from '../../diagnostics/ui/ConnectionsPanel.tsx';
 import { diagnosticsUnavailable, takesDebugEvents } from '../../diagnostics/ui/format.ts';
@@ -51,10 +51,13 @@ const TAB_LABELS: Readonly<Record<TabId, string>> = {
 const ALL_TABS: readonly TabId[] = ['overview', 'connections', 'level', 'log', 'browser', 'report'];
 const BROWSER_TABS: readonly TabId[] = ['overview', 'browser'];
 
-function Intro() {
+/** What the page shows: a server's diagnostics, or (the in-browser backend) this site's and this browser's. */
+function Intro({ backend }: { backend: Backend }) {
   return (
     <p className={styles.intro}>
-      Why something doesn’t connect, sync or update: the state of every account, calendar, feed and job, the server’s log and what this browser noticed.
+      {backend === 'server'
+        ? 'Why something doesn’t connect, sync or update: the state of every account, calendar, feed and job, the server’s log and what this browser noticed.'
+        : 'Why something on this site doesn’t connect, sync or load: where its data lives, whether Portly runs on this PC, and what this browser noticed (failed requests to Outlook.com, Todoist, weather and the other services this site uses, and errors on this page).'}
     </p>
   );
 }
@@ -95,7 +98,7 @@ function BrowserDiagnostics() {
   const [tab, setTab] = useState<TabId>('overview');
   return (
     <div className={styles.stack}>
-      <Intro />
+      <Intro backend="browser" />
       <DiagnosticsTabs tabs={BROWSER_TABS} value={tab} onValueChange={setTab}>
         <TabsContent value="overview">
           <OverviewPanel query={null} />
@@ -152,7 +155,7 @@ function ServerDiagnostics() {
 
   return (
     <div className={styles.stack}>
-      <Intro />
+      <Intro backend="server" />
       <DiagnosticsTabs tabs={tabs} value={tab} onValueChange={setSelected} triggers={triggers}>
         <TabsContent value="overview">
           <OverviewPanel query={summary} />

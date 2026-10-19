@@ -16,7 +16,7 @@ browser you have paired with it uses Portly's own data and features while it run
 
 | Works | Not available |
 | --- | --- |
-| **Search** — engines and keywords, URL detection, bookmark matches, suggestions from Wikipedia (the one suggestion provider that allows requests from a browser) | Suggestions from Google, DuckDuckGo or Bing |
+| **Search** — engines and keywords, URL detection, bookmark matches, suggestions from Wikipedia (the one suggestion provider that allows requests from a browser). An engine whose own suggestions need Portly (Google, DuckDuckGo, Bing, YouTube) shows Wikipedia's instead, under the heading *Wikipedia suggestions* | Suggestions from Google, DuckDuckGo, Bing or YouTube |
 | **Launch pad** — bookmark groups, drag-and-drop ordering, import from an HTML bookmarks file, custom icons; site icons come from DuckDuckGo's icon service | Import straight from the Chrome/Edge profile files; fetching a page's title and icon |
 | **Clock**, **Weather** (Open-Meteo, no key) | — |
 | **Todoist** — tasks, quick add, complete with undo (token stored in the browser, see below) | — |
@@ -29,7 +29,9 @@ export made on the server build and its layout still has a mail widget, that wid
 needs the Portly server* with *Not available in the browser-only build*; remove it in edit mode.
 In a site built with hybrid mode (the default) the notice reads *Mail needs Portly running on this
 PC* instead, with a button that looks for it (or pairs this browser with it). The calendar widget is
-not in the first-run layout (it needs the Outlook.com setup first): add it from **Add widget**.
+not in the first-run layout (it needs the Outlook.com setup first): add it from **Add widget**. That
+layout fills the page without gaps: the search box and clock on top, the launch pad with Todoist
+below it, and the weather, with its 7-day forecast, down the right-hand side.
 
 ## Where your data lives
 
@@ -71,7 +73,9 @@ When the Portly server also runs on the PC you browse from, the published site c
 you have paired the browser with it (a one-time approval on Portly's own page), every page load
 that finds Portly running uses Portly's data and everything the server adds — calendars, mail,
 feeds, accounts, page titles and icons, all search suggestions. When Portly isn't running, the
-site uses this browser's copy as described above. The two are separate sets of data; nothing is
+site uses this browser's copy as described above, and the footer says **Browser only**;
+**Settings → Diagnostics** then shows this site and this browser, and offers **Open diagnostics on
+this PC** only once Portly answers there. The two are separate sets of data; nothing is
 copied between them. Setting it up (the server's `PORTLY_PAGES_URL`, pairing, the browser's
 permission prompt, disconnecting) is described in
 [Pages site with Portly on this PC](pages-local-server.md).
@@ -242,9 +246,9 @@ what keep the data private.
 | Open-Meteo (`api.open-meteo.com`, `geocoding-api.open-meteo.com`) | Weather widget | The location you chose, and the text you type when searching for a place. Free for non-commercial use, no key; the data is [CC BY 4.0](https://open-meteo.com/en/license) and the widget shows the required attribution. |
 | Todoist (`api.todoist.com`) | Todoist widget | Your personal token with every request, straight from the browser — the same as the Todoist apps do. |
 | Microsoft (`login.microsoftonline.com`, `graph.microsoft.com`) | Outlook.com account and the Calendar widget | The sign-in (your app registration's client id, the one-time code, then token refreshes), and the calendar requests with the account's access token: which calendars you have, the events of the synced window, and the events you create, change or delete. |
-| Wikipedia (`en.wikipedia.org`) | Search suggestions, when the Wikipedia provider is on | What you have typed so far. |
+| Wikipedia (`en.wikipedia.org`) | Search suggestions, while **Settings → Search → Search suggestions** is on (it is by default): for an engine with Wikipedia suggestions, and in place of Google, DuckDuckGo, Bing and YouTube suggestions, which can't be asked from a browser — so with the default engines, as you type in the search box. Turn the switch off to send nothing. | What you have typed so far. |
 | ESPN (`site.api.espn.com`, logos from `a.espncdn.com`) | Sports scores widget | Which leagues and teams you follow (as ESPN team ids). No key or account. With the Portly server (hybrid mode) the server reads the scores instead, but team logos still load from `a.espncdn.com`. |
-| Portly on this PC (`http://127.0.0.1:5757`, hybrid mode) | In a paired browser, on every page load and then regularly while the page is open. In an unpaired one, on every page load and when the page gets focus, becomes visible or the network comes back — once the browser has granted the site local network access, or right away when the browser has no such permission; otherwise only when you click **Look for Portly on this PC** | Nothing leaves the PC. Before pairing only a health check; once paired, every request of the page, with the pairing token. |
+| Portly on this PC (`http://127.0.0.1:5757`, hybrid mode) | In a paired browser, on every page load and then regularly while the page is open. In an unpaired one, on every page load and when the page gets focus, becomes visible or the network comes back (at most every 5 minutes while Portly isn't found) — once the browser has granted the site local network access, or right away when the browser has no such permission; otherwise only when you click **Look for Portly on this PC** | Nothing leaves the PC. Before pairing only a health check; once paired, every request of the page, with the pairing token. |
 
 **The server build is unaffected.** `npm run build`, `npm start`, the extension and the autostart
 scripts keep using `web\dist`; the two builds can even run at the same time on one PC (their

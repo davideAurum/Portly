@@ -3,7 +3,9 @@
  * until the user adds a feed or a team and so are left to "Add widget". Shown while there are no
  * profiles, and used to seed the first "Home" profile (see seed.ts). Built for this page load's
  * capabilities: the in-browser backend has no mail widget, and leaves the calendar (Outlook.com only,
- * after a one-time app registration) to "Add widget".
+ * after a one-time app registration) to "Add widget". Either layout fills the 12 × 15 cells it
+ * spans, with no gaps: without the bottom row's calendar and mail, the weather runs down to the
+ * bottom (where it has room for the 7-day list) and Todoist takes the width under the launch pad.
  */
 import type { KnownWidgetType, Layout, WidgetFrame, WidgetInstance } from '@portly/shared';
 import { getCapabilities } from '../capabilities.ts';
@@ -52,8 +54,8 @@ export function createDefaultLayout(makeId?: (type: KnownWidgetType) => string):
           item('search', 0, 0, 8, 2, { showHeader: false }),
           item('clock', 8, 0, 4, 3, { showHeader: false }),
           item('launchpad', 0, 2, 8, 6),
-          item('weather', 8, 3, 4, 5),
-          item('todoist', 0, 8, 6, 7),
+          item('weather', 8, 3, 4, 12),
+          item('todoist', 0, 8, 8, 7),
         ];
   return {
     version: 1,

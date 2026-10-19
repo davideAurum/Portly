@@ -49,6 +49,7 @@ import {
 } from '../../ui/index.ts';
 import { SiteIcon } from '../../widgets/launchpad/SiteIcon.tsx';
 import { useEngineIcons } from '../../widgets/search/engineIcons.ts';
+import { BROWSER_SUGGEST_FALLBACK, isSuggestProviderAvailable } from '../../widgets/search/engines.ts';
 import { SearchFocusSwitch } from './SearchFocus.tsx';
 import styles from '../../styles/settings.module.css';
 import own from '../../widgets/search/SearchSettingsPage.module.css';
@@ -62,14 +63,6 @@ export const SUGGEST_PROVIDER_LABELS: Record<SuggestProvider, string> = {
 };
 
 /**
- * Whether this page load can ask the provider for suggestions. The in-browser backend reaches only
- * Wikipedia (the others send no CORS headers); the stored enum is unchanged, the UI just says so.
- */
-export function isSuggestProviderAvailable(provider: SuggestProvider): boolean {
-  return getCapabilities().serverSearchSuggestions || provider === 'wikipedia';
-}
-
-/**
  * True when the other providers become available once this browser uses Portly on this PC
  * (hybrid mode, not in a frame); otherwise this build never offers them.
  */
@@ -78,9 +71,22 @@ function serverSuggestionsReachable(): boolean {
   return HYBRID_ENABLED && status !== 'disabled' && status !== 'framed';
 }
 
+/**
+ * A provider in the "Suggestions from" list. One this page load cannot ask (the in-browser backend
+ * reaches only Wikipedia) says that the search box shows Wikipedia's instead; the stored enum is
+ * unchanged.
+ */
 function suggestProviderLabel(provider: SuggestProvider): string {
   if (isSuggestProviderAvailable(provider)) return SUGGEST_PROVIDER_LABELS[provider];
-  return `${SUGGEST_PROVIDER_LABELS[provider]} (${serverSuggestionsReachable() ? 'needs Portly on this PC' : 'not available in this build'})`;
+  const fallback = SUGGEST_PROVIDER_LABELS[BROWSER_SUGGEST_FALLBACK];
+  return `${SUGGEST_PROVIDER_LABELS[provider]} (${serverSuggestionsReachable() ? `needs Portly on this PC, else ${fallback}` : `${fallback} in this build`})`;
+}
+
+/** An engine's suggestions in the engine list: the provider's, or Wikipedia's when the search box falls back to them. */
+function engineSuggestionsText(provider: SuggestProvider): string {
+  if (isSuggestProviderAvailable(provider)) return `${SUGGEST_PROVIDER_LABELS[provider]} suggestions`;
+  const name = SUGGEST_PROVIDER_LABELS[provider];
+  return `${SUGGEST_PROVIDER_LABELS[BROWSER_SUGGEST_FALLBACK]} suggestions (${name}’s ${serverSuggestionsReachable() ? 'need Portly on this PC' : 'aren’t available in this build'})`;
 }
 
 function suggestionsDescription(): string {
@@ -88,8 +94,8 @@ function suggestionsDescription(): string {
     return 'Sends what you type to the engine’s suggestion service (Google, DuckDuckGo, Bing, Wikipedia or YouTube) through Portly.';
   }
   return serverSuggestionsReachable()
-    ? 'Sends what you type directly from your browser to Wikipedia; Google, DuckDuckGo, Bing and YouTube suggestions work while this browser is connected to Portly on this PC.'
-    : 'Sends what you type directly from your browser to Wikipedia; Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build.';
+    ? 'Sends what you type directly from your browser to Wikipedia. Google, DuckDuckGo, Bing and YouTube suggestions work while this browser is connected to Portly on this PC; until then, engines that use them show Wikipedia’s, labelled as such.'
+    : 'Sends what you type directly from your browser to Wikipedia. Google, DuckDuckGo, Bing and YouTube suggestions are not available in the browser-only build, so engines that use them show Wikipedia’s, labelled as such.';
 }
 
 export default function SearchSettings() {
@@ -203,7 +209,7 @@ function SearchSettingsForm({ search, autoIcons }: { search: SearchSettings; aut
                       </>
                     ) : null}
                     {' · '}
-                    {engine.suggest ? `${suggestProviderLabel(engine.suggest)} suggestions` : 'default engine’s suggestions'}
+                    {engine.suggest ? engineSuggestionsText(engine.suggest) : 'default engine’s suggestions'}
                   </p>
                 </div>
                 <div className={styles.itemActions}>

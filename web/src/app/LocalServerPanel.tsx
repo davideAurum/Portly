@@ -25,8 +25,13 @@ import { pendingSwitchText } from './StatusBanners.tsx';
 import styles from './LocalServerPanel.module.css';
 
 export interface LocalServerStatusView {
-  /** Short label, e.g. "Not detected" (the footer indicator's text). */
+  /** Short label, e.g. "Not detected" (the panel's badge, and the footer indicator's text). */
   label: string;
+  /**
+   * What the footer indicator says instead, when where this page's data comes from says more there
+   * than the label: "Browser only" while nothing answers on this PC.
+   */
+  footerLabel?: string;
   tone: BadgeTone;
 }
 
@@ -35,7 +40,7 @@ const STATUS_VIEWS: Readonly<Record<LocalServerStatus, LocalServerStatusView>> =
   framed: { label: 'Not used in a frame', tone: 'neutral' },
   idle: { label: 'Not checked', tone: 'neutral' },
   checking: { label: 'Checking…', tone: 'neutral' },
-  absent: { label: 'Not detected', tone: 'neutral' },
+  absent: { label: 'Not detected', footerLabel: 'Browser only', tone: 'neutral' },
   blocked: { label: 'Blocked by browser', tone: 'danger' },
   'waiting-permission': { label: 'Waiting for permission', tone: 'warning' },
   unpaired: { label: 'Found, not paired', tone: 'accent' },
@@ -113,6 +118,16 @@ function describeStatus(status: LocalServerStatus, state: LocalServerState): Rea
 /** Statuses where a Portly server answered, so its own page can be opened. */
 const SERVER_FOUND: ReadonlySet<LocalServerStatus> = new Set(['unpaired', 'revoked', 'other-server', 'incompatible', 'connected', 'reconnecting']);
 const PAIRABLE: ReadonlySet<LocalServerStatus> = new Set(['unpaired', 'revoked', 'other-server']);
+
+/**
+ * True when something answered on this PC, so Portly's own page there can be opened: a Portly
+ * server was found (`status`, as shown), or Portly runs but does not accept this site
+ * (`answers-without-cors`). False while nothing answered, nothing was checked yet, or the browser
+ * blocks the check.
+ */
+export function localServerAnswers(status: LocalServerStatus, state: Pick<LocalServerState, 'unreachableReason'>): boolean {
+  return SERVER_FOUND.has(status) || (status === 'absent' && state.unreachableReason === 'answers-without-cors');
+}
 
 export interface DisconnectDialogProps {
   open: boolean;

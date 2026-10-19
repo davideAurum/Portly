@@ -157,7 +157,7 @@ The status in the footer says where the page's data comes from:
 | --- | --- |
 | **Connected · v…** | The page uses Portly on this PC. |
 | **Reconnecting…** | Portly stopped answering. The page keeps showing the last saved data and keeps trying; after about 45 seconds without an answer it reloads with this browser's copy (*Portly on this PC isn't reachable — using this browser's copy*). |
-| **Not detected** | Portly isn't running (or not on the port the site was built for). The page uses this browser's copy; in a paired browser it switches by itself once Portly answers (*Connected to Portly on this PC*). |
+| **Browser only** | Portly isn't running (or not on the port the site was built for); the panel it opens says *Not detected*. The page uses this browser's copy; in a paired browser it switches by itself once Portly answers (*Connected to Portly on this PC*). An unpaired browser looks again when you come back to the tab, at most every 5 minutes, or at once with **Check again**. |
 | **Not checked** | The site hasn't looked yet (not paired, and the browser hasn't granted the permission). Use **Look for Portly on this PC**. |
 | **Waiting for permission** | The browser's permission prompt is open: answer it. A background tab can't show it — switch to the tab. |
 | **Blocked by browser** | You (or a policy) denied the permission. See [Troubleshooting](#troubleshooting). |
@@ -199,12 +199,12 @@ another browser then removes the least recently used one).
 | Symptom | Fix |
 | --- | --- |
 | **Blocked by browser** | Open the site's settings (the icon to the left of the address) and set **Local network access** (**Apps on device** in some versions) to **Allow**, then **Check again**. On a managed PC a policy may block it (`chrome://policy`, `edge://policy`). |
-| **Not detected**, but Portly runs | Without `PORTLY_PAGES_URL` (or with another site's address) Portly doesn't answer the site at all: check steps 1–3 — the site's **Settings → Diagnostics** then says *Portly runs on this PC but does not accept this site* ([Finding out why](#finding-out-why)). Check `http://localhost:5757/api/health` in a tab. If Portly uses another port, rebuild and publish the site with `PORTLY_STATIC_SERVER` set to it (step 4). Inside a frame the site never looks for Portly. |
+| **Browser only**, but Portly runs | Without `PORTLY_PAGES_URL` (or with another site's address) Portly doesn't answer the site at all: check steps 1–3 — the site's **Settings → Diagnostics** then says *Portly runs on this PC but does not accept this site* ([Finding out why](#finding-out-why)). Check `http://localhost:5757/api/health` in a tab. If Portly uses another port, rebuild and publish the site with `PORTLY_STATIC_SERVER` set to it (step 4). Inside a frame the site never looks for Portly. |
 | **Found, not paired** right after approving | The return trip didn't complete in this tab (the pairing answer works once, in the tab that asked). Choose **Pair this browser** again. If Portly's own page shows *Pairing is turned off*, do steps 1–3. |
 | Portly's page says *This pairing link doesn't work* | The link was incomplete or changed. Start again from the site with **Pair this browser**. |
 | Approving shows *Portly answered with an unexpected address* | `PORTLY_PAGES_URL` doesn't match the address the server reports; check steps 1–3. |
 | **Paired with another Portly** / **Pairing removed** | Pair again. For **Pairing removed**, Portly's log says how the pairing went (`token_revoked` with `removedBy`; see [Finding out why](#finding-out-why)). |
-| Something else is wrong and the site can't tell | Open `http://127.0.0.1:5757/#/settings/diagnostics` (or **Open diagnostics on this PC** in the site's Diagnostics): Portly's own diagnostics, which work whatever state the site is in. |
+| Something else is wrong and the site can't tell | Open `http://127.0.0.1:5757/#/settings/diagnostics` (or **Open diagnostics on this PC** in the site's Diagnostics, shown once Portly answers): Portly's own diagnostics, which work whatever state the site is in. |
 | **Needs update** | Update Portly and publish the site again. |
 | The site switches between its two copies again and again | Portly starts and stops repeatedly; see `scripts\status.ps1 -LogLines 40`. |
 | A banner says the page *switches … when you're done* | A switch waits because a dialog is open, you are editing the layout or typing. Finish, or click **Switch now**. |
@@ -217,9 +217,10 @@ another browser then removes the least recently used one).
 - While the site uses Portly on this PC, it shows everything Portly's own page shows.
 - While it uses this browser's copy, it shows the **Overview** — the site's version, the **Portly
   on this PC** status, the browser's local network permission, this browser's warnings — and **This
-  browser**. **Open diagnostics on this PC** opens `http://127.0.0.1:5757/#/settings/diagnostics`:
-  Portly's own page never forwards that address to the site, so it works even when the site can't
-  reach Portly or isn't paired.
+  browser**. Once Portly answers on this PC, **Open diagnostics on this PC** opens
+  `http://127.0.0.1:5757/#/settings/diagnostics`: Portly's own page never forwards that address to
+  the site, so it works even when the site can't use Portly or isn't paired. While nothing answers,
+  the link isn't shown (it would only open an error page).
 
 **What the site noticed.** **This browser** lists the connection's events: each status change
 (*hybrid status changed*, from → to, with the reason), probe results (time taken, HTTP status,
@@ -233,7 +234,7 @@ or **Timeline**) next to its own lines.
 **Portly runs on this PC but does not accept this site.** When the site can't reach Portly
 although the browser allows it, it asks once more without CORS. If something answers, Portly runs
 but doesn't answer this site: its `PORTLY_PAGES_URL` is unset or another address (rarely, another
-program uses the port). The footer keeps saying **Not detected**; the site's Diagnostics shows a
+program uses the port). The footer keeps saying **Browser only**; the site's Diagnostics shows a
 banner with the exact value to set (`PORTLY_PAGES_URL=<this site's address>`, with the path of a
 project site). Set it (step 1) and restart Portly (step 2). Portly notices too: its log has
 `health check from another site (no CORS answer)` (other requests: `request from a site that is not

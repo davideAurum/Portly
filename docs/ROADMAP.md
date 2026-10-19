@@ -39,14 +39,11 @@ saved so it can be brought over in phase 1.
    dead settings code was removed, and stale text, comments and privacy notes were brought up to
    date. Still to do: a test against a real Outlook.com account, which needs the Pages address
    registered as a *Single-page application* redirect ([Outlook.com](setup/microsoft.md)).
-3. **Browser-only polish:**
-   - hide "Open diagnostics on this PC" when no server answers, and give the browser-only
-     Diagnostics page its own intro;
-   - when a search engine's suggestions need the server, fall back to labelled Wikipedia
-     suggestions;
-   - close the gaps in the default layout;
-   - show "Browser only" in the footer instead of "Not detected", with fewer failing health checks
-     in the console.
+3. **Browser-only polish** (done). The footer says *Browser only* while Portly isn't found on this
+   PC, and such a PC sees far fewer failed checks in the browser's console. Engines whose
+   suggestions need Portly show Wikipedia's instead, labelled as such. The first-run layout has no
+   gaps, and the Diagnostics page has its own intro and links to Portly on this PC only once it
+   answers. See [Browser-only build](setup/static-build.md).
 4. **Smaller fixes:**
    - an update rollback also restores the database backup;
    - longer timeouts for the credential vault tests;
