@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Hono } from 'hono';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sportsLeague, type SportsTeam, type SportsTeamGames } from '@portly/shared';
 import type { AppEnv } from '../../context.ts';
 import { createErrorHandler } from '../../lib/errors.ts';
@@ -215,7 +215,15 @@ describe('sports: loadTeamGames', () => {
 describe('sports: routes', () => {
   let ctx: TestContext | undefined;
 
+  // The games route asks loadTeamGames about `new Date()`: on the real clock, the fixtures' next
+  // game (NEXT, 18 October) would be "around now" for a few hours and add a scoreboard read.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     if (ctx) {
       ctx.close();
       fs.rmSync(ctx.config.dataDir, { recursive: true, force: true });
