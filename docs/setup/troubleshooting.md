@@ -479,8 +479,9 @@ changed, or the consent was withdrawn.
 A provider rejected a saved token:
 
 - `todoist` — Todoist answered 401/403 to the saved API token (it was reset or revoked in Todoist).
-  Copy the current token in Todoist (**Settings → Integrations → Developer**) and use **Replace
-  token** in **Settings → Todoist** ([Todoist](todoist.md#troubleshooting)).
+  Copy the current token in Todoist (**Settings → Integrations → Developer**), then in Portly click
+  **Manage** on the Todoist row in **Settings → Accounts** and use **Replace token**
+  ([Todoist](todoist.md#troubleshooting)).
 - `account:` — Google or Microsoft rejected an access token Portly had just renewed (the log says
   *provider rejected a freshly refreshed token*). The account is marked **Reconnect needed**:
   **Reconnect** it in **Settings → Accounts**.

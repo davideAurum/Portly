@@ -73,13 +73,13 @@ export class TodoistRateLimitError extends StaticApiError {
 }
 
 export function tokenRejected(): StaticApiError {
-  return new StaticApiError('not_configured', 'Todoist rejected the saved API token. Paste a new one in Settings → Todoist.', {
+  return new StaticApiError('not_configured', 'Todoist rejected the saved API token. Paste a new one under Todoist in Settings → Accounts.', {
     reason: 'token_rejected',
   });
 }
 
 export function notConnected(): StaticApiError {
-  return new StaticApiError('not_configured', 'Todoist is not connected. Add your API token in Settings → Todoist.', {
+  return new StaticApiError('not_configured', 'Todoist is not connected. Connect it in Settings → Accounts.', {
     reason: 'no_token',
   });
 }

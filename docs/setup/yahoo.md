@@ -31,10 +31,14 @@ the same Account Security page.
 ## 2. Add the account in Portly
 
 1. Open Portly → **Settings → Accounts** (`http://localhost:5757/#/settings/accounts`).
-2. Under **Other accounts**, on the **Yahoo** tab, enter your full Yahoo address as
-   **Yahoo email** and the **App password**, then click **Add Yahoo account**.
-3. Portly tests IMAP and CalDAV separately and tells you which one worked. If only mail works,
+2. Under **Add a connection**, click the **Yahoo** tile.
+3. **Services:** tick **Calendar** and/or **Mail** and click **Continue**. A service you leave
+   unticked starts switched off; turn it on later under **Manage**.
+4. **App password:** enter your full Yahoo address as **Yahoo email** and the **App password**,
+   then click **Add Yahoo account**.
+5. Portly tests IMAP and CalDAV separately and tells you which one worked. If only mail works,
    the account is saved as mail-only — you can still add your calendar with the ICS fallback.
+   Click **Done**.
 
 The app password is stored encrypted in Portly's vault and is never shown again.
 

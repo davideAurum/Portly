@@ -14,6 +14,10 @@ All three are added in Portly under **Settings → Accounts** (CalDAV, IMAP) or
 **Settings → Calendars** (ICS). Passwords and feed URLs are stored encrypted in Portly's vault
 and are never shown again.
 
+For CalDAV and IMAP, click the **Other** tile under **Add a connection**, choose
+**CalDAV calendar** or **IMAP mail**, click **Continue** and fill in the server details below.
+Portly checks the connection before it saves the account and shows what it found.
+
 ## Always use an app password
 
 Most providers refuse your normal password over CalDAV/IMAP once two-factor authentication is on,
@@ -28,7 +32,7 @@ access.
 2. Open **Sign-In and Security → App-Specific Passwords**.
 3. Choose **Generate an app-specific password**, name it `Portly`, and copy the password.
 
-**CalDAV account** (Settings → Accounts → *Other accounts* → **CalDAV calendar** tab):
+**CalDAV account** (Settings → Accounts → **Other** → **CalDAV calendar**):
 
 | Field | Value |
 | --- | --- |
@@ -37,7 +41,7 @@ access.
 | User name | your **primary** Apple Account email (aliases don't work) |
 | Password | the app-specific password |
 
-**IMAP account** (Settings → Accounts → *Other accounts* → **IMAP mail** tab):
+**IMAP account** (Settings → Accounts → **Other** → **IMAP mail**):
 
 | Field | Value |
 | --- | --- |

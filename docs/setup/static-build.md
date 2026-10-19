@@ -52,8 +52,8 @@ below it, and the weather, with its 7-day forecast, down the right-hand side.
 - **The Todoist token and the Outlook.com sign-in are not encrypted.** The server build keeps
   them in a vault protected by Windows; here they sit in the browser's site storage, readable by
   anyone who can use this browser profile (and by browser extensions with site-data access). On a
-  shared PC, remove them in **Settings → Todoist** and **Settings → Accounts** when you are done,
-  or don't connect them at all. A Microsoft sign-in from a web page lasts 24 hours; Portly renews
+  shared PC, remove them in **Settings → Accounts** (**Remove** on each row, Todoist included)
+  when you are done, or don't connect them at all. A Microsoft sign-in from a web page lasts 24 hours; Portly renews
   it by itself when you open the page while you are still signed in to Microsoft, else the account
   shows *Reconnect*.
 - **Calendars sync while the page is open.** There is no background job: a calendar on screen

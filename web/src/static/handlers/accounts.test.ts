@@ -195,6 +195,43 @@ describe('accounts: sign-in', () => {
     expect(getAccountTokens(t.ctx)).toEqual({});
   });
 
+  it('asks for the services picked: the calendar only here, mail refused before anything is stored', async () => {
+    await setup();
+    const mail = await t.json<ErrorBody>('POST', '/api/oauth/microsoft/start', { capabilities: ['calendar', 'mail'] });
+    expect(mail.status).toBe(422);
+    expect(mail.body.error.details).toEqual([{ path: 'capabilities', message: 'Mail is not available in the browser-only build', code: 'custom' }]);
+    expect((await t.json('POST', '/api/oauth/microsoft/start', { capabilities: [] })).status).toBe(422);
+    expect(getOAuthStates(t.ctx)).toEqual([]);
+
+    const url = await start({ capabilities: ['calendar'], returnTo: '#/settings/accounts' });
+    expect(url.searchParams.get('scope')).toBe('openid profile email offline_access User.Read Calendars.ReadWrite');
+    expect(getOAuthStates(t.ctx)[0]?.capabilities).toEqual(['calendar']);
+  });
+
+  it('redeems the code with the requested scopes and needs a requested service in the grant', async () => {
+    await setup();
+    // Without a scope in the answer, the requested ones are what was granted.
+    expect(await signIn(grant({ scope: undefined }), { capabilities: ['calendar'] })).toContain('oauth=connected');
+    expect(formOf(fake.calls[0]!).scope).toBe('openid profile email offline_access User.Read Calendars.ReadWrite');
+    expect((await list())[0]).toMatchObject({ capabilities: ['calendar'], enabledCapabilities: ['calendar'] });
+
+    // A grant without the calendar covers nothing that was asked for.
+    const denied = await signIn(grant({ scope: 'openid profile User.Read' }, { oid: OTHER_SUBJECT }));
+    expect(denied).toContain('oauth=denied');
+    expect(await list()).toHaveLength(1);
+  });
+
+  it('treats a pending sign-in from before the services were recorded as asking for everything offered', async () => {
+    await setup();
+    fake.add(tokenRoute(grant(), 1));
+    const url = await start();
+    const states = getOAuthStates(t.ctx);
+    delete states[0]!.capabilities;
+    await t.ctx.state.commit(SLICE.oauthStates);
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toContain('oauth=connected');
+    expect((await list())[0]).toMatchObject({ capabilities: ['calendar'], enabledCapabilities: ['calendar'] });
+  });
+
   it('reconnects the same account in place and keeps a switched-off capability off', async () => {
     await setup();
     await signIn(grant());
@@ -269,6 +306,8 @@ describe('accounts: access tokens', () => {
     const refreshes = fake.calls.slice(1).map(formOf);
     expect(refreshes).toHaveLength(1);
     expect(refreshes[0]).toMatchObject({ grant_type: 'refresh_token', refresh_token: 'RT1', client_id: MICROSOFT_CLIENT_ID });
+    // Only the granted services' scopes (Microsoft refuses a refresh for more than was consented to).
+    expect(refreshes[0]?.scope).toBe('openid profile email offline_access User.Read Calendars.ReadWrite');
     expect(getAccountTokens(t.ctx)[id]).toMatchObject({ refreshToken: 'RT2', accessToken: 'AT2' });
     // Persisted, not only in memory.
     expect(await t.storage.getJson(`slice:${SLICE.accountTokens}`)).toMatchObject({ [id]: { refreshToken: 'RT2' } });

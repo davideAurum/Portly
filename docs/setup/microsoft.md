@@ -92,16 +92,26 @@ tokens for this kind of app last 90 days and renew every time Portly uses them.
 ## 6. Enter the client in Portly
 
 1. Open Portly → **Settings → Accounts** (`http://localhost:5757/#/settings/accounts`).
-2. In the **Outlook.com** card (under *Google and Outlook.com*), paste the
-   **Application (client) ID** and click **Save**. There is no secret to enter.
+2. Under **Add a connection**, click the **Microsoft** tile. The first step is
+   **App registration**: paste the **Application (client) ID** and click **Save and continue**.
+   There is no secret to enter.
+
+To change it later, use **Edit** next to Microsoft under **App registrations** (below the tiles).
 
 ## 7. Connect your account
 
-1. In the same card, click **Connect Outlook.com** and sign in with your Outlook.com account.
-2. Microsoft shows **Let this app access your info?** with the permissions above and your app's
-   name marked as unverified. That is expected for your own app. Click **Accept**.
-3. You land back in Portly with a "connected" message. Your calendars appear under
-   **Settings → Calendars** and the Mail widget shows your inbox.
+1. **Services:** tick what Portly should use the account for, **Calendar** and/or **Mail**, and
+   click **Continue**. Portly asks Microsoft only for those permissions (plus the sign-in ones).
+2. **Sign in:** click **Sign in with Microsoft** and sign in with your Outlook.com account.
+3. Microsoft shows **Let this app access your info?** with the permissions you picked and your
+   app's name marked as unverified. That is expected for your own app. Click **Accept**.
+4. You land back in Portly with a "connected" message. The account appears under
+   **Connected accounts**; your calendars appear under **Settings → Calendars** and the Mail
+   widget shows your inbox.
+
+To add a service later, open **Manage** on the account and click **Add** next to it: you sign in
+again and Microsoft asks for the new permission on top of the ones you already gave. Switching a
+service off under **Manage** only stops Portly using it; nothing is revoked at Microsoft.
 
 You can connect several personal Microsoft accounts with the same registration.
 
@@ -109,7 +119,7 @@ You can connect several personal Microsoft accounts with the same registration.
 
 - **Staying connected.** A refresh token unused for 90 days expires, and changing your password
   or removing the app at <https://account.live.com/consent/Manage> revokes it. Portly then shows
-  **Reconnect** for the account.
+  **Reconnect needed** for the account; click **Reconnect** and sign in again.
 - **Mail archive** uses your mailbox's *Archive* folder; **delete** moves messages to
   *Deleted Items*.
 
@@ -124,8 +134,8 @@ part of it. The steps above apply, with these differences:
   shows it, for example `https://<user>.github.io/portly-pages/`. A registration can hold both:
   the localhost callback under *Mobile and desktop applications* for the server, the site's
   address under *Single-page application* for the site.
-- **Permissions.** The site asks for **Calendars.ReadWrite** (plus the sign-in ones), not
-  **Mail.ReadWrite**.
+- **Permissions.** The site offers the calendar only: the **Microsoft** tile has no Mail service,
+  and the site asks for **Calendars.ReadWrite** (plus the sign-in ones), not **Mail.ReadWrite**.
 - **The sign-in lasts 24 hours.** Microsoft limits sign-ins made from a web page to a day. The
   site renews it by itself when you open it while you are still signed in to Microsoft in that
   browser; otherwise the account shows **Reconnect**.

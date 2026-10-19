@@ -1,7 +1,8 @@
 /**
  * Google OAuth (§4.7, §8): *Web application* client (the client secret is required at the token
  * endpoint), PKCE S256, offline access with forced consent so a refresh token is always issued,
- * incremental grants. Partial grants are read from the token response's `scope`.
+ * incremental grants (`include_granted_scopes`: a sign-in for one more service keeps the ones
+ * already granted). Partial grants are read from the token response's `scope`.
  */
 import type { Capability } from '@portly/shared';
 import { audienceMatches, notExpired, stringClaim } from './id-token.ts';
@@ -11,14 +12,17 @@ export const GOOGLE_SCOPE_CALENDAR_EVENTS = 'https://www.googleapis.com/auth/cal
 export const GOOGLE_SCOPE_CALENDAR_LIST = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly';
 export const GOOGLE_SCOPE_GMAIL_MODIFY = 'https://www.googleapis.com/auth/gmail.modify';
 
-export const GOOGLE_SCOPES = [
-  'openid',
-  'email',
-  'profile',
-  GOOGLE_SCOPE_CALENDAR_EVENTS,
-  GOOGLE_SCOPE_CALENDAR_LIST,
-  GOOGLE_SCOPE_GMAIL_MODIFY,
-] as const;
+/** Identity scopes, asked for on every sign-in. */
+export const GOOGLE_BASE_SCOPES = ['openid', 'email', 'profile'] as const;
+
+/** The scopes of each service. */
+export const GOOGLE_CAPABILITY_SCOPES = Object.freeze({
+  calendar: [GOOGLE_SCOPE_CALENDAR_EVENTS, GOOGLE_SCOPE_CALENDAR_LIST],
+  mail: [GOOGLE_SCOPE_GMAIL_MODIFY],
+} as const satisfies Record<Capability, readonly string[]>);
+
+/** Every scope (all services): what a sign-in asks for when it names no services. */
+export const GOOGLE_SCOPES = [...GOOGLE_BASE_SCOPES, ...GOOGLE_CAPABILITY_SCOPES.calendar, ...GOOGLE_CAPABILITY_SCOPES.mail] as const;
 
 export const GOOGLE_AUTHORIZE_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 export const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -35,18 +39,20 @@ export const google: OAuthProviderSpec = Object.freeze<OAuthProviderSpec>({
   tokenEndpoint: GOOGLE_TOKEN_ENDPOINT,
   revokeEndpoint: GOOGLE_REVOKE_ENDPOINT,
   scopes: GOOGLE_SCOPES,
+  baseScopes: GOOGLE_BASE_SCOPES,
+  capabilityScopes: GOOGLE_CAPABILITY_SCOPES,
   usesClientSecret: true,
 
   isValidClientId(clientId: string): boolean {
     return GOOGLE_CLIENT_ID.test(clientId);
   },
 
-  authorizeParams({ clientId, redirectUri, state, codeChallenge }) {
+  authorizeParams({ clientId, redirectUri, state, codeChallenge, scopes }) {
     return {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: GOOGLE_SCOPES.join(' '),
+      scope: scopes.join(' '),
       access_type: 'offline',
       prompt: 'consent',
       include_granted_scopes: 'true',

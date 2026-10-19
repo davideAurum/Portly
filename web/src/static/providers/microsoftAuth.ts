@@ -5,7 +5,9 @@
  * id_token rules, scope → capability mapping), token-endpoint.ts (request + failure
  * classification) and id-token.ts (claim decoding), with the browser differences:
  *
- * - the scopes leave out `Mail.ReadWrite` (mail is not part of the static build);
+ * - the only service is the calendar (mail is not part of the static build), so the scopes leave
+ *   out `Mail.ReadWrite`; like the server, a sign-in asks for the scopes of the services picked
+ *   ({@link scopesFor}) and a refresh for those of the account's granted services;
  * - Microsoft only redeems a code or refresh token from a browser origin for a redirect URI
  *   registered as "Single-page application", and such refresh tokens stop working 24 hours after
  *   the interactive sign-in ({@link SPA_SESSION_MS}; `refresh_token_expires_in` when present);
@@ -15,7 +17,7 @@
  * tokens and request parameters are never logged or shown. A failed token request is a `provider`
  * event (`diagnostics.ts`): status and that `error` code (else the failure's class), nothing else.
  */
-import { MICROSOFT_CONSUMER_TENANT_ID, type Capability } from '@portly/shared';
+import { CAPABILITIES, MICROSOFT_CONSUMER_TENANT_ID, type Capability } from '@portly/shared';
 import { z } from 'zod';
 import { encodeBase64 } from '../lib/base64.ts';
 import { classifyFetchError, fetchTextCapped, UpstreamPayloadTooLargeError } from '../lib/fetch.ts';
@@ -27,8 +29,31 @@ export const MICROSOFT_AUTHORIZE_ENDPOINT = `${MICROSOFT_AUTHORITY}/oauth2/v2.0/
 export const MICROSOFT_TOKEN_ENDPOINT = `${MICROSOFT_AUTHORITY}/oauth2/v2.0/token`;
 export const MICROSOFT_ISSUER = `https://login.microsoftonline.com/${MICROSOFT_CONSUMER_TENANT_ID}/v2.0`;
 
-/** The static build's scopes: the server's minus `Mail.ReadWrite`. */
-export const MICROSOFT_STATIC_SCOPES = ['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Calendars.ReadWrite'] as const;
+/** Identity, offline access and the profile: asked for on every sign-in (the server's base scopes). */
+export const MICROSOFT_STATIC_BASE_SCOPES = ['openid', 'profile', 'email', 'offline_access', 'User.Read'] as const;
+
+/** The Graph scopes of each service the static build offers (the server's, without mail). */
+export const MICROSOFT_STATIC_CAPABILITY_SCOPES: Readonly<Partial<Record<Capability, readonly string[]>>> = Object.freeze({
+  calendar: ['Calendars.ReadWrite'],
+});
+
+/** The services a static-build sign-in can ask for. */
+export const MICROSOFT_STATIC_CAPABILITIES: readonly Capability[] = Object.freeze(
+  CAPABILITIES.filter((c) => MICROSOFT_STATIC_CAPABILITY_SCOPES[c] !== undefined),
+);
+
+/** The scopes for these services: the base scopes, then each offered service's, in capability order. */
+export function scopesFor(capabilities: readonly Capability[]): string[] {
+  const scopes: string[] = [...MICROSOFT_STATIC_BASE_SCOPES];
+  for (const capability of CAPABILITIES) {
+    if (!capabilities.includes(capability)) continue;
+    for (const scope of MICROSOFT_STATIC_CAPABILITY_SCOPES[capability] ?? []) if (!scopes.includes(scope)) scopes.push(scope);
+  }
+  return scopes;
+}
+
+/** Every scope the static build may ask for: the server's minus `Mail.ReadWrite`. */
+export const MICROSOFT_STATIC_SCOPES: readonly string[] = Object.freeze(scopesFor(MICROSOFT_STATIC_CAPABILITIES));
 
 export const MICROSOFT_DISPLAY_NAME = 'Microsoft';
 export const MICROSOFT_DEFAULT_LABEL = 'Outlook.com account';
@@ -59,6 +84,8 @@ export interface AuthorizeUrlInput {
   redirectUri: string;
   state: string;
   codeChallenge: string;
+  /** The scopes to ask for ({@link scopesFor} of the services picked). */
+  scopes: readonly string[];
   /** Automatic re-sign-in: no UI at Microsoft; `login_required` comes back when it needs one. */
   silent?: boolean;
   /** Account to sign in as (its email), for the automatic re-sign-in. */
@@ -72,7 +99,7 @@ export function authorizeUrl(input: AuthorizeUrlInput): string {
     response_type: 'code',
     redirect_uri: input.redirectUri,
     response_mode: 'query',
-    scope: MICROSOFT_STATIC_SCOPES.join(' '),
+    scope: input.scopes.join(' '),
     state: input.state,
     code_challenge: input.codeChallenge,
     code_challenge_method: 'S256',
@@ -296,8 +323,8 @@ function normalizeAll(scopes: readonly string[]): string[] {
 }
 
 /** Granted scopes from the token response; an absent `scope` means the requested ones. */
-export function grantedScopes(scope: string | undefined): string[] {
-  return typeof scope === 'string' ? normalizeAll(scope.split(/\s+/)) : normalizeAll(MICROSOFT_STATIC_SCOPES);
+export function grantedScopes(scope: string | undefined, requested: readonly string[] = MICROSOFT_STATIC_SCOPES): string[] {
+  return typeof scope === 'string' ? normalizeAll(scope.split(/\s+/)) : normalizeAll(requested);
 }
 
 /** The static build only offers the calendar. */

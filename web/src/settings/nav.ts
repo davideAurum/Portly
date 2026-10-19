@@ -1,10 +1,13 @@
 /**
  * Settings sections (§10.5): hash routes `#/settings/<section>`, in navigation order.
  * Foundation implements General, Appearance, Accounts, Profiles, Import/Export and About;
- * features own Search, Bookmarks, Calendars and Todoist, and diagnostics owns Diagnostics (§17),
+ * features own Search, Bookmarks and Calendars, and diagnostics owns Diagnostics (§17),
  * which every backend shows (the in-browser one: the hybrid state and this browser's events).
  * Every backend shows every section: the in-browser one has Accounts and Calendars too
  * (Outlook.com signs in and syncs from the browser); a section adapts to what its page load can do.
+ *
+ * Todoist is a connection in Accounts; the old `#/settings/todoist` address opens it there
+ * ({@link MOVED_SETTINGS_SECTIONS}).
  */
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import {
@@ -14,7 +17,6 @@ import {
   CalendarDays,
   Info,
   Layers,
-  ListChecks,
   Palette,
   Search,
   SlidersHorizontal,
@@ -29,7 +31,6 @@ export const SETTINGS_SECTION_IDS = [
   'bookmarks',
   'accounts',
   'calendars',
-  'todoist',
   'profiles',
   'import-export',
   'diagnostics',
@@ -42,6 +43,15 @@ export const DEFAULT_SETTINGS_SECTION: SettingsSectionId = 'general';
 
 export function isSettingsSectionId(value: unknown): value is SettingsSectionId {
   return typeof value === 'string' && (SETTINGS_SECTION_IDS as readonly string[]).includes(value);
+}
+
+/** Sections that moved into another one: where they live now, and the `focus` that opens their part. */
+export const MOVED_SETTINGS_SECTIONS: Readonly<Record<string, { section: SettingsSectionId; focus: string }>> = Object.freeze({
+  todoist: { section: 'accounts', focus: 'todoist' },
+});
+
+export function movedSettingsSection(value: string | undefined): { section: SettingsSectionId; focus: string } | null {
+  return value !== undefined && Object.hasOwn(MOVED_SETTINGS_SECTIONS, value) ? (MOVED_SETTINGS_SECTIONS[value] ?? null) : null;
 }
 
 export interface SettingsSection {
@@ -59,7 +69,6 @@ export const ALL_SETTINGS_SECTIONS: readonly SettingsSection[] = Object.freeze([
   { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark, Component: lazy(() => import('./sections/Bookmarks.tsx')) },
   { id: 'accounts', label: 'Accounts', icon: UserRound, Component: lazy(() => import('./sections/Accounts.tsx')) },
   { id: 'calendars', label: 'Calendars', icon: CalendarDays, Component: lazy(() => import('./sections/Calendars.tsx')) },
-  { id: 'todoist', label: 'Todoist', icon: ListChecks, Component: lazy(() => import('./sections/Todoist.tsx')) },
   { id: 'profiles', label: 'Profiles', icon: Layers, Component: lazy(() => import('./sections/Profiles.tsx')) },
   {
     id: 'import-export',

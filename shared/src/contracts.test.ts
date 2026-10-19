@@ -19,6 +19,7 @@ import {
   HexColor,
   IcsCreateSchema,
   LayoutSchema,
+  OAUTH_PROVIDER_CAPABILITIES,
   OAuthStartSchema,
   SEARCH_ENGINE_PRESETS,
   SUGGEST_PROVIDERS,
@@ -363,6 +364,21 @@ describe('accounts & oauth payloads', () => {
     expect(OAuthStartSchema.safeParse({ returnTo: '#/settings/accounts' }).success).toBe(true);
     expect(OAuthStartSchema.safeParse({ returnTo: 'https://evil.example/' }).success).toBe(false);
     expect(OAuthStartSchema.safeParse({ returnTo: '#/settings/../x?y' }).success).toBe(false);
+  });
+
+  it('takes an optional, non-empty list of known services to ask for', () => {
+    expect(OAuthStartSchema.parse({ capabilities: ['calendar'] })).toEqual({ capabilities: ['calendar'] });
+    expect(OAuthStartSchema.parse({ accountId: 'acc-1', capabilities: ['mail', 'calendar'] }).capabilities).toEqual(['mail', 'calendar']);
+    expect(OAuthStartSchema.parse({})).toEqual({});
+    expect(OAuthStartSchema.safeParse({ capabilities: [] }).success).toBe(false);
+    expect(OAuthStartSchema.safeParse({ capabilities: ['contacts'] }).success).toBe(false);
+    expect(OAuthStartSchema.safeParse({ capabilities: 'calendar' }).success).toBe(false);
+    expect(OAuthStartSchema.safeParse({ capabilities: ['calendar', 'mail', 'calendar'] }).success).toBe(false);
+  });
+
+  it('lists the services each OAuth provider offers', () => {
+    expect(OAUTH_PROVIDER_CAPABILITIES).toEqual({ google: ['calendar', 'mail'], microsoft: ['calendar', 'mail'] });
+    expect(Object.isFrozen(OAUTH_PROVIDER_CAPABILITIES)).toBe(true);
   });
 
   it('requires a SafeHttpUrl CalDAV server', () => {

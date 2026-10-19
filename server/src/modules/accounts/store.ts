@@ -202,14 +202,17 @@ export interface NewAccountRow {
   externalId: string;
   config: Record<string, unknown>;
   capabilities: readonly Capability[];
+  /** The ones switched on (default: all of `capabilities`). */
+  enabledCapabilities?: readonly Capability[];
   grantedScopes: readonly string[] | null;
   statusMessage: string | null;
   now: number;
 }
 
-/** Inserts a new account (enabled capabilities = capabilities, status ok, placed last). */
+/** Inserts a new account (enabled capabilities = capabilities unless given, status ok, placed last). */
 export function insertAccountRow(db: Db, row: NewAccountRow): void {
   const capabilities = serializeCapabilities(row.capabilities);
+  const enabled = serializeCapabilities((row.enabledCapabilities ?? row.capabilities).filter((c) => row.capabilities.includes(c)));
   db.run(
     `INSERT INTO accounts (id, kind, label, email, external_id, config, capabilities, enabled_capabilities,
        granted_scopes, color, sort, status, status_message, created_at, updated_at)
@@ -222,7 +225,7 @@ export function insertAccountRow(db: Db, row: NewAccountRow): void {
       row.externalId,
       JSON.stringify(row.config),
       capabilities,
-      capabilities,
+      enabled,
       row.grantedScopes === null ? null : JSON.stringify(row.grantedScopes),
       nextAccountSort(db),
       row.statusMessage,

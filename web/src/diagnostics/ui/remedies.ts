@@ -42,7 +42,7 @@ export const HEALTH_REMEDIES: Readonly<Record<HealthCode, string>> = Object.free
   parse_error: 'The answer could not be read. Check that the address points to the right kind of data.',
   not_a_feed: "The address is not an RSS or Atom feed. Use the feed's own address (often linked as RSS on the site).",
   too_large: 'The answer was larger than Portly accepts. Use a smaller feed or calendar.',
-  token_rejected: 'Todoist rejected the API token. Paste a new token in Settings → Todoist.',
+  token_rejected: 'Todoist rejected the API token. Paste a new token under Todoist → Manage in Settings → Accounts.',
   storage_limit: 'This calendar was not updated: Portly already stores as many events as it keeps. Remove a very large calendar to make room.',
   truncated: 'Portly stored only part of this calendar to stay within its limits (long repeating series, malformed events). Nothing is lost at the provider.',
   vault_locked: "Saved credentials can't be unlocked. Reset them in Settings → Accounts, then reconnect your accounts.",

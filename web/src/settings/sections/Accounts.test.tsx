@@ -1,8 +1,9 @@
 /**
  * Accounts settings on the Pages site using Portly on this PC: the same page as the server build
- * (there is one Portly page, with or without the server). Signing in, OAuth app registrations,
- * app-password accounts, Reconnect and the vault reset all happen here, and nothing links out to a
- * page on this PC. (The server build is covered in `src/test/settings/Accounts.test.tsx`.)
+ * (there is one Portly page, with or without the server). Every connection tile, signing in, OAuth
+ * app registrations, app-password accounts, Reconnect and the vault reset all happen here, and
+ * nothing links out to a page on this PC. (The server build is covered in
+ * `src/test/settings/Accounts.test.tsx`.)
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -45,6 +46,7 @@ function renderAccounts(mocks: Record<string, ApiMock>) {
       'GET /api/accounts': [],
       'GET /api/oauth-clients/google': GOOGLE_CLIENT,
       'GET /api/oauth-clients/microsoft': MS_CLIENT,
+      'GET /api/todoist/token': { configured: false },
       ...mocks,
     },
   });
@@ -57,7 +59,7 @@ function expectNoLinkToThisPc(): void {
 }
 
 describe('Accounts settings with Portly on this PC', () => {
-  it('offers the OAuth app registrations and the account forms here, as the server build does', async () => {
+  it('offers every connection, the app registrations and the account forms here, as the server build does', async () => {
     const assign = vi.fn();
     vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, hash: '#/settings/accounts', assign } as Location);
     const user = userEvent.setup();
@@ -65,20 +67,35 @@ describe('Accounts settings with Portly on this PC', () => {
       'POST /api/oauth/microsoft/start': { authorizeUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?x=1' },
     });
     expect(await screen.findByText('No accounts yet')).toBeInTheDocument();
-    expect(screen.getByText(/or an IMAP mailbox below to see your calendars and mail/)).toBeInTheDocument();
-    expect(await screen.findByRole('form', { name: 'Google app registration' })).toBeInTheDocument();
-    const outlook = screen.getByRole('form', { name: 'Outlook.com app registration' });
-    expect(screen.getByRole('form', { name: 'Add a Yahoo account' })).toBeInTheDocument();
-    const accountTypes = screen.getByRole('tablist', { name: 'Account type' });
-    expect(within(accountTypes).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Yahoo', 'CalDAV calendar', 'IMAP mail']);
-    expect(screen.queryByRole('heading', { name: 'Add or reconnect accounts' })).not.toBeInTheDocument();
-    expect(requestsTo('GET /api/oauth-clients/google')).toHaveLength(1);
+    expect(screen.getByText(/or an IMAP mailbox below to see your calendars, mail and tasks/)).toBeInTheDocument();
+    const tiles = within(screen.getByRole('list', { name: 'Add a connection' })).getAllByRole('button');
+    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual([
+      'Connect Google',
+      'Connect Microsoft',
+      'Connect Yahoo',
+      'Connect Todoist',
+      'Connect another account (CalDAV or IMAP)',
+    ]);
+    expect(screen.queryByText(/need the Portly server/)).not.toBeInTheDocument();
+    const registrations = screen.getByRole('list', { name: 'App registrations' });
+    expect(within(registrations).getByRole('button', { name: 'Edit the Google app registration' })).toBeInTheDocument();
+    await waitFor(() => expect(requestsTo('GET /api/oauth-clients/google')).toHaveLength(1));
     expect(requestsTo('GET /api/oauth-clients/microsoft')).toHaveLength(1);
-    expectNoLinkToThisPc();
 
-    await user.click(within(outlook).getByRole('button', { name: 'Connect Outlook.com' }));
+    await user.click(screen.getByRole('button', { name: 'Connect Yahoo' }));
+    const yahoo = await screen.findByRole('dialog', { name: 'Connect Yahoo' });
+    await user.click(within(yahoo).getByRole('button', { name: 'Continue' }));
+    expect(within(yahoo).getByRole('form', { name: 'Add a Yahoo account' })).toBeInTheDocument();
+    expectNoLinkToThisPc();
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: 'Connect Microsoft' }));
+    const microsoft = await screen.findByRole('dialog', { name: 'Connect Microsoft' });
+    expect(within(microsoft).getByRole('checkbox', { name: /Mail/ })).toBeChecked();
+    await user.click(within(microsoft).getByRole('button', { name: 'Continue' }));
+    await user.click(within(microsoft).getByRole('button', { name: 'Sign in with Microsoft' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?x=1'));
-    expect(requestsTo('POST /api/oauth/microsoft/start')[0]!.body).toEqual({ returnTo: '#/settings/accounts' });
+    expect(requestsTo('POST /api/oauth/microsoft/start')[0]!.body).toEqual({ returnTo: '#/settings/accounts', capabilities: ['calendar', 'mail'] });
   });
 
   it('accounts that need reconnecting reconnect here via POST /api/oauth/:provider/start', async () => {
@@ -95,9 +112,10 @@ describe('Accounts settings with Portly on this PC', () => {
       'POST /api/oauth/google/start': { authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth?x=1' },
     });
     const list = await screen.findByRole('list', { name: 'Connected accounts' });
-    const [gmail, outlook, imap] = within(list).getAllByRole('listitem');
+    // The rows (each row also holds a list of its services).
+    const [gmail, outlook, imap] = Array.from(list.children) as HTMLElement[];
     expect(within(outlook!).getByRole('button', { name: 'Reconnect' })).toBeInTheDocument();
-    expect(within(imap!).getByText(/add this account again below with its current password/)).toBeInTheDocument();
+    expect(within(imap!).getByText(/add this account again under “Add a connection” with its current password/)).toBeInTheDocument();
     expect(within(imap!).queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument();
     expectNoLinkToThisPc();
 
@@ -121,5 +139,33 @@ describe('Accounts settings with Portly on this PC', () => {
     expect(requestsTo('POST /api/vault/reset')).toHaveLength(0);
     await user.click(within(confirm).getByRole('button', { name: 'Reset credentials' }));
     await waitFor(() => expect(requestsTo('POST /api/vault/reset')).toHaveLength(1));
+  });
+});
+
+describe('Accounts settings on the in-browser backend', () => {
+  it('signs in to Microsoft for the calendar only, from this browser', async () => {
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    const assign = vi.fn();
+    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, hash: '#/settings/accounts', assign } as Location);
+    const user = userEvent.setup();
+    const { requestsTo } = renderWithProviders(<AccountsSettings />, {
+      apiMocks: {
+        'GET /api/health': health(),
+        'GET /api/accounts': [],
+        'GET /api/oauth-clients/microsoft': { ...MS_CLIENT, redirectUri: 'https://user.github.io/portly/' },
+        'GET /api/todoist/token': { configured: false },
+        'POST /api/oauth/microsoft/start': { authorizeUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?x=1' },
+      },
+    });
+    await user.click(await screen.findByRole('button', { name: 'Connect Microsoft' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Connect Microsoft' });
+    expect(within(dialog).getByRole('checkbox', { name: /Calendar/ })).toBeChecked();
+    expect(within(dialog).queryByRole('checkbox', { name: /Mail/ })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    expect(within(dialog).getByText(/lasts 24 hours/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Sign in with Microsoft' }));
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+    expect(requestsTo('POST /api/oauth/microsoft/start')[0]!.body).toEqual({ returnTo: '#/settings/accounts', capabilities: ['calendar'] });
+    expect(requestsTo('GET /api/oauth-clients/google')).toHaveLength(0);
   });
 });

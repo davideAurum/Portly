@@ -8,7 +8,8 @@
  *   recurring task stays and is refetched with its next date (Todoist advances it upstream).
  * - Content is shown as plain text (markdown links → their label, never HTML); the task opens in
  *   Todoist through `safeHref`.
- * - Not set up → CTA to `#/settings/todoist`; token rejected → the same CTA; vault locked → Accounts.
+ * - Not set up → CTA to Todoist in Settings → Accounts (`#/settings/accounts?focus=todoist`); token
+ *   rejected → the same CTA; vault locked → Accounts.
  */
 import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -59,7 +60,8 @@ import {
 import styles from './Todoist.module.css';
 
 export const TODOIST_APP_URL = 'https://app.todoist.com/app/today';
-export const SETTINGS_ROUTE = '#/settings/todoist';
+/** Todoist in Settings → Accounts: its connect dialog, or its Manage dialog (token, default filter) once connected. */
+export const SETTINGS_ROUTE = '#/settings/accounts?focus=todoist';
 /** How long a changed filter must stay unchanged before it is fetched (live settings preview). */
 export const FILTER_SETTLE_MS = 600;
 
@@ -198,7 +200,7 @@ interface TasksErrorProps {
   error: unknown;
   onRetry: () => void;
   compact: boolean;
-  /** The widget has its own filter (else it uses the default filter from Settings → Todoist). */
+  /** The widget has its own filter (else it uses the default filter, set under Todoist in Settings → Accounts). */
   ownFilter: boolean;
 }
 

@@ -135,6 +135,13 @@ describe('AccountService.getAccessToken', () => {
     expect(storedRefreshToken(h, 'm1')).toBe('rt-m1-v3');
   });
 
+  it('Microsoft: a refresh asks only for the scopes of the services the account was granted', async () => {
+    seedAccount(h, { id: 'm2', kind: 'microsoft', capabilities: ['calendar'], refreshToken: 'rt-m2' });
+    h.fake.add(route(MICROSOFT_TOKEN_ENDPOINT, () => tokenOk({ access_token: 'mat', expires_in: 3600 })));
+    expect(await h.service.getAccessToken('m2')).toBe('mat');
+    expect(formsSentTo(h.fake, MICROSOFT_TOKEN_ENDPOINT)[0]?.scope).toBe('openid profile email offline_access User.Read Calendars.ReadWrite');
+  });
+
   it('invalid_grant with the stored refresh token → reauth (no further refresh attempts)', async () => {
     h.fake.add(route(GOOGLE_TOKEN_ENDPOINT, tokenError('invalid_grant')));
     await expect(h.service.getAccessToken('g1')).rejects.toMatchObject({ status: 409, code: 'reauth_required', accountId: 'g1' });

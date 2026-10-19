@@ -141,11 +141,13 @@ export function currentReturnTo(): string {
 
 /**
  * Starts the OAuth flow in the same tab (§4.7): `POST /api/oauth/:provider/start` then
- * `location.assign(authorizeUrl)` — only if the server returned an http(s) URL.
+ * `location.assign(authorizeUrl)` — only if the server returned an http(s) URL. `capabilities`
+ * are the services to ask for (a reconnect adds the account's granted ones).
  */
 export async function startOAuth(provider: OAuthProvider, options: OAuthStart = {}): Promise<void> {
   const body: OAuthStart = { returnTo: options.returnTo ?? currentReturnTo() };
   if (options.accountId !== undefined) body.accountId = options.accountId;
+  if (options.capabilities !== undefined) body.capabilities = options.capabilities;
   const { authorizeUrl } = await apiPost<OAuthStartResponse>(apiPath`/api/oauth/${provider}/start`, body);
   if (!assignLocation(authorizeUrl)) throw new Error('The server returned an invalid sign-in URL.');
 }

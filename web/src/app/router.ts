@@ -3,10 +3,11 @@
  * `#/pair?nonce=…` (the server's page approving a browser for the Pages site, hybrid mode).
  * Unknown hashes resolve to the dashboard; unknown settings sections to `general`; a pairing
  * request without a well-formed nonce keeps the `pair` route with `nonce: null` (the page explains).
+ * A section that moved (`#/settings/todoist`) resolves to its new home with its `focus`.
  */
 import { useMemo, useSyncExternalStore } from 'react';
 import { PAIRING_REQUEST_ROUTE, parsePairingRequest } from '@portly/shared';
-import { DEFAULT_SETTINGS_SECTION, isSettingsSectionId, type SettingsSectionId } from '../settings/nav.ts';
+import { DEFAULT_SETTINGS_SECTION, isSettingsSectionId, movedSettingsSection, type SettingsSectionId } from '../settings/nav.ts';
 
 export type Route = { name: 'home' } | { name: 'settings'; section: SettingsSectionId } | { name: 'pair'; nonce: string | null };
 
@@ -16,26 +17,43 @@ export function parseHash(hash: string): Route {
   const segments = pathPart.split('/').filter((s) => s.length > 0);
   if (segments[0] === 'settings') {
     const section = segments[1];
+    const moved = movedSettingsSection(section);
+    if (moved) return { name: 'settings', section: moved.section };
     return { name: 'settings', section: isSettingsSectionId(section) ? section : DEFAULT_SETTINGS_SECTION };
   }
   if (segments.length === 1 && segments[0] === 'pair') return { name: 'pair', nonce: parsePairingRequest(raw) };
   return { name: 'home' };
 }
 
-/** `#/settings/calendars?focus=ics` → `ics`: the field a settings page should start in. */
-export function hashFocus(hash: string = typeof window === 'undefined' ? '' : window.location.hash): string | null {
-  const query = hash.split('?')[1];
-  if (!query) return null;
-  const focus = new URLSearchParams(query).get('focus');
-  return focus && /^[a-z0-9-]{1,32}$/.test(focus) ? focus : null;
+/** The moved section a `#/settings/<old>` path names, if any. */
+function movedSectionOf(path: string): { section: SettingsSectionId; focus: string } | null {
+  const segments = path.replace(/^#/, '').split('/').filter((s) => s.length > 0);
+  return segments[0] === 'settings' ? movedSettingsSection(segments[1]) : null;
 }
 
-/** Drops `?focus=…` from the address once it has been acted on (a reload must not jump again). */
+/**
+ * `#/settings/calendars?focus=ics` → `ics`: the field a settings page should start in. The old
+ * address of a moved section focuses its part (`#/settings/todoist` → `todoist`).
+ */
+export function hashFocus(hash: string = typeof window === 'undefined' ? '' : window.location.hash): string | null {
+  const [path = '', query] = hash.split('?');
+  const focus = query ? new URLSearchParams(query).get('focus') : null;
+  if (focus && /^[a-z0-9-]{1,32}$/.test(focus)) return focus;
+  return movedSectionOf(path)?.focus ?? null;
+}
+
+/**
+ * Drops `?focus=…` from the address once it has been acted on (a reload must not jump again), and
+ * replaces a moved section's old address with its new one.
+ */
 export function clearHashFocus(): void {
   const url = new URL(window.location.href);
   const [path] = url.hash.split('?');
-  if (path === undefined || path === url.hash) return;
-  url.hash = path;
+  if (path === undefined) return;
+  const moved = movedSectionOf(path);
+  const next = moved ? `#/settings/${moved.section}` : path;
+  if (next === url.hash) return;
+  url.hash = next;
   window.history.replaceState(window.history.state, '', url);
 }
 

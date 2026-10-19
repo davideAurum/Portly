@@ -246,6 +246,13 @@ describe('migrations', () => {
     }
   });
 
+  it('applies 005_oauth_state_capabilities: a nullable capabilities column on oauth_states', () => {
+    expect(migrate(db)).toContain('005_oauth_state_capabilities.sql');
+    const cols = db.all<{ name: string; notnull: number }>('PRAGMA table_info(oauth_states)');
+    expect(cols.map((c) => c.name)).toEqual(['state', 'provider', 'code_verifier', 'account_id', 'return_to', 'created_at', 'expires_at', 'capabilities']);
+    expect(cols.find((c) => c.name === 'capabilities')?.notnull).toBe(0);
+  });
+
   describe('004_beacon_defaults', () => {
     /** Migrates up to 003 only, stores `appearance`, then runs every remaining migration. */
     function upgradeFrom003(appearance: unknown): Theme {

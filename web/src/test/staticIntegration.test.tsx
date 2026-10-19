@@ -415,18 +415,25 @@ describe('static build: server-only features', () => {
     expect(screen.queryByText("Can't reach the Portly server")).not.toBeInTheDocument();
   });
 
-  it('offers Outlook.com alone on the Accounts page, with this site as the single-page-app redirect URI', async () => {
+  it('offers Microsoft (calendar only) and Todoist on the Accounts page, with this site as the single-page-app redirect URI', async () => {
+    const user = userEvent.setup();
     const { requestsTo } = await renderWithStaticBackend(<Shell />, { route: '#/settings/accounts' });
     expect(await screen.findByText('No accounts yet')).toBeInTheDocument();
-    expect(screen.getByText('Connect Outlook.com below to see your calendars.')).toBeInTheDocument();
-    expect(await screen.findByRole('form', { name: 'Outlook.com app registration' })).toBeInTheDocument();
-    expect(screen.getByText('Single-page application')).toBeInTheDocument();
-    expect(screen.queryByRole('form', { name: 'Google app registration' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Other accounts')).not.toBeInTheDocument();
+    expect(screen.getByText('Connect Microsoft (Outlook.com) or Todoist below to see your calendars and tasks.')).toBeInTheDocument();
+    const tiles = within(screen.getByRole('list', { name: 'Add a connection' })).getAllByRole('button');
+    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Microsoft', 'Connect Todoist']);
+    expect(within(tiles[0]!).getByText('Outlook.com calendar')).toBeInTheDocument();
+    expect(screen.getByText('Google, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.')).toBeInTheDocument();
     expect(screen.queryByText("Saved credentials can't be unlocked")).not.toBeInTheDocument();
-    expect(requestsTo('GET /api/oauth-clients/microsoft')).toEqual([{ method: 'GET', path: '/api/oauth-clients/microsoft', search: '', status: 200 }]);
+    expect(within(screen.getByRole('list', { name: 'App registrations' })).getAllByRole('listitem')).toHaveLength(1);
+
+    await user.click(tiles[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Connect Microsoft' });
+    expect(await within(dialog).findByRole('form', { name: 'Microsoft app registration' })).toBeInTheDocument();
+    expect(within(dialog).getByText('Single-page application')).toBeInTheDocument();
+    expect(requestsTo('GET /api/oauth-clients/microsoft')[0]).toEqual({ method: 'GET', path: '/api/oauth-clients/microsoft', search: '', status: 200 });
     expect(requestsTo('GET /api/oauth-clients/google')).toHaveLength(0);
-    expect(screen.getByRole('button', { name: 'Connect Outlook.com' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Save and continue' })).toBeDisabled();
   });
 
   it('renders the notice frame for a mail instance in a persisted layout, next to working widgets', async () => {
