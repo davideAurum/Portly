@@ -53,11 +53,12 @@
   background: var(--dot);
 }
 
-/* A probe in flight: the dot breathes (not when the user asked for less motion). */
+/* A probe in flight: the dot breathes a few times (not when the user asked for less motion).
+   Finite: an endless pulse keeps the GPU producing frames. Waiting for the browser's permission
+   can last indefinitely, so that state shows a steady dot. */
 .trigger[data-status='checking'] .dot,
-.trigger[data-status='reconnecting'] .dot,
-.trigger[data-status='waiting-permission'] .dot {
-  animation: hb-local-server-pulse 1.4s ease-in-out infinite;
+.trigger[data-status='reconnecting'] .dot {
+  animation: hb-local-server-pulse 1.4s ease-in-out 3;
 }
 
 @media (prefers-reduced-motion: reduce) {

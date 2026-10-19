@@ -77,7 +77,7 @@
   padding: 8px var(--hb-space-2);
   border-radius: var(--hb-radius-md);
   transition:
-    background var(--hb-duration) var(--hb-ease),
+    background var(--hb-hover-duration) var(--hb-ease),
     opacity var(--hb-duration) var(--hb-ease);
 }
 
@@ -141,7 +141,7 @@
   height: 11px;
   stroke-width: 3;
   opacity: 0;
-  transition: opacity var(--hb-duration) var(--hb-ease);
+  transition: opacity var(--hb-hover-duration) var(--hb-ease);
 }
 
 .check:hover svg,

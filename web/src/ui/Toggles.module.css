@@ -165,7 +165,7 @@
   white-space: nowrap;
   transition:
     background-color var(--hb-duration) var(--hb-ease),
-    color var(--hb-duration) var(--hb-ease),
+    color var(--hb-hover-duration) var(--hb-ease),
     box-shadow var(--hb-duration) var(--hb-ease);
 }
 

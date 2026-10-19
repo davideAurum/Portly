@@ -10,6 +10,7 @@
 import { qk } from '../api/keys.ts';
 import type { Backend } from '../capabilities.ts';
 import { applyTheme } from './applyTheme.ts';
+import { readFrostedGlass } from './glassPreference.ts';
 
 interface PersistedClient {
   buster?: unknown;
@@ -49,7 +50,7 @@ export function applyPersistedTheme(snapshot: string | PersistedSnapshotRef, sto
     const query = persisted.clientState?.queries?.find((q) => JSON.stringify(q.queryKey) === key);
     const data = query?.state?.data;
     if (typeof data !== 'object' || data === null || !('appearance' in data)) return false;
-    return applyTheme((data as { appearance: unknown }).appearance);
+    return applyTheme((data as { appearance: unknown }).appearance, document.documentElement, { frostedGlass: readFrostedGlass(storage) });
   } catch {
     return false;
   }

@@ -62,6 +62,28 @@ describe('Appearance settings', () => {
     expect(screen.queryByText('Choose an image or drop it here')).toBeNull();
   });
 
+  it('frosted glass is off by default and is a setting of this browser, not of the synced theme', async () => {
+    const server = createFakeServer([]);
+    server.settings.appearance.background = { type: 'image', uploadId: '8f654906-1111-4111-8111-111111111111', blur: 0, dim: 0.2 };
+    const { requestsTo } = renderWithProviders(<WithTheme />, { apiMocks: server.mocks });
+    const user = userEvent.setup();
+    const toggle = await screen.findByRole('switch', { name: /Frosted glass/ });
+    expect(toggle).not.toBeChecked();
+    await waitFor(() => expect(document.documentElement.getAttribute('data-glass')).toBe('clear'));
+
+    await user.click(toggle);
+    await waitFor(() => expect(document.documentElement.getAttribute('data-glass')).toBe('frosted'));
+    expect(window.localStorage.getItem('portly:frosted-glass')).toBe('1');
+
+    // Reset appearance turns it off too.
+    await user.click(screen.getByRole('button', { name: 'Reset appearance to defaults' }));
+    expect(window.localStorage.getItem('portly:frosted-glass')).toBeNull();
+    expect(toggle).not.toBeChecked();
+    await waitFor(() => expect(requestsTo('PATCH /api/settings')).toHaveLength(1));
+    expect(requestsTo('PATCH /api/settings')[0]!.body).toEqual({ appearance: null });
+    expect(server.settings.appearance).not.toHaveProperty('frostedGlass');
+  });
+
   it('edits gradient stops within the 2–5 bounds', async () => {
     const server = createFakeServer([]);
     renderWithProviders(<WithTheme />, { apiMocks: server.mocks });
@@ -116,7 +138,12 @@ describe('Appearance on the Portly server on this PC (Pages build, hybrid mode)'
     await waitFor(() => expect(fake.load).toHaveBeenCalledWith(uploadUrl(uploadId)));
 
     act(() => fake.finish(uploadUrl(uploadId), 'blob:http://pages.example/photo'));
-    await waitFor(() => expect(document.documentElement.style.getPropertyValue('--hb-backdrop')).toBe('url("blob:http://pages.example/photo")'));
+    // The dim (0.3) is a dark layer over the photo.
+    await waitFor(() =>
+      expect(document.documentElement.style.getPropertyValue('--hb-backdrop')).toBe(
+        'linear-gradient(rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.3)), url("blob:http://pages.example/photo")',
+      ),
+    );
     expect(container.querySelector('img')).toHaveAttribute('src', 'blob:http://pages.example/photo');
     expect(document.documentElement.style.cssText).not.toContain('/api/uploads/');
   });

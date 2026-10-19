@@ -340,6 +340,27 @@ with the Diagnostics page and the logs. A few more:
 | The installer warns about a temporary `node.exe` path | You use a Node version manager whose shims live in a per-shell temp folder (e.g. fnm). Pass a permanent path: `-NodePath 'C:\path\to\node.exe'`. |
 | `Stop-ScheduledTask` didn't stop Portly | It only ends the hidden console host. Use `uninstall-autostart.ps1`, or re-run the installer to restart it. |
 
+## The page or the mouse stutters
+
+Portly is built to use very little of your graphics card, but a few appearance choices cost more,
+especially on 4K or high-DPI screens:
+
+- **Frosted glass** (**Settings → Appearance**) blurs your photo live behind widgets, menus and
+  the header, and the graphics card redraws that blur whenever anything on the page moves. It is
+  off unless you turned it on, and it is saved per browser (the Pages site and `localhost:5757`
+  each have their own). Turn it off if the page or the mouse stutters.
+- A photo's **Blur** is prepared once, so any value is fine. The page only uses a live blur for a
+  moment while the photo loads or while you drag the slider.
+- An animated background (GIF or animated WebP) with **Blur** at 0 redraws the whole window on
+  every frame. Use a still photo. (With a blur above 0 it shows its first frame and stands still.)
+
+To see what Portly costs, press **Shift+Esc** in Chrome or Edge: the browser's own Task Manager
+lists each Portly tab with its CPU and memory, and a separate **GPU Process** row for the drawing
+of every tab. Switch between a Portly tab and a plain page while you watch: if the GPU Process and
+the Portly tab calm down away from Portly, Portly's drawing is the cause. If they stay quiet while
+the mouse still stutters, the cause is elsewhere: in Windows Task Manager, open **Details** and
+sort by **CPU** or **GPU** to see which program is busy at that moment.
+
 ## Weather and your location
 
 The Weather widget asks the browser for your location only when you click **Use my location**
