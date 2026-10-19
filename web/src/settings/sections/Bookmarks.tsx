@@ -1,9 +1,9 @@
 /**
  * Settings → Bookmarks (§10.8), top to bottom: group management (create, rename/color, reorder,
- * delete); one import & export card (import from the Chrome/Edge profiles found on this PC or from
- * an exported HTML bookmark file, with a report of what was imported and skipped; export every
- * group as a bookmark HTML file); and the `bookmarks` settings namespace (default group for new
- * bookmarks, automatic website icons).
+ * delete); the `bookmarks` settings namespace (default group for new bookmarks, automatic website
+ * icons); and one import & export card (import from the Chrome/Edge profiles found on this PC or
+ * from an exported HTML bookmark file, with a report of what was imported and skipped; export every
+ * group as a bookmark HTML file).
  */
 import { useId, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, FileUp, FolderPlus, Globe, Pencil, RefreshCw, Trash } from 'lucide-react';
@@ -47,9 +47,9 @@ export default function BookmarksSettings() {
   return (
     <div className={styles.stack}>
       <GroupsCard />
+      <PreferencesCard />
       <ImportExportCard onReport={(source, r) => setReport({ source, report: r })} />
       {report ? <ImportReport source={report.source} report={report.report} onDismiss={() => setReport(null)} /> : null}
-      <PreferencesCard />
     </div>
   );
 }

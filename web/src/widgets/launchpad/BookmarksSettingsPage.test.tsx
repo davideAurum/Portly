@@ -39,11 +39,11 @@ function setup(extra: Record<string, unknown> = {}) {
 }
 
 describe('Settings → Bookmarks', () => {
-  it('shows groups first, then import and export together in one card, then preferences', async () => {
+  it('shows groups first, then preferences, then import and export together in one card', async () => {
     setup();
     await screen.findByRole('list', { name: 'Bookmark groups' });
     const cards = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
-    expect(cards).toEqual(['Groups', 'Import & export bookmarks', 'Preferences']);
+    expect(cards).toEqual(['Groups', 'Preferences', 'Import & export bookmarks']);
     const card = screen.getByRole('button', { name: 'Import file' }).closest('section');
     expect(card).not.toBeNull();
     expect(within(card!).getByRole('button', { name: 'Export bookmarks' })).toBeInTheDocument();

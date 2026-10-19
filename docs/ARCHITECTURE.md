@@ -978,8 +978,8 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   letter (+ color). Group CRUD with color and collapse. Reorder within/across groups with @dnd-kit (pointer + keyboard)
   **in edit mode** via `POST /api/bookmarks/:id/move` (the edit board and the dialogs are separate chunks, preloaded
   when the browser is idle, so the view chunk carries no @dnd-kit). Empty state links to import (`#/settings/bookmarks`).
-  Ctrl/middle-click opens a new tab. Bookmarks settings, top to bottom: manage groups; one import & export card
-  (import Chrome/Edge/HTML, export a bookmark HTML file); preferences.
+  Ctrl/middle-click opens a new tab. Bookmarks settings, top to bottom: manage groups; preferences; one import &
+  export card (import Chrome/Edge/HTML, export a bookmark HTML file).
 - **Calendar** — config `{view: 'agenda'|'week'|'month', days: 1–14, calendarIds: 'visible'|string[], showDeclined}`;
   agenda default; "now" marker, all-day row, multi-day spans. Event popover: time, location, plain-text description,
   Join (meetingUrl), Open in provider, Edit/Delete when editable. "+" opens EventDialog (title, writable calendar default
