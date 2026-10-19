@@ -9,8 +9,9 @@ a server.
 folder Microsoft gives each app (`/me/drive/special/approot`). Every browser that turns sync on
 reads that file, merges it with its own copy and writes the result back. There is still no
 Portly cloud service: the data goes only to a provider the user connects (README, ARCHITECTURE
-section 4), with the Outlook.com sign-in the site already has for calendars. Nothing in this
-design needs a new dependency.
+section 4), with the Outlook.com sign-in the site already has for calendars. Sync is a service the
+user ticks on a Microsoft connection, next to the calendar, not a setting of its own. Nothing in
+this design needs a new dependency.
 
 What it reuses from the Outlook.com calendar support:
 - the PKCE sign-in as a single-page app with no secret
@@ -24,12 +25,18 @@ item 2). Sync depends on it, so the first phase below is a spike that does that 
 
 ## 1. What the user gets
 
-- In **Settings → Sync** they pick one of the Outlook.com accounts connected in this browser and
-  turn sync on. Microsoft asks once for the new permission (section 3).
+- In **Settings → Accounts**, a Microsoft connection offers **Launch pad sync** as one of its
+  services, next to **Calendar**. The user ticks it when adding the connection, or later on a
+  connection they already have. Microsoft asks once for the permission it needs (section 3).
 - Groups, bookmarks and custom icons then follow them to every browser and PC where they open
-  the site and turn sync on with the same Microsoft account.
+  the site and tick the service on a connection to the same Microsoft account.
 - Changes arrive when a page loads or gets focus, and while it stays open. There is no
   background job: a browser with no Portly tab open does nothing.
+
+The Accounts page is being redesigned in another session: connected accounts at the top, then
+"Add a connection" with a tile per provider, and a dialog per tile where the user picks the
+services to use. That redesign is out of scope here. Sections 3 and 10 say what sync needs from
+it.
 
 ## 2. Where the data lives in OneDrive
 
@@ -51,39 +58,56 @@ OneDrive / Apps / <app registration name> /      (approot, created by Microsoft 
   download them again.
 - **In the browser,** a new slice, `launchpad-sync`, holds the sync state. Like the accounts, it
   is never exported. It contains:
-  - the sync account's id and the clock (6.1);
+  - the id of the connection that has the service on, and the clock (6.1);
   - the file's `epoch` and the `eTag`/`cTag` last merged;
   - when this browser last synced and last checked;
   - the "changes waiting" flag (section 7) and the backoff state.
 
-## 3. Permission and consent
+## 3. The service, its permission and consent
 
-**Decision:** request `Files.ReadWrite.AppFolder`, only for the account the user picks for sync.
-It reaches the app folder and nothing else in OneDrive. `Files.ReadWrite` (the whole drive) is
-not needed and is not requested.
+**Decision:** launch pad sync is a service of a Microsoft connection, **Launch pad sync**, and it
+maps to one scope, `Files.ReadWrite.AppFolder`. That scope reaches the app folder and nothing else
+in OneDrive. `Files.ReadWrite` (the whole drive) is not needed and is not requested.
 
-- **Scopes per account.** `MICROSOFT_STATIC_SCOPES` stays the calendar set. A new
-  `scopesFor(account)` adds `Files.ReadWrite.AppFolder` when that account is the sync account.
-  It is used by `authorizeUrl()`, by the refresh in `accounts.ts` and by the automatic
-  `prompt=none` re-sign-in (`planSilentReauth`). Microsoft only accepts a refresh whose scopes
-  are the ones of the original sign-in or fewer, so the refresh may not ask for the new scope
-  until a sign-in has asked for it.
-- **Existing accounts re-consent by reconnecting.** Turning sync on with an account whose
-  `grantedScopes` lacks `files.readwrite.appfolder` explains the new permission, then starts the
-  normal reconnect (`POST /api/oauth/microsoft/start {accountId, returnTo: '#/settings/sync'}`)
-  with the larger scope set. Microsoft asks for the new permission only (incremental consent).
+- **Services map to scopes.** On a Microsoft connection in the browser-only build:
+  - **Calendar** → `Calendars.ReadWrite`;
+  - **Launch pad sync** → `Files.ReadWrite.AppFolder`.
+
+  A sign-in asks for the sign-in scopes (`openid profile email offline_access User.Read`) plus
+  those of the ticked services, and nothing else. `MICROSOFT_STATIC_SCOPES` becomes this map. A
+  new `scopesFor(account)` builds the set, and `authorizeUrl()`, the refresh in `accounts.ts` and
+  the automatic `prompt=none` re-sign-in (`planSilentReauth`) all use it. Microsoft only accepts a
+  refresh whose scopes are the ones of the original sign-in or fewer. So the refresh may not ask
+  for a service's scope until a sign-in has asked for it.
+- **Ticking the service on an existing connection is incremental consent.** If the connection's
+  `grantedScopes` lacks `files.readwrite.appfolder`, the dialog explains the new permission, then
+  starts the normal reconnect (`POST /api/oauth/microsoft/start {accountId, returnTo}`, back to
+  `#/settings/accounts`) with the larger scope set. Microsoft asks for the new permission only.
   The existing `different_account` rule applies: signing in as someone else doesn't change the
-  account.
-- **Accounts used only for calendars never see the prompt.** Their sign-in and refresh requests
-  keep today's scopes. One limit: consent is stored per Microsoft account and app registration,
-  not per browser. Once any browser has granted it, Microsoft may put the scope into tokens that
-  other browsers request for the same account (spike item). This only matters for the account
-  the user chose for sync, and the scope still reaches only the app folder.
-- **Turning sync off** stops using the scope but doesn't withdraw the consent. The docs will
-  explain how to do that at <https://account.live.com/consent/Manage>. Removing the account in
-  Settings → Accounts turns sync off.
-- **No new shared capability.** `Capability` is a shared contract the server uses too. The sync
-  settings record which account is used, and Settings → Accounts reads them to label that card.
+  connection.
+- **Connections without the service never ask for it.** A calendar-only connection keeps today's
+  scopes, and a connection can have sync without the calendar. One limit: consent is stored per
+  Microsoft account and app registration, not per browser. Once any browser has granted it,
+  Microsoft may put the scope into tokens that other browsers request for the same account (spike
+  item). This only matters for an account the user has ticked sync on somewhere, and the scope
+  still reaches only the app folder.
+- **One connection per browser.** A browser has one launch pad, so at most one of its
+  connections has the service on. Ticking it on a second Microsoft connection offers to move it.
+  Moving counts as a first sync with that account's file (6.6).
+- **Unticking the service** stops sync in this browser. It keeps the local data and the file,
+  and it doesn't withdraw the consent: the docs will explain how to do that at
+  <https://account.live.com/consent/Manage>. Removing the connection unticks it.
+- **What sync needs from the Accounts redesign:**
+  - a service id (`launchpadSync`) with its scope, in the service list of Microsoft connections;
+  - a per-connection on/off, stored in this browser;
+  - room on the connection's card for the service's status line (section 10).
+
+  Whether services are stored in the existing `capabilities`/`enabledCapabilities` fields (a new
+  shared `Capability` value) or in a new list is the redesign's decision. Sync's own state stays
+  in its slice (section 2).
+- **Offered only where it can run.** The service is offered when this page's data lives in the
+  browser (the `launchpadSync` capability, section 9). On a server-backend page and in the
+  server build it shows as unavailable, with a one-line reason.
 - **Work and school accounts stay out.** They are "not planned" (ARCHITECTURE section 1), the
   `/consumers` authority stays hard-coded, and the app folder permission is documented for
   personal accounts.
@@ -271,7 +295,7 @@ that is more than 30 days old.
      the new file.
 - **The file disappeared** (the user deleted the folder) after this browser had synced: it is
   treated as empty, never as "everything was deleted". The browser uploads its launch pad again
-  and Settings says so.
+  and the service's status line says so.
 
 ### 6.7 Import and safety backups
 
@@ -337,9 +361,9 @@ reads the token (ARCHITECTURE section 4.1). So the file is checked exactly like 
   failed to download for a network reason stops the round instead, to try again later.
 - **Graph's answers** (`id`, `eTag`, `cTag`, `size`, download URL) are parsed with zod too. The
   download URL must pass the host check in section 4.
-- **A refused file** changes nothing locally and is not overwritten. Settings shows "The synced
-  copy could not be read" with **Replace it with this browser's launch pad**. A Diagnostics event
-  records the reason code.
+- **A refused file** changes nothing locally and is not overwritten. The service's status line
+  shows "The synced copy could not be read" with **Replace it with this browser's launch pad**. A
+  Diagnostics event records the reason code.
 - **Logs** (section 17) never contain titles, URLs, ids, eTags, download URLs or tokens.
 
 ## 9. Hybrid mode
@@ -348,10 +372,11 @@ reads the token (ARCHITECTURE section 4.1). So the file is checked exactly like 
   section 16), and the sync engine is part of that in-browser backend. So no sync runs on such a
   load, and the server's launch pad isn't synced: the two datasets stay separate, as section 16
   already says.
-- A new per-load capability, `launchpadSync`, is true only when `backend === 'browser'`.
-  **Settings → Sync** still shows on every backend (the rule in section 16). On the server
-  backend it says: "This page uses Portly on this PC. Its launch pad isn't synced. Sync runs when
-  the site uses this browser's own data."
+- A new per-load capability, `launchpadSync`, is true only when `backend === 'browser'`. On a
+  server-backend page, the Accounts page shows the service on Microsoft connections as
+  unavailable: "This page uses Portly on this PC. Its launch pad isn't synced. Sync runs when the
+  site uses this browser's own data." (The connections listed there are the server's, so a
+  browser connection with sync on isn't shown on such a load anyway.)
 - Changes waiting from an earlier browser-backend load stay flagged and go up at the next such
   load. A switch back to the browser backend (the server went away) syncs like any page load.
 - **Later, not in this design:** the server could join the same file. When it signs in with the
@@ -359,25 +384,27 @@ reads the token (ARCHITECTURE section 4.1). So the file is checked exactly like 
   sees the same app folder. It would need the scope, a drive client behind `safe-fetch.ts` with
   the content hosts in its provider policy, and the merge code from `shared/`.
 
-## 10. Settings, Diagnostics and docs
+## 10. The Accounts page, Diagnostics and docs
 
-**Settings → Sync** (`#/settings/sync`, a new section between Import & export and Diagnostics):
-- Off: what sync does and where the data goes, an account picker (the Outlook.com accounts in
-  this browser, or a link to **Accounts** when there are none) and **Turn on sync**. Then the
-  permission step (section 3) and, if needed, the first-sync choice (6.6).
-- On, it shows:
-  - the account;
+The Accounts redesign itself is out of scope. Sync adds these pieces to it:
+- **In the connection dialog** (the Microsoft tile, or adding a service to a connection): a
+  **Launch pad sync** checkbox next to **Calendar**, with one line on what it does and where the
+  data goes: "Keeps your launch pad the same in every browser where you turn this on. Stored in
+  your OneDrive, in Apps → <app registration name>." Then the permission step (section 3) and,
+  after the sign-in, the first-sync choice when needed (6.6).
+- **On the connected account's card,** a status line for the service, with details on click:
   - **Last synced**, with when a change last came in and went out;
   - a status: *Up to date*, *Syncing*, *Changes waiting to upload*, *Paused: reconnect the
     account*, *Stopped: written by a newer Portly*, or *Error* with **Open Diagnostics**;
-  - **Sync now** and **Turn off sync in this browser** (which keeps the local data and the
-    file);
+  - **Sync now**;
   - where the folder is: OneDrive → Apps → `<app registration name>`.
-- Elsewhere:
-  - **Accounts:** the sync account's card says it is also used for sync, and removing it warns
-    that sync turns off.
-  - **Import & export:** the preview warns that an import replaces the launch pad everywhere.
-    The backups list shows *Before sync*.
+
+  Unticking the service turns sync off in this browser and keeps the local data and the file.
+  Removing the connection warns that sync stops.
+- **Settings → Bookmarks:** one line, "Synced through <account>" with a link to it, or "Not
+  synced" with a link to Accounts, so the feature can be found from the launch pad's side too.
+- **Import & export:** the preview warns that an import replaces the launch pad everywhere. The
+  backups list shows *Before sync*.
 - **Diagnostics:** a new browser event category, `sync` (`CLIENT_EVENT_CATEGORIES` in
   `shared/src/diagnostics.ts`). Allowlisted fields:
   - `trigger`, `outcome`, `phase`, `ms`;
@@ -397,7 +424,8 @@ reads the token (ARCHITECTURE section 4.1). So the file is checked exactly like 
     hosts) | Launch pad sync, when turned on | the launch pad file and icons, read on each check
     and written after changes, with the account's access token".
 - `docs/setup/microsoft.md`:
-  - `Files.ReadWrite.AppFolder` as an optional permission in step 4;
+  - `Files.ReadWrite.AppFolder` as an optional permission in step 4, used only when the
+    **Launch pad sync** service is ticked;
   - in the browser-only section: use the same Application (client) ID in every browser, where
     the folder is and why its name follows the registration, and how to withdraw the permission.
 - `docs/ARCHITECTURE.md`:
@@ -406,7 +434,7 @@ reads the token (ARCHITECTURE section 4.1). So the file is checked exactly like 
     app folder;
   - section 16: the Pages CSP's `connect-src`, sync only on the browser backend, the
     `launchpadSync` capability, and the sync state in the storage table;
-  - section 10.5: the new settings section;
+  - section 10.5: the Launch pad sync service on Microsoft connections;
   - section 17: the `sync` events.
 - README: one line under the browser-only build.
 
@@ -444,9 +472,11 @@ Rough working days for one developer, tests included.
    triggers, the lock, the "changes waiting" flag, backoff and safety backups. Tests with
    `createFakeFetch()`: a `412` race, the first upload's `404`, a hostile file, a newer version,
    an oversized file, a missing file.
-4. **Accounts and UI, 2 days:** scopes per account, the consent step, Settings → Sync, the
-   first-sync dialog, the import warning, the Accounts card, the `sync` event category and the
-   CSP.
+4. **Accounts and UI, 2 days:** scopes per service, the consent step, the service's checkbox
+   and status line, the first-sync dialog, the Bookmarks pointer, the import warning, the `sync`
+   event category and the CSP. This plugs into the redesigned Accounts page. If sync is built
+   first, the same checkbox and status line go on today's Outlook.com card and move with the
+   redesign.
 5. **Docs and a two-browser test, 1 day:** the docs in section 10, then a real test with two
    browsers (or two PCs) on one account.
 
@@ -466,6 +496,6 @@ joining the sync.
 - **The first-sync default:** "Use the synced launch pad", and is "Combine both" with matching
   by group name and URL worth having?
 - **Tombstones kept 90 days:** long enough for a PC that is rarely used?
-- **A sync-only connection without calendar permission?** As proposed, sync adds its scope to an
-  account that also has the calendar permission.
+- **One connection per browser for sync** (section 3), or should a browser be able to sync with
+  two Microsoft accounts? Two would mean two launch pads to merge into one.
 - **Safety backups:** share the 3 backup slots with imports, or keep one slot for sync?
