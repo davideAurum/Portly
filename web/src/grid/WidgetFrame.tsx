@@ -5,8 +5,12 @@
  * read; `setConfig` merges a patch into the latest cached config, validates it and PATCHes the
  * instance (never the whole layout). Unknown widget types render a placeholder; a type this page
  * load cannot run (mail and feeds on the in-browser backend) renders `ServerOnlyNotice`.
+ *
+ * The frame is memoized: the grid passes the same callbacks on every render (they take the
+ * instance), so a re-render of the grid (a dialog opening, a profiles or settings refetch) does
+ * not re-render every widget.
  */
-import { Suspense, useCallback, useId, useMemo, useState, type KeyboardEvent } from 'react';
+import { Suspense, memo, useCallback, useId, useMemo, useState, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { CircleAlert, GripVertical, RefreshCw, Settings2, Trash } from 'lucide-react';
 import type { WidgetInstance } from '@portly/shared';
@@ -31,13 +35,13 @@ export interface WidgetFrameProps {
   /** Profile the widget belongs to (null for the unsaved default layout). */
   profileId: string | null;
   editMode: boolean;
-  onOpenSettings?: (options?: { focus?: string }) => void;
-  onRemove?: () => void;
+  onOpenSettings?: (instanceId: string, options?: { focus?: string }) => void;
+  onRemove?: (instance: WidgetInstance) => void;
   /** Keyboard move/resize from the drag handle (arrows / Shift+arrows). */
-  onKeyboardEdit?: (key: MoveKey, resize: boolean) => void;
+  onKeyboardEdit?: (instance: WidgetInstance, key: MoveKey, resize: boolean) => void;
 }
 
-export function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onRemove, onKeyboardEdit }: WidgetFrameProps) {
+export const WidgetFrame = memo(function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onRemove, onKeyboardEdit }: WidgetFrameProps) {
   const definition = getWidgetDefinition(instance.type);
   const [actionsTarget, setActionsTarget] = useState<HTMLElement | null>(null);
   const moveHelpId = useId();
@@ -54,7 +58,7 @@ export function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onR
       instanceId: instance.id,
       title,
       openSettings: (options) => {
-        if (canOpenSettings) onOpenSettings?.(options);
+        if (canOpenSettings) onOpenSettings?.(instance.id, options);
       },
       canOpenSettings,
       actionsTarget,
@@ -65,7 +69,7 @@ export function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onR
   const onHandleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!onKeyboardEdit || !isMoveKey(event.key)) return;
     event.preventDefault();
-    onKeyboardEdit(event.key, event.shiftKey);
+    onKeyboardEdit(instance, event.key, event.shiftKey);
   };
 
   return (
@@ -105,13 +109,13 @@ export function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onR
                 size="sm"
                 aria-label={`${title} settings`}
                 className={styles.hoverAction}
-                onClick={() => onOpenSettings?.()}
+                onClick={() => onOpenSettings?.(instance.id)}
               />
             ) : null}
             {editMode ? (
               <div className={styles.editActions}>
-                {canOpenSettings ? <IconButton icon={Settings2} size="sm" aria-label={`${title} settings`} onClick={() => onOpenSettings?.()} /> : null}
-                {onRemove ? <IconButton icon={Trash} size="sm" aria-label={`Remove ${title}`} onClick={onRemove} /> : null}
+                {canOpenSettings ? <IconButton icon={Settings2} size="sm" aria-label={`${title} settings`} onClick={() => onOpenSettings?.(instance.id)} /> : null}
+                {onRemove ? <IconButton icon={Trash} size="sm" aria-label={`Remove ${title}`} onClick={() => onRemove(instance)} /> : null}
               </div>
             ) : null}
           </header>
@@ -119,7 +123,7 @@ export function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onR
           <div className={styles.floatingActions}>
             <div className={styles.actions} ref={setActionsTarget} data-widget-actions="" />
             {canOpenSettings ? (
-              <IconButton icon={Settings2} size="sm" aria-label={`${title} settings`} className={styles.hoverAction} onClick={() => onOpenSettings?.()} />
+              <IconButton icon={Settings2} size="sm" aria-label={`${title} settings`} className={styles.hoverAction} onClick={() => onOpenSettings?.(instance.id)} />
             ) : null}
           </div>
         )}
@@ -140,7 +144,7 @@ export function WidgetFrame({ instance, profileId, editMode, onOpenSettings, onR
       </section>
     </WidgetFrameContext.Provider>
   );
-}
+});
 
 interface KnownWidgetBodyProps {
   instance: WidgetInstance;

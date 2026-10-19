@@ -221,13 +221,20 @@ export function useHealthHistory(key: string | null, options: DiagnosticsQueryOp
   });
 }
 
-/** Switches verbose logging; the summary shows the new level at once, then everything refetches. */
+/**
+ * Switches verbose logging; the summary shows the new level at once, then everything refetches.
+ * When the browser's events are now wanted at debug level, this page's upload asks the server at
+ * once (it otherwise asks only once per page load, `diagnostics/upload.ts`).
+ */
 export function useSetLogLevel() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (body: SetLogLevelInput) => setLogLevel(body),
     onSuccess: async (logLevel) => {
       client.setQueryData<DiagnosticsSummary>(qk.diagnostics.summary(), (summary) => (summary === undefined ? summary : { ...summary, logLevel }));
+      if (logLevel.verbose && (logLevel.areas === null || logLevel.areas.includes('client'))) {
+        void import('../diagnostics/upload.ts').then((upload) => upload.askAboutDebugEventsAgain()).catch(() => undefined);
+      }
       await client.invalidateQueries({ queryKey: qk.diagnostics.all() });
     },
   });

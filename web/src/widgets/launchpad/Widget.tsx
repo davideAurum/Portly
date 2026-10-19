@@ -8,8 +8,10 @@
  *
  * Only the view board is in this chunk (PERF-1): the edit board (@dnd-kit) and the dialogs are
  * separate chunks, loaded when the browser is idle after the first render (or when first needed).
+ * The view board's tiles are memoized with stable callbacks, so opening a dialog or a refetch that
+ * changes nothing does not re-render every tile.
  */
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ellipsis, FolderInput, Import, LayoutGrid, Pencil, Plus, Trash } from 'lucide-react';
 import type { Bookmark, BookmarkGroup } from '@portly/shared';
@@ -94,25 +96,28 @@ export default function LaunchpadWidget({ config, editMode, size }: WidgetProps<
   const query = useBookmarks();
   const settings = useSettings();
   const client = useQueryClient();
-  const remove = useDeleteBookmark();
+  const { mutate: removeBookmark } = useDeleteBookmark();
   const [dialog, setDialogState] = useState<DialogState>(null);
   // A dialog is mounted from its first opening on (so it can animate closed), not before.
   const [mounted, setMounted] = useState<ReadonlySet<DialogFamily>>(() => new Set());
-  const setDialog = (next: DialogState) => {
+  const setDialog = useCallback((next: DialogState) => {
     setDialogState(next);
     if (next) {
       const family = familyOf(next);
       setMounted((current) => (current.has(family) ? current : new Set([...current, family])));
     }
-  };
+  }, []);
 
   usePreloadLazyParts();
 
-  const deleteBookmark = (bookmark: Bookmark) => {
-    remove.mutate(bookmark, {
-      onSuccess: () => toastUndo(`Deleted “${bookmark.title}”`, { onUndo: () => restoreBookmark(client, bookmark) }),
-    });
-  };
+  const deleteBookmark = useCallback(
+    (bookmark: Bookmark) => {
+      removeBookmark(bookmark, {
+        onSuccess: () => toastUndo(`Deleted “${bookmark.title}”`, { onUndo: () => restoreBookmark(client, bookmark) }),
+      });
+    },
+    [client, removeBookmark],
+  );
   const importHref = safeHref('#/settings/bookmarks');
   const allGroups = query.data?.groups ?? [];
   const defaultGroupId = settings.data?.bookmarks.defaultGroupId ?? null;
@@ -123,7 +128,7 @@ export default function LaunchpadWidget({ config, editMode, size }: WidgetProps<
   const closeDialog = (open: boolean) => {
     if (!open) setDialog(null);
   };
-  const edit = (bookmark: Bookmark) => setDialog({ kind: 'edit', bookmark });
+  const edit = useCallback((bookmark: Bookmark) => setDialog({ kind: 'edit', bookmark }), [setDialog]);
 
   return (
     <>
@@ -240,17 +245,20 @@ interface ViewBoardProps {
 }
 
 function ViewBoard({ allGroups, config, openInNewTab, onEdit, onDelete }: ViewBoardProps) {
-  const move = useMoveBookmark();
+  const { mutate: moveBookmark } = useMoveBookmark();
   const updateGroup = useUpdateGroup();
   const ungroupedId = useUngroupedId(allGroups);
   const groups = useMemo(() => ungroupedFirst(visibleGroups(allGroups, config), ungroupedId), [allGroups, config, ungroupedId]);
   const showHeaders = groups.length > 1 && config.showGroupHeaders;
 
-  const moveToGroup = (bookmark: Bookmark, groupId: string) => {
-    const target = allGroups.find((g) => g.id === groupId);
-    if (!target || target.id === bookmark.groupId) return;
-    move.mutate({ id: bookmark.id, groupId, index: target.bookmarks.length });
-  };
+  const moveToGroup = useCallback(
+    (bookmark: Bookmark, groupId: string) => {
+      const target = allGroups.find((g) => g.id === groupId);
+      if (!target || target.id === bookmark.groupId) return;
+      moveBookmark({ id: bookmark.id, groupId, index: target.bookmarks.length });
+    },
+    [allGroups, moveBookmark],
+  );
 
   return (
     <BoardFrame config={config} editMode={false}>
@@ -314,8 +322,9 @@ interface ViewTileProps {
 /**
  * A tile outside edit mode: the link, plus a menu (Edit, Move to, Delete) opened by right-click,
  * a long press, Shift+F10 / the context-menu key, or the "⋯" button shown on hover (UX-6).
+ * Memoized: it re-renders only when its bookmark, the groups, the config or a callback change.
  */
-function ViewTile({ bookmark, config, openInNewTab, groups, onEdit, onDelete, onMove }: ViewTileProps) {
+const ViewTile = memo(function ViewTile({ bookmark, config, openInNewTab, groups, onEdit, onDelete, onMove }: ViewTileProps) {
   const [open, setOpen] = useState(false);
   const press = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean }>({ timer: null, fired: false });
   const others = groups.filter((g) => g.id !== bookmark.groupId);
@@ -397,4 +406,4 @@ function ViewTile({ bookmark, config, openInNewTab, groups, onEdit, onDelete, on
       </Menu>
     </li>
   );
-}
+});

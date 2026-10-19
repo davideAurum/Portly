@@ -32,6 +32,7 @@ import {
   BACKOFF_MS,
   CONNECTED_INTERVAL_MS,
   GRACE_MS,
+  HIDDEN_PROBE_INTERVAL_MS,
   PERMISSION_WAIT_MS,
   PROBE_TIMEOUT_MS,
   RECONNECT_INTERVAL_MS,
@@ -621,6 +622,30 @@ describe('probe intervals', () => {
     }
   });
 
+  it('a hidden tab probes at most once a minute (reconnecting too), and at once when visible again (then the grace decides)', async () => {
+    const h = await start(harness({ paired: true, backend: 'server' }));
+    const times: number[] = [];
+    h.server.fetch.mockImplementation(async (url: string) => {
+      if (url.endsWith('/api/health')) times.push(Date.now() - START);
+      throw new TypeError('Failed to fetch');
+    });
+    h.page.emit('hidden');
+    // The probe armed while visible still comes; from then on, once a minute.
+    await advance(CONNECTED_INTERVAL_MS + 3 * HIDDEN_PROBE_INTERVAL_MS);
+    const at = CONNECTED_INTERVAL_MS;
+    expect(times).toEqual([at, at + HIDDEN_PROBE_INTERVAL_MS, at + 2 * HIDDEN_PROBE_INTERVAL_MS, at + 3 * HIDDEN_PROBE_INTERVAL_MS]);
+    expect(status(h)).toBe('reconnecting');
+    expect(h.reload).not.toHaveBeenCalled();
+    times.length = 0;
+    await advance(10_000);
+    h.page.emit('visible');
+    await flush();
+    expect(times).toEqual([Date.now() - START]);
+    // Gone since the first failed probe, more than the grace ago: the page switches now.
+    expect(h.reload).toHaveBeenCalledTimes(1);
+    expect(toast(h)).toBe('browser:unreachable');
+  });
+
   it('a permission or pairing change resets the backoff too', async () => {
     const h = harness({ paired: true });
     h.server.health = down;
@@ -636,11 +661,51 @@ describe('probe intervals', () => {
 });
 
 describe('reload policy', () => {
-  it('a hidden tab reloads at once, without a toast', async () => {
+  it('a hidden tab waits until it is visible, checks once more, then reloads and announces it', async () => {
     const h = await start(harness({ paired: true, visible: false }));
     expect(status(h)).toBe('connected');
+    expect(h.reload).not.toHaveBeenCalled();
+    // The next page load already starts on the server (in case this tab is closed meanwhile).
+    expect(h.store.nextBootBackend(Date.now())).toBe('server');
+    expect(h.controller.getState().pendingSwitch).toBeNull();
+    await advance(10 * 60_000);
+    expect(h.reload).not.toHaveBeenCalled();
+    const before = h.server.calls().length;
+    h.page.emit('visible');
+    expect(h.reload).not.toHaveBeenCalled();
+    await flush();
+    expect(h.server.calls().slice(before)).toEqual(['GET /api/health', 'GET /api/pairing']);
     expect(h.reload).toHaveBeenCalledTimes(1);
-    expect(toast(h)).toBeNull();
+    expect(toast(h)).toBe('server:connected');
+  });
+
+  it('a hidden tab drops a switch that no longer holds once it is visible again', async () => {
+    const h = await start(harness({ paired: true, visible: false }));
+    expect(h.reload).not.toHaveBeenCalled();
+    h.server.health = down;
+    await advance(10 * 60_000);
+    h.page.emit('visible');
+    await flush();
+    expect(status(h)).toBe('absent');
+    expect(h.reload).not.toHaveBeenCalled();
+    expect(h.controller.getState().pendingSwitch).toBeNull();
+    await advance(60_000);
+    expect(h.reload).not.toHaveBeenCalled();
+  });
+
+  it('a hidden tab that cannot check again applies the switch as it was requested', async () => {
+    // Another tab disconnected: not paired any more, and the permission does not allow a look.
+    const h = await start(harness({ paired: true, backend: 'server', permission: 'prompt' }));
+    expect(status(h)).toBe('connected');
+    h.page.emit('hidden');
+    h.local.removeItem(h.store.keys.pairing);
+    h.pairingChanged();
+    expect(h.reload).not.toHaveBeenCalled();
+    const before = h.server.calls().length;
+    h.page.emit('visible');
+    expect(h.server.calls().length).toBe(before);
+    expect(h.reload).toHaveBeenCalledTimes(1);
+    expect(toast(h)).toBe('browser:disconnected');
   });
 
   it('a visible, idle tab reloads now and announces it after the reload', async () => {
@@ -679,17 +744,33 @@ describe('reload policy', () => {
     expect(h.reload).not.toHaveBeenCalled();
   });
 
-  it('a busy tab that gets hidden reloads at once', async () => {
+  it('a busy tab that gets hidden waits too (no idle checks while hidden)', async () => {
     const h = await start(harness({ paired: true, busy: true }));
     h.page.emit('hidden');
-    expect(h.reload).toHaveBeenCalledTimes(1);
-    expect(toast(h)).toBeNull();
+    h.busy.value = false;
+    await advance(60_000);
+    expect(h.reload).not.toHaveBeenCalled();
   });
 
-  it('a busy tab coming back idle reloads on visibility', async () => {
+  it('a busy tab coming back idle checks once more and reloads', async () => {
     const h = await start(harness({ paired: true, busy: true }));
+    h.page.emit('hidden');
     h.busy.value = false;
     h.page.emit('visible');
+    await flush();
+    expect(h.reload).toHaveBeenCalledTimes(1);
+    expect(toast(h)).toBe('server:connected');
+  });
+
+  it('a busy tab coming back still busy keeps waiting (pendingSwitch) until it is idle', async () => {
+    const h = await start(harness({ paired: true, busy: true }));
+    h.page.emit('hidden');
+    h.page.emit('visible');
+    await flush();
+    expect(h.reload).not.toHaveBeenCalled();
+    expect(h.controller.getState().pendingSwitch).toEqual({ target: 'server', reason: 'connected' });
+    h.busy.value = false;
+    await advance(2_000);
     expect(h.reload).toHaveBeenCalledTimes(1);
   });
 

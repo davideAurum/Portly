@@ -11,6 +11,17 @@ import LaunchpadWidget from './Widget.tsx';
 import widgetSource from './Widget.tsx?raw';
 import tilesSource from './tiles.tsx?raw';
 
+/** How often each SiteIcon rendered, by label (the real icon renders; this only counts). */
+const iconRenders = vi.hoisted(() => new Map<string, number>());
+vi.mock('./SiteIcon.tsx', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./SiteIcon.tsx')>();
+  function CountedSiteIcon(props: Parameters<typeof actual.SiteIcon>[0]) {
+    iconRenders.set(props.label, (iconRenders.get(props.label) ?? 0) + 1);
+    return <actual.SiteIcon {...props} />;
+  }
+  return { ...actual, SiteIcon: CountedSiteIcon };
+});
+
 function bm(id: string, groupId: string, sort: number, extra: Partial<Bookmark> = {}): Bookmark {
   return { id, groupId, title: id, url: `https://${id.toLowerCase()}.example/`, sort, iconMode: 'auto', iconId: null, letterColor: null, ...extra };
 }
@@ -378,6 +389,16 @@ describe('Launch pad: tile menu outside edit mode (UX-6)', () => {
     link.focus();
     await user.keyboard('{Shift>}{F10}{/Shift}');
     expect(await screen.findByRole('menu')).toBeInTheDocument();
+  });
+
+  it('opening a dialog from one tile re-renders no other tile', async () => {
+    const { user } = renderWidget();
+    await user.pointer({ keys: '[MouseRight]', target: await screen.findByRole('link', { name: /^X/ }) });
+    const before = iconRenders.get('B');
+    await user.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: /Edit/ }));
+    expect(await screen.findByRole('dialog', { name: 'Edit bookmark' })).toBeInTheDocument();
+    expect(before).toBeGreaterThan(0);
+    expect(iconRenders.get('B')).toBe(before);
   });
 
   it('Edit… opens the dialog, which can delete too', async () => {

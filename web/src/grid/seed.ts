@@ -135,11 +135,15 @@ async function seedUnlocked(client: QueryClient): Promise<string | null> {
 
 export type SeedState = 'idle' | 'seeding' | 'failed';
 
-/** Seeds the Home profile once the profile list has loaded (from the server) empty. */
+/**
+ * Seeds the Home profile once the profile list has loaded (from the server) empty. `isFetching` is
+ * read only while the list is empty: TanStack re-renders a component for each result field it
+ * read, and the dashboard must not re-render on every profiles refetch.
+ */
 export function useFirstRunSeed(profiles: Pick<UseQueryResult<Profile[]>, 'data' | 'isSuccess' | 'isFetching'>): SeedState {
   const client = useQueryClient();
   const [state, setState] = useState<SeedState>('idle');
-  const empty = profiles.isSuccess && !profiles.isFetching && profiles.data?.length === 0;
+  const empty = profiles.isSuccess && profiles.data?.length === 0 && !profiles.isFetching;
 
   useEffect(() => {
     if (!empty || attempted.has(client)) return;

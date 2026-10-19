@@ -23,6 +23,8 @@ interface FakeGridProps {
 // react-grid-layout needs real layout measurements; the fake records its props so tests can
 // drive onLayoutChange directly (that is exactly what a drag/resize ends with).
 const rgl = vi.hoisted(() => ({ props: null as FakeGridProps | null }));
+/** How often the stand-in clock rendered. */
+const clockRenders = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('react-grid-layout', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-grid-layout')>();
@@ -41,6 +43,7 @@ vi.mock('react-grid-layout', async (importOriginal) => {
 vi.mock('../widgets/registry.ts', async (importOriginal) => {
   const { stubWidgetRegistry } = await import('../test/stubWidgets.tsx');
   function ClockWithSetConfig({ config, setConfig }: WidgetProps<ClockConfig>) {
+    clockRenders.count += 1;
     return (
       <button type="button" onClick={() => void setConfig({ showSeconds: !config.showSeconds })}>
         {config.showSeconds ? 'seconds on' : 'seconds off'}
@@ -288,6 +291,19 @@ describe('Grid', () => {
       frame: { title: 'Berlin', showHeader: true, transparent: true },
     });
     expect(screen.getByRole('heading', { level: 2, name: 'Berlin' })).toBeInTheDocument();
+  });
+
+  it('re-renders no other widget while the settings of one are open and previewed', async () => {
+    const user = userEvent.setup();
+    await renderDashboard();
+    const before = clockRenders.count;
+    await user.click(screen.getByRole('button', { name: 'Weather settings' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Weather settings' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Title' }), 'Oslo');
+    expect(screen.getByRole('heading', { level: 2, name: 'Oslo', hidden: true })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(clockRenders.count).toBe(before);
   });
 
   it('discards the preview on cancel', async () => {

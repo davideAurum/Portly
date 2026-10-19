@@ -859,7 +859,10 @@ React 19 + Vite 8 + TS; TanStack Query (cache persisted to localStorage: maxAge 
 new tab paints last-known data instantly, then refetches; the cache is restored and the active profile's widget
 chunks are preloaded (≤ 150 ms) *before* the first render, so the first frame shows content, not skeletons; queries
 over 512 KB, site-meta lookups and unobserved calendar ranges are not persisted, and a quota error drops the
-oldest queries; the Pages build keeps one snapshot per backend, §16); hand-rolled hash router (`web/src/app/router.ts`:
+oldest queries, as few as fit (found by halving); the snapshot is written only after a persisted query got new data
+or left it (success, `setQueryData`, removed, failed), at most every 5 s and at once on `visibilitychange` to hidden
+and `pagehide` (`subscribePersistedCache`, not TanStack's subscriber, which dehydrates on every cache event): every
+write reaches every other tab of the origin; the Pages build keeps one snapshot per backend, §16); hand-rolled hash router (`web/src/app/router.ts`:
 home, `#/settings/<section>`, `#/pair?nonce=…`);
 CSS custom properties (tokens) + CSS Modules for feature styles; `lucide-react`; `date-fns` + `@date-fns/tz`;
 Radix primitives; sonner toasts. Vite dev proxy: `/api` → `PORTLY_PORT`, `changeOrigin: false`; never set
@@ -1279,8 +1282,10 @@ guide: `docs/setup/pages-local-server.md`.
 
 **One backend per page load.** In the Pages build each page load picks `browser` or `server` before the first render
 and keeps it, so no request of one dataset can reach the other and capabilities are per-load constants. When the right
-backend changes, the page persists what the next load needs and **reloads**: a hidden tab at once; a visible idle tab
-at once, with a toast after the reload (sessionStorage `portly:mode-switch-toast` = `<target>:<reason>`); a busy tab
+backend changes, the page persists what the next load needs and **reloads**: a hidden tab once it is visible again,
+after one more probe that confirms the switch (or withdraws it), so a pairing change does not reload every background
+tab at once; a visible idle tab at once, with a toast after the reload (sessionStorage `portly:mode-switch-toast` =
+`<target>:<reason>`); a busy tab
 — a modal dialog open (`[role="dialog"][aria-modal="true"]`, which `ui/Dialog.tsx` sets, or `dialog[open]`), edit
 mode (`<html data-portly-editing="true">`, set by `grid/editMode.tsx`) or a focused text field with text in it (an
 empty, autofocused search box is not busy) — exposes `pendingSwitch` (banner with **Switch now**) and re-checks every
@@ -1334,8 +1339,10 @@ build and tests). Statuses: `disabled` (hybrid off), `framed`, `idle` (not check
   older `local-network-access`) is `granted`/unsupported, on boot, focus and visibility, or when the user clicks
   **Look for Portly on this PC**; paired → on boot, then every 30 s while connected (skipped while requests got
   answers in the last 30 s), every 2 s while reconnecting, else backoff 5→10→20→30→60 s, reset by visibility, focus,
-  `online`, permission or pairing changes and **Check again**. One probe at a time; with the permission at `prompt`
-  only while visible.
+  `online`, permission or pairing changes and **Check again**; while the tab is hidden, scheduled probes come at most
+  once a minute (`HIDDEN_PROBE_INTERVAL_MS`: still often enough for the grace to count from when the server went away),
+  and a tab probes at once when it is visible again. One probe at a time; with the permission at `prompt` only while
+  visible.
 - *Permission prompt*: the browser shows it only after a TCP connection succeeds and the request stays pending while it
   is open, so a probe is never aborted while the permission may be `prompt`: after 3 s the status becomes
   `waiting-permission` (grace paused). Otherwise a probe times out after 5 s, which is inconclusive when the server
@@ -1591,14 +1598,18 @@ through `scrub`/`scrubFields`:
 | `app` | `window` `error`/`unhandledrejection`, the error boundary | `errName, errMessage, source, stack (≤ 5 frames, file names only)` |
 
 - **Kept:** a ring of the last 300 events mirrored to localStorage (`portly:diagnostics:events`, Pages build
-  `…:<base>`; merged across tabs, ≤ 256 KB, entries older than 7 days dropped). **Debug events are never stored**
+  `…:<base>`; merged across tabs, ≤ 256 KB, entries older than 7 days dropped; when another tab rewrites it, only
+  the entries this tab has not read before are validated). **Debug events are never stored**
   (the last 100 stay in memory). Each event carries a session id (random per page load) and `page {build, backend,
   version}`; every storage access is guarded and everything read back is validated.
-- **Upload** (only while this page load's backend is the server): every 15 s and when the tab is hidden, one upload
+- **Upload** (only while this page load's backend is the server): every 15 s while the tab is visible (a hidden tab's
+  timer stops: the stored events are every tab's) and when the tab is hidden, one upload
   at a time under a Web Lock shared by the tabs, ≤ 100 events per batch with `sentAt`, 10 s timeout, marked only after
   a 2xx; paced across tabs to the server's limit (`…:upload-pacing`). Never uploaded: events recorded on the browser
   backend, and `api` events carrying a `rid` (the server logged that request itself). Debug events go only while the
-  server says `acceptDebug` (otherwise one a minute, to ask). 400, 403, 404, 409, 413 and a 422 that names no event
+  server says `acceptDebug` (any answer says it; otherwise one goes along to ask, once per page load, again when the
+  tab is visible after a minute or more since the last ask, and right after this page switched Verbose on for
+  `client`). 400, 403, 404, 409, 413 and a 422 that names no event
   stop the uploads for the page load (a server older than the page); no answer, 5xx and 429 are retried.
 - **Intake** (`client-events.ts`): per caller (`pairingId`, or `local` for Portly's own page) at most 120 events and
   64 KB of fields a minute — the rest is dropped and counted, with one `warn 'client events dropped' {caller,

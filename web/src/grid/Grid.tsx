@@ -7,7 +7,7 @@
  */
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import ReactGridLayout, { useContainerWidth, type Layout as GridLayoutValue } from 'react-grid-layout';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Plus } from 'lucide-react';
@@ -116,6 +116,8 @@ export function Grid({ layout, profileId }: GridProps) {
     [commitPositions, editMode],
   );
 
+  // The frames' callbacks take the instance, so they stay the same across renders (WidgetFrame is
+  // memoized); this one changes only with the layout.
   const onKeyboardEdit = useCallback(
     (item: WidgetInstance, key: MoveKey, resize: boolean) => {
       const positions = keyboardEdit(items, item.id, key, resize);
@@ -174,6 +176,11 @@ export function Grid({ layout, profileId }: GridProps) {
   }, [items]);
   useEffect(() => () => addedTimers.current.forEach(clearTimeout), []);
 
+  const openSettings = useCallback((instanceId: string, options?: { focus?: string }) => {
+    setSettingsFocus(options?.focus ?? null);
+    setSettingsFor(instanceId);
+  }, []);
+
   const settingsInstance = settingsFor ? items.find((i) => i.id === settingsFor) : undefined;
   const settingsDefinition = settingsInstance ? getWidgetDefinition(settingsInstance.type) : undefined;
 
@@ -197,22 +204,18 @@ export function Grid({ layout, profileId }: GridProps) {
 
   // --- Rendering -------------------------------------------------------------------------------
 
-  const frameFor = (item: WidgetInstance) => (
-    <WidgetFrame
-      instance={item}
-      profileId={profileId}
-      editMode={editMode}
-      onOpenSettings={
-        profileId === null
-          ? undefined
-          : (options) => {
-              setSettingsFocus(options?.focus ?? null);
-              setSettingsFor(item.id);
-            }
-      }
-      onRemove={profileId === null ? undefined : () => setRemoving(item)}
-      onKeyboardEdit={(key, resize) => onKeyboardEdit(item, key, resize)}
-    />
+  const frameFor = useCallback(
+    (item: WidgetInstance) => (
+      <WidgetFrame
+        instance={item}
+        profileId={profileId}
+        editMode={editMode}
+        onOpenSettings={profileId === null ? undefined : openSettings}
+        onRemove={profileId === null ? undefined : setRemoving}
+        onKeyboardEdit={onKeyboardEdit}
+      />
+    ),
+    [editMode, onKeyboardEdit, openSettings, profileId],
   );
 
   const removingTitle = removing ? (removing.frame.title ?? getWidgetDefinition(removing.type)?.title ?? 'this widget') : '';
@@ -308,8 +311,8 @@ interface MeasuredGridProps {
   justAdded: string | null;
 }
 
-/** react-grid-layout sized to its container (rendered once the width is known). */
-function MeasuredGrid({ items, editMode, onLayoutChange, renderItem, justAdded }: MeasuredGridProps) {
+/** react-grid-layout sized to its container (rendered once the width is known); re-renders only when its props change. */
+const MeasuredGrid = memo(function MeasuredGrid({ items, editMode, onLayoutChange, renderItem, justAdded }: MeasuredGridProps) {
   const { width, containerRef, mounted } = useContainerWidth({ measureBeforeMount: true });
   const gridItems = useMemo(() => toGridItems(items), [items]);
   const dragConfig = useMemo(() => ({ enabled: editMode, handle: `.${DRAG_HANDLE_CLASS}`, cancel: DRAG_CANCEL }), [editMode]);
@@ -336,4 +339,4 @@ function MeasuredGrid({ items, editMode, onLayoutChange, renderItem, justAdded }
       ) : null}
     </div>
   );
-}
+});

@@ -158,6 +158,11 @@ export interface QueryViewProps<T> {
   compact?: boolean;
 }
 
+/**
+ * `meta.updatedAt` and `meta.error` are read from the query only when the children read them:
+ * TanStack re-renders a component for each result field it read, and `dataUpdatedAt` changes on
+ * every refetch, even one that brings the same data (a launch pad would re-render all its tiles).
+ */
 export function QueryView<T>({ query, children, skeleton, setupHref, setupLabel, isEmpty, empty, compact }: QueryViewProps<T>) {
   const refetch = () => void query.refetch();
   if (query.data === undefined) {
@@ -167,5 +172,15 @@ export function QueryView<T>({ query, children, skeleton, setupHref, setupLabel,
     return <>{skeleton ?? <SkeletonList />}</>;
   }
   if (isEmpty?.(query.data) && empty !== undefined) return <>{empty}</>;
-  return <>{children(query.data, { stale: query.isError, updatedAt: query.dataUpdatedAt, error: query.error, refetch })}</>;
+  const meta: QueryViewMeta = {
+    stale: query.isError,
+    get updatedAt() {
+      return query.dataUpdatedAt;
+    },
+    get error() {
+      return query.error;
+    },
+    refetch,
+  };
+  return <>{children(query.data, meta)}</>;
 }
