@@ -153,7 +153,7 @@ function Invoke-HbCopyFromHomebase {
         return 0
     }
     if ($plan.State -eq 'portly-has-database' -and -not $Replace) {
-        Write-HbFailure "Portly already has a database in $dataDir. To replace it with Homebase's (the current one is kept beside it as portly.db.before-homebase-<time>), add --replace."
+        Write-HbFailure "Portly already has a database in $dataDir. To replace it with Homebase's (the current one and its vault key are kept beside it as portly.db.before-homebase-<time> and vault.key.before-homebase-<time>), add --replace."
         return 1
     }
     $requestPath = Write-HbHomebaseCopyRequest -DataDir $dataDir -Replace:$Replace

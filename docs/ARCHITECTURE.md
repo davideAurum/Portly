@@ -1717,10 +1717,14 @@ data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark impor
   start never copies. Source: the first of `<data dir>/homebase.db` and — only with PORTLY_DATA_DIR unset — Homebase's
   default folder's `homebase.db`. `VACUUM INTO` a temporary file (consistent while an old server still has it open;
   read-only connection first, a normal one when WAL needs it; SQLITE_BUSY/LOCKED, EBUSY, EPERM and EACCES retried, 3
-  attempts), then `vault.key` when it comes from another folder (never over an existing key; DPAPI is per user, not per
-  path), then the rename to `portly.db`. An existing `portly.db` is kept (marker `kept-portly-database`, request
-  dropped, warning) unless `replace`, which moves it and its `-wal`/`-shm` to `portly.db.before-homebase-<time>`. On
-  success the request is removed and `migrated-from-homebase.json` records `{status: 'copied', at, from, copied}`. A
+  attempts), then the rename to `portly.db`. An existing `portly.db` is kept (marker `kept-portly-database`, request
+  dropped, warning) unless `replace`, which first moves it and its `-wal`/`-shm` to `portly.db.before-homebase-<time>`.
+  The vault key travels with the database it encrypts: when the database comes from another folder, Homebase's
+  `vault.key` takes the place of Portly's (DPAPI is per user, not per path), and a `vault.key` of Portly's own that
+  differs is moved to `vault.key.before-homebase-<time>` (the same time as its database; also when Homebase has no
+  key, as it does not fit the copy). A step that fails undoes the earlier ones, so a database never ends up with another
+  one's key. On success the request is removed and `migrated-from-homebase.json` records
+  `{status: 'copied', at, from, copied, replaced?, replacedKey?}`. A
   copy that cannot be made fails start-up (`StartupError`, marker `status: 'failed'`), keeping the request so no empty
   `portly.db` is created: still busy → `homebase_copy_busy` (exit 1, the supervisor retries); no source or an
   unreadable one → `homebase_not_found` / `homebase_copy_failed` (EXIT_PERMANENT_FAILURE; `--cancel` withdraws the

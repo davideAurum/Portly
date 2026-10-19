@@ -50,8 +50,9 @@ Homebase's own folders are left as they were, so you can go back until you delet
   start, and the log says why. To try again later run `portly --copy-from-homebase`; to give up and
   start without Homebase's data run `portly --copy-from-homebase --cancel`. If Portly already has
   data of its own, the installer warns and copies nothing; `portly --copy-from-homebase --replace`
-  copies Homebase's over it and keeps Portly's old database beside it
-  (`portly.db.before-homebase-<time>`).
+  copies Homebase's data and vault key over it and keeps Portly's old database and key beside them
+  (`portly.db.before-homebase-<time>` and `vault.key.before-homebase-<time>`). A database always
+  keeps the key it was made with, so the accounts saved in it keep working.
 - **Starting from scratch instead:** run `setup.ps1 -NoHomebaseCopy` (or
   `install-autostart.ps1 -NoHomebaseCopy`). Portly then starts with empty data and copies neither
   Homebase's database and vault key nor its `HOMEBASE_*` variables. Homebase's task is still

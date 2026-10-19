@@ -10,18 +10,22 @@
  *   PORTLY_DATA_DIR is unset - Homebase's default folder (`%LOCALAPPDATA%\Homebase`, or
  *   `$XDG_DATA_HOME/homebase`).
  * - How: `VACUUM INTO` a temporary file (a consistent copy even while an old Homebase still has the
- *   database open; busy and locked errors are retried), then `vault.key` (when the database comes
- *   from another folder; the key is protected for this Windows user wherever the file lives, and the
- *   vault canary kept its old value, so saved accounts keep working), then the temporary file is
- *   renamed to `portly.db`. With `"replace": true` an existing `portly.db` is first moved aside to
+ *   database open; busy and locked errors are retried), then the temporary file is renamed to
+ *   `portly.db`. With `"replace": true` an existing `portly.db` is first moved aside to
  *   `portly.db.before-homebase-<time>`; without it, an existing database is kept and nothing copied.
+ * - The vault key travels with the database it encrypts. When the database comes from another
+ *   folder, Homebase's `vault.key` takes the place of Portly's (the key is protected for this
+ *   Windows user wherever the file lives, and the vault canary kept its old value, so saved
+ *   accounts keep working); a key of Portly's own is first moved aside to
+ *   `vault.key.before-homebase-<time>`, the same time as its database. A step that fails undoes the
+ *   ones before it, so a database and its key are never split up.
  * - Afterwards: the request is removed and `migrated-from-homebase.json` records the outcome
  *   (`copied`, `kept-portly-database` or `failed`).
  * - A copy that cannot be made fails start-up (the request stays, so the next start tries again)
  *   rather than starting with an empty database that would hide Homebase's for good. A missing or
  *   unreadable Homebase database is a permanent failure; `portly --copy-from-homebase --cancel`
  *   withdraws the request.
- * - Never: overwrite Portly's key, change Homebase's files, or leave a partial `portly.db`.
+ * - Never: delete Portly's database or key, change Homebase's files, or leave a partial `portly.db`.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -55,6 +59,8 @@ export interface LegacyMigration {
   copied: string[];
   /** Where an existing `portly.db` was moved (a `"replace": true` request). */
   replaced?: string;
+  /** Where Portly's own `vault.key` was moved: it does not belong to the database copied in. */
+  replacedKey?: string;
 }
 
 export interface CopyRequest {
@@ -148,13 +154,26 @@ function writeMarker(dataDir: string, record: Record<string, unknown>): void {
   fs.writeFileSync(path.join(dataDir, MIGRATION_MARKER), `${JSON.stringify(record, null, 2)}\n`);
 }
 
+const DB_SUFFIXES = ['', '-wal', '-shm'];
+
 /** Moves `portly.db` and its -wal/-shm files to `<db>.before-homebase-<stamp>[-wal|-shm]`; returns the new name. */
 function moveAside(db: string, stamp: string): string {
   const aside = `${db}.before-homebase-${stamp}`;
-  for (const suffix of ['', '-wal', '-shm']) {
+  for (const suffix of DB_SUFFIXES) {
     if (isFile(`${db}${suffix}`)) fs.renameSync(`${db}${suffix}`, `${aside}${suffix}`);
   }
   return aside;
+}
+
+/** Undoes {@link moveAside}. */
+function moveBack(aside: string, db: string): void {
+  for (const suffix of DB_SUFFIXES) {
+    if (isFile(`${aside}${suffix}`)) fs.renameSync(`${aside}${suffix}`, `${db}${suffix}`);
+  }
+}
+
+function sameContent(a: string, b: string): boolean {
+  return fs.readFileSync(a).equals(fs.readFileSync(b));
 }
 
 /**
@@ -222,17 +241,47 @@ export async function migrateFromHomebase(paths: LegacyPaths, options: MigrateOp
   }
   copied.push(`${LEGACY_DB_FILE} -> ${path.basename(paths.db)}`);
 
+  // What is moved aside gets one time, so a database and its key can be put back together.
+  const stamp = now().toISOString().replace(/[:.]/g, '-');
+  const undo: Array<() => void> = [];
   let replaced: string | undefined;
+  let replacedKey: string | undefined;
+  let withKey = false;
   try {
-    const legacyKey = path.join(from, LEGACY_KEY_FILE);
-    if (path.resolve(from) !== path.resolve(paths.dataDir) && isFile(legacyKey) && !isFile(paths.vaultKey)) {
-      fs.copyFileSync(legacyKey, paths.vaultKey, fs.constants.COPYFILE_EXCL);
-      copied.push(LEGACY_KEY_FILE);
+    if (request.replace && isFile(paths.db)) {
+      const aside = moveAside(paths.db, stamp);
+      replaced = aside;
+      undo.push(() => moveBack(aside, paths.db));
     }
-    if (request.replace && isFile(paths.db)) replaced = moveAside(paths.db, now().toISOString().replace(/[:.]/g, '-'));
+    // In Portly's own folder, vault.key already is Homebase's.
+    if (path.resolve(from) !== path.resolve(paths.dataDir)) {
+      const legacyKey = path.join(from, LEGACY_KEY_FILE);
+      const hasLegacyKey = isFile(legacyKey);
+      // Already Homebase's key when an earlier attempt was cut off before the rename below.
+      if (isFile(paths.vaultKey) && !(hasLegacyKey && sameContent(legacyKey, paths.vaultKey))) {
+        const keyAside = `${paths.vaultKey}.before-homebase-${stamp}`;
+        fs.renameSync(paths.vaultKey, keyAside);
+        replacedKey = keyAside;
+        undo.push(() => fs.renameSync(keyAside, paths.vaultKey));
+      }
+      if (hasLegacyKey) {
+        if (!isFile(paths.vaultKey)) {
+          fs.copyFileSync(legacyKey, paths.vaultKey, fs.constants.COPYFILE_EXCL);
+          undo.push(() => fs.rmSync(paths.vaultKey, { force: true }));
+        }
+        withKey = true;
+      }
+    }
     fs.renameSync(temporary, paths.db);
   } catch (err) {
     fs.rmSync(temporary, { force: true });
+    for (const step of undo.reverse()) {
+      try {
+        step();
+      } catch (undoErr) {
+        options.log?.error('could not undo part of the copy of the data of Homebase', { from, ...errorFields(undoErr) });
+      }
+    }
     return fail(
       'homebase_copy_failed',
       'could not put the copy of the data of Homebase in place; start Portly again to retry',
@@ -241,7 +290,13 @@ export async function migrateFromHomebase(paths: LegacyPaths, options: MigrateOp
     );
   }
 
-  const result: LegacyMigration = { from, copied, ...(replaced === undefined ? {} : { replaced }) };
+  if (withKey) copied.push(LEGACY_KEY_FILE);
+  const result: LegacyMigration = {
+    from,
+    copied,
+    ...(replaced === undefined ? {} : { replaced }),
+    ...(replacedKey === undefined ? {} : { replacedKey }),
+  };
   writeMarker(paths.dataDir, { status: 'copied', at: now().toISOString(), ...result });
   fs.rmSync(requestFile, { force: true });
   options.log?.info('copied the data of Homebase (the name before Portly)', { ...result });
