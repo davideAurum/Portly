@@ -9,7 +9,7 @@
   color: var(--hb-text);
   font-size: var(--hb-text-md);
   transition:
-    border-color var(--hb-duration) var(--hb-ease),
+    border-color var(--hb-hover-duration) var(--hb-ease),
     box-shadow var(--hb-duration) var(--hb-ease);
 }
 

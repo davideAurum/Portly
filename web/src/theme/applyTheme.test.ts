@@ -68,14 +68,65 @@ describe('applyTheme', () => {
       }),
     ).toBe('linear-gradient(90deg, #ffffff 0%, #000000 100%)');
 
+    // The dim is a dark layer over the image, not a filter; without a baked copy the blur is live.
     const vars = themeVariables(theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 12, dim: 0.4 } }));
-    expect(vars['--hb-backdrop']).toBe(`url("/api/uploads/${UPLOAD_ID}")`);
+    expect(vars['--hb-backdrop']).toBe(`linear-gradient(rgb(0 0 0 / 0.4), rgb(0 0 0 / 0.4)), url("/api/uploads/${UPLOAD_ID}")`);
     expect(vars['--hb-backdrop-blur']).toBe('12px');
-    expect(vars['--hb-backdrop-dim']).toBe('0.4');
+
+    const undimmed = themeVariables(theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 0, dim: 0 } }));
+    expect(undimmed['--hb-backdrop']).toBe(`url("/api/uploads/${UPLOAD_ID}")`);
+    expect(undimmed['--hb-backdrop-blur']).toBe('0px');
 
     const plain = themeVariables(theme({ background: { type: 'color', color: '#112233' } }));
     expect(plain['--hb-backdrop-blur']).toBe('0px');
-    expect(plain['--hb-backdrop-dim']).toBe('0');
+  });
+
+  it('shows a baked blob: copy instead of a live blur, and ignores anything else passed as one', () => {
+    const blurred = theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 12, dim: 0.2 } });
+    const baked = themeVariables(blurred, { bakedBackdrop: 'blob:http://localhost/1234' });
+    expect(baked['--hb-backdrop']).toBe('linear-gradient(rgb(0 0 0 / 0.2), rgb(0 0 0 / 0.2)), url("blob:http://localhost/1234")');
+    expect(baked['--hb-backdrop-blur']).toBe('0px');
+
+    for (const hostile of ['https://evil.example/x.png', 'data:image/png;base64,AAAA', 'blob:x") , url("https://evil.example', '']) {
+      const vars = themeVariables(blurred, { bakedBackdrop: hostile });
+      expect(vars['--hb-backdrop'], hostile).toContain(`url("/api/uploads/${UPLOAD_ID}")`);
+      expect(vars['--hb-backdrop-blur'], hostile).toBe('12px');
+    }
+    // A blur of 0 never uses a baked copy (there is nothing to bake).
+    const sharp = themeVariables(theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 0, dim: 0 } }), { bakedBackdrop: 'blob:http://localhost/1' });
+    expect(sharp['--hb-backdrop']).toBe(`url("/api/uploads/${UPLOAD_ID}")`);
+  });
+
+  it('turns live filters on only where they show', () => {
+    const root = document.createElement('div');
+    const photo = (blur: number, extra: Partial<Theme> = {}) => theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur, dim: 0.2 }, ...extra });
+
+    // Live backdrop blur: a blurred photo without a baked copy.
+    applyTheme(photo(12), root);
+    expect(root.getAttribute('data-backdrop-filter')).toBe('live');
+    applyTheme(photo(12), root, { bakedBackdrop: 'blob:http://localhost/1' });
+    expect(root.hasAttribute('data-backdrop-filter')).toBe(false);
+    applyTheme(photo(0), root);
+    expect(root.hasAttribute('data-backdrop-filter')).toBe(false);
+
+    // Frosted glass (this browser's setting): only when turned on, and only over a photo.
+    expect(root.getAttribute('data-glass')).toBe('clear');
+    applyTheme(photo(0), root, { frostedGlass: true });
+    expect(root.getAttribute('data-glass')).toBe('frosted');
+    applyTheme(theme(), root, { frostedGlass: true });
+    expect(root.getAttribute('data-glass')).toBe('clear');
+
+    // Opaque widgets hide a frosted blur, so frames skip it.
+    applyTheme(photo(0, { widgetOpacity: 0.95 }), root, { frostedGlass: true });
+    expect(root.getAttribute('data-opaque-widgets')).toBe('true');
+    applyTheme(photo(0, { widgetOpacity: 0.9 }), root, { frostedGlass: true });
+    expect(root.hasAttribute('data-opaque-widgets')).toBe(false);
+  });
+
+  it('keeps frosted glass out of the theme (an older strict reader never sees it)', () => {
+    const root = document.createElement('div');
+    expect(applyTheme({ ...theme(), frostedGlass: true }, root)).toBe(false);
+    expect(ThemeSchema.parse({})).not.toHaveProperty('frostedGlass');
   });
 
   it('ignores invalid or hostile themes and keeps the previous values', () => {
@@ -112,6 +163,13 @@ describe('applyTheme', () => {
     expect(applyPersistedTheme('k', persisted(theme({ mode: 'dark', accent: '#123456' })))).toBe(true);
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expect(document.documentElement.style.getPropertyValue('--hb-accent')).toBe('#123456');
+    // This browser's frosted glass setting comes from the same storage.
+    const photo = theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 0, dim: 0 } });
+    const frosted = { getItem: (key: string) => (key === 'portly:frosted-glass' ? '1' : persisted(photo).getItem()) };
+    expect(applyPersistedTheme('k', frosted)).toBe(true);
+    expect(document.documentElement.getAttribute('data-glass')).toBe('frosted');
+    expect(applyPersistedTheme('k', persisted(photo))).toBe(true);
+    expect(document.documentElement.getAttribute('data-glass')).toBe('clear');
     expect(applyPersistedTheme('k', persisted({ ...theme(), accent: 'url(x)' }))).toBe(false);
     expect(applyPersistedTheme('k', { getItem: () => '{not json' })).toBe(false);
     expect(applyPersistedTheme('k', { getItem: () => null })).toBe(false);
@@ -147,9 +205,12 @@ describe('image backdrops on this page load', () => {
     setServerAssetSource(fake.source);
     expect(backdropValue(image)).toBe('none');
     const root = document.createElement('div');
-    applyTheme(theme({ background: image }), root);
+    applyTheme(theme({ background: { ...image, blur: 10 } }), root, { frostedGlass: true });
     expect(root.style.getPropertyValue('--hb-backdrop')).toBe('none');
     expect(root.getAttribute('data-backdrop')).toBe('image');
+    // No photo on screen yet: no live blur of the backdrop or the glass.
+    expect(root.hasAttribute('data-backdrop-filter')).toBe(false);
+    expect(root.getAttribute('data-glass')).toBe('clear');
 
     fake.finish(uploadUrl(UPLOAD_ID), 'data:image/svg+xml;base64,PHN2Zy8+');
     expect(backdropValue(image)).toBe('url("data:image/svg+xml;base64,PHN2Zy8+")');

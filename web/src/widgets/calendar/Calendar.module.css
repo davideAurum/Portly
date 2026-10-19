@@ -206,9 +206,9 @@
   gap: 6px;
   margin: 0 calc(-1 * var(--hb-space-2));
   padding: 6px calc(var(--hb-space-2) + 8px) 4px;
-  /* A frosted band: the blur hides rows scrolling underneath. */
-  background: color-mix(in srgb, var(--hb-surface) 60%, transparent);
-  backdrop-filter: blur(14px) saturate(1.3);
+  /* A band a little more opaque than the widget hides rows scrolling underneath. No backdrop
+     blur: it would be redrawn on every scroll frame. */
+  background: color-mix(in srgb, var(--hb-surface) calc(min(1, var(--hb-widget-opacity) + 0.1) * 100%), transparent);
   box-shadow: 0 1px 0 var(--hb-border);
   font-size: var(--hb-text-xs);
   font-weight: 650;
@@ -219,7 +219,6 @@
 /* A transparent widget frame has no glass behind the sticky headers. */
 [data-transparent='true'] .dayHeader {
   background: transparent;
-  backdrop-filter: none;
 }
 
 .dayHeader[data-today='true'] {
@@ -256,7 +255,7 @@
   align-items: stretch;
   padding: 6px 8px;
   border-radius: var(--hb-radius-md);
-  transition: background-color var(--hb-duration) var(--hb-ease);
+  transition: background-color var(--hb-hover-duration) var(--hb-ease);
 }
 
 .eventButton:hover .row {

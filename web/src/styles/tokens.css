@@ -74,8 +74,10 @@
   --hb-glass-strong: color-mix(in srgb, var(--hb-surface) 92%, transparent);
   --hb-glass-border: rgb(255 255 255 / 0.55);
   --hb-glass-blur: 18px;
-  /* Live backdrop blur for always-visible glass surfaces; see the data-backdrop rule below. */
-  --hb-glass-filter: blur(var(--hb-glass-blur)) saturate(1.35);
+  /* Live backdrop blur of glass surfaces: off unless the theme turns on frosted glass (see the
+     data-glass rule below). Widget frames use --hb-widget-glass-filter. */
+  --hb-glass-filter: none;
+  --hb-widget-glass-filter: var(--hb-glass-filter);
 
   /* Controls */
   --hb-control-h: 36px;
@@ -84,11 +86,14 @@
   /* Motion */
   --hb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --hb-duration: 160ms;
+  /* Hover-only fades (tiles, rows, chips). Instant under frosted glass, where every fade frame
+     would make the GPU blur the glass behind it again. */
+  --hb-hover-duration: var(--hb-duration);
 
-  /* Page backdrop (color / gradient / image) — set from the theme. */
+  /* Page backdrop (color / gradient / image, with the dim as a dark layer) — set from the theme.
+     --hb-backdrop-blur is only used while data-backdrop-filter='live' (see base.css). */
   --hb-backdrop: linear-gradient(160deg, #0b4f63 0%, #072f3b 100%);
   --hb-backdrop-blur: 0px;
-  --hb-backdrop-dim: 0;
 }
 
 :root[data-theme='dark'] {
@@ -146,18 +151,26 @@
 }
 
 /*
- * Live backdrop blur is only worth its GPU cost over a photo. Over a color or gradient the blurred
- * result looks the same as the unblurred one, yet the browser recomputes the blur across the whole
- * surface on every repaint inside it (hover fades, tile highlights), which stutters on 4K/high-DPI
- * screens. `data-backdrop` is set by applyTheme; until it is, no blur is used.
+ * Frosted glass (theme.frostedGlass, off by default). A live backdrop blur makes the GPU blur the
+ * photo behind every glass surface again on each repaint inside it (hover fades, scrolling,
+ * animations), which can stutter on 4K/high-DPI screens. applyTheme sets data-glass='frosted' only
+ * when the theme asks for it and the backdrop is a loaded photo (over a color or gradient a blur
+ * looks the same as none), and data-opaque-widgets when widgets are too opaque for it to show.
  */
-:root:not([data-backdrop='image']) {
-  --hb-glass-filter: none;
+:root[data-glass='frosted'] {
+  --hb-glass-filter: blur(var(--hb-glass-blur)) saturate(1.35);
+  --hb-hover-duration: 0ms;
+}
+
+:root[data-glass='frosted'][data-opaque-widgets='true'] {
+  --hb-widget-glass-filter: none;
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  :root {
+  :root,
+  :root[data-glass='frosted'] {
     --hb-glass-filter: none;
+    --hb-widget-glass-filter: none;
   }
 }
 

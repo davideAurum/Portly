@@ -124,7 +124,7 @@
   background: var(--hb-accent);
   opacity: 0;
   transform: translate(-50%, -50%);
-  transition: opacity var(--hb-duration) var(--hb-ease);
+  transition: opacity var(--hb-hover-duration) var(--hb-ease);
 }
 
 .rgl :global(.react-grid-item > .react-resizable-handle-e::after),
@@ -147,6 +147,14 @@
 
 .wrap[data-edit='true'] .rgl :global(.react-grid-item > .react-resizable-handle) {
   opacity: 1;
+}
+
+/* Outside edit mode nothing is dragged, so react-grid-layout's 200 ms position/size transitions
+   would only animate a relayout of every widget whenever the grid width changes (window resize,
+   a scroll bar appearing). Edit mode keeps them so dragged widgets still glide into place. */
+.wrap:not([data-edit='true']) .rgl:global(.react-grid-layout),
+.wrap:not([data-edit='true']) .rgl :global(.react-grid-item) {
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -317,7 +317,8 @@ Theme values are strict zod (see §7a `Theme`): colors match `^#[0-9a-fA-F]{6}([
 is a discriminated union (color | gradient with bounded stops | image by `uploadId` UUID — the URL is always
 built as `/api/uploads/${uploadId}`); fonts are an enum of system stacks; numbers bounded. Applied only via
 `document.documentElement.style.setProperty(name, value)` for a fixed list of variable names — never by
-building CSS text. Provider/user colors (calendars, groups, accounts) are normalized with the same regex at
+building CSS text. The only other URL a backdrop can carry is the page's own baked copy of the photo, a `blob:`
+URL from `URL.createObjectURL` (anything else passed as one is ignored); `img-src` already allows `blob:`. Provider/user colors (calendars, groups, accounts) are normalized with the same regex at
 ingest; invalid → null.
 
 ### 4.6 Vault (`server/src/security/vault.ts`)
@@ -682,6 +683,29 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
   font: 'system'|'serif'|'mono'|'rounded', density: 'comfortable'|'compact', radius: 0–24, widgetOpacity: 0.3–1}`.
   Defaults follow the Beacon brand (`docs/brand/README.md`): accent Tide `#137a85`, background the Harbor `#0b4f63` to
   Deep `#072f3b` gradient at 160 degrees.
+- **Theme rendering (performance)** — `web/src/theme/applyTheme.ts`. Live CSS filters make the GPU redo their work on
+  every repaint they cover (hover fades, scrolling, animations) at full screen resolution, which can make the cursor
+  stutter on 4K or high-DPI screens. So:
+  - a photo's dim is a dark `linear-gradient` layer inside `--hb-backdrop`, never a `filter`;
+  - a photo's blur is baked once into a small copy (`backdropBake.ts`: drawn on a canvas with `ctx.filter`, a few
+    samples per blur sigma, zoomed like the live layer so swapping does not shift the picture, PNG up to 1.5
+    megapixels and WebP above) by `useBakedBackdrop` (`useTheme.ts`), which bakes again 150 ms after the image, the
+    blur or the window size key (CSS size buckets plus device pixel ratio, so browser zoom counts) changes, swaps in
+    a copy only once it is decoded, and revokes replaced `blob:` URLs 2 s later. Until a copy exists (first paint,
+    slider drags) or when the browser cannot blur on a canvas, `data-backdrop-filter='live'` keeps the old live
+    `filter: blur()` (`base.css`). An animated image bakes its first frame, so a blurred animated background stops
+    moving once the copy is ready;
+  - glass surfaces get `backdrop-filter` only under `data-glass='frosted'` (`tokens.css`), set when frosted glass is
+    on and a photo is on screen. Frosted glass is a setting of the browser, not of the theme
+    (`theme/glassPreference.ts`, localStorage `portly:frosted-glass`, per address like other `portly:` keys): its
+    cost depends on the PC, and keeping it out of the strict `ThemeSchema` means an older Pages site, server or
+    export never meets an unknown field. Widget frames skip the blur even then when `data-opaque-widgets` (widget
+    opacity ≥ 0.95), and hover fades use `--hb-hover-duration`, which is 0 under frosted glass;
+  - no other always-visible surface blurs (popovers and settings panels follow `--hb-glass-filter`; the dialog
+    overlay and the calendar agenda's day headers have none), the animations that could run indefinitely are
+    finite (skeleton shimmer, weather location and local-server pulses: 3 runs; no pulse while waiting for the
+    browser's permission or on the sports LIVE pill), and react-grid-layout's 200 ms relayout transitions run only
+    in edit mode.
 - **accounts.ts** — `AccountKind`, `Capability = 'calendar'|'mail'`, `Account {id, kind, label, email|null, color|null,
   capabilities, enabledCapabilities, status: 'ok'|'error'|'reauth', statusMessage|null, createdAt, updatedAt}`,
   per-kind config types, create payloads, `OAuthProvider = 'google'|'microsoft'`, `OAuthResult`.
@@ -876,7 +900,10 @@ Tokens (`web/src/styles/tokens.css`, light + dark): `--hb-bg, --hb-surface, --hb
 --hb-shadow, --hb-widget-opacity`. Rules: features use tokens only; user-data colors go through
 `readableTextColor()` (`web/src/lib/color.ts`); only the foundation writes global CSS.
 Visual direction: calm, modern "glass" widgets over the user's background (color/gradient/image with blur+dim),
-generous spacing, clear hierarchy, system font stacks, subtle shadows, excellent dark mode.
+generous spacing, clear hierarchy, system font stacks, subtle shadows, excellent dark mode. Glass is translucent
+surface color by default; a live backdrop blur (frosted glass) is an opt-in setting of the browser because of its
+GPU cost (§7a Theme rendering). New CSS must not add `filter`, `backdrop-filter` or infinite animations on always-visible
+surfaces; use `--hb-glass-filter` / `--hb-widget-glass-filter` and `--hb-hover-duration`.
 
 ### 10.5 Settings
 Hash routes `#/settings/<section>`; nav: general, appearance, search, bookmarks, accounts, calendars, todoist,
@@ -950,7 +977,7 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   first (the discovered feed URL is stored). Not in the default layout (it starts empty).
 - **Sports scores** (`sports`) — config `{teams: {league, id, name, abbreviation, logo}[] (≤ 16), recentGames: 0–5,
   upcomingGames: 0–5, upcomingDays: 1–30, showRecords}`; one query per team, refetched every 30 s while a game is live,
-  60 s from 15 min before a start, else 10 min. Sections Live (pulsing badge, clock, situation) / Upcoming / Final, a
+  60 s from 15 min before a start, else 10 min. Sections Live (LIVE badge, clock, situation) / Upcoming / Final, a
   game shared by two favorites shown once; a row opens the box score (the preview before the start); live and upcoming
   games have a "Where to watch" popover mapping broadcasters to official streaming services (`model.ts`). Works in the
   static build. Not in the default layout (it starts empty).
