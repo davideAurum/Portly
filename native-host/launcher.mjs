@@ -201,7 +201,11 @@ export function loadConfig(file, readFile = fs.readFileSync) {
 // Health check: GET http://127.0.0.1:<port>/api/health and http://localhost:<port>/api/health
 // ---------------------------------------------------------------------------------------------
 
-/** True when http://<host>:<port>/api/health answers 200 with a JSON object whose ok is true. */
+/**
+ * True when http://<host>:<port>/api/health answers 200 with a JSON object whose ok is true and
+ * whose app is 'portly'. Homebase (the name before Portly) answers the same way with another app,
+ * and must not count: Portly's task still has to be started.
+ */
 export function probeHealth(host, port, { timeoutMs = HEALTH_TIMEOUT_MS, get = http.get } = {}) {
   return new Promise((resolve) => {
     let request;
@@ -235,7 +239,7 @@ export function probeHealth(host, port, { timeoutMs = HEALTH_TIMEOUT_MS, get = h
         response.on('end', () => {
           try {
             const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-            finish(body !== null && typeof body === 'object' && body.ok === true);
+            finish(body !== null && typeof body === 'object' && body.ok === true && body.app === 'portly');
           } catch {
             finish(false);
           }

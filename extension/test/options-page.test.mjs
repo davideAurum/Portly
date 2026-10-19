@@ -10,7 +10,7 @@ import {
   describePing,
 } from '../lib/options-page.js';
 import {
-  HEALTHY,
+  HEALTH_BODY,
   NATIVE_ERRORS,
   OLD_PATH_EXTENSION_ID,
   PINNED_EXTENSION_ID,
@@ -136,7 +136,7 @@ describe('options page', () => {
   });
 
   it('mentions a locked vault and explains failures', async () => {
-    const locked = await setup({ fetch: createFetch(() => jsonResponse({ ok: true, version: '0.1.0', vault: 'locked' })) });
+    const locked = await setup({ fetch: createFetch(() => jsonResponse({ ...HEALTH_BODY, vault: 'locked' })) });
     await locked.page.test();
     assert.match(locked.$('status').textContent, /vault is locked/);
 
@@ -341,14 +341,14 @@ describe('options page: what a new tab opens', () => {
   });
 
   it('Test connection records the Pages site Portly names and shows it', async () => {
-    const t = await setup({ fetch: createFetch(() => jsonResponse({ ...HEALTHY, pagesUrl: SITE })) });
+    const t = await setup({ fetch: createFetch(() => jsonResponse({ ...HEALTH_BODY, pagesUrl: SITE })) });
     assert.equal(await t.page.test().then((r) => r.ok), true);
     assert.equal(t.$('status').textContent, `Portly is running on port 5757 (version 0.1.0). Its Pages site: ${SITE}.`);
     assert.deepEqual(t.storage.data, known(SITE));
     assert.equal(autoText(t), `its Pages site, ${SITE}`);
     assert.equal(t.$('pages-url').placeholder, SITE);
 
-    const none = await setup({ fetch: createFetch(() => jsonResponse({ ...HEALTHY, pagesUrl: null })) });
+    const none = await setup({ fetch: createFetch(() => jsonResponse({ ...HEALTH_BODY, pagesUrl: null })) });
     await none.page.test();
     assert.equal(
       none.$('status').textContent,

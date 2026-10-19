@@ -110,7 +110,7 @@ or fold them into a phase.
   hidden-tab behaviour with a real hidden tab instead of a simulated one.
 - **Dependencies:** two dev-only advisories (`shell-quote` through `concurrently`, and
   `source-map-js`) need a dependency upgrade to clear. This needs a go-ahead.
-- **Versions:** the extension is at 0.5.2 while the app is at 0.1.0. Decide whether they should
+- **Versions:** the extension is at 0.5.3 while the app is at 0.1.0. Decide whether they should
   match when 0.2.0-alpha.1 goes out. After the first release, run `publish-static.ps1`.
 - **Backgrounds:** an SVG background with blur above 0 can look a little softer than intended.
   It was left alone because it is rare.

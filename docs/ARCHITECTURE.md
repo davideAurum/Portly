@@ -1073,7 +1073,7 @@ the pages detect an extension still running under another ID (`isStaleExtensionI
 
   | Request | Response |
   | --- | --- |
-  | `{"action":"start","port":<1024–65535>}` | `{"ok":true,"state":"running"}` when `/api/health` on 127.0.0.1 or localhost already answers 200 `{"ok":true}`; `{"ok":true,"state":"starting"}` after a successful `schtasks /run` (or one reporting the task already runs) |
+  | `{"action":"start","port":<1024–65535>}` | `{"ok":true,"state":"running"}` when `/api/health` on 127.0.0.1 or localhost already answers 200 `{"ok":true,"app":"portly"}`; `{"ok":true,"state":"starting"}` after a successful `schtasks /run` (or one reporting the task already runs) |
   | `{"action":"ping"}` | `{"ok":true,"state":"pong","version":1}` |
   | anything failing | `{"ok":false,"state":"error","error":"task_missing"\|"schtasks_failed"\|"bad_request"\|"bad_origin","detail":"<one short line>"}` |
 
@@ -1736,6 +1736,9 @@ data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark impor
   outcome (start failure, port taken, an error) runs `Resume-HbLegacyServer` in a `finally`. `-NoStart` leaves Homebase
   alone. `-NoHomebaseCopy` (also on `setup.ps1`) starts from scratch: no variable copy, no copy request (a waiting one is
   withdrawn); the task and host are still replaced. Homebase's data and native-host folders stay.
+- **Health checks:** Homebase answers `/api/health` on the same port with `ok: true` too, so the extension
+  (`checkHealth`, `extension/lib/portly.js`) and the native host (`probeHealth`) take an answer for Portly only with
+  `app: 'portly'`, like `install-autostart.ps1`; the web app's probe never takes another `app` for Portly either.
 - **Command** (`Get-HbLegacyCliPlan`, `install-cli.ps1`): once `portly` is written and on the user PATH (one PATH
   write), `homebase.cmd` / `homebase` in `%LOCALAPPDATA%\Homebase\bin` and that folder's PATH entries are removed, and the
   folder if it is then empty.
