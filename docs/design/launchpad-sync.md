@@ -1,6 +1,7 @@
 # Design: syncing the launch pad of the browser-only site through OneDrive
 
-**Status:** proposal, not built. Today the browser-only (GitHub Pages) build keeps everything in
+**Status:** proposal, not built. The phase 0 spike with a real Outlook.com account is done, and
+its answer is **go** (section 13). Today the browser-only (GitHub Pages) build keeps everything in
 that browser's IndexedDB (`portly-static:<base>`), and the only way to move data between browsers
 is export and import. Hybrid mode gives a paired browser the local server's data, but that needs
 a server.
@@ -20,8 +21,8 @@ What it reuses from the Outlook.com calendar support:
 - the Graph error mapping and diagnostics of `providers/graphClient.ts`;
 - `https://graph.microsoft.com`, already in the static CSP (`staticCsp()` in `web/vite.config.ts`).
 
-The Outlook.com browser flow has not been tested against a real account yet (ROADMAP phase 1
-item 2). Sync depends on it, so the first phase below is a spike that does that test too.
+Sync depends on the Outlook.com browser flow. The phase 0 spike also tested that flow with a real
+account (ROADMAP phase 1 item 2).
 
 ## 1. What the user gets
 
@@ -79,18 +80,21 @@ in OneDrive. `Files.ReadWrite` (the whole drive) is not needed and is not reques
   the automatic `prompt=none` re-sign-in (`planSilentReauth`) all use it. Microsoft only accepts a
   refresh whose scopes are the ones of the original sign-in or fewer. So the refresh may not ask
   for a service's scope until a sign-in has asked for it.
-- **Ticking the service on an existing connection is incremental consent.** If the connection's
-  `grantedScopes` lacks `files.readwrite.appfolder`, the dialog explains the new permission, then
-  starts the normal reconnect (`POST /api/oauth/microsoft/start {accountId, returnTo}`, back to
-  `#/settings/accounts`) with the larger scope set. Microsoft asks for the new permission only.
-  The existing `different_account` rule applies: signing in as someone else doesn't change the
-  connection.
+- **Ticking the service on an existing connection is incremental consent.** The connection
+  stores the scopes its last sign-in asked for. If they lack `Files.ReadWrite.AppFolder`, the
+  dialog explains the new permission, then starts the normal reconnect
+  (`POST /api/oauth/microsoft/start {accountId, returnTo}`, back to `#/settings/accounts`) with
+  the larger scope set. Microsoft asks for the new permission only, and for nothing if the account
+  already granted it in another browser. `grantedScopes` can't make this decision: the token
+  response lists every permission the account has granted the registration, not what this
+  sign-in asked for (section 13). The existing `different_account` rule applies: signing in as
+  someone else doesn't change the connection.
 - **Connections without the service never ask for it.** A calendar-only connection keeps today's
   scopes, and a connection can have sync without the calendar. One limit: consent is stored per
-  Microsoft account and app registration, not per browser. Once any browser has granted it,
-  Microsoft may put the scope into tokens that other browsers request for the same account (spike
-  item). This only matters for an account the user has ticked sync on somewhere, and the scope
-  still reaches only the app folder.
+  Microsoft account and app registration, not per browser. Once any browser has granted it, every
+  later sign-in of that account carries the scope, in any browser. That includes the automatic
+  daily renewal of a calendar-only connection (seen in the spike). This only matters for an
+  account the user has ticked sync on somewhere, and the scope still reaches only the app folder.
 - **One connection per browser.** A browser has one launch pad, so at most one of its
   connections has the service on. Ticking it on a second Microsoft connection offers to move it.
   Moving counts as a first sync with that account's file (6.6).
@@ -121,21 +125,29 @@ Uploads and metadata go to `graph.microsoft.com`, which the CSP already allows. 
 
 - `GET .../content` answers `302` to a pre-authenticated download URL on another host. Microsoft's
   docs say a JavaScript app can't use it, because a redirect is refused after a CORS preflight
-  (and the `Authorization` header forces one).
-- Instead, the app reads the item's `@microsoft.graph.downloadUrl` (with `$select`) and fetches
-  that URL itself with no `Authorization` header. The docs say it can be fetched "without a CORS
-  preflight request" because it is pre-authenticated. They don't name the CORS headers it sends.
-- The host in Microsoft's example is `<random>.files.1drv.com`. Personal accounts on OneDrive's
-  newer storage are reported to get URLs on `my.microsoftpersonalcontent.com` instead. Microsoft's
-  Graph docs don't mention that host.
+  (and the `Authorization` header forces one). In the spike, the desktop app's Chromium-based
+  browser followed the redirect anyway. Firefox and Safari were not checked, so the design doesn't
+  rely on it.
+- Instead, the app reads the item's `@microsoft.graph.downloadUrl` and fetches that URL itself
+  with no `Authorization` header: a simple request, with no preflight. The URL's `tempauth`
+  parameter is a short-lived credential.
+- The host in Microsoft's example is `<random>.files.1drv.com`. For a personal account, the spike
+  only ever got URLs on `my.microsoftpersonalcontent.com` (the response headers are SharePoint's).
+  Microsoft's Graph docs don't mention that host.
 
-The static CSP's `connect-src` would gain:
+The static CSP's `connect-src` gains (settled by the spike, section 13):
 
 | Source | Why | Status |
 | --- | --- | --- |
-| `https://*.files.1drv.com` | Download URLs (Microsoft's documented example) | Docs: host only. CORS: verify in a spike with a real Outlook.com account |
-| `https://my.microsoftpersonalcontent.com` (or `https://*.microsoftpersonalcontent.com`) | Download URLs for accounts on the newer storage | Not in the docs: verify in a spike with a real Outlook.com account |
-| `https://*.up.1drv.com` | Only if uploads must use an upload session (If-Match, section 6.5) | Not planned: add only if the spike needs it |
+| `https://my.microsoftpersonalcontent.com` | Download URLs | Verified. A cross-origin `GET` with no headers works and needs no preflight. It sends the content with no further redirect. The URL can be fetched more than once while valid. It answers any origin, the Pages origin included (see below) |
+| `https://*.files.1drv.com` | Microsoft's documented example host | Not seen in the spike. Kept so that an account still on the older storage isn't refused. Its CORS is unverified |
+| `https://*.up.1drv.com` | Upload sessions | Not needed: `If-Match` works on a simple `PUT` (section 6.5) |
+
+The spike ran on a `localhost` origin, not on Pages. The download host answered there, and also
+after a cross-origin redirect, where the browser sends `Origin: null`. A fetch with credentials
+failed, which is how browsers treat `Access-Control-Allow-Origin: *`. So it allows any origin.
+It also lets the page read the `ETag` and `cTag` response headers. Whether their values equal
+Graph's `eTag` and `cTag` wasn't checked.
 
 - **Before fetching a download URL**, the client checks that it is `https:` with a host from that
   list. Otherwise it refuses, which gives a clearer error than a CSP violation. It fetches with
@@ -145,8 +157,8 @@ The static CSP's `connect-src` would gain:
 - `img-src` doesn't change: icons are stored as blobs and shown through `blob:` URLs, as now.
 - The server build's CSP doesn't change, because sync never runs there.
 
-**Go/no-go:** if no content host answers cross-origin reads from the Pages origin, OneDrive sync
-can't work from a page. That is the first thing the spike checks, before any other work.
+**Go/no-go:** if no content host answered cross-origin reads, OneDrive sync couldn't work from a
+page. The spike checked this first. It answers them, so the answer is go.
 
 ## 5. What syncs
 
@@ -246,8 +258,10 @@ minutes. Sync needs the lasting version:
 One sync round, under the sync lock (section 7):
 
 1. Read the file's metadata:
-   `GET /me/drive/special/approot:/launchpad.json?$select=id,eTag,cTag,size,@microsoft.graph.downloadUrl`.
-   A `404` means there is no file yet.
+   `GET /me/drive/special/approot:/launchpad.json?select=id,eTag,cTag,size,@microsoft.graph.downloadUrl`.
+   Write `select` without the `$`, as in Microsoft's example: with `$select`, Graph leaves the
+   download URL out. `$select=id,eTag,cTag,size,content.downloadUrl` also returns it. A `404`
+   (`itemNotFound`) means there is no file yet.
 2. If the `cTag` (it changes only with the content) equals the last one merged and nothing local
    is waiting, stop. Most checks end here, after one small request.
 3. Otherwise download through the download URL, validate (section 8), and download any icon
@@ -267,13 +281,18 @@ One sync round, under the sync lock (section 7):
    After 3 rounds, back off and show "busy". On success, keep the returned `eTag`/`cTag` as the
    last merged.
 
-**To verify in the spike:** Microsoft documents `if-match` → `412` for update, delete and upload
-sessions, but the current page for the simple upload (`PUT .../content`) lists only
-`Authorization` and `Content-Type`, so check that it works there. Also check
-`conflictBehavior=fail` as a query parameter on a simple upload, and
-`$select=@microsoft.graph.downloadUrl` on a path address. If `If-Match` is ignored on a simple
-upload, the fallback is an upload session with `if-match`. That needs `*.up.1drv.com` (or the
-newer host) in `connect-src`.
+**Checked in the spike (section 13).** Microsoft's page for the simple upload (`PUT .../content`)
+lists only `Authorization` and `Content-Type`, but `If-Match` works there:
+- the current `eTag` gives `200`;
+- a stale one gives `412` (code `notAllowed`) and leaves the file unchanged.
+
+So no upload session is needed. A `cTag` works as the `If-Match` value too.
+`@microsoft.graph.conflictBehavior=fail` works as a query parameter: `409` (`nameAlreadyExists`)
+when the file exists. It also creates a missing `launchpad-icons` folder on the way. The `PUT`
+response carries the new `eTag`, `cTag` and a download URL.
+
+One surprise: `If-Match` on a file that no longer exists creates it (`201`) instead of
+answering `412`. The engine treats that like a missing file (6.6), which uploads anyway.
 
 Old icon files: any browser may delete an icon file that the main file no longer references and
 that is more than 30 days old.
@@ -442,7 +461,7 @@ The Accounts redesign itself is out of scope. Sync adds these pieces to it:
 
 | Option | How it works | Why it is not the first choice |
 | --- | --- | --- |
-| **OneDrive app folder through Graph** (this design) | The page reads and writes a file in the user's OneDrive with the Outlook.com sign-in | Needs an Outlook.com account and the extra permission. The download host and its CORS still need checking in a spike |
+| **OneDrive app folder through Graph** (this design) | The page reads and writes a file in the user's OneDrive with the Outlook.com sign-in | Needs an Outlook.com account and the extra permission. The download host and its CORS were checked in the spike (section 13) |
 | A file in a OneDrive-synced folder, through the File System Access API | The user picks a file once, and the OneDrive client on each PC syncs it. No sign-in | Chrome and Edge on desktop only. Permission prompts after a restart. No change notice, so it must poll. Two PCs writing at once get OneDrive conflict copies (`launchpad-<PC>.json`) instead of a refused write. Needs the OneDrive client on every PC |
 | The extension's `chrome.storage.sync` or `chrome.bookmarks` | The new-tab extension stores the data in the browser's own account sync | `storage.sync` holds 100 KB in all (8 KB per item): too small for 5,000 bookmarks, and no icons. Works only within one browser family and browser account (no Chrome ↔ Edge). The Pages site would need a bridge to the extension (`externally_connectable` for an origin every Pages site of the account shares). The `bookmarks` permission reads and changes all browser bookmarks, with a new install warning. Not every PC has the extension |
 | A GitHub gist or private repository, with a fine-grained token | The page reads and writes a file through `api.github.com` | A long-lived secret in browser storage, unencrypted, readable by any script on the shared `<user>.github.io` origin (section 4.1). The user creates and rotates it by hand in every browser |
@@ -453,15 +472,15 @@ The Accounts redesign itself is out of scope. Sync adds these pieces to it:
 
 Rough working days for one developer, tests included.
 
-0. **Spike with a real Outlook.com account, ½–1 day** (on a throwaway branch; it also does the
-   real-account test of ROADMAP phase 1 item 2). Check:
+0. **Spike with a real Outlook.com account, ½–1 day. Done: go, see section 13.** It also did the
+   real-account test of ROADMAP phase 1 item 2. It checked:
    - the sign-in and the 24-hour automatic renewal with the larger scope set, and which scopes
      the token response reports for an account that only asked for calendars;
    - `special/approot` and `$select=@microsoft.graph.downloadUrl` on a path address;
    - the download hosts, their CORS headers, and whether a download URL redirects again;
    - `If-Match` on a simple `PUT` (and `412`), and `conflictBehavior=fail` (and `409`).
 
-   The results fill in section 4. If downloads can't be read cross-origin, stop here.
+   The results filled in section 4. Downloads can be read cross-origin, so the work goes on.
 1. **Groundwork in the bookmarks slice, 1–1½ days:** the clock, `placedAt`, lasting tombstones
    written by every removing path, the one-time upgrade, tests.
 2. **File format and merge, 2 days:** the schema in `shared/` (so the server could use it later),
@@ -482,6 +501,71 @@ Rough working days for one developer, tests included.
 
 About 9–11 days in all. Not included: syncing layouts, theme and other settings, and the server
 joining the sync.
+
+## 13. Spike results (phase 0)
+
+**Answer: go.** From a page, the spike could:
+- sign in with the larger scope set;
+- read and write the app folder;
+- read the download URLs cross-origin.
+
+**How it was run.** The spike ran on 2026-10-19 with a real Outlook.com account:
+- the page was a scratch one, not committed, served on `http://localhost:<port>/`;
+- it used the static build's CSP plus the two candidate download hosts, and no CSP violation was
+  reported;
+- its address was registered as a *Single-page application* redirect URI;
+- the browser was the desktop app's Chromium-based browser pane.
+
+The same origin also served a local static build, which connected the account and synced its
+calendars (ROADMAP phase 1 item 2).
+
+**Sign-in and scopes.** Only the token response's `scope` field and error codes were read.
+
+| Request | Result |
+| --- | --- |
+| Interactive sign-in, calendar scopes only | Works. `scope` lists the sign-in scopes, `Calendars.ReadWrite` *and* `Mail.ReadWrite`. The account had granted mail to the same registration through Portly on the PC. `offline_access` isn't listed, although a refresh token comes back. There is no `refresh_token_expires_in`, so the 24-hour default applies. Access tokens are opaque and last an hour |
+| `prompt=none` asking for `Files.ReadWrite.AppFolder`, before consent | `consent_required` |
+| Refresh of the calendar-only grant, asking for the Files scope | `400 invalid_grant` (`AADSTS70000`), both before and after the consent |
+| Interactive sign-in with the Files scope added | Microsoft's screen lists only the new permission ("Have full access to the application's folder"), under the registration's name. `scope` then includes it |
+| `prompt=none` with the larger scope set, after consent | Works with no screen, so the automatic renewal can carry the sync scope |
+| Refresh of that grant asking for calendar scopes only | Works. `scope` still lists the Files scope |
+| A new `prompt=none` sign-in with calendar scopes only, after consent | `scope` lists the Files scope, and the token can read the app folder |
+| Refresh of a calendar-only grant made *before* the consent | Still no Files scope. The app folder answers `401` (`unauthenticated`) |
+
+What this means for the design:
+- **`scope` reports the account's grants.** The token response lists what the account has granted
+  the registration, not what this sign-in asked for. Whether a refresh may ask for the sync scope
+  must come from the scopes of the connection's last sign-in (section 3).
+- **A grant keeps the scopes it was made with.** A connection signed in before the consent needs
+  a new sign-in to get the scope. `graphClient.ts` already turns a second `401` into "reconnect
+  needed", and reconnecting with the larger scope set fixes it.
+- **A missing scope is a `401`.** Graph answers `401`, not `403`, when a token lacks the scope.
+
+**OneDrive.** All files went in the app folder, and the test files were deleted afterwards.
+
+| Check | Result |
+| --- | --- |
+| `GET /me/drive/special/approot` | `200`. Creates `Apps/<registration name>` on first use, named after the registration at that moment |
+| Metadata of a missing file | `404` (`itemNotFound`) |
+| `PUT ...:/content?@microsoft.graph.conflictBehavior=fail` | `201`. The same name again gives `409` (`nameAlreadyExists`). A missing sub-folder is created on the way |
+| `?$select=id,eTag,cTag,size,@microsoft.graph.downloadUrl` on a path address | `200`, but with no download URL |
+| The same list as `?select=` (no `$`), `$select=...,content.downloadUrl`, no select, and the `PUT` response | All include the download URL. `eTag` and `cTag` match the `PUT`'s |
+| Download URL host | `my.microsoftpersonalcontent.com` every time, for the main file and the icon |
+| Simple `GET` of the download URL | `200`, CORS allowed, no redirect, and the content matches. It also works with a custom header (which forces a preflight) and a second time. It fails with `credentials: 'include'` |
+| `GET .../content` with `Authorization` | The redirect was followed to `my.microsoftpersonalcontent.com`, and the content matches (Chromium) |
+| `PUT` with `If-Match`: current `eTag` | `200`. `eTag` and `cTag` change |
+| `PUT` with `If-Match`: stale `eTag` | `412` (`notAllowed`). The content is unchanged |
+| `PUT` with `If-Match`: current or stale `cTag` | `200` or `412` |
+| `PUT` with `If-Match` on a missing file | `201`: the file is created |
+
+**Not covered:**
+- **The Pages origin itself.** Its address isn't registered as a redirect URI yet. The CORS
+  answers above imply it works.
+- **Firefox and Safari.**
+- **The static build's own automatic renewal** (`planSilentReauth`). The spike tested the same
+  `prompt=none` request.
+- **Work or school accounts**, which are out of scope.
+- **The download's `ETag` and `cTag` header values.** Whether they equal Graph's wasn't checked.
 
 ## Open questions
 
