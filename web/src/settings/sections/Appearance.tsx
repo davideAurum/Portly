@@ -21,11 +21,11 @@ import { Button, IconButton } from '../../ui/Button.tsx';
 import { ColorPicker, ColorPickerPopover } from '../../ui/ColorPicker.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Field } from '../../ui/Field.tsx';
-import { ImageUpload } from '../../ui/ImageUpload.tsx';
 import { FieldGrid, SettingsCard } from '../../ui/Section.tsx';
 import { SkeletonLines } from '../../ui/Skeleton.tsx';
 import { SegmentedControl, Slider } from '../../ui/Toggles.tsx';
 import styles from '../../styles/settings.module.css';
+import { ImageBackgroundEditor } from './BackgroundImage.tsx';
 
 const MAX_STOPS = 5;
 const MIN_STOPS = 2;
@@ -300,48 +300,6 @@ function GradientBuilder({ background, onChange }: { background: GradientBackgro
           Add color stop
         </Button>
       </div>
-    </div>
-  );
-}
-
-type ImageBackground = Extract<ThemeBackground, { type: 'image' }>;
-
-function ImageBackgroundEditor({
-  background,
-  onChange,
-}: {
-  background: ImageBackground | null;
-  onChange(next: Partial<Omit<ImageBackground, 'type'>> & { uploadId?: string }): void;
-}) {
-  return (
-    <div className={styles.stack}>
-      <Field label="Background image">
-        <ImageUpload
-          value={background?.uploadId ?? null}
-          removable={false}
-          onChange={(uploadId) => {
-            if (uploadId) onChange({ uploadId });
-          }}
-          hint="Large photos work best. PNG, JPEG, WebP, AVIF or GIF up to 10 MB."
-        />
-      </Field>
-      {background ? (
-        <FieldGrid>
-          <Field label="Blur">
-            <Slider value={background.blur} min={0} max={40} onChange={(blur) => onChange({ blur })} format={(v) => `${v}px`} />
-          </Field>
-          <Field label="Dim" help="Darken the image so widgets stay readable.">
-            <Slider
-              value={background.dim}
-              min={0}
-              max={0.9}
-              step={0.05}
-              onChange={(dim) => onChange({ dim: Math.round(dim * 100) / 100 })}
-              format={(v) => `${Math.round(v * 100)}%`}
-            />
-          </Field>
-        </FieldGrid>
-      ) : null}
     </div>
   );
 }

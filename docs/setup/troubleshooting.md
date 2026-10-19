@@ -351,6 +351,26 @@ location for good: click the icon at the left of the address bar, then **Site se
 default for every Weather widget), never asks at all. Each address counts as its own site, so `localhost:5757` and your Pages site are
 allowed separately.
 
+## The background image
+
+When you choose a photo in **Settings → Appearance**, the browser prepares it before it is
+saved, because every new tab has to load and draw it:
+
+- A photo bigger than your screen is scaled down so its long side matches your screen (between
+  2,560 and 3,840 pixels; a 4K screen gets 3,840) and saved as WebP. A photo that already fits
+  is saved unchanged.
+- An animated GIF, PNG, WebP or AVIF keeps only its first frame: an animation makes the page
+  redraw the whole window many times a second.
+- An SVG drawing becomes a picture sized for your screen.
+
+You can choose a file of up to 25 MB; what is saved is much smaller. If you move to a bigger
+screen and the background looks soft, choose the photo again on that screen.
+
+A background saved before this shows **Optimize image** under the picture when a lighter copy
+would help: an animation, a drawing, or a photo with a long side over 3,840 pixels. The copy
+suits every screen up to 4K; it replaces the background and keeps the blur and dim. If the
+browser can't open a file at all, Portly says so: save it as a JPEG or PNG and try again.
+
 ## Restoring a backup or starting over
 
 - **Restore a backup:** stop Portly (`uninstall-autostart.ps1` or Ctrl+C), copy a file from
