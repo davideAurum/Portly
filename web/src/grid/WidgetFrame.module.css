@@ -9,7 +9,7 @@
   border: 1px solid var(--hb-glass-border);
   background: var(--hb-glass);
   box-shadow: var(--hb-shadow);
-  backdrop-filter: var(--hb-glass-filter);
+  backdrop-filter: var(--hb-widget-glass-filter);
   color: var(--hb-text);
   transition:
     box-shadow var(--hb-duration) var(--hb-ease),
@@ -116,7 +116,7 @@
 /* The per-widget settings button appears on hover/focus only (view mode). */
 .hoverAction {
   opacity: 0;
-  transition: opacity var(--hb-duration) var(--hb-ease);
+  transition: opacity var(--hb-hover-duration) var(--hb-ease);
 }
 
 .frame:hover .hoverAction,

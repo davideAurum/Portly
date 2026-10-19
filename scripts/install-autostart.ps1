@@ -7,7 +7,8 @@
 
       Trigger    -Trigger Browser (default): none - the task runs only on demand
                  -Trigger Logon: at log on of the current user (-LogonDelaySeconds)
-      Action     %SystemRoot%\System32\conhost.exe --headless "<node.exe>" "<repo>\server\src\supervisor.ts"
+      Action     %SystemRoot%\System32\conhost.exe --headless
+                 "%LOCALAPPDATA%\Portly\node\portly-supervisor.exe" "<repo>\server\src\supervisor.ts"
       Principal  current user, LogonType Interactive, RunLevel Limited (not elevated)
       Settings   no time limit, runs on battery, one instance (IgnoreNew), starts when available,
                  priority 4, 3 restarts one minute apart (launch failures only - the
@@ -25,6 +26,16 @@
     tab finds Portly not running; the host runs "schtasks /run /tn \Portly Server", so Task
     Scheduler - not the browser - starts the server. Only the Portly extension may use the host:
     its ID is computed from the "key" in extension\manifest.json.
+
+    So that Task Manager's Details tab and Resource Monitor show Portly by name instead of two
+    node.exe, the task runs a copy of node.exe named portly-supervisor.exe, and the supervisor
+    starts the server as portly-server.exe (a hard link of that copy, so one file on disk):
+
+      Files      %LOCALAPPDATA%\Portly\node\ portly-supervisor.exe, portly-server.exe,
+                 runtime.json (which node.exe they were copied from)
+
+    The copies are refreshed when that node.exe changes (by this script, update.ps1 and
+    portly --start). If they cannot be made or do not run, the task runs node.exe itself.
 
     Then it builds web\dist if it is missing (npm run build), (re)starts the task and waits until
     http://localhost:<port>/api/health answers - this checks the installation end to end (use
@@ -68,7 +79,8 @@
     something must be fixed first.
 
 .PARAMETER NodePath
-    node.exe to run (Node.js 24 or newer). Defaults to the node.exe found on PATH.
+    node.exe to run (Node.js 24 or newer), and to copy as portly-supervisor.exe. Defaults to the
+    node.exe found on PATH (a release install: its own runtime\node.exe).
 
 .PARAMETER TimeoutSeconds
     How long to wait for /api/health after starting the task (10-600, default 90).
@@ -174,6 +186,8 @@ function Invoke-Install {
     }
 
     $node = Resolve-HbNode -NodePath $NodePath -RepoRoot $repoRoot
+    # Portly's named copies of node.exe, for Task Manager (made or refreshed below).
+    $runtimePlan = Get-HbRuntimePlan -NodeExe $node.Path
     $portSetting = Get-HbPortSetting -Scope Task
     $port = $portSetting.Port
     $dataDir = Get-HbDataDir -Scope Task -RepoRoot $repoRoot
@@ -237,6 +251,7 @@ function Invoke-Install {
     Write-Host 'Portly autostart' -ForegroundColor White
     Write-HbField 'Repository' $repoRoot
     Write-HbField 'Node.js' "$($node.Path) (v$($node.Version))"
+    Write-HbField 'Runs as' (Format-HbRuntimePlan -Plan $runtimePlan)
     Write-HbField 'User' $userId
     Write-HbField 'Starts' $startsText
     Write-HbField 'Native host' $nativeHostText
@@ -278,11 +293,15 @@ function Invoke-Install {
             "[Environment]::SetEnvironmentVariable('$($mismatch.Name)', '<value>', 'User'), then run this script again.")
     }
 
-    $definition = New-HbTaskDefinition -RepoRoot $repoRoot -NodeExe $node.Path -UserId $userId -Trigger $Trigger -LogonDelaySeconds $LogonDelaySeconds
+    $newDefinition = {
+        param([string]$Program)
+        New-HbTaskDefinition -RepoRoot $repoRoot -NodeExe $Program -UserId $userId -Trigger $Trigger -LogonDelaySeconds $LogonDelaySeconds
+    }
 
     if ($DryRun) {
         Write-HbStep 'Scheduled task definition (dry run - not registered)'
-        Write-HbTaskDefinition -Task $definition
+        Write-HbTaskDefinition -Task (& $newDefinition $runtimePlan.SupervisorExe)
+        Write-HbInfo "(If $PortlySupervisorProgram cannot be made or does not run, the task runs $($node.Path) instead.)"
         Write-Host ''
         if ($null -ne $nativeHost) {
             Write-HbStep 'Native messaging host (dry run - nothing written)'
@@ -296,6 +315,13 @@ function Invoke-Install {
         } else {
             Write-HbInfo '- build the web app: npm run build (web\dist is missing)'
         }
+        $copies = "$PortlySupervisorProgram (and $PortlyServerProgram, a hard link of it) in $($runtimePlan.Destination)"
+        switch ($runtimePlan.State) {
+            'current' { Write-HbInfo "- keep $copies`: up to date with $($node.Path)" }
+            'stale' { Write-HbInfo "- refresh $copies from $($node.Path) (once Portly is stopped, if they are in use)" }
+            default { Write-HbInfo "- copy $($node.Path) to $copies, so Task Manager shows Portly by name" }
+        }
+        Write-HbInfo "- check that $PortlySupervisorProgram runs and reports Node.js v$($node.Version), and record its source in $($runtimePlan.RecordPath)"
         if ($null -ne $existing) {
             Write-HbInfo "- replace the existing task '$PortlyTaskName' (state: $($existing.State), $(Get-HbTaskTriggerMode -Task $existing) mode) with the $Trigger mode task"
         } else {
@@ -351,6 +377,30 @@ function Invoke-Install {
         Write-HbOk 'Web app built'
     }
 
+    # Portly's named copies of node.exe. A copy the running Portly uses cannot be replaced yet: it
+    # is kept (it works) and replaced once Portly is stopped, below.
+    Write-HbStep "Preparing $PortlySupervisorProgram and $PortlyServerProgram (copies of node.exe that Task Manager shows by name)"
+    $runtime = Update-HbRuntimeCopies -Plan $runtimePlan -NodeVersion $node.Version
+    $taskProgram = $node.Path
+    $retryRuntime = $false
+    if ($runtime.Ok) {
+        $taskProgram = $runtimePlan.SupervisorExe
+        $how = if ($runtime.Linked) { 'a hard link of it' } else { 'a second copy' }
+        if ($runtime.Changed) {
+            Write-HbOk "Copied $($node.Path) to $($runtimePlan.SupervisorExe) ($PortlyServerProgram is $how)"
+        } else {
+            Write-HbOk "$($runtimePlan.SupervisorExe) and $PortlyServerProgram ($how) are up to date with $($node.Path)"
+        }
+    } elseif ($runtime.Usable) {
+        $taskProgram = $runtimePlan.SupervisorExe
+        $retryRuntime = $true
+        Write-HbInfo "Not updated yet ($($runtime.Error)); trying again once Portly is stopped."
+    } else {
+        Write-Warning ("Could not make Portly's copies of node.exe ($($runtime.Error)). The task runs $($node.Path) " +
+            'itself instead, so Task Manager shows node.exe. Portly works the same.')
+    }
+    $definition = & $newDefinition $taskProgram
+
     Write-HbStep "Registering scheduled task '$PortlyTaskName' ($Trigger mode)"
     try {
         $null = Register-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -InputObject $definition -Force
@@ -391,6 +441,19 @@ function Invoke-Install {
     if ($stopped.Count -gt 0) {
         Write-HbInfo "Stopped the previous Portly processes (PID $($stopped -join ', '))"
         Start-Sleep -Milliseconds 500
+    }
+    if ($retryRuntime) {
+        $runtime = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $node.Path) -NodeVersion $node.Version
+        if ($runtime.Ok) {
+            Write-HbOk "Updated $($runtimePlan.SupervisorExe) and $PortlyServerProgram from $($node.Path)"
+        } elseif ($runtime.Usable) {
+            Write-Warning "Could not update Portly's copies of node.exe ($($runtime.Error)). Portly runs the copies it has; run this script again later."
+        } else {
+            Write-Warning ("Could not update Portly's copies of node.exe ($($runtime.Error)). The task runs $($node.Path) " +
+                'itself instead, so Task Manager shows node.exe.')
+            $null = Register-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -InputObject (& $newDefinition $node.Path) -Force
+            $taskProgram = $node.Path
+        }
     }
 
     $nextStart = if ($Trigger -eq 'Logon') { 'at your next sign-in' } else { 'when Chrome or Edge next opens (or a new tab finds it not running)' }
@@ -462,6 +525,9 @@ function Invoke-Install {
             }
             Write-Host ''
             Write-HbInfo "From now on it starts $nextStart."
+            if ($taskProgram -ne $node.Path) {
+                Write-HbInfo "Task Manager (Details tab) shows it as $PortlySupervisorProgram and $PortlyServerProgram."
+            }
             Write-HbExtensionReminder -Plan $nativeHost
             Write-HbInfo "Open http://localhost:$port - or install the new-tab extension (docs\setup\extension.md)."
             Write-HbInfo 'Check on it later with: scripts\status.ps1   Remove it with: scripts\uninstall-autostart.ps1'

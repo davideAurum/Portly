@@ -1,8 +1,8 @@
 /**
  * Appearance (§7a Theme, §4.5): mode, accent, background (color / gradient builder / uploaded
- * image with blur + dim), font, density, corner radius and widget opacity. Every change applies to
- * the whole app immediately (optimistic cache → applyTheme) and is saved with a debounced merge
- * patch.
+ * image with blur + dim), font, density, corner radius, widget opacity and frosted glass. Every
+ * change applies to the whole app immediately (optimistic cache → applyTheme) and is saved with a
+ * debounced merge patch.
  */
 import { useRef, useState, type CSSProperties } from 'react';
 import { Image as ImageIcon, Monitor, Moon, Paintbrush, Plus, RotateCcw, Sun, SwatchBook, Trash } from 'lucide-react';
@@ -17,13 +17,14 @@ import {
 } from '@portly/shared';
 import { useSettings, useSettingsAutosave } from '../../api/settings.ts';
 import { backdropValue } from '../../theme/applyTheme.ts';
+import { useFrostedGlass, writeFrostedGlass } from '../../theme/glassPreference.ts';
 import { Button, IconButton } from '../../ui/Button.tsx';
 import { ColorPicker, ColorPickerPopover } from '../../ui/ColorPicker.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Field } from '../../ui/Field.tsx';
 import { FieldGrid, SettingsCard } from '../../ui/Section.tsx';
 import { SkeletonLines } from '../../ui/Skeleton.tsx';
-import { SegmentedControl, Slider } from '../../ui/Toggles.tsx';
+import { SegmentedControl, Slider, Switch } from '../../ui/Toggles.tsx';
 import styles from '../../styles/settings.module.css';
 import { ImageBackgroundEditor } from './BackgroundImage.tsx';
 
@@ -76,6 +77,8 @@ function AppearanceForm({ theme }: { theme: Theme }) {
   remembered.current[theme.background.type] = theme.background;
 
   const backgroundType = imageTab ? 'image' : theme.background.type;
+  // Not part of the synced theme: a setting of this browser (glassPreference.ts).
+  const frostedGlass = useFrostedGlass();
 
   return (
     <div className={styles.stack}>
@@ -183,6 +186,12 @@ function AppearanceForm({ theme }: { theme: Theme }) {
             />
           </Field>
         </FieldGrid>
+        <Switch
+          label="Frosted glass"
+          description={`Blurs ${backgroundType === 'image' ? 'your' : 'a'} photo background behind widgets, menus and the header. It uses more graphics power and can make the page or the mouse stutter on large or high-resolution screens. Saved for this browser only.`}
+          checked={frostedGlass}
+          onCheckedChange={writeFrostedGlass}
+        />
       </SettingsCard>
 
       <div>
@@ -192,6 +201,7 @@ function AppearanceForm({ theme }: { theme: Theme }) {
           onClick={() => {
             setImageTab(false);
             save(null);
+            writeFrostedGlass(false);
           }}
         >
           Reset appearance to defaults

@@ -31,25 +31,27 @@ body {
 }
 
 /*
- * The user's backdrop sits behind everything. Blur and dim come from the theme (image backgrounds
- * only); the negative inset hides the soft edge a blur filter would otherwise produce.
+ * The user's backdrop sits behind everything. A photo's dim is a dark layer inside --hb-backdrop
+ * and its blur is normally baked into the image once (theme/backdropBake.ts), so this layer has no
+ * filter for the GPU to redo on every repaint.
  */
 body::before {
   content: '';
   position: fixed;
-  inset: calc(var(--hb-backdrop-blur) * -2);
+  inset: 0;
   z-index: -1;
   background: var(--hb-backdrop);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: blur(var(--hb-backdrop-blur)) brightness(calc(1 - var(--hb-backdrop-dim)));
   pointer-events: none;
 }
 
-/* Blur and dim only apply to images; skip the (identity) filter layer otherwise. */
-:root:not([data-backdrop='image']) body::before {
-  filter: none;
+/* Until the baked copy is ready (or if the browser cannot make one), the blur is a live filter;
+   the negative inset hides the soft edge it would otherwise produce. */
+:root[data-backdrop-filter='live'] body::before {
+  inset: calc(var(--hb-backdrop-blur) * -2);
+  filter: blur(var(--hb-backdrop-blur));
 }
 
 #root {

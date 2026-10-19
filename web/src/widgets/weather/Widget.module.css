@@ -479,7 +479,8 @@
   width: 18px;
   height: 18px;
   color: var(--hb-accent);
-  animation: hb-weather-pulse 1.4s ease-in-out infinite;
+  /* Finite: an endless pulse keeps the GPU producing frames. */
+  animation: hb-weather-pulse 1.4s ease-in-out 3;
 }
 
 @keyframes hb-weather-pulse {

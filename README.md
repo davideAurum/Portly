@@ -21,7 +21,9 @@ and Edge. There is no cloud service: the only outside traffic is to the provider
 - **Weather** (Open-Meteo, no key) and a **clock** with greeting and extra time zones.
 - **Customization** — a 12-column widget grid (add, remove, move, resize, several instances of any
   widget), per-widget settings, themes (light/dark, accent, gradient or image background, fonts,
-  density), named profiles, and config export/import.
+  density, optional frosted glass), named profiles, and config export/import. The page is kept
+  light on the graphics card: a photo's blur is prepared once instead of redrawn live, and the
+  frosted-glass effect is off unless you turn it on.
 - **Diagnostics** — **Settings → Diagnostics** shows the health of every account, calendar, feed
   and background job with what to do about a failure, the server log (short by default, Verbose
   on request), what the browser noticed, and a downloadable report. Secrets, contents and full
@@ -41,7 +43,9 @@ and Edge. There is no cloud service: the only outside traffic is to the provider
                                    started by Task Scheduler when the
                                    extension's launcher asks (browser
                                    start / new tab) or at sign-in
-                                   -> supervisor.ts -> index.ts
+                                   -> supervisor.ts -> index.ts, shown in
+                                   Task Manager as portly-supervisor.exe
+                                   and portly-server.exe
 ```
 
 - **server/** — Node 24 + Hono, run directly from TypeScript (no bundling). SQLite via
@@ -160,9 +164,9 @@ Run PowerShell scripts as `powershell -NoProfile -ExecutionPolicy Bypass -File .
 | Command | What it does |
 | --- | --- |
 | `scripts\start.ps1` | Foreground run with checks: Node version, builds `web\dist` if missing, refuses to start twice. `-Port`, `-DataDir`, `-Rebuild`. |
-| `scripts\install-autostart.ps1` | Registers the **Portly Server** scheduled task and the native messaging host `com.portly.launcher` (Chrome + Edge, per user), so the extension starts Portly when the browser opens or a new tab needs it (`-Trigger Logon`: at sign-in instead). Starts it and waits for `/api/health`. `-DryRun` prints the task, every file and registry value without changing anything. |
-| `scripts\uninstall-autostart.ps1` | Stops Portly, removes the task and the native host; leaves your data alone. |
-| `scripts\status.ps1` | Task state and mode, native host registration, processes, health, data folder and logs (`-LogLines N`). |
+| `scripts\install-autostart.ps1` | Registers the **Portly Server** scheduled task and the native messaging host `com.portly.launcher` (Chrome + Edge, per user), so the extension starts Portly when the browser opens or a new tab needs it (`-Trigger Logon`: at sign-in instead). The task runs a copy of `node.exe` named `portly-supervisor.exe`, and the server runs as `portly-server.exe`, so Task Manager shows Portly by name ([details](docs/setup/autostart.md#in-task-manager)). Starts it and waits for `/api/health`. `-DryRun` prints the task, every file and registry value without changing anything. |
+| `scripts\uninstall-autostart.ps1` | Stops Portly, removes the task, the native host and Portly's copies of `node.exe`; leaves your data alone. |
+| `scripts\status.ps1` | Task state and mode, what it runs as, native host registration, processes (with their program names), health, data folder and logs (`-LogLines N`). |
 | `scripts\publish-static.ps1` | Builds the browser-only app and publishes it to a local clone of your public GitHub Pages repository (`-PublicRepoPath`, `-Base`, `-Message`, `-DryRun`, `-NoPush`, `-ReplaceEverything`). It replaces everything in that repository, so use a new, empty one made for the site. |
 | `scripts\install.ps1` | Installs a release package, or updates an installed one (what `irm <site>/install.ps1 \| iex` and `portly --update` run): `-Version`, `-ZipPath`, `-PagesUrl`, `-Force`, `-DryRun`. See [releases.md](docs/setup/releases.md). |
 | `scripts\build-release.ps1` | Builds `dist-release\portly-<version>-win-x64.zip` and `portly-release.json` (production dependencies, the pinned Node.js runtime). `-NodeExe` and `-AllowDirty` for test builds. |

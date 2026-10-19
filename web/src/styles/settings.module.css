@@ -222,7 +222,12 @@
   background: var(--hb-backdrop);
   background-size: cover;
   background-position: center;
-  filter: blur(var(--hb-backdrop-blur)) brightness(calc(1 - var(--hb-backdrop-dim)));
+}
+
+/* Like the page backdrop (base.css), a live blur only until the baked copy is ready. Scaled down so
+   this small box looks about as blurred as the baked copy, which is made for the whole window. */
+:global(:root[data-backdrop-filter='live']) .themePreviewBackdrop {
+  filter: blur(calc(var(--hb-backdrop-blur) * 0.2));
 }
 
 .previewWidget {
@@ -233,7 +238,7 @@
   border-radius: var(--hb-radius-lg);
   border: 1px solid var(--hb-glass-border);
   background: var(--hb-glass);
-  backdrop-filter: var(--hb-glass-filter);
+  backdrop-filter: var(--hb-widget-glass-filter);
   box-shadow: var(--hb-shadow);
   color: var(--hb-text);
   font-family: var(--hb-font-sans);

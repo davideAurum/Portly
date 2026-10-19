@@ -1,5 +1,5 @@
 /**
- * Sports widget: the favorite teams' games in three sections — Live (pulsing LIVE badge, clock and
+ * Sports widget: the favorite teams' games in three sections — Live (LIVE badge, clock and
  * situation, refreshed every 30 s), Upcoming (local day and time) and Final. A game row opens its
  * box score in a new tab (the preview before kick-off); live and upcoming games have a "Where to
  * watch" button listing their broadcasters with links to the official streaming services. Teams

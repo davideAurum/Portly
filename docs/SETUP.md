@@ -208,6 +208,7 @@ Everything lives in `%LOCALAPPDATA%\Portly`:
 | `logs\server.log` | Server log, one JSON record per line (no passwords, tokens, message contents or full addresses); **Settings → Diagnostics** shows it |
 | `logs\supervisor.log` | Autostart supervisor log (server starts, restarts and stops, and why) |
 | `native-host\` | The launcher Chrome and Edge use to start Portly, and its `launcher.log` (written by `install-autostart.ps1`; always here, even with `PORTLY_DATA_DIR`) |
+| `node\` | `portly-supervisor.exe` and `portly-server.exe`: copies of your `node.exe` that autostart runs, so Task Manager shows Portly by name ([details](setup/autostart.md#in-task-manager); written by `install-autostart.ps1`, always here) |
 | `backups\` | Daily database backups (last 7) |
 
 Mail is never stored on disk. **Settings → Import & export** exports your settings, layouts and
@@ -226,7 +227,8 @@ npm run build
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1   # restarts it
 ```
 
-The installer also refreshes the launcher; add `-Trigger Logon` if that is the mode you use.
+The installer also refreshes the launcher and Portly's copies of `node.exe` (after a Node.js
+update too); add `-Trigger Logon` if that is the mode you use.
 Without autostart, stop Portly (Ctrl+C) and start it again instead of the last line. Then click
 **Reload** on the extension in `chrome://extensions` / `edge://extensions`. If you use the Pages
 site, publish it again too (`scripts\publish-static.ps1`, see
@@ -236,7 +238,8 @@ the same version.
 ## Uninstalling
 
 1. `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall-autostart.ps1`
-   (removes the task and the launcher's registry keys and folder; in a release install the script
+   (removes the task, the launcher's registry keys and folder, and Portly's copies of `node.exe`
+   in `%LOCALAPPDATA%\Portly\node`; in a release install the script
    is in `%LOCALAPPDATA%\Programs\Portly\app\scripts`), and the `portly` command:
    the same folder's `install-cli.ps1 -Uninstall`.
 2. Remove **Portly New Tab** from `chrome://extensions` / `edge://extensions`.

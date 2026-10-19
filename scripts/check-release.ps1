@@ -162,8 +162,10 @@ try {
     # A dry run registers and writes nothing; it shows the task and launcher the install would get.
     $autostart = Invoke-CheckScript -Path (Join-Path $app 'scripts\install-autostart.ps1') -Arguments @('-DryRun')
     $bundledNode = Join-Path $app 'runtime\node.exe'
-    Assert-That -Name 'the installed install-autostart.ps1 -DryRun uses runtime\node.exe and app\server' -Condition (
-        $autostart.ExitCode -eq 0 -and $autostart.Text.Contains("--headless ""$bundledNode"" ""$(Join-Path $app 'server\src\supervisor.ts')""") -and
+    $supervisorCopy = Join-Path (Get-HbRuntimeDir) $PortlySupervisorProgram
+    Assert-That -Name 'the installed install-autostart.ps1 -DryRun runs app\server as a copy of runtime\node.exe (the launcher: runtime\node.exe itself)' -Condition (
+        $autostart.ExitCode -eq 0 -and $autostart.Text.Contains("--headless ""$supervisorCopy"" ""$(Join-Path $app 'server\src\supervisor.ts')""") -and
+        $autostart.Text.Contains("the task runs $bundledNode instead") -and
         $autostart.Text.Contains("""$bundledNode"" ""%~dp0launcher.mjs"" %*") -and
         $autostart.Text.Contains('valid (checked with server\src\config.ts)')) -Detail $autostart.Text
     if ($null -ne $builtOut) {

@@ -6,12 +6,14 @@
     Read-only. Two sections:
 
     Status - is it working right now: the /api/health check, the supervisor and server
-    processes, the "Portly Server" task state and last result, the last launcher request, the
-    native host for Chrome and Edge (OK, or what is wrong), and the server configuration check
-    when Portly does not answer.
+    processes (with their program names), the "Portly Server" task state and last result, a
+    warning when the task's program is missing or Portly's copies of node.exe are out of date,
+    the last launcher request, the native host for Chrome and Edge (OK, or what is wrong), and
+    the server configuration check when Portly does not answer.
 
     Settings - how it is set up: port, URL, checkout, data folder and log files, the task's mode
-    and command, the extension ID pinned by the "key" in extension\manifest.json, the native host
+    and command, what it runs as (portly-supervisor.exe and portly-server.exe, copies of which
+    node.exe), the extension ID pinned by the "key" in extension\manifest.json, the native host
     manifests, and the GitHub Pages settings (PORTLY_PAGES_URL, PORTLY_PAGES_REPO).
 
     Exits with 0 when http://localhost:<port>/api/health answers as Portly and 1 otherwise, so
@@ -114,12 +116,23 @@ function Invoke-Status {
                 Write-HbField 'Autostart' "$($task.State) ($mode mode)"
                 $lastRun = if ($info.LastRunTime -and $info.LastRunTime.Year -gt 2000) { $info.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'never' }
                 Write-HbField 'Last run' "$lastRun, result $(Format-HbTaskResult -Code $info.LastTaskResult)"
-                $action = @($task.Actions)[0]
-                if ("$($action.Arguments)" -match '--headless "([^"]+)"') {
-                    $taskNode = $Matches[1]
-                    if (-not (Test-Path -LiteralPath $taskNode -PathType Leaf)) {
-                        Write-Warning "The task's node.exe no longer exists: $taskNode. Re-run scripts\install-autostart.ps1."
+                $taskProgram = Get-HbTaskProgram -Task $task
+                if ($taskProgram -and -not (Test-Path -LiteralPath $taskProgram -PathType Leaf)) {
+                    Write-Warning "The task's program no longer exists: $taskProgram. Re-run scripts\install-autostart.ps1."
+                } elseif (Test-HbRuntimeProgram -Path $taskProgram) {
+                    # Portly's copies of node.exe: still the build of the node.exe they came from?
+                    $runtimeDir = Split-Path -Parent $taskProgram
+                    $record = Read-HbRuntimeRecord -Destination $runtimeDir
+                    if ($null -ne $record -and (Test-Path -LiteralPath $record.Source -PathType Leaf)) {
+                        $runtimePlan = Get-HbRuntimePlan -NodeExe $record.Source -Destination $runtimeDir
+                        if ($runtimePlan.State -ne 'current') {
+                            Write-Warning ("$PortlySupervisorProgram and $PortlyServerProgram are not the same build as $($record.Source) any more " +
+                                '(Node.js was updated?). Run scripts\install-autostart.ps1 again to refresh them (it restarts Portly).')
+                        }
                     }
+                } elseif ($taskProgram) {
+                    Write-HbInfo ("The task runs $taskProgram, so Task Manager shows Portly as node.exe. Run scripts\install-autostart.ps1 " +
+                        "again to run it as $PortlySupervisorProgram and $PortlyServerProgram.")
                 }
             }
             if (Test-Path -LiteralPath $hostLog -PathType Leaf) {
@@ -200,6 +213,14 @@ function Invoke-Status {
                 Write-HbField 'Starts' (Format-HbTaskTrigger -Task $task)
                 $action = @($task.Actions)[0]
                 Write-HbField 'Command' "$($action.Execute) $($action.Arguments)"
+                $taskProgram = Get-HbTaskProgram -Task $task
+                if (Test-HbRuntimeProgram -Path $taskProgram) {
+                    $record = Read-HbRuntimeRecord -Destination (Split-Path -Parent $taskProgram)
+                    $source = if ($null -ne $record) { "copies of $($record.Source), Node.js v$($record.NodeVersion)" } else { "$PortlyRuntimeRecord missing" }
+                    Write-HbField 'Runs as' "$PortlySupervisorProgram and $PortlyServerProgram in $(Split-Path -Parent $taskProgram) ($source)"
+                } elseif ($taskProgram) {
+                    Write-HbField 'Runs as' "$([System.IO.Path]::GetFileName($taskProgram)) (no Portly-named copies; install-autostart.ps1 makes them)"
+                }
             }
         }
         if ($null -ne $expectedId) {

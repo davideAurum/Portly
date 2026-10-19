@@ -2,14 +2,13 @@
   position: fixed;
   inset: 0;
   z-index: 900;
+  /* Tint only: a blur of the whole page behind it would be redone on every repaint under it. */
   background: var(--hb-overlay);
-  backdrop-filter: blur(3px);
   animation: hb-fade-in 150ms var(--hb-ease);
 }
 
 .overlay[data-placement='side'] {
   background: color-mix(in srgb, var(--hb-overlay) 35%, transparent);
-  backdrop-filter: none;
 }
 
 .content {

@@ -5,7 +5,7 @@
   background: var(--hb-glass-strong);
   color: var(--hb-text);
   box-shadow: var(--hb-shadow-lg);
-  backdrop-filter: blur(var(--hb-glass-blur)) saturate(1.4);
+  backdrop-filter: var(--hb-glass-filter);
   outline: none;
   transform-origin: var(--radix-popper-transform-origin);
   animation: hb-pop-in 140ms var(--hb-ease);
