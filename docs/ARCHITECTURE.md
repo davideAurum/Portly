@@ -1753,7 +1753,11 @@ data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark impor
   folder if it is then empty.
 - **Browser** (`web/src/legacyStorage.ts`, imported by `main.tsx` right after zod's configuration): once
   (`portly:migrated-from-homebase`), every `homebase:` localStorage key except query caches is copied to its unset
-  `portly:` key; `copyLegacyStaticDatabase` (`static/storage/idb.ts`) copies `homebase-static:<base>` into a
-  `portly-static:<base>` that does not exist yet (both stores; needs `indexedDB.databases()`).
+  `portly:` key; `copyLegacyStaticDatabase` (`static/storage/idb.ts`) copies `homebase-static:<base>` into
+  `portly-static:<base>` (both stores; needs `indexedDB.databases()`), only into a database it creates itself: the
+  transaction that creates it writes the `kv` marker `copy:homebase-pending` (`{attempts}`), and the one that writes the
+  copied records removes it. A copy cut off part-way (an error, a full disk, a closed tab) leaves the marker, so later
+  loads try again, replacing what the database holds by then, `LEGACY_COPY_ATTEMPTS` (3) loads in all; after that the
+  database is kept as it is. A database without the marker is never touched.
 - **Files:** import accepts `format: 'homebase-export'` (`isExportFormat`), and `publish-static.ps1` recognises a
   Pages repository holding a `homebase-build` publish.

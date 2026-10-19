@@ -74,7 +74,9 @@ Homebase's own folders are left as they were, so you can go back until you delet
   removes the old `homebase` command and its PATH entry. Open a new terminal afterwards.
 - **Browsers:** a browser paired with Homebase stays paired, and the Pages site keeps the data it
   kept in the browser: on its first load Portly copies Homebase's `homebase:` settings and its
-  in-browser database to the new names. Export files from Homebase import as they are.
+  in-browser database to the new names. If copying the database fails part-way, the next two loads
+  try again and replace whatever that browser showed in between. Export files from Homebase import
+  as they are.
 - **By hand:** in `chrome://extensions` (or `edge://extensions`) **Remove** *Homebase New Tab* and
   **Load unpacked** Portly's `extension` folder (same extension ID, so nothing else changes).
   Publish the Pages site again from Portly (`publish-static.ps1` accepts the Homebase publish it
