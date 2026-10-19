@@ -22,8 +22,9 @@ and Edge. There is no cloud service: the only outside traffic is to the provider
 - **Customization** — a 12-column widget grid (add, remove, move, resize, several instances of any
   widget), per-widget settings, themes (light/dark, accent, gradient or image background, fonts,
   density, optional frosted glass), named profiles, and config export/import. The page is kept
-  light on the graphics card: a photo's blur is prepared once instead of redrawn live, and the
-  frosted-glass effect is off unless you turn it on.
+  light on the graphics card: a background photo is stored as a still picture sized for your
+  screen, its blur is prepared once instead of redrawn live, and the frosted-glass effect is off
+  unless you turn it on.
 - **Diagnostics** — **Settings → Diagnostics** shows the health of every account, calendar, feed
   and background job with what to do about a failure, the server log (short by default, Verbose
   on request), what the browser noticed, and a downloadable report. Secrets, contents and full

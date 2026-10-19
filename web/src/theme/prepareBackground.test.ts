@@ -165,6 +165,7 @@ describe('prepareBackgroundImage', () => {
   describe('SVG', () => {
     let images: { src: string; decoding: string }[];
     let revoked: string[];
+    let objectUrlTypes: string[];
     const saved = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
 
     function stubImage(naturalWidth: number, naturalHeight: number, fails = false): void {
@@ -188,7 +189,11 @@ describe('prepareBackgroundImage', () => {
 
     beforeEach(() => {
       revoked = [];
-      URL.createObjectURL = vi.fn(() => 'blob:http://localhost/drawing');
+      objectUrlTypes = [];
+      URL.createObjectURL = vi.fn((blob: Blob) => {
+        objectUrlTypes.push(blob.type);
+        return 'blob:http://localhost/drawing';
+      });
       URL.revokeObjectURL = vi.fn((url: string) => void revoked.push(url));
     });
     afterEach(() => {
@@ -199,8 +204,10 @@ describe('prepareBackgroundImage', () => {
     it('is drawn from an <img> at the target size, never through createImageBitmap', async () => {
       stubImage(40, 30);
       const { create } = stubBitmap(1, 1);
-      const prepared = await prepareBackgroundImage(fileOf(svg(), 'waves.svg', 'image/svg+xml'), TARGET_4K);
+      // A dropped file may come without a type; the browser reads a blob: URL as SVG only with one.
+      const prepared = await prepareBackgroundImage(fileOf(svg(), 'waves.svg', ''), TARGET_4K);
       expect(create).not.toHaveBeenCalled();
+      expect(objectUrlTypes).toEqual(['image/svg+xml']);
       expect(images[0]).toMatchObject({ src: 'blob:http://localhost/drawing', decoding: 'async' });
       expect(canvases[0]).toMatchObject({ width: 3840, height: 2880 });
       expect(canvases[0]!.draws[0]![0]).toBe(images[0]);

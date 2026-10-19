@@ -54,7 +54,9 @@ async function decodeRaster(file: File): Promise<DecodedImage> {
 }
 
 async function decodeSvg(file: File): Promise<DecodedImage> {
-  const url = URL.createObjectURL(file);
+  // The browser reads a `blob:` URL as SVG only under the SVG type, which a picked or dropped file
+  // may lack; the bytes were sniffed as an SVG document already.
+  const url = URL.createObjectURL(new Blob([file], { type: 'image/svg+xml' }));
   const image = new Image();
   image.decoding = 'async';
   image.src = url;

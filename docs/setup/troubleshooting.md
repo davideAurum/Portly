@@ -355,8 +355,11 @@ especially on 4K or high-DPI screens:
   each have their own). Turn it off if the page or the mouse stutters.
 - A photo's **Blur** is prepared once, so any value is fine. The page only uses a live blur for a
   moment while the photo loads or while you drag the slider.
-- An animated background (GIF or animated WebP) with **Blur** at 0 redraws the whole window on
-  every frame. Use a still photo. (With a blur above 0 it shows its first frame and stands still.)
+- A new background keeps only the first frame of an animated image and is stored at your
+  screen's size (see [The background image](#the-background-image)). One saved earlier may still
+  animate, which with **Blur** at 0 redraws the whole window on every frame (with a blur above 0
+  it stands still), or be a very large photo that every new tab has to decode: use **Optimize
+  image** under it.
 
 To see what Portly costs, press **Shift+Esc** in Chrome or Edge: the browser's own Task Manager
 lists each Portly tab with its CPU and memory, and a separate **GPU Process** row for the drawing

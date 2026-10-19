@@ -693,8 +693,11 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
     blur or the window size key (CSS size buckets plus device pixel ratio, so browser zoom counts) changes, swaps in
     a copy only once it is decoded, and revokes replaced `blob:` URLs 2 s later. Until a copy exists (first paint,
     slider drags) or when the browser cannot blur on a canvas, `data-backdrop-filter='live'` keeps the old live
-    `filter: blur()` (`base.css`). An animated image bakes its first frame, so a blurred animated background stops
-    moving once the copy is ready;
+    `filter: blur()` (`base.css`). An animated image (only one stored before uploads were prepared) bakes its first
+    frame, so a blurred animated background stops moving once the copy is ready;
+  - the uploaded image itself is prepared in the browser before it is stored (§10.5, background uploads): a still
+    copy whose long edge fits the screen (at most 3840), so no tab decodes a 24-megapixel photo or redraws the window
+    for the frames of an animation;
   - glass surfaces get `backdrop-filter` only under `data-glass='frosted'` (`tokens.css`), set when frosted glass is
     on and a photo is on screen. Frosted glass is a setting of the browser, not of the theme
     (`theme/glassPreference.ts`, localStorage `portly:frosted-glass`, per address like other `portly:` keys): its
@@ -923,7 +926,7 @@ posts the pairing and follows the redirect only when it is exactly `<pagesUrl>#/
 Cancel → `#/`. In the Pages build the route only says that pairing happens on Portly's own page.
 
 **Appearance background uploads** (`settings/sections/BackgroundImage.tsx`) are prepared in the browser first, because
-every new tab decodes and draws the image (`theme/prepareBackground.ts`; header-only checks in
+every new tab decodes and draws the image (§7a Theme rendering; `theme/prepareBackground.ts`; header-only checks in
 `theme/backgroundImage.ts`, which treat the bytes as hostile: bounded walks, malformed means "still" or "size unknown"):
 - the target long edge is the screen's long edge times `devicePixelRatio`, kept within 2560..3840;
 - a still PNG, JPEG, GIF, WebP or AVIF whose header says it fits goes up unchanged, without being decoded;
