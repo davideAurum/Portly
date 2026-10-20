@@ -96,9 +96,7 @@ or fold them into a phase.
 
 - **Tidy-ups:**
   - remove `@tanstack/query-sync-storage-persister` from `web/package.json`. Nothing uses it
-    since the background-tab work, but it was kept to avoid a lockfile change;
-  - the Shell test for the "Add bookmark" dialog (`#/add-bookmark`) sometimes fails, also on
-    older commits. Make it reliable.
+    since the background-tab work, but it was kept to avoid a lockfile change.
 - **Checks never run on main:** re-run the hybrid pairing check in a real browser, and check
   hidden-tab behaviour with a real hidden tab instead of a simulated one.
 - **Dependencies:** two dev-only advisories (`shell-quote` through `concurrently`, and

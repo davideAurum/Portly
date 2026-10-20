@@ -18,6 +18,12 @@ function renderShell(summary: unknown) {
   });
 }
 
+/**
+ * The About section is lazily loaded. A test that waits for it loads its code first, so that on a
+ * busy machine its first load does not count against the wait.
+ */
+const loadAboutSection = () => import('../../settings/sections/About.tsx');
+
 function diagnosticsLink(): HTMLElement {
   return within(screen.getByRole('navigation', { name: 'Settings sections' })).getByRole('link', { name: /^Diagnostics/ });
 }
@@ -31,6 +37,7 @@ describe('VerboseNavBadge', () => {
   });
 
   it('shows nothing at the normal level, or once a timed verbose has ended', async () => {
+    await loadAboutSection();
     const { requestsTo, unmount } = renderShell(diagnosticsSummary());
     await waitFor(() => expect(requestsTo('GET /api/diagnostics/summary')).toHaveLength(1));
     await screen.findByText('Unlocked and ready');
@@ -45,6 +52,7 @@ describe('VerboseNavBadge', () => {
   });
 
   it('never asks on the in-browser backend', async () => {
+    await loadAboutSection();
     setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
     const { requests } = renderShell(diagnosticsSummary());
     expect(diagnosticsLink()).toBeInTheDocument();

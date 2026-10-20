@@ -1339,6 +1339,11 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   sets `Host: localhost:5757`, `X-Portly: 1`, `Sec-Fetch-Site: same-origin`, JSON content type. `fake-fetch.ts` —
   `createFakeFetch([{match: string|RegExp, method?, respond: {status, json?|text?|body?, headers?}}])`; unmatched URL
   fails the test. `web/src/test/render.tsx` — `renderWithProviders(ui, {apiMocks})`. Fixtures in `<module>/__fixtures__/`.
+- UI tests must also pass in a full run on a busy machine. Waits (`findBy…`, `waitFor`) get 4 s and a test 60 s
+  (`web/src/test/setup.ts`). A test that waits for a lazily loaded component (a settings section, a widget's
+  settings, a dialog) imports its module first (`await import(…)`), because the first load of that code can take
+  longer than 4 s. A test about a debounce types without pauses (`userEvent.setup({ delay: null })`), and one
+  about a short real-time window (the launch pad's 400 ms delete guard) checks it right after the action.
 - Required server tests: gate (host, header, origin, sec-fetch-site, path normalization, exemptions), headers, vault
   round-trip + locked states (corrupted key, missing key with secrets), migrations, settings merge-patch incl.
   prototype-pollution payloads (`({}).polluted === undefined` afterwards), safe-fetch (lookup returning public then

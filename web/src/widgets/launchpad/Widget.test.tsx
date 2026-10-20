@@ -416,9 +416,11 @@ describe('Launch pad: edit mode delete guard (UX-6)', () => {
   it('briefly ignores clicks on the tiles that slide under the pointer after a delete', async () => {
     const { user, requestsTo } = renderWidget({ editMode: true });
     await user.click(await screen.findByRole('button', { name: 'Delete B' }));
-    await waitFor(() => expect(requestsTo('DELETE /api/bookmarks/B')).toHaveLength(1));
+    // Right after the click: the guard lasts 400 ms of real time, which a busy machine can spend
+    // before a later look.
     expect(screen.getByRole('button', { name: 'Delete C' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'New bookmark in Work' })).toBeDisabled();
+    await waitFor(() => expect(requestsTo('DELETE /api/bookmarks/B')).toHaveLength(1));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Delete C' })).toBeEnabled());
   });
 });

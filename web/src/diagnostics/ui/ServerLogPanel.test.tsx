@@ -305,8 +305,9 @@ describe('ServerLogPanel', () => {
     expect(screen.getByText('2000 rows · the newest 2000 are kept')).toBeInTheDocument();
     expect(screen.queryByText('Show older (log files)')).not.toBeInTheDocument();
     expect(screen.getByText('The list keeps 2000 rows: narrow the filters or the time window to look further back.')).toBeInTheDocument();
-    // Rendering up to 2 000 rows four times takes seconds, more on a busy machine: above the suite's 20 s.
-  }, 60_000);
+    // Rendering up to 2 000 rows four times takes seconds, over 35 s in a full run on a busy machine:
+    // twice the suite's 60 s.
+  }, 120_000);
 
   it('Timeline merges this browser’s events into the list', async () => {
     recordClientEvent('warn', 'widget', 'mail summary failed', { accountId: 'acc-1', code: 'reauth_required' });

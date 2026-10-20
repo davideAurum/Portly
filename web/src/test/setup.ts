@@ -11,9 +11,14 @@ import { cleanup, configure } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
 // UI tests render lazily loaded widgets and Radix portals; under a parallel full-suite run
-// jsdom is slow enough that the 1 s / 5 s defaults cause flaky timeouts.
+// jsdom is slow enough that the 1 s / 5 s defaults cause flaky timeouts. A wait that also covers
+// the first load of a lazily loaded module can still outlast 4 s on a busy machine: such a test
+// imports the module itself before it renders (see VerboseNavBadge.test.tsx).
 configure({ asyncUtilTimeout: 4000 });
-vi.setConfig({ testTimeout: 20_000 });
+// The longest form tests type for about 10 s on a quiet machine and took over 20 s in a full run
+// on a busy one. A test that times out keeps running, and its late clicks and keystrokes land in
+// the next test's page, so give the whole test room; each wait above keeps its 4 s.
+vi.setConfig({ testTimeout: 60_000 });
 
 if (typeof window.matchMedia !== 'function') {
   Object.defineProperty(window, 'matchMedia', {

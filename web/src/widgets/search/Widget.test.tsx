@@ -150,7 +150,10 @@ describe('Search widget', () => {
   });
 
   it('shows bookmark matches then debounced suggestions, with keyboard navigation', async () => {
-    const { user, requestsTo } = setup();
+    const { requestsTo } = setup();
+    // Key by key but without pausing between keys: on a busy machine a pause can outlast the
+    // 150 ms debounce, which then rightly asks for "gi" as well.
+    const user = userEvent.setup({ delay: null });
     const box = await input();
     await user.type(box, 'git');
     const options = await screen.findAllByRole('option');

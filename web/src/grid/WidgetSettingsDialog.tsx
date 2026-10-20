@@ -36,9 +36,17 @@ export interface WidgetSettingsDialogProps {
   focus?: string | null;
 }
 
-/** Focuses the widget-settings field named `focus` once the (lazily loaded) settings show it. */
+/**
+ * Focuses the widget-settings field named `focus` once the (lazily loaded) settings show it. Their
+ * code may take seconds to arrive (a slow network for the Pages site, a busy PC), so it keeps
+ * looking until `deadline`, but stops once the dialog has closed or focus has moved to something
+ * else in it: the user got there first.
+ */
 function focusSettingsField(container: HTMLElement | null, focus: string, deadline: number): void {
-  const target = container?.querySelector<HTMLElement>(`[data-settings-focus="${CSS.escape(focus)}"]`);
+  if (!container?.isConnected) return;
+  const active = document.activeElement;
+  if (active && active !== container && container.contains(active)) return;
+  const target = container.querySelector<HTMLElement>(`[data-settings-focus="${CSS.escape(focus)}"]`);
   const field = target?.matches('input, textarea, select, button') ? target : target?.querySelector<HTMLElement>('input, textarea, select');
   if (field) {
     field.scrollIntoView({ block: 'center' });
@@ -107,7 +115,7 @@ export function WidgetSettingsDialog({ instance, definition, onClose, onPreview,
           ? (event) => {
               // Start in the requested field (not on the Close button) once it has rendered.
               event.preventDefault();
-              focusSettingsField(event.currentTarget as HTMLElement, focus, Date.now() + 2000);
+              focusSettingsField(event.currentTarget as HTMLElement, focus, Date.now() + 10_000);
             }
           : undefined
       }
