@@ -97,8 +97,15 @@ or fold them into a phase.
 - **Tidy-ups:**
   - remove `@tanstack/query-sync-storage-persister` from `web/package.json`. Nothing uses it
     since the background-tab work, but it was kept to avoid a lockfile change.
-- **Checks never run on main:** re-run the hybrid pairing check in a real browser, and check
-  hidden-tab behaviour with a real hidden tab instead of a simulated one.
+- **Checks never run on main:**
+  - re-run the hybrid pairing check in a real browser;
+  - check hidden-tab behaviour with a real hidden tab instead of a simulated one;
+  - try the Homebase switch-over fixes with a real DPAPI vault key or on a real Homebase PC.
+    Do this before phase 2 switches other PCs over;
+  - try the Accounts redesign (connect an account, then choose its services) with a real
+    Google or Microsoft sign-in;
+  - try the browser-only polish and the **Wikipedia suggestions instead** switch in a real
+    browser.
 - **Dependencies:** two dev-only advisories (`shell-quote` through `concurrently`, and
   `source-map-js`) need a dependency upgrade to clear. This needs a go-ahead.
 - **Versions:** the extension is at 0.5.3 while the app is at 0.1.0. Decide whether they should
