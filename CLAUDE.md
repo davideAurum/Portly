@@ -110,6 +110,8 @@ Do not rename:
 - the vault canary `homebase-vault-canary-v1`;
 - the bookmark import source seed;
 - the published `homebase-site` URLs;
+- the `--hb-*` CSS custom properties and `hb-*` classes in `web/src`. They keep the old prefix
+  on purpose, like the PowerShell `Hb` helpers;
 - the legacy code above.
 
 Never change the extension `key` in `extension/manifest.json`. Its ID is pinned in the
