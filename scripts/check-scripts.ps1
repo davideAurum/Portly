@@ -8,7 +8,8 @@
     2. Unit checks of scripts\lib\Common.ps1 (port parsing, access-denied detection, task-result
        text, process selection (node.exe and Portly's copies portly-supervisor.exe and
        portly-server.exe), the copies themselves - made, refreshed, kept while in use and refused
-       when they do not run, in a temporary folder - the task definition objects for -Trigger
+       when they do not run, in a temporary folder - the retry of a file another program reads
+       for a moment (Invoke-HbSharingRetry), the task definition objects for -Trigger
        Browser and Logon, extension IDs (the manifest key against Node's crypto, the extension's
        PINNED_EXTENSION_ID and every ID quoted in the docs), the native host files and their
        registration - written to a temporary folder with a fake registry - the health check
@@ -400,7 +401,7 @@ Assert-That -Name 'Sync-HbTaskRuntime is quiet when the copies are current or th
     $null -eq (Sync-HbTaskRuntime -Task $null -Destination $copiesDir))
 # Another build: the copies' modification time moves (a hard link: both names at once).
 $olderBuild = [System.DateTime]::SpecifyKind((Get-Date '2020-01-01T00:00:00'), [System.DateTimeKind]::Utc)
-[System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild)
+Invoke-HbSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild) }
 $syncDry = Sync-HbTaskRuntime -Task $copiesTask -Destination $copiesDir -DryRun
 Assert-That -Name 'Sync-HbTaskRuntime -DryRun says it would refresh out-of-date copies and changes nothing' -Condition (
     "$syncDry" -match '^Would bring portly-supervisor\.exe and portly-server\.exe up to date' -and
@@ -409,8 +410,8 @@ $synced = Sync-HbTaskRuntime -Task $copiesTask -Destination $copiesDir
 Assert-That -Name 'Sync-HbTaskRuntime refreshes them from the node.exe in runtime.json' -Condition (
     "$synced" -match '^Brought ' -and (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'current') -Detail "$synced"
 # In use (a running program cannot be deleted): an older copy is kept and still usable.
-[System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild)
-$held = [System.IO.File]::Open($copiesPlan.SupervisorExe, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+Invoke-HbSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild) }
+$held =[System.IO.File]::Open($copiesPlan.SupervisorExe, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
 try {
     $busy = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion $checkNodeVersion
 } finally {
@@ -419,6 +420,60 @@ try {
 Assert-That -Name 'Update-HbRuntimeCopies keeps a copy in use (not Ok, but usable) and leaves no .new file' -Condition (
     -not $busy.Ok -and $busy.Usable -and (Test-Path -LiteralPath $copiesPlan.SupervisorExe -PathType Leaf) -and
     -not (Test-Path -LiteralPath "$($copiesPlan.SupervisorExe).new")) -Detail "$($busy.Error)"
+# Read for a moment by another program (a virus scanner: shared for reading only). Opening the file
+# for writing, as Windows PowerShell 5.1 does to set its modification time, is a sharing violation
+# in either engine until that program lets go.
+$sharedFile = Join-Path $workDir 'shared\program.exe'
+$null = New-Item -ItemType Directory -Path (Split-Path -Parent $sharedFile) -Force
+[System.IO.File]::WriteAllText($sharedFile, 'read by a scanner')
+$writeShared = {
+    $script:sharingTries++
+    [System.IO.File]::Open($sharedFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite).Dispose()
+}
+$holdScript = {
+    param($Path, $Opened)
+    $handle = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+    try { $null = $Opened.Set(); [System.Threading.Thread]::Sleep(300) } finally { $handle.Dispose() }
+}
+$opened = New-Object System.Threading.ManualResetEvent -ArgumentList $false
+$holder = [powershell]::Create()
+$null = $holder.AddScript($holdScript.ToString()).AddArgument($sharedFile).AddArgument($opened)
+$holding = $holder.BeginInvoke()
+$script:sharingTries = 0
+$released = 'not tried'
+try {
+    if ($opened.WaitOne(10000)) {
+        try { Invoke-HbSharingRetry -Action $writeShared; $released = 'ok' } catch { $released = $_.Exception.Message }
+    } else {
+        $released = 'the other thread did not open the file'
+    }
+} finally {
+    try { $null = $holder.EndInvoke($holding) } catch { $released = "other thread: $($_.Exception.Message)" }
+    $holder.Dispose()
+    $opened.Dispose()
+}
+Assert-That -Name 'Invoke-HbSharingRetry: a file let go after 300 ms is tried again until the write succeeds' -Condition (
+    $released -eq 'ok' -and $script:sharingTries -gt 1) -Detail "$released ($script:sharingTries tries)"
+$scanner = [System.IO.File]::Open($sharedFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+$script:sharingTries = 0
+$watch = [System.Diagnostics.Stopwatch]::StartNew()
+$stillHeld = $null
+try {
+    try { Invoke-HbSharingRetry -Action $writeShared } catch { $stillHeld = $_ }
+} finally {
+    $scanner.Dispose()
+}
+Assert-That -Name 'Invoke-HbSharingRetry: a file held throughout -> its sharing violation after 5 tries (1.5 s), not more' -Condition (
+    $null -ne $stillHeld -and (Test-HbSharingViolation $stillHeld) -and $script:sharingTries -eq 5 -and $watch.ElapsedMilliseconds -lt 5000) -Detail "$script:sharingTries tries in $($watch.ElapsedMilliseconds) ms: $stillHeld"
+$script:sharingTries = 0
+$notShared = $null
+try {
+    Invoke-HbSharingRetry -Action { $script:sharingTries++; [System.IO.File]::SetLastWriteTimeUtc((Join-Path $workDir 'shared\missing.exe'), $olderBuild) }
+} catch {
+    $notShared = $_
+}
+Assert-That -Name 'Invoke-HbSharingRetry: any other error (a missing file) is thrown at once' -Condition (
+    $null -ne $notShared -and -not (Test-HbSharingViolation $notShared) -and $script:sharingTries -eq 1) -Detail "$script:sharingTries tries: $notShared"
 # A node.exe that does not run (blocked, broken): not usable, so the task runs node.exe itself.
 $brokenNode = Join-Path $workDir 'broken-node\node.exe'
 $null = New-Item -ItemType Directory -Path (Split-Path -Parent $brokenNode) -Force

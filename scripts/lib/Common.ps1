@@ -129,6 +129,43 @@ function Write-HbAccessDeniedHint {
     Write-Host 'rights are only needed to change its registration.'
 }
 
+# True when an error is Windows' "being used by another process" (a sharing violation, HRESULT
+# 0x80070020): another program has the file open and does not share the access asked for.
+function Test-HbSharingViolation {
+    param($ErrorOrException)
+    if ($null -eq $ErrorOrException) { return $false }
+    foreach ($exception in @(Get-HbExceptionChain $ErrorOrException)) {
+        if ($exception.HResult -eq -2147024864) { return $true }
+    }
+    return $false
+}
+
+# Runs $Action and returns its output. A sharing violation is tried again after a pause:
+# -Attempts tries in all, -DelayMilliseconds before the second and doubling after that (by default
+# 5 tries, 100 + 200 + 400 + 800 ms = 1.5 s). Any other error, and the last try's, is thrown as it
+# is, so a file that stays in use is still reported. For setting a file's modification time:
+# Windows PowerShell 5.1 opens the file for writing to do that, which fails while any other program
+# has it open without sharing write access, for example a virus scanner reading a program that was
+# just copied. (PowerShell 7 asks only for attribute access, and setting attributes never conflicts.)
+function Invoke-HbSharingRetry {
+    param(
+        [Parameter(Mandatory)][scriptblock]$Action,
+        [ValidateRange(1, 10)][int]$Attempts = 5,
+        [ValidateRange(0, 5000)][int]$DelayMilliseconds = 100
+    )
+    $delay = $DelayMilliseconds
+    for ($attempt = 1; $attempt -lt $Attempts; $attempt++) {
+        try {
+            return (& $Action)
+        } catch {
+            if (-not (Test-HbSharingViolation $_)) { throw }
+        }
+        Start-Sleep -Milliseconds $delay
+        $delay *= 2
+    }
+    return (& $Action)
+}
+
 # --------------------------------------------------------------------------------------------
 # Configuration (mirrors server/src/config.ts)
 # --------------------------------------------------------------------------------------------
@@ -1083,14 +1120,16 @@ function Format-HbRuntimePlan {
 
 # A copy of $Source at $Target with the same modification time. It is written next to $Target
 # first and then swapped in, so a failed copy never leaves a broken program behind. Throws when
-# $Target cannot be replaced (for example while it runs).
+# $Target cannot be replaced (for example while it runs). Setting the new file's modification time
+# is tried again for a moment while something else (a virus scanner) reads it.
 function Copy-HbProgram {
     param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Target)
     $temp = "$Target.new"
     try {
         [System.IO.File]::Copy($Source, $temp, $true)
         [System.IO.File]::SetAttributes($temp, [System.IO.FileAttributes]::Normal)
-        [System.IO.File]::SetLastWriteTimeUtc($temp, [System.IO.File]::GetLastWriteTimeUtc($Source))
+        $built = [System.IO.File]::GetLastWriteTimeUtc($Source)
+        Invoke-HbSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($temp, $built) }
         if (Test-Path -LiteralPath $Target) {
             [System.IO.File]::SetAttributes($Target, [System.IO.FileAttributes]::Normal)
             [System.IO.File]::Delete($Target)

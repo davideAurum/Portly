@@ -1259,10 +1259,12 @@ copies of Node.js"):
 - Folder `%LOCALAPPDATA%\Portly\node\` (`Get-HbRuntimeDir`; fixed per user like `native-host\`, not under
   `PORTLY_DATA_DIR`, and not `bin\`, which is on PATH for the `portly` command): `portly-supervisor.exe` = a byte copy of
   the chosen node.exe (`-NodePath`, a release's `runtime\node.exe`, else PATH) with its modification time, written as
-  `<name>.new` and swapped in; `portly-server.exe` = a hard link of it (one file on disk), else a second copy;
-  `runtime.json` = `{"version":1,"source":"<node.exe>","nodeVersion":"<x.y.z>"}` (ASCII). The supervisor starts the
-  server as `portly-server.exe` (§3). The version resource is not changed: the Processes tab still says "Node.js
-  JavaScript Runtime", and the Authenticode signature stays valid.
+  `<name>.new` and swapped in (setting the time is retried for up to 1.5 s on a sharing violation, `Invoke-HbSharingRetry`:
+  Windows PowerShell 5.1 opens the file for writing to set it, and a virus scanner may still be reading the new file;
+  other errors and a file still held after that are reported); `portly-server.exe` = a hard link of it (one file on
+  disk), else a second copy; `runtime.json` = `{"version":1,"source":"<node.exe>","nodeVersion":"<x.y.z>"}` (ASCII).
+  The supervisor starts the server as `portly-server.exe` (§3). The version resource is not changed: the Processes
+  tab still says "Node.js JavaScript Runtime", and the Authenticode signature stays valid.
 - Same build = same size and modification times at most 2 s apart (`Test-HbSameProgram`). `Update-HbRuntimeCopies`
   makes both current, runs `portly-supervisor.exe -p process.versions.node` (must match the source's version) and writes
   `runtime.json`; it never throws and returns `Ok`, `Usable` (an older copy in use was kept, or only
