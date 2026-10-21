@@ -222,3 +222,90 @@ describe('loadConfig: PORTLY_PAGES_URL', () => {
     expect(warnings[0]?.fields).toEqual({ pagesOrigin: 'http://localhost:4173' });
   });
 });
+
+describe('loadConfig: PORTLY_REMOTE_ORIGIN', () => {
+  it('is off by default (unset or blank) and changes nothing else', () => {
+    for (const env of [{}, { PORTLY_REMOTE_ORIGIN: '' }, { PORTLY_REMOTE_ORIGIN: '   ' }]) {
+      const c = loadConfig({ ...base, ...env });
+      expect(c.remoteOrigin).toBeNull();
+      expect(c.remoteHost).toBeNull();
+    }
+    const on = loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net' });
+    const off = loadConfig({ ...base });
+    expect([...on.allowedHosts].sort()).toEqual([...off.allowedHosts].sort());
+    expect([...on.allowedOrigins].sort()).toEqual([...off.allowedOrigins].sort());
+    expect(on.allowedHosts.has('pc.tailnet.ts.net')).toBe(false);
+    expect(on.allowedOrigins.has('https://pc.tailnet.ts.net')).toBe(false);
+    expect(on.bindAddresses).toEqual(['127.0.0.1', '::1']);
+  });
+
+  it.each([
+    ['https://pc.tailnet.ts.net', 'https://pc.tailnet.ts.net', 'pc.tailnet.ts.net'],
+    ['https://pc.tailnet.ts.net/', 'https://pc.tailnet.ts.net', 'pc.tailnet.ts.net'],
+    [' https://PC.Tailnet.ts.net ', 'https://pc.tailnet.ts.net', 'pc.tailnet.ts.net'],
+    ['https://pc.tailnet.ts.net:443', 'https://pc.tailnet.ts.net', 'pc.tailnet.ts.net'],
+    ['https://home.example:8443', 'https://home.example:8443', 'home.example:8443'],
+  ])('accepts %s', (raw, remoteOrigin, remoteHost) => {
+    const c = loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: raw });
+    expect(c.remoteOrigin).toBe(remoteOrigin);
+    expect(c.remoteHost).toBe(remoteHost);
+  });
+
+  it.each([
+    ['pc.tailnet.ts.net'],
+    ['http://pc.tailnet.ts.net'],
+    ['ftp://pc.tailnet.ts.net'],
+    ['https://me:pw@pc.tailnet.ts.net'],
+    ['https://pc.tailnet.ts.net/portly'],
+    ['https://pc.tailnet.ts.net/?x=1'],
+    ['https://pc.tailnet.ts.net/#/'],
+    // This server's own hosts are local, never remote.
+    ['https://localhost:5757'],
+    ['https://127.0.0.1:5757'],
+    ['https://[::1]:5757'],
+  ])('rejects %s', (raw) => {
+    expect(() => loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: raw })).toThrow(ConfigError);
+  });
+
+  it('accepts a loopback address on another port (a local HTTPS proxy, to try the flow on this PC) with a warning', () => {
+    for (const [raw, host] of [
+      ['https://localhost:8443', 'localhost:8443'],
+      ['https://127.0.0.1:8443', '127.0.0.1:8443'],
+      ['https://[::1]:8443', '[::1]:8443'],
+      ['https://localhost', 'localhost'],
+    ]) {
+      const c = loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: raw });
+      expect(c.remoteHost, raw).toBe(host);
+      expect(c.allowedHosts.has(host!), raw).toBe(false);
+      const warnings = startupWarnings(c);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.message).toMatch(/loopback/);
+      expect(warnings[0]?.fields).toEqual({ remoteOrigin: c.remoteOrigin });
+    }
+    expect(startupWarnings(loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net' }))).toEqual([]);
+    // The dev server's host is local too.
+    expect(() => loadConfig({ ...base, PORTLY_DEV: '1', PORTLY_REMOTE_ORIGIN: 'https://localhost:5173' })).toThrow(ConfigError);
+  });
+
+  it('rejects a custom PORTLY_ORIGIN host and the Pages site as the remote origin', () => {
+    expect(() => loadConfig({ ...base, PORTLY_ORIGIN: 'https://portly.lan:8443', PORTLY_REMOTE_ORIGIN: 'https://portly.lan:8443' })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...base, PORTLY_PAGES_URL: 'https://user.github.io/', PORTLY_REMOTE_ORIGIN: 'https://user.github.io' })).toThrow(ConfigError);
+    const both = loadConfig({ ...base, PORTLY_PAGES_URL: 'https://user.github.io/', PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net' });
+    expect(both.pagesOrigin).toBe('https://user.github.io');
+    expect(both.remoteOrigin).toBe('https://pc.tailnet.ts.net');
+  });
+
+  it('echoes only the origin of a rejected address in the error', () => {
+    for (const raw of ['https://me:pw@pc.tailnet.ts.net/secret?token=abc', 'http://pc.tailnet.ts.net/private']) {
+      let message = '';
+      try {
+        loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: raw });
+      } catch (err) {
+        expect(err).toBeInstanceOf(ConfigError);
+        message = (err as Error).message;
+      }
+      expect(message).not.toMatch(/me:pw|pw@|private|token|abc|secret/);
+      expect(message).toContain('pc.tailnet.ts.net');
+    }
+  });
+});

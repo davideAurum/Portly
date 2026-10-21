@@ -161,6 +161,8 @@ describe('migrations', () => {
         'bookmarks',
         'cache',
         'calendars',
+        'device_requests',
+        'devices',
         'diag_health',
         'diag_outcomes',
         'events',

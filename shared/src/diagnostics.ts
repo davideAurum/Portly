@@ -731,6 +731,7 @@ export const LogsQuerySchema = z.object({
   calendarId: z.string().max(512).optional(),
   feed: z.string().max(16).optional(),
   pairingId: z.string().max(64).optional(),
+  deviceId: z.string().max(64).optional(),
   /** A health key; mapped to the context field it corresponds to. */
   key: z.string().max(600).optional(),
   /** Case-insensitive substring of the message or the JSON of the fields. */

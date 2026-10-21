@@ -262,7 +262,7 @@ const ALL_RECORDS: RecordFilter = { level: 'debug', fieldEquals: {} };
 /** The report (scrubbed plain data, not yet redacted for sharing). */
 export async function buildReport(ctx: AppContext, options: ReportOptions): Promise<Record<string, unknown>> {
   const { now } = options;
-  const summary = buildSummary(ctx, { fromPages: false, now });
+  const summary = buildSummary(ctx, { hidePaths: false, now });
   const rings = memoryRings(ctx.logs);
   const [files, supervisor, launcher] = await Promise.all([
     readLogRecords(ctx.config.paths.logFile, ALL_RECORDS, REPORT_FILE_RECORDS),

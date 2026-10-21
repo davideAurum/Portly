@@ -43,7 +43,7 @@ import type { AppContext, AppEnv, RegisterModule } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { errorFields } from '../../lib/logger.ts';
 import { readMultipartFile } from '../../lib/multipart.ts';
-import { exempt, multipart, paired } from '../../lib/routes.ts';
+import { exempt, multipart, paired, samePc } from '../../lib/routes.ts';
 import { parseBody, parseQuery } from '../../lib/validate.ts';
 import { createFaviconService, MAX_UPLOAD_ICON_BYTES, type FaviconService } from './favicons.ts';
 import { brandFromUrl, tryFetchPage, parsePage } from './html.ts';
@@ -167,9 +167,9 @@ export function createBookmarksModule(options: BookmarksModuleOptions = {}): Reg
 
     // ---- imports (registered before /api/bookmarks/:id routes) -----------------
 
-    app.get('/api/bookmarks/import/sources', paired(), async (c) => c.json(await sources.list()));
+    app.get('/api/bookmarks/import/sources', samePc(), async (c) => c.json(await sources.list()));
 
-    app.post('/api/bookmarks/import/browser', paired(), async (c) => {
+    app.post('/api/bookmarks/import/browser', samePc(), async (c) => {
       const input = await parseBody(c, BrowserImportSchema);
       const { tree, label } = await sources.load(input.sourceId);
       return c.json(runImport(tree, input.targetGroupStrategy, label));

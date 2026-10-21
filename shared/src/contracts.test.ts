@@ -399,7 +399,7 @@ describe('accounts & oauth payloads', () => {
 
 describe('errors', () => {
   it('maps every code to the §7a status', () => {
-    expect(ERROR_CODES.map((c) => ERROR_STATUS[c])).toEqual([400, 422, 403, 404, 409, 409, 409, 502, 429, 504, 413, 503, 500, 401, 403]);
+    expect(ERROR_CODES.map((c) => ERROR_STATUS[c])).toEqual([400, 422, 403, 404, 409, 409, 409, 502, 429, 504, 413, 503, 500, 401, 403, 401]);
   });
 
   it('parses API error bodies', () => {

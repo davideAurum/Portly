@@ -18,7 +18,7 @@ import {
   type OAuthStartResponse,
 } from '@portly/shared';
 import type { AppEnv } from '../../context.ts';
-import { exempt, paired } from '../../lib/routes.ts';
+import { exempt, paired, samePc } from '../../lib/routes.ts';
 import { parseBody } from '../../lib/validate.ts';
 import { prepareCaldav, prepareImap, prepareYahoo, type PreparedAccount } from './app-password.ts';
 import { oauthClientInfo, saveOAuthClient } from './oauth/clients.ts';
@@ -62,7 +62,7 @@ export function registerAccountsRoutes(app: Hono<AppEnv>, core: AccountsCore): v
 
   // --- OAuth flow ----------------------------------------------------------
 
-  app.post('/api/oauth/:provider/start', paired(), async (c) => {
+  app.post('/api/oauth/:provider/start', samePc(), async (c) => {
     const provider = providerParam(c.req.param('provider'));
     const body = await parseBody(c, OAuthStartSchema);
     const response: OAuthStartResponse = { authorizeUrl: startAuthorization(core, provider, body) };

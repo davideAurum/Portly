@@ -13,6 +13,7 @@ import * as accounts from './accounts/index.ts';
 import * as bookmarks from './bookmarks/index.ts';
 import * as calendar from './calendar/index.ts';
 import * as core from './core/index.ts';
+import * as devices from './devices/index.ts';
 import * as diagnostics from './diagnostics/index.ts';
 import * as feeds from './feeds/index.ts';
 import * as mail from './mail/index.ts';
@@ -41,6 +42,7 @@ export const MODULES: readonly ModuleEntry[] = Object.freeze([
   { name: 'feeds', prefixes: feeds.prefixes, register: feeds.register },
   { name: 'sports', prefixes: sports.prefixes, register: sports.register },
   { name: 'pairing', prefixes: pairing.prefixes, register: pairing.register },
+  { name: 'devices', prefixes: devices.prefixes, register: devices.register },
   { name: 'diagnostics', prefixes: diagnostics.prefixes, register: diagnostics.register },
 ]);
 

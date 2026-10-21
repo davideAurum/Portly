@@ -22,6 +22,8 @@ export const ERROR_CODES = [
   'pairing_required',
   /** A route the Pages site may not call: only Portly's own page on this PC can. */
   'local_only',
+  /** A request from another PC (the remote origin) without a valid device cookie. */
+  'login_required',
 ] as const;
 
 export const ErrorCodeSchema = z.enum(ERROR_CODES);
@@ -44,6 +46,7 @@ export const ERROR_STATUS = {
   internal: 500,
   pairing_required: 401,
   local_only: 403,
+  login_required: 401,
 } as const satisfies Record<ErrorCode, number>;
 
 export function isErrorCode(value: unknown): value is ErrorCode {

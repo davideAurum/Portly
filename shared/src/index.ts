@@ -18,4 +18,5 @@ export * from './feeds.ts';
 export * from './sports.ts';
 export * from './export.ts';
 export * from './pairing.ts';
+export * from './devices.ts';
 export * from './diagnostics.ts';

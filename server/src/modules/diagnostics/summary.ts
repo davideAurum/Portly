@@ -340,8 +340,8 @@ export function toLogLevelState(info: LogLevelInfo): LogLevelState {
 // ---------------------------------------------------------------------------
 
 export interface SummaryOptions {
-  /** A request from the Pages site: data and log directories blank. */
-  fromPages: boolean;
+  /** A request from the Pages site or another PC: data and log directories blank. */
+  hidePaths: boolean;
   now: number;
   /** The request asking for the summary: left out of `inFlight` (it is always open while it is built). */
   requestId?: string;
@@ -397,7 +397,7 @@ function inFlightState(ctx: AppContext, now: number, requestId: string | undefin
 }
 
 export function buildSummary(ctx: AppContext, options: SummaryOptions): DiagnosticsSummary {
-  const { now, fromPages } = options;
+  const { now, hidePaths } = options;
   const { runtime, config } = ctx;
   const jobs = ctx.scheduler.jobs();
   const counts = ctx.logs.counts(now - COUNTS_WINDOW_MS);
@@ -414,8 +414,8 @@ export function buildSummary(ctx: AppContext, options: SummaryOptions): Diagnost
       memory: processMemory(),
       supervised: runtime.supervised,
       restart: runtime.restart === null ? null : { attempt: int(runtime.restart.attempt), lastExit: runtime.restart.lastExit },
-      dataDir: fromPages ? '' : config.dataDir,
-      logDir: fromPages ? '' : config.paths.logsDir,
+      dataDir: hidePaths ? '' : config.dataDir,
+      logDir: hidePaths ? '' : config.paths.logsDir,
     },
     logLevel: toLogLevelState(ctx.logs.levelState()),
     modules: runtime.modules.map((m) => ({ name: m.name, ok: m.ok })),

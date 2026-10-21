@@ -13,7 +13,8 @@ import {
 } from '@portly/shared';
 import { withLogContext } from '../../lib/log-context.ts';
 import { foreignOrigins } from '../../security/foreign-origins.ts';
-import { TEST_PAGES_ORIGIN } from '../../testing/test-request.ts';
+import { connectTestDevice } from '../../testing/test-devices.ts';
+import { TEST_PAGES_ORIGIN, TEST_REMOTE_ENV, remoteHeaders } from '../../testing/test-request.ts';
 import { diagnosticsTestbed, writeLines, type DiagnosticsTestbed } from './__fixtures__/setup.ts';
 import { PURGE_INITIAL_DELAY_MS, PURGE_INTERVAL_MS, PURGE_JOB } from './index.ts';
 
@@ -75,6 +76,23 @@ describe('diagnostics routes', () => {
       });
       expect(res.status).toBe(401);
       expect(res.body.error.code).toBe('pairing_required');
+    });
+
+    it.each(ROUTES)('$method $path answers a connected device (another PC) without CORS; the report stays on this PC', async (route) => {
+      t = diagnosticsTestbed({ env: { ...TEST_REMOTE_ENV } });
+      const { secret } = connectTestDevice(t.ctx);
+      const res = await t.json<{ error?: { code: string } }>(route.method, route.path, { headers: remoteHeaders(secret), body: route.body });
+      expect(res.res.headers.get('access-control-allow-origin')).toBeNull();
+      if (route.path.startsWith('/api/diagnostics/report')) {
+        expect(res.status).toBe(403);
+        expect(res.body.error?.code).toBe('local_only');
+        return;
+      }
+      expect(res.status).toBe(route.status);
+      if (route.schema) expect(route.schema.parse(res.body)).toEqual(res.body);
+      if (route.path === '/api/diagnostics/summary') {
+        expect((res.body as DiagnosticsSummary).server).toMatchObject({ dataDir: '', logDir: '' });
+      }
     });
 
     it.each(ROUTES)('$method $path answers Portly’s own page', async (route) => {
@@ -373,6 +391,27 @@ describe('diagnostics routes', () => {
       expect((await post(clientBatch(), headers)).body).toMatchObject({ accepted: 0, dropped: 1 });
       const dropped = t.ctx.logs.query({ q: 'client events dropped' }).records.filter((r) => r.msg === 'client events dropped');
       expect(dropped.map((r) => r.fields.caller)).toEqual([pairingId]);
+    });
+
+    it('logs the events from a connected device (another PC) with the device as caller', async () => {
+      t = diagnosticsTestbed({ env: { ...TEST_REMOTE_ENV } });
+      const device = connectTestDevice(t.ctx);
+      const headers = remoteHeaders(device.secret);
+      const post = (body: ClientEventsRequest, h?: Record<string, string | null>) =>
+        t.json<z.output<typeof ClientEventsResponseSchema>>('POST', '/api/diagnostics/client-events', { headers: h, body });
+      const many = (count: number): ClientEventsRequest => {
+        const one = clientBatch();
+        return { ...one, events: Array.from({ length: count }, () => one.events[0]!) };
+      };
+      const res = await post(clientBatch(), headers);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ accepted: 1, dropped: 0, acceptDebug: false });
+      expect((await post(many(100), headers)).body).toMatchObject({ accepted: 100, dropped: 0 });
+      expect((await post(many(19), headers)).body).toMatchObject({ accepted: 19, dropped: 0 });
+      expect((await post(clientBatch())).body).toMatchObject({ accepted: 1, dropped: 0 });
+      expect((await post(clientBatch(), headers)).body).toMatchObject({ accepted: 0, dropped: 1 });
+      const dropped = t.ctx.logs.query({ q: 'client events dropped' }).records.filter((r) => r.msg === 'client events dropped');
+      expect(dropped.map((r) => r.fields.caller)).toEqual([device.record.id]);
     });
 
     it('validates the batch (422) and refuses forbidden keys (400)', async () => {

@@ -20,6 +20,7 @@ import type { LogHub, Logger } from './lib/logger.ts';
 import type { RouteMeta } from './lib/routes.ts';
 import type { Scheduler } from './lib/scheduler.ts';
 import type { SettingsService } from './lib/settings.ts';
+import type { DeviceStore } from './security/devices.ts';
 import type { PairingStore } from './security/pairing.ts';
 import type { SafeFetch } from './security/safe-fetch.ts';
 import type { Vault } from './security/vault.ts';
@@ -44,6 +45,12 @@ export interface AppEnv {
     pagesPreflight: PagesPreflight | undefined;
     /** The pairing a Pages request's token belongs to (set by the gate after verifying it). */
     pairingId: string | undefined;
+    /** The request came in with the remote origin's Host (another PC, through the reverse proxy; set by the gate). */
+    remoteClient: boolean | undefined;
+    /** The device a remote request's cookie belongs to (set by the gate after verifying it). */
+    deviceId: string | undefined;
+    /** The device cookie to set again on the answer (its lifetime renewed; set by the gate when it recorded a use). */
+    deviceCookieRenew: string | undefined;
     /** This request's id (`X-Request-Id`, set by the request middleware). */
     requestId: string | undefined;
     /** The API error code the answer carries (set by `errorResponse()` and the error handler; logged on the request line). */
@@ -95,6 +102,8 @@ export interface AppContext {
   accounts: AccountService;
   /** Browsers paired with this server through the Pages site (hybrid mode) and the server's instance id. */
   pairing: PairingStore;
+  /** Other PCs connected through the remote origin (`PORTLY_REMOTE_ORIGIN`) and their pending requests. */
+  devices: DeviceStore;
   /** The log's memory rings, level switch and queries (in production the same object as `log`). */
   logs: LogHub;
   /** Health of every synced subject (lib/health.ts, §17): `record`, `touch`, `forget`, … */

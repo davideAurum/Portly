@@ -61,6 +61,7 @@ import {
 } from './lib/startup.ts';
 import { createAccountService } from './modules/accounts/index.ts';
 import { readPersistedVerbose } from './modules/diagnostics/level.ts';
+import { createDeviceStore } from './security/devices.ts';
 import { createPairingStore } from './security/pairing.ts';
 import { createSafeFetch } from './security/safe-fetch.ts';
 import { openVault } from './security/vault.ts';
@@ -84,6 +85,7 @@ type StartupPhase =
   | 'migrate'
   | 'health'
   | 'pairing'
+  | 'devices'
   | 'vault'
   | 'settings'
   | 'accounts'
@@ -390,6 +392,11 @@ async function main(): Promise<void> {
     if (config.pagesUrl !== null) log.info('Pages site can pair with this server', { pagesUrl: config.pagesUrl });
     return store;
   });
+  const devices = await timed('devices', () => {
+    const store = createDeviceStore({ db, log: log.child({ component: 'devices' }) });
+    if (config.remoteOrigin !== null) log.info('other PCs can connect through the remote origin', { remoteOrigin: config.remoteOrigin });
+    return store;
+  });
 
   const vault = await timed('vault', async () => {
     const opened = await openVault({ config, db, log: log.child({ component: 'vault' }) });
@@ -420,6 +427,7 @@ async function main(): Promise<void> {
     settings,
     accounts,
     pairing,
+    devices,
     logs: log,
     health,
     runtime,

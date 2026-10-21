@@ -52,6 +52,16 @@ export interface Config {
   pagesUrl: string | null;
   /** Origin of {@link pagesUrl} (no trailing slash), or null. Never part of {@link allowedOrigins}. */
   pagesOrigin: string | null;
+  /**
+   * The HTTPS origin other PCs reach this server through (`PORTLY_REMOTE_ORIGIN`: a reverse proxy
+   * on this PC such as Tailscale Serve, e.g. `https://pc.tailnet.ts.net`), or null when unset, in
+   * which case the server behaves as before (loopback hosts only). Never part of
+   * {@link allowedHosts} or {@link allowedOrigins}: a request with its Host is a remote request
+   * and needs a device cookie (§4.2, security/gate.ts). The listener itself stays on loopback.
+   */
+  remoteOrigin: string | null;
+  /** Lower-case `host[:port]` of {@link remoteOrigin} as a Host header carries it, or null. */
+  remoteHost: string | null;
   /** redirect_uri sent to each provider (token exchange must use the same value). */
   redirectUris: Readonly<Record<OAuthProvider, string>>;
   /** Redirect URI to register with each provider (Entra ignores the port for localhost). */
@@ -184,18 +194,53 @@ function parsePagesUrl(raw: string | undefined, ownOrigins: ReadonlySet<string>)
   return { pagesUrl: `${url.origin}${pathname}`, pagesOrigin: url.origin };
 }
 
+/**
+ * `PORTLY_REMOTE_ORIGIN`: the address other PCs use. `https:` only (the device cookie is `Secure`),
+ * a bare origin (no path, query, fragment or credentials), and neither one of this server's own
+ * hosts nor the Pages site. A loopback host on another port is accepted with a start-up warning
+ * (a local HTTPS proxy, to try the connect flow on this PC): the Host header still tells it apart.
+ */
+function parseRemoteOrigin(
+  raw: string | undefined,
+  own: { allowedHosts: ReadonlySet<string>; allowedOrigins: ReadonlySet<string>; pagesOrigin: string | null },
+): { remoteOrigin: string | null; remoteHost: string | null } {
+  const value = raw?.trim() ?? '';
+  if (value === '') return { remoteOrigin: null, remoteHost: null };
+  const name = 'PORTLY_REMOTE_ORIGIN';
+  const url = tryUrl(value);
+  if (url === null) throw new ConfigError(`${name} must be an absolute https origin like https://pc.tailnet.ts.net (got ${echoUrl(null)})`);
+  if (url.protocol !== 'https:') throw new ConfigError(`${name} must use https (got ${echoUrl(url)})`);
+  if (url.username || url.password || (url.pathname !== '/' && url.pathname !== '') || url.search || url.hash) {
+    throw new ConfigError(`${name} must be a bare origin like https://pc.tailnet.ts.net (got ${echoUrl(url)} with more after it)`);
+  }
+  const host = url.host.toLowerCase();
+  if (own.allowedHosts.has(host) || own.allowedOrigins.has(url.origin)) {
+    throw new ConfigError(`${name} must be the address other PCs use, not one of this server's own (got ${echoUrl(url)})`);
+  }
+  if (own.pagesOrigin !== null && url.origin === own.pagesOrigin) {
+    throw new ConfigError(`${name} must be another address than the Pages site (got ${echoUrl(url)})`);
+  }
+  return { remoteOrigin: url.origin, remoteHost: host };
+}
+
 export interface StartupWarning {
   message: string;
   fields: Record<string, string>;
 }
 
 /** Configuration that is valid but worth a warning in the log at startup. */
-export function startupWarnings(config: Pick<Config, 'pagesOrigin'>): StartupWarning[] {
+export function startupWarnings(config: Pick<Config, 'pagesOrigin' | 'remoteOrigin'>): StartupWarning[] {
   const warnings: StartupWarning[] = [];
   if (config.pagesOrigin !== null && config.pagesOrigin.startsWith('http:')) {
     warnings.push({
       message: 'PORTLY_PAGES_URL uses plain http: paired browsers on this origin can use Portly',
       fields: { pagesOrigin: config.pagesOrigin },
+    });
+  }
+  if (config.remoteOrigin !== null && LOOPBACK_PAGES_HOSTS.has(new URL(config.remoteOrigin).hostname)) {
+    warnings.push({
+      message: 'PORTLY_REMOTE_ORIGIN is a loopback address: other PCs cannot reach it (fine for trying the connect flow on this PC)',
+      fields: { remoteOrigin: config.remoteOrigin },
     });
   }
   return warnings;
@@ -284,6 +329,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   for (const host of allowedHosts) allowedOrigins.add(`http://${host}`);
 
   const { pagesUrl, pagesOrigin } = parsePagesUrl(env.PORTLY_PAGES_URL, allowedOrigins);
+  const { remoteOrigin, remoteHost } = parseRemoteOrigin(env.PORTLY_REMOTE_ORIGIN, { allowedHosts, allowedOrigins, pagesOrigin });
 
   const redirectUris = {
     google: `${origin}/api/oauth/google/callback`,
@@ -310,6 +356,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     allowedOrigins,
     pagesUrl,
     pagesOrigin,
+    remoteOrigin,
+    remoteHost,
     redirectUris: Object.freeze({ ...redirectUris }),
     registrationRedirectUris: Object.freeze({ google: redirectUris.google, microsoft: microsoftRegistration }),
     logLevel,
