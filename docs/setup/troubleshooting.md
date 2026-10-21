@@ -56,9 +56,9 @@ it when needed. Under autostart the supervisor tries three times, then stops (`s
 `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\<name>.ps1`; that affects only that
 command.
 
-**`npm ci` fails with EBADENGINE / "Unsupported engine"** — Portly needs Node.js 24 or newer and
-npm 11.10 or newer (`node -v`, `npm -v`). Install the current Node.js LTS from
-<https://nodejs.org/>, open a new terminal and try again.
+**`npm ci` fails with EBADENGINE / "Unsupported engine"** — Portly needs Node.js 24 (any 24.x
+release; other majors are refused on purpose) and npm 11.10 or newer (`node -v`, `npm -v`). Install
+Node.js 24 from <https://nodejs.org/>, open a new terminal and try again.
 
 **Nothing listens and the log ends with an error** — read the last records of `server.log` and
 `supervisor.log` (`status.ps1 -LogLines 40` shows both; [Reading the log files](#reading-the-log-files)

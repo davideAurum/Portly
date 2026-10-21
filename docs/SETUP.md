@@ -90,8 +90,8 @@ Homebase's own folders are left as they were, so you can go back until you delet
 - Windows 11. The credential vault uses Windows DPAPI and autostart uses Task Scheduler.
 - Google Chrome or Microsoft Edge for the new-tab extension (any modern browser can open Portly
   directly).
-- From the source code only: [Node.js](https://nodejs.org/) **24 or newer** (includes npm 11; check
-  with `node -v`) and [Git](https://git-scm.com/) to get and update the code.
+- From the source code only: [Node.js](https://nodejs.org/) **24** (any 24.x release, which includes
+  npm 11; check with `node -v`) and [Git](https://git-scm.com/) to get and update the code.
 
 ## From the source code
 
