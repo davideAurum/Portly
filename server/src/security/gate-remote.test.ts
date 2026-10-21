@@ -16,7 +16,18 @@ import { parseBody } from '../lib/validate.ts';
 import type { ModuleEntry } from '../modules/index.ts';
 import { createTestContext, type TestContext } from '../testing/test-context.ts';
 import { connectTestDevice, setCookieFor } from '../testing/test-devices.ts';
-import { TEST_PAGES_ENV, TEST_PAGES_ORIGIN, TEST_REMOTE_ENV, TEST_REMOTE_HOST, TEST_REMOTE_ORIGIN, pagesHeaders, remoteHeaders, testRequest } from '../testing/test-request.ts';
+import {
+  TEST_PAGES_ENV,
+  TEST_PAGES_ORIGIN,
+  TEST_PORT,
+  TEST_REMOTE_ENV,
+  TEST_REMOTE_HOST,
+  TEST_REMOTE_ORIGIN,
+  TEST_REMOTE_PORT,
+  pagesHeaders,
+  remoteHeaders,
+  testRequest,
+} from '../testing/test-request.ts';
 import { TOUCH_INTERVAL_MS } from './devices.ts';
 import { createGate } from './gate.ts';
 
@@ -271,14 +282,32 @@ describe('request gate: other PCs (remote origin)', () => {
   });
 
   describe('hosts', () => {
-    it('refuses every other host as before, the remote host exactly', async () => {
-      for (const host of ['evil.example', `${TEST_REMOTE_HOST}:443`, `${TEST_REMOTE_HOST}:5757`, `sub.${TEST_REMOTE_HOST}`, 'localhost']) {
-        const res = await testRequest(app, 'GET', '/api/things', { headers: remoteHeaders(secret, { Host: host }) });
+    it('on the remote port accepts the remote host (any case) and the loopback forms of that port, nothing else', async () => {
+      for (const host of ['evil.example', `${TEST_REMOTE_HOST}:443`, `${TEST_REMOTE_HOST}:5757`, `sub.${TEST_REMOTE_HOST}`, 'localhost', `localhost:${TEST_PORT}`]) {
+        const res = await testRequest(app, 'GET', '/api/things', { headers: remoteHeaders(secret, { Host: host }), listenerPort: TEST_REMOTE_PORT });
         expect(res.status, host).toBe(403);
         expect(await errorCode(res), host).toBe('forbidden');
       }
-      expect((await testRequest(app, 'GET', '/api/things', { headers: remoteHeaders(secret, { Host: TEST_REMOTE_HOST.toUpperCase() }) })).status).toBe(200);
       expect(refusals().every((l) => l.fields?.reason === 'host_not_allowed')).toBe(true);
+      for (const host of [TEST_REMOTE_HOST.toUpperCase(), `localhost:${TEST_REMOTE_PORT}`, `127.0.0.1:${TEST_REMOTE_PORT}`, `[::1]:${TEST_REMOTE_PORT}`]) {
+        // A proxy that rewrote the Host to its own loopback target still delivers a remote request.
+        const res = await testRequest(app, 'GET', '/api/things', { headers: remoteHeaders(secret, { Host: host }), listenerPort: TEST_REMOTE_PORT });
+        expect(res.status, host).toBe(200);
+        expect((await res.json()) as unknown, host).toEqual({ things: [], deviceId, remote: true });
+      }
+    });
+
+    it('on the main port the remote host is just another unknown host, and a loopback Host there stays local', async () => {
+      const res = await testRequest(app, 'GET', '/api/things', { headers: remoteHeaders(secret), listenerPort: TEST_PORT });
+      expect(res.status).toBe(403);
+      expect(await errorCode(res)).toBe('forbidden');
+      expect(refusals()[0]?.fields?.reason).toBe('host_not_allowed');
+      // A device cookie on the main port means nothing: the request is this PC's own.
+      const local = await testRequest(app, 'GET', '/api/things', { headers: { Cookie: `${DEVICE_COOKIE}=${secret}` }, listenerPort: TEST_PORT });
+      expect((await local.json()) as unknown).toEqual({ things: [], deviceId: null, remote: false });
+      // An unknown listener port (no socket facts) counts as the main port.
+      const unknown = await testRequest(app, 'GET', '/api/things', { headers: remoteHeaders(secret), listenerPort: 0 });
+      expect(unknown.status).toBe(403);
     });
 
     it('serves the page and health to the remote host without a cookie (the connect screen needs them)', async () => {
@@ -286,16 +315,21 @@ describe('request gate: other PCs (remote origin)', () => {
       expect((await testRequest(app, 'GET', '/', { headers: remoteHeaders(null, { 'X-Portly': null, 'Sec-Fetch-Site': 'none' }) })).status).toBe(404);
     });
 
-    it('refuses a local Host that carries a proxy header: the proxy must keep the remote Host', async () => {
-      for (const header of ['X-Forwarded-For', 'X-Forwarded-Host', 'X-Forwarded-Proto', 'Forwarded', 'Tailscale-User-Login']) {
+    it('refuses a local Host on the main port that carries a proxy header: the proxy must point at the remote port', async () => {
+      for (const header of ['X-Forwarded-For', 'X-Forwarded-Host', 'X-Forwarded-Proto', 'Forwarded', 'Tailscale-User-Login', 'Via', 'X-Real-IP', 'CF-Connecting-IP']) {
         const res = await testRequest(app, 'GET', '/api/things', { headers: { [header]: 'x' } });
         expect(res.status, header).toBe(403);
         expect(await errorCode(res), header).toBe('forbidden');
       }
       expect(refusals().every((l) => l.fields?.reason === 'proxied_local_host')).toBe(true);
-      // Through the proxy, with the remote Host, the same headers are fine.
+      // Through the proxy, on the remote port, the same headers are fine (with any accepted Host).
       const ok = await testRequest(app, 'GET', '/api/things', { headers: remoteHeaders(secret, { 'X-Forwarded-For': '100.64.0.2', 'Tailscale-User-Login': 'x' }) });
       expect(ok.status).toBe(200);
+      const rewritten = await testRequest(app, 'GET', '/api/things', {
+        headers: remoteHeaders(secret, { Host: `127.0.0.1:${TEST_REMOTE_PORT}`, 'X-Forwarded-For': '100.64.0.2' }),
+        listenerPort: TEST_REMOTE_PORT,
+      });
+      expect(rewritten.status).toBe(200);
       // Without a remote origin configured, nothing changes for local requests with such headers.
       const offCtx = createTestContext();
       const offApp = createApp(offCtx, { modules: [remoteModule], webDist: null }).app;
@@ -338,7 +372,7 @@ describe('request gate: other PCs (remote origin)', () => {
   });
 
   describe('feature off', () => {
-    it('without PORTLY_REMOTE_ORIGIN the remote host is refused at the Host check', async () => {
+    it('without PORTLY_REMOTE_ORIGIN there is no remote port: the remote host is refused at the Host check', async () => {
       const offCtx = createTestContext();
       const offApp = createApp(offCtx, { modules: [remoteModule], webDist: null }).app;
       const device = connectTestDevice(offCtx);
@@ -346,6 +380,8 @@ describe('request gate: other PCs (remote origin)', () => {
       expect(res.status).toBe(403);
       expect(await errorCode(res)).toBe('forbidden');
       expect((await testRequest(offApp, 'GET', '/api/health', { headers: remoteHeaders(null, { 'X-Portly': null }) })).status).toBe(403);
+      // A loopback Host on what would be the remote port is a plain unknown host.
+      expect((await testRequest(offApp, 'GET', '/api/things', { headers: { Host: `localhost:${TEST_REMOTE_PORT}` }, listenerPort: TEST_REMOTE_PORT })).status).toBe(403);
       offCtx.close();
     });
 

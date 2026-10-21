@@ -116,6 +116,7 @@ describe('app: modules', () => {
       instanceId: ctx.pairing.instanceId(),
       appUrl: `${ctx.config.appOrigin}/`,
       pagesUrl: null,
+      remote: false,
     });
     ctx.vault.setState('locked');
     const locked = (await (await testRequest(app, 'GET', '/api/health')).json()) as HealthResponse;

@@ -365,8 +365,9 @@ async function main(): Promise<void> {
 
   await timed('port-probe', async () => {
     for (const hostname of config.bindAddresses) {
-      if ((await probePort(hostname, config.port))?.code === 'EADDRINUSE') {
-        log.error('port already in use — is Portly already running?', { hostname, port: config.port });
+      for (const port of config.remotePort === null ? [config.port] : [config.port, config.remotePort]) {
+        if ((await probePort(hostname, port))?.code !== 'EADDRINUSE') continue;
+        log.error('port already in use — is Portly already running?', { hostname, port });
         log.close();
         process.exit(EXIT_ALREADY_RUNNING);
       }
@@ -452,30 +453,36 @@ async function main(): Promise<void> {
 
   state.phase = 'listen';
   const listenStarted = performance.now();
-  for (const hostname of config.bindAddresses) {
-    try {
-      const server = await listen(created.app, hostname, config.port);
-      running.servers.push(server);
-      const addr = server.address() as AddressInfo | null;
-      log.info('listening', { address: addr ? `${addr.address}:${addr.port}` : `${hostname}:${config.port}` });
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === 'EADDRINUSE') {
-        log.error('port already in use — is Portly already running?', { hostname, port: config.port });
-        await shutdown(running, EXIT_ALREADY_RUNNING);
+  // The main port, then the remote port (other PCs, through the reverse proxy) when configured.
+  const ports = config.remotePort === null ? [config.port] : [config.port, config.remotePort];
+  for (const port of ports) {
+    let listeners = 0;
+    for (const hostname of config.bindAddresses) {
+      try {
+        const server = await listen(created.app, hostname, port);
+        running.servers.push(server);
+        listeners += 1;
+        const addr = server.address() as AddressInfo | null;
+        log.info('listening', { address: addr ? `${addr.address}:${addr.port}` : `${hostname}:${port}`, remote: port === config.remotePort || undefined });
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === 'EADDRINUSE') {
+          log.error('port already in use — is Portly already running?', { hostname, port });
+          await shutdown(running, EXIT_ALREADY_RUNNING);
+          return;
+        }
+        if ((code === 'EADDRNOTAVAIL' || code === 'EAFNOSUPPORT') && hostname.includes(':')) {
+          log.warn('IPv6 loopback unavailable; continuing IPv4-only', { hostname, code });
+          continue;
+        }
+        await listenFailed(running, err, { hostname, port });
         return;
       }
-      if ((code === 'EADDRNOTAVAIL' || code === 'EAFNOSUPPORT') && hostname.includes(':')) {
-        log.warn('IPv6 loopback unavailable; continuing IPv4-only', { hostname, code });
-        continue;
-      }
-      await listenFailed(running, err, { hostname, port: config.port });
+    }
+    if (listeners === 0) {
+      await listenFailed(running, new StartupError('no_listener', 'No listener could be started'), { port });
       return;
     }
-  }
-  if (running.servers.length === 0) {
-    await listenFailed(running, new StartupError('no_listener', 'No listener could be started'));
-    return;
   }
   phases.listen = Math.round(performance.now() - listenStarted);
   log.debug('startup phase', { phase: 'listen', ms: phases.listen });
@@ -485,7 +492,14 @@ async function main(): Promise<void> {
   // Outside any context: the interval outlives start-up.
   running.statusTimer = outsideLogContext(() => setInterval(() => logStatus(running), STATUS_INTERVAL_MS));
   running.statusTimer.unref();
-  log.info('Portly ready', { url: config.origin, app: config.appOrigin, startupMs: Math.round(performance.now()), phases });
+  log.info('Portly ready', {
+    url: config.origin,
+    app: config.appOrigin,
+    remote: config.remoteOrigin ?? undefined,
+    remotePort: config.remotePort ?? undefined,
+    startupMs: Math.round(performance.now()),
+    phases,
+  });
 }
 
 main().catch((err: unknown) => startupFailed(state.phase, err));

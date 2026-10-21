@@ -3,7 +3,7 @@
  * reset, about, and the daily database backup job.
  *
  * Routes and responses:
- * - `GET /api/health` (exempt) → `{ok, version, vault, app: 'portly', apiVersion, instanceId, appUrl}`
+ * - `GET /api/health` (exempt) → `{ok, version, vault, app: 'portly', apiVersion, instanceId, appUrl, pagesUrl, remote}`
  * - `GET /api/settings` → `Settings` · `PATCH /api/settings` (RFC 7396 merge patch) → `Settings`
  * - `GET /api/profiles` → `Profile[]` (`[]` on first run; the web seeds the first profile)
  * - `POST /api/profiles {name, copyFromId?, layout?}` → 201 `Profile`
@@ -105,6 +105,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
       instanceId: ctx.pairing.instanceId(),
       appUrl: `${ctx.config.appOrigin}/`,
       pagesUrl: ctx.config.pagesUrl,
+      remote: c.get('remoteClient') === true,
     };
     return c.json(body);
   });

@@ -828,13 +828,17 @@ Items:
   `devices` and `device_requests`) with the request, poll, approve, deny, list, revoke and
   disconnect routes; the route tags `samePc()` (the vault reset, the browser bookmark import, the
   OAuth start: never from another PC) and `enrollment()` (the two routes that need no cookie);
-  paths blanked for a device as for the Pages site; a request with a local Host and a proxy's
-  forwarding header refused. Tests with `testRequest()` and the remote Host: no cookie, revoked and
+  paths blanked for a device as for the Pages site; a second loopback listener on
+  `PORTLY_REMOTE_PORT` (default main port plus one) that the proxy forwards other PCs to, so the
+  classification never trusts the Host header; a request on the main port with a proxy's
+  forwarding header refused. Tests with `testRequest()` on the remote port: no cookie, revoked and
   expired cookies, cross-site forgery attempts, local-only and same-PC routes, the Pages site and a
   device side by side, the feature off; every route in the `ROUTE_ACCESS` table.
 
   *Done when:* typecheck, `npm test` and both builds green; the server unchanged with the variable
-  unset (the gate tests say so); on main. *Result:* built and merged on 2026-10-21 (B.1 commit).
+  unset (the gate tests say so); on main. *Result:* built and merged on 2026-10-21 (2f3c647); the
+  remote port replaced the Host-based classification the same day (B.1b commit), after the
+  review found that a proxy rewriting the Host would have made every other PC count as this one.
 
 - **B.2 Web** (M; after B.1).
   The connect screen a page on the remote origin shows instead of the app ("Connect this device":
@@ -844,9 +848,9 @@ Items:
   that hides what only the main PC can do (connecting accounts, the vault reset, the browser
   bookmark import, approving devices and pairings) and says "on the main PC" instead;
   `pagesForward` never forwarding a remote client to the Pages site; `login_required` handled by
-  the API client (reload into the connect screen); on a remote address the connect screen first
-  checks that the server treats it as remote (`GET /api/about` without a cookie must answer 401)
-  and stops with a plain warning when the proxy rewrote the Host header.
+  the API client (reload into the connect screen); on an address that is not loopback the connect
+  screen reads `GET /api/health` first and stops with a plain warning when `remote` is false (the
+  proxy points at the main port instead of the remote one).
 
   *Done when:* web tests and typecheck; both builds; B.4 passes.
 
@@ -872,14 +876,12 @@ Items:
 
 - **B.5 The real check with a second PC** (S; go-ahead; after B.3; needs Tailscale on this PC and
   a second tailnet device).
-  Tailscale Serve in front of a scratch server first (the installed Portly only on your say-so):
-  whether Serve keeps the Host header (a proxy that rewrites it and adds a forwarding header is
-  refused as `proxied_local_host`; one that rewrites it and adds none would make every other PC
-  count as this one, which is why the setup guide's `GET /api/about` check comes before any
-  approval), which `Tailscale-User-*` and `X-Forwarded-*` headers arrive, the four-way header
-  probe (a forged `Tailscale-User-Login` from this PC and from the second device, each against
-  what Serve adds or strips), then the whole connect flow from the other PC and a revoke from
-  this one.
+  Tailscale Serve in front of a scratch server first (the installed Portly only on your say-so),
+  pointed at the remote port: which Host, `Tailscale-User-*` and `X-Forwarded-*` headers arrive
+  and whether the `Origin` header passes through unchanged (the cross-site check needs it), the
+  four-way header probe (a forged `Tailscale-User-Login` from this PC and from the second device,
+  each against what Serve adds or strips), then the whole connect flow from the other PC and a
+  revoke from this one.
 
   *Done when:* the four results and the headers seen are dated in design/multi-pc.md; the B.1
   Tailscale row closed; the identity-header check (B.6) decided on those results.
@@ -924,7 +926,7 @@ date and the outcome once a row has been run for real.
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
 | The device connect flow in a real browser through an HTTPS proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 | not yet |
-| Tailscale Serve in front of Portly: whether it keeps the Host header (rewritten with a forwarding header, every remote request is refused as `proxied_local_host`; rewritten without one, every other PC would count as this one), which `Tailscale-User-*` and `X-Forwarded-*` headers arrive, and whether a forged `Tailscale-User-Login` is stripped; nothing has run against Tailscale | B.1 commit, 2026-10-21 | B.5 | not yet |
+| Tailscale Serve pointed at Portly's remote port: which Host, `Tailscale-User-*` and `X-Forwarded-*` headers arrive, whether `Origin` passes through unchanged, and whether a forged `Tailscale-User-Login` is stripped; nothing has run against Tailscale | B.1 commit, 2026-10-21 | B.5 | not yet |
 
 ### Closed
 

@@ -27,18 +27,30 @@ Other PC (browser) --HTTPS--> Tailscale Serve on the main PC --HTTP--> 127.0.0.1
 ## 2. Telling local requests from remote ones
 
 Every request arrives from `127.0.0.1` because of the proxy, so the client's IP address can't tell
-them apart. The **Host header** decides instead, and the request gate classifies each request
-once, at step 2:
+them apart. The **port the request came in on** decides: with `PORTLY_REMOTE_ORIGIN` set, the
+server opens a second loopback listener, `PORTLY_REMOTE_PORT` (default: the main port plus one,
+so `5758`), and the proxy forwards other PCs to that port. The request gate classifies each
+request once, at step 2:
 
-| Host header | Class | Needs |
-| --- | --- | --- |
-| `localhost` / `127.0.0.1` / `[::1]` with Portly's port | `local` | Nothing new (same as today) |
-| The host of `PORTLY_REMOTE_ORIGIN` | `remote` | A valid device cookie, except on the enrollment and health routes |
-| Anything else | - | 403, as today |
+| Came in on | Host header | Class | Needs |
+| --- | --- | --- | --- |
+| The main port | `localhost` / `127.0.0.1` / `[::1]` with that port | `local` | Nothing new (same as today) |
+| The main port | Anything else, the remote origin's host included | - | 403, as today |
+| The remote port | The host of `PORTLY_REMOTE_ORIGIN`, or a loopback form of the remote port | `remote` | A valid device cookie, except on the enrollment and health routes |
+| The remote port | Anything else | - | 403 |
 
-- A web page can't fake the Host header, and DNS rebinding produces a different host, which is
-  still rejected. Local processes could fake it, but they are already trusted under section 4.1.
-- `X-Forwarded-For` and similar proxy headers are ignored.
+- Classifying by port means a proxy that rewrites the Host header to its own loopback target
+  (`127.0.0.1:5758`) still delivers a remote request: nothing a proxy sends can make another PC
+  look like this one. A web page on the main PC can reach the remote port, but it has no device
+  cookie for it (the cookie is bound to the remote origin's host, over https) and cannot send
+  `X-Portly: 1` without a preflight the server never answers, so it gets 401 and 403 like any
+  other stranger. DNS rebinding produces a Host that is neither allowed on either port.
+- On the main port, a local Host that carries a proxy's forwarding header (`Forwarded`,
+  `X-Forwarded-*`, `Via`, `X-Real-IP`, `Tailscale-User-*` and the like) is refused with 403
+  `proxied_local_host`: it means the proxy points at the main port instead of the remote one, and
+  it must never count as this PC's own request. The Vite dev proxy adds no such header.
+- `X-Forwarded-For` and similar proxy headers are otherwise ignored. `GET /api/health` says
+  `remote: true` on the remote port, so a page can tell how the server took it.
 - Optional extra check: require Tailscale's `Tailscale-User-Login` header to equal a configured
   login. That would also block Funnel traffic. Before relying on it, confirm that Tailscale strips
   that header from incoming requests.
@@ -130,17 +142,18 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
   nobody has verified that Tailscale strips a forged copy of that header, so a check built on it
   would be false safety until the four-way probe (forged versus stripped header, this PC versus a
   second device) has run for real.
-- **The proxy must keep the Host header.** The classification in section 2 relies on it: a proxy
-  that rewrote the Host to a loopback one would make every other PC look like this PC, with no
-  login at all. The server can only catch the half-way case: with a remote origin configured, a
-  request with a local Host that carries a forwarding header (`Forwarded`, `X-Forwarded-*`,
-  `Tailscale-User-*`) is refused (403 `proxied_local_host`) and logged. A proxy that rewrites the
-  Host and adds no such header is invisible to it, so the setup guide (B.3) makes one check
-  mandatory before approving anything: from the other PC, `GET /api/about` through the proxy
-  with `X-Portly: 1` and no cookie must answer 401 `login_required`; a 200 means the proxy rewrote
-  the Host. The connect screen (B.2) does the same check on load and refuses to go on when the
-  server answers it as local. The real check with a second device records which headers Tailscale
-  Serve sends.
+- **Other PCs come in through their own loopback port, never through the Host header.** The
+  first cut classified by Host, which a proxy that rewrites the Host to its loopback target would
+  have defeated silently: every other PC would have counted as this one, with no login at all,
+  and the server could only catch proxies that also add a forwarding header. So the server opens
+  a second loopback listener (`PORTLY_REMOTE_PORT`, default main port plus one) and the proxy
+  forwards other PCs there; whatever arrives on that port is a remote request, whatever its Host.
+  A forwarding header on the main port still refuses the request (403 `proxied_local_host`): it
+  means the proxy was pointed at the wrong port. The setup guide (B.3) makes the pointing explicit
+  (`tailscale serve --bg 5758`, not 5757), and the connect screen (B.2) checks `GET /api/health`
+  on load: `remote: false` on a page that is not on a loopback address means the proxy points at
+  the main port, and the screen says so instead of going on. The real check with a second device
+  records which headers Tailscale Serve sends.
 - **What phase 1 built, where it differs from the text above:**
   - the device is made when the other PC polls after approval (`GET /api/devices/requests/current`
     with the enrollment cookie), so no secret is ever stored in clear: approval only flips the
@@ -159,7 +172,12 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
     `Origin`, the Content-Type rules) before it looks at the cookie, and never sends CORS headers;
   - a loopback remote origin on another port (`https://localhost:8443`) is accepted with a
     start-up warning, so the connect flow can be tried on this PC through a local HTTPS proxy
-    before any second PC exists;
+    (forwarding to the remote port) before any second PC exists;
+  - the diagnostics routes other than the report (summary, logs, level, jobs, browser events)
+    stay open to a connected device, as they are to the paired Pages site: both are fully trusted
+    once approved (ARCHITECTURE section 4.1), and the records they return are already scrubbed
+    and home-directory masked; only the report, which bundles the log files and the paths, stays
+    on this PC;
   - revoked and expired devices keep their row for 30 days, so their cookie is refused as
     "revoked" (with the reason) rather than "unknown", like pairing tombstones; the 30-day idle
     rule is applied on every listing and write, not only when a device presents its own cookie;

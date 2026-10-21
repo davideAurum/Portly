@@ -204,6 +204,8 @@ export const HealthResponseSchema = z
     appUrl: z.string().min(1).max(MAX_URL_LENGTH).optional(),
     /** The Pages site this server answers (`PORTLY_PAGES_URL`, ends with `/`); null when hybrid mode is off. */
     pagesUrl: z.string().min(1).max(MAX_URL_LENGTH).nullable().optional(),
+    /** True when the server took this request as another PC's (it came in on the remote port). */
+    remote: z.boolean().optional(),
   })
   .strict();
 export type HealthResponse = z.output<typeof HealthResponseSchema>;

@@ -62,6 +62,15 @@ export interface Config {
   remoteOrigin: string | null;
   /** Lower-case `host[:port]` of {@link remoteOrigin} as a Host header carries it, or null. */
   remoteHost: string | null;
+  /**
+   * The loopback port the reverse proxy forwards other PCs to (`PORTLY_REMOTE_PORT`, default
+   * {@link port} + 1), or null without a remote origin. Every request arriving on it is a remote
+   * request, whatever its Host header says, so a proxy that rewrites the Host cannot make another
+   * PC look like this one. The listener is bound to {@link bindAddresses} like the main one.
+   */
+  remotePort: number | null;
+  /** Host headers accepted on the remote port: {@link remoteHost} and the loopback forms of {@link remotePort}. */
+  remoteHosts: ReadonlySet<string>;
   /** redirect_uri sent to each provider (token exchange must use the same value). */
   redirectUris: Readonly<Record<OAuthProvider, string>>;
   /** Redirect URI to register with each provider (Entra ignores the port for localhost). */
@@ -330,6 +339,21 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   const { pagesUrl, pagesOrigin } = parsePagesUrl(env.PORTLY_PAGES_URL, allowedOrigins);
   const { remoteOrigin, remoteHost } = parseRemoteOrigin(env.PORTLY_REMOTE_ORIGIN, { allowedHosts, allowedOrigins, pagesOrigin });
+  const remotePortRaw = env.PORTLY_REMOTE_PORT;
+  if (remoteOrigin === null && remotePortRaw !== undefined && remotePortRaw.trim() !== '') {
+    throw new ConfigError('PORTLY_REMOTE_PORT needs PORTLY_REMOTE_ORIGIN (the address other PCs use)');
+  }
+  const remotePort = remoteOrigin === null ? null : parsePort('PORTLY_REMOTE_PORT', remotePortRaw, port + 1 <= 65535 ? port + 1 : port - 1);
+  if (remotePort !== null && (remotePort === port || (dev && remotePort === vitePort))) {
+    throw new ConfigError('PORTLY_REMOTE_PORT must differ from PORTLY_PORT (and PORTLY_VITE_PORT in dev)');
+  }
+  const remoteHosts = new Set<string>();
+  if (remoteHost !== null && remotePort !== null) {
+    remoteHosts.add(remoteHost);
+    remoteHosts.add(hostHeaderFor('localhost', remotePort));
+    remoteHosts.add(hostHeaderFor('127.0.0.1', remotePort));
+    remoteHosts.add(hostHeaderFor('::1', remotePort));
+  }
 
   const redirectUris = {
     google: `${origin}/api/oauth/google/callback`,
@@ -358,6 +382,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     pagesOrigin,
     remoteOrigin,
     remoteHost,
+    remotePort,
+    remoteHosts,
     redirectUris: Object.freeze({ ...redirectUris }),
     registrationRedirectUris: Object.freeze({ google: redirectUris.google, microsoft: microsoftRegistration }),
     logLevel,
