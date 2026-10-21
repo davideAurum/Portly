@@ -117,10 +117,13 @@ function AddConnection({ onConnect }: { onConnect(id: ConnectionId): void }) {
           </li>
         ))}
       </ul>
+      {caps.remoteClient ? (
+        <p className={styles.intro}>Google and Microsoft accounts are connected on the main PC; once connected there, they work here too.</p>
+      ) : null}
       {caps.backend === 'browser' ? (
         <p className={styles.intro}>Google, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.</p>
       ) : null}
-      <AppRegistrations providers={providers} />
+      {caps.remoteClient ? null : <AppRegistrations providers={providers} />}
     </SettingsCard>
   );
 }
@@ -132,6 +135,8 @@ function AddConnection({ onConnect }: { onConnect(id: ConnectionId): void }) {
 function VaultLockedBanner() {
   const reset = useResetVault();
   const [confirming, setConfirming] = useState(false);
+  // Resetting is a decision for the main PC (the route is refused from another PC).
+  const mainPc = !getCapabilities().remoteClient;
   const icsCount = (useCalendars().data ?? []).filter((c) => c.source === 'ics').length;
   const icsNote =
     icsCount === 0
@@ -144,14 +149,17 @@ function VaultLockedBanner() {
         icon={KeyRound}
         title="Saved credentials can't be unlocked"
         actions={
-          <Button variant="danger" size="sm" icon={RotateCcw} onClick={() => setConfirming(true)}>
-            Reset credentials
-          </Button>
+          mainPc ? (
+            <Button variant="danger" size="sm" icon={RotateCcw} onClick={() => setConfirming(true)}>
+              Reset credentials
+            </Button>
+          ) : undefined
         }
       >
         Portly could not read its encryption key (for example after restoring the data folder on another PC or Windows
         account). Accounts, Todoist and ICS calendar subscriptions are paused. Resetting deletes every stored password, token and
         subscription address and creates a new key; you then reconnect your accounts and re-enter your ICS feed addresses.
+        {mainPc ? '' : ' Reset them on the main PC, in its Settings → Accounts.'}
       </Banner>
       <ConfirmDialog
         open={confirming}

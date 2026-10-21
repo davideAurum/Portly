@@ -104,3 +104,18 @@ describe('About settings', () => {
     expect(within(card).getByText('Saved in this browser')).toBeInTheDocument();
   });
 });
+
+describe('About settings on another PC', () => {
+  it('shows the version, that the data lives on the main PC, and the vault; no paths', async () => {
+    setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
+    renderWithProviders(<AboutSettings />, {
+      apiMocks: { 'GET /api/about': about({ dataDir: '', logPath: '' }), 'GET /api/pairings': PAIRINGS },
+    });
+    expect(await screen.findByText('Portly on the main PC, in its data folder.')).toBeInTheDocument();
+    expect(screen.getByText('Your personal start page, with its data from Portly on the main PC.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Data folder path')).not.toBeInTheDocument();
+    expect(screen.getByText('Unlocked and ready')).toBeInTheDocument();
+    // Pairing the Pages site is the main PC's business.
+    expect(screen.queryByRole('region', { name: 'Paired browsers' })).not.toBeInTheDocument();
+  });
+});

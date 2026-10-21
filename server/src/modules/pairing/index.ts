@@ -2,15 +2,16 @@
  * Pairing module (hybrid mode, shared/src/pairing.ts): pairs browsers on the configured Pages site
  * (`PORTLY_PAGES_URL`) with this server, and lets either side remove a pairing.
  *
- * Routes and responses:
- * - `GET /api/pairing` [paired] → `PairingStatusResponse` for the token the request presents
+ * Routes and responses (every one `samePc()`: Portly's own page and the paired Pages site, both
+ * on this PC; another PC has no pairing token and no say over pairings):
+ * - `GET /api/pairing` → `PairingStatusResponse` for the token the request presents
  *   (`X-Portly-Token`; none → 409 `not_configured`, unknown → 401 `pairing_required`)
- * - `DELETE /api/pairing` [paired] → 204 (the presenting browser unpairs itself)
- * - `GET /api/pairings` [paired] → `PairingsResponse`
+ * - `DELETE /api/pairing` → 204 (the presenting browser unpairs itself)
+ * - `GET /api/pairings` → `PairingsResponse`
  * - `POST /api/pairings {nonce}` → 201 `{redirectUrl}` (own page only; 409 `not_configured` without
  *   a Pages URL). The redirect goes to the configured Pages URL with the new token, the nonce and
  *   the instance id in the fragment; it is built from config only, never from request headers.
- * - `DELETE /api/pairings/:id` [paired] → 204, or 404
+ * - `DELETE /api/pairings/:id` → 204, or 404
  *
  * The gate (security/gate.ts) has already checked a Pages request's token against its origin; the
  * handlers here look the token up again so the server's own page gets the same answers.
@@ -32,7 +33,7 @@ import {
 import type { AppContext, AppEnv } from '../../context.ts';
 import { msToIso, msToIsoStrict } from '../../db/helpers.ts';
 import { HttpError } from '../../lib/errors.ts';
-import { paired } from '../../lib/routes.ts';
+import { samePc } from '../../lib/routes.ts';
 import { userAgentSummary } from '../../lib/user-agent.ts';
 import { parseBody } from '../../lib/validate.ts';
 import type { PairingRecord } from '../../security/pairing.ts';
@@ -64,7 +65,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
 
   // ---- the presenting browser (Pages site) ---------------------------------
 
-  app.get('/api/pairing', paired(), (c) => {
+  app.get('/api/pairing', samePc(), (c) => {
     const record = pairing.verify(presentedToken(c));
     if (!record) throw HttpError.of('pairing_required');
     const body: PairingStatusResponse = {
@@ -77,7 +78,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     return c.json(body);
   });
 
-  app.delete('/api/pairing', paired(), (c) => {
+  app.delete('/api/pairing', samePc(), (c) => {
     const token = presentedToken(c);
     const record = pairing.verify(token);
     if (!record || !pairing.revokeByToken(token, 'unpaired-itself')) throw HttpError.of('pairing_required');
@@ -86,10 +87,10 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   });
 
   // ---- managing paired browsers ---------------------------------------------
-  // Listing and revoking are open to the paired Pages site too; approving a new pairing
-  // (POST) stays with Portly's own page, where the trust starts.
+  // Listing and revoking are open to the paired Pages site too (never to another PC); approving a
+  // new pairing (POST) stays with Portly's own page, where the trust starts.
 
-  app.get('/api/pairings', paired(), (c) => {
+  app.get('/api/pairings', samePc(), (c) => {
     const body: PairingsResponse = {
       pagesUrl: config.pagesUrl,
       instanceId: pairing.instanceId(),
@@ -112,7 +113,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     return c.json(body, 201);
   });
 
-  app.delete('/api/pairings/:id', paired(), (c) => {
+  app.delete('/api/pairings/:id', samePc(), (c) => {
     const id = c.req.param('id');
     if (!pairing.revoke(id, 'revoked')) throw new HttpError(404, 'not_found', 'Pairing not found');
     log.info('pairing removed', { pairingId: id, by: 'revoked' });

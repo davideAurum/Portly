@@ -7,12 +7,15 @@ import { createRoot } from 'react-dom/client';
 import { toast } from 'sonner';
 import './styles/tokens.css';
 import './styles/base.css';
+import { fetchHealth } from './api/about.ts';
+import { fetchDeviceSelf } from './api/devices.ts';
 import { App } from './app/App.tsx';
 import { prepareFirstRender } from './app/boot.ts';
 import { forwardToPages } from './app/pagesForward.ts';
+import { resolveRemoteClient, type ServerView } from './app/remoteClient.ts';
 import { AppProviders, LOCAL_SERVER_QUERY_CACHE_KEY, createQueryClient, persistOptionsFor, persistOptionsOf, type QueryPersistOptions } from './app/providers.tsx';
 import { queryKeysForSlices } from './app/staticStatus.ts';
-import type { Backend } from './capabilities.ts';
+import { setRemoteClient, type Backend } from './capabilities.ts';
 import { recordClientEvent } from './diagnostics/clientLog.ts';
 import { HYBRID_ENABLED } from './localServer/config.ts';
 import { isFramed } from './localServer/page.ts';
@@ -66,6 +69,27 @@ function render(persist: QueryPersistOptions): void {
       </AppProviders>
     </StrictMode>,
   );
+}
+
+/**
+ * Server build on another PC (through the reverse proxy on the main PC, ARCHITECTURE §4.2): how
+ * the server took this page load, and whether it is a connected device. A page that is not
+ * connected gets the connect screen instead of the app; a page the proxy delivers to the server's
+ * main port gets a warning (`app/remoteClient.ts`). A server that cannot be reached counts as
+ * connected: the app then shows its usual "can't reach" notices.
+ */
+async function startRemoteClient(): Promise<{ view: ServerView; rendered: boolean }> {
+  const { view, connected } = await resolveRemoteClient({
+    hostname: window.location.hostname,
+    origin: window.location.origin,
+    fetchHealth,
+    fetchDeviceSelf,
+    setRemoteClient,
+  });
+  if (view === 'local' || (view === 'remote' && connected)) return { view, rendered: false };
+  const { ConnectPage, MisroutedPage } = await import('./app/ConnectPage.tsx');
+  createRoot(root).render(<StrictMode>{view === 'misrouted' ? <MisroutedPage /> : <ConnectPage />}</StrictMode>);
+  return { view, rendered: true };
 }
 
 /** sessionStorage key: when this tab last reloaded because a code chunk was missing. */
@@ -205,8 +229,11 @@ async function start(): Promise<void> {
   const notices: StartNotices = { pairing: pairingReturn, modeSwitch: null };
   let offlineFallback = false;
   if (!__PORTLY_STATIC__) {
+    // Another PC's page load shows the connect screen until it is approved, and never forwards.
+    const remote = await startRemoteClient();
+    if (remote.rendered) return;
     // One page: Portly's own page forwards to the Pages site, unless that can't be reached.
-    const forward = await forwardToPages({ location: window.location, framed: isFramed() });
+    const forward = await forwardToPages({ location: window.location, framed: isFramed(), remoteClient: remote.view === 'remote' });
     if (forward === 'forwarded') return;
     offlineFallback = forward === 'offline';
   }

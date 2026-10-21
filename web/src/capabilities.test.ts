@@ -30,6 +30,7 @@ describe('capabilitiesFor', () => {
       pagesBuild: false,
       backend: 'server',
       remoteServer: false,
+      remoteClient: false,
       accounts: true,
       googleAccounts: true,
       appPasswordAccounts: true,
@@ -51,6 +52,7 @@ describe('capabilitiesFor', () => {
       pagesBuild: true,
       backend: 'browser',
       remoteServer: false,
+      remoteClient: false,
       accounts: true,
       googleAccounts: false,
       appPasswordAccounts: false,
@@ -73,6 +75,23 @@ describe('capabilitiesFor', () => {
     expect(featureFlags(caps)).toEqual(featureFlags(capabilitiesFor(false, 'server')));
     expect({ ...caps, pagesBuild: false, remoteServer: false }).toEqual(capabilitiesFor(false, 'server'));
     expect(caps).not.toHaveProperty('accountSetupHere');
+  });
+
+  it('server build on another PC: every server feature except what stays on the main PC', () => {
+    const remote = capabilitiesFor(false, 'server', true);
+    expect(remote).toMatchObject({ pagesBuild: false, backend: 'server', remoteServer: false, remoteClient: true });
+    expect(featureFlags(remote)).toEqual({ ...featureFlags(capabilitiesFor(false, 'server')), googleAccounts: false, browserBookmarkImport: false });
+    expect(remote.vault).toBe(true);
+    expect(remote.iconPolling).toBe(true);
+    expect(capabilitiesFor(false, 'server', true)).toBe(remote);
+    expect(capabilitiesFor(false, 'server')).not.toBe(remote);
+  });
+
+  it('setRemoteClient marks the server build’s page load (and the test reset forgets it)', () => {
+    capabilities.setRemoteClient(true);
+    expect(getCapabilities().remoteClient).toBe(!STATIC_BUILD);
+    setCapabilitiesForTests(null);
+    expect(getCapabilities().remoteClient).toBe(false);
   });
 
   it('returns the same frozen object for the same combination', () => {
@@ -148,6 +167,7 @@ describe('module surface', () => {
       'isWidgetTypeAvailable',
       'setCapabilitiesForTests',
       'setPageBackend',
+      'setRemoteClient',
       'unavailableWidgetTypes',
     ]);
   });

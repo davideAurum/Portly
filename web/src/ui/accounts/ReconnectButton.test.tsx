@@ -49,3 +49,24 @@ describe('ReconnectButton', () => {
     expect(requestsTo('POST /api/oauth/microsoft/start')).toHaveLength(1);
   });
 });
+
+describe('ReconnectButton on another PC', () => {
+  it('says the sign-in happens on the main PC instead of starting one; app-password accounts still link to settings', async () => {
+    setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
+    const { requestsTo, unmount } = renderWithProviders(<ReconnectButton accountId="acc-1" />, {
+      apiMocks: {
+        'GET /api/accounts': [account({ id: 'acc-1', kind: 'google', status: 'reauth' }), account({ id: 'acc-2', kind: 'imap', status: 'reauth' })],
+      },
+      toaster: false,
+    });
+    expect(await screen.findByText('Reconnect on the main PC')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument();
+    expect(requestsTo('POST /api/oauth/google/start')).toEqual([]);
+    unmount();
+    renderWithProviders(<ReconnectButton accountId="acc-2" />, {
+      apiMocks: { 'GET /api/accounts': [account({ id: 'acc-2', kind: 'imap', status: 'reauth' })] },
+      toaster: false,
+    });
+    expect(await screen.findByRole('link', { name: 'Reconnect in settings' })).toHaveAttribute('href', '#/settings/accounts');
+  });
+});

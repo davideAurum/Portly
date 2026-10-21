@@ -852,14 +852,17 @@ Items:
   screen reads `GET /api/health` first and stops with a plain warning when `remote` is false (the
   proxy points at the main port instead of the remote one).
 
-  *Done when:* web tests and typecheck; both builds; B.4 passes.
+  *Done when:* web tests and typecheck; both builds; B.4 passes. *Result:* built on 2026-10-21
+  (B.2 commit), B.4 passed the same day.
 
 - **B.3 Docs and scripts** (S; after B.2).
   ARCHITECTURE: a new section for other PCs and the section 4.1 update (each approved device is
-  fully trusted, like a paired browser); `docs/setup/other-pcs.md` (Tailscale Serve set-up, the
-  Host-header check, why never Funnel, revoking); `setup.ps1 -RemoteOrigin` with `-DryRun`;
-  README and `docs/SETUP.md` lines; the privacy page text (`site/privacy.html`) that a server
-  reachable from your other PCs needs.
+  fully trusted, like a paired browser); `docs/setup/other-pcs.md` brought up to the setup script
+  (its first version, with the Tailscale Serve set-up pointed at the remote port, why never
+  Funnel, approving and removing, landed with B.2 because the app names it, as did the two
+  `docs/SETUP.md` rows and the installer carrying the variables); `setup.ps1 -RemoteOrigin` with
+  `-DryRun`; a README line; the privacy page text (`site/privacy.html`) that a server reachable
+  from your other PCs needs.
 
   *Done when:* `check-scripts.ps1` passes in both PowerShell versions; `check-release.ps1`
   passes; the docs name the real commands and the variable.
@@ -872,7 +875,17 @@ Items:
   `X-Forwarded-For` on the plain port refused as `proxied_local_host`.
 
   *Done when:* dated here with what was seen, and the two B.1 rows in the checks table closed or
-  narrowed.
+  narrowed. *Result:* 2026-10-21, in the desktop app's browser pane, through a throwaway plain-HTTP
+  proxy on `http://localhost:8443` forwarding to a scratch server's remote port 5800 (the pane
+  refuses a self-signed certificate, so `PORTLY_REMOTE_ORIGIN` now also accepts `http://` on a
+  loopback host, with the start-up warning): the connect screen, a request with its code, the
+  request listed on the server's own page with Approve and Deny, the approved tab reloading into
+  the app by itself, Settings → Devices on the other side showing "This PC" without Approve, the
+  Accounts page without the Google and Microsoft tiles, About with no paths, then Remove on the
+  main page sending the other tab back to the connect screen once it was visible again; the
+  server's log carried ids only. Found and fixed on the way: a reload loop (the page counted as
+  another PC's before its own "am I connected?" check, whose 401 then reloaded it) and the
+  loopback shortcut that took the proxied page as this PC's own without asking the server.
 
 - **B.5 The real check with a second PC** (S; go-ahead; after B.3; needs Tailscale on this PC and
   a second tailnet device).
@@ -925,13 +938,14 @@ date and the outcome once a row has been run for real.
 | A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | not yet |
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
-| The device connect flow in a real browser through an HTTPS proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 | not yet |
+| The device cookies over real https on an address that is not loopback (a Tailscale Serve address): the B.4 check ran on `http://localhost`, which Chromium treats as secure, so the `Secure` and `__Host-` attributes were never exercised against a certificate | B.2 commit, 2026-10-21 | B.5 | not yet |
 | Tailscale Serve pointed at Portly's remote port: which Host, `Tailscale-User-*` and `X-Forwarded-*` headers arrive, whether `Origin` passes through unchanged, and whether a forged `Tailscale-User-Login` is stripped; nothing has run against Tailscale | B.1 commit, 2026-10-21 | B.5 | not yet |
 
 ### Closed
 
 | Check | From | Closed by |
 | --- | --- | --- |
+| The device connect flow in a real browser through a proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 on 2026-10-21 (the B.2 commit's body): the whole flow in the desktop app's browser pane through a plain-HTTP loopback proxy; real https stays open as the row above |
 | The browser-only polish (*Browser only* footer label, Diagnostics intro and link, gap-free first-run layout, suggestion labels, probe throttles) in a real browser | 8bb97b1, 2026-10-19 | 8bb97b1's own body: checked on 2026-10-19 with `npm run preview:static` on localhost, built against an unused port so it acted like a PC without Portly |
 | Preparing background uploads in a real browser (canvas decoding, WebP encoding and SVG drawing were only exercised through fakes) | a7859df, 2026-10-18 | 501e85b (2026-10-18): tried in Chrome's built-in browser pane on the Vite dev server and the browser-only build with scratch data (large JPEG and PNG to WebP, small JPEG unchanged, animated GIF first frame, sized and unsized SVGs, corrupt JPEG error, *Optimize image* keeping blur and dim) |
 | Outlook.com calendars in the browser-only build against a real Outlook.com account | 23abdd5, 2026-10-13 | 3b3edd7 (2026-10-19): a real account on a localhost copy of the site (*Single-page application* redirect) connected the account and synced its calendars; the published address is the 2.1 row above |

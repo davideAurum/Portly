@@ -28,7 +28,7 @@ $PortlySupervisorProgram = 'portly-supervisor.exe'
 $PortlyServerProgram = 'portly-server.exe'
 $PortlyRuntimeRecord = 'runtime.json'
 # Every environment variable server/src/config.ts reads.
-$PortlyEnvNames = @('PORTLY_PORT', 'PORTLY_BIND', 'PORTLY_ORIGIN', 'PORTLY_DATA_DIR', 'PORTLY_DEV', 'PORTLY_VITE_PORT', 'PORTLY_PAGES_URL', 'PORTLY_LOG_LEVEL')
+$PortlyEnvNames = @('PORTLY_PORT', 'PORTLY_BIND', 'PORTLY_ORIGIN', 'PORTLY_DATA_DIR', 'PORTLY_DEV', 'PORTLY_VITE_PORT', 'PORTLY_PAGES_URL', 'PORTLY_LOG_LEVEL', 'PORTLY_REMOTE_ORIGIN', 'PORTLY_REMOTE_PORT')
 
 # --------------------------------------------------------------------------------------------
 # Output

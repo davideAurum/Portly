@@ -228,6 +228,8 @@ environment variables so autostart sees them too):
 | `PORTLY_BIND` | `127.0.0.1,::1` | Listen addresses (loopback only). |
 | `PORTLY_ORIGIN` | `http://localhost:<port>` | The URL you open Portly at. |
 | `PORTLY_PAGES_URL` | *(unset: off)* | Your Portly Pages site's address, e.g. `https://<user>.github.io/`. Browsers paired with Portly may then use it from that site ([Pages site with Portly on this PC](setup/pages-local-server.md)). |
+| `PORTLY_REMOTE_ORIGIN` | *(unset: off)* | The HTTPS address your other PCs use, given by a reverse proxy on this PC such as Tailscale Serve, e.g. `https://<pc>.<tailnet>.ts.net`. Each PC is approved once in **Settings → Devices** ([Using Portly from your other PCs](setup/other-pcs.md)). Portly still listens only on this PC. |
+| `PORTLY_REMOTE_PORT` | `<port> + 1` | The loopback port that proxy forwards to (only with `PORTLY_REMOTE_ORIGIN`). |
 | `PORTLY_LOG_LEVEL` | `info` | How much the log keeps normally: `debug`, `info` or `warn`. For a while, **Settings → Diagnostics** can switch to Verbose instead ([Diagnostics page and logs](setup/troubleshooting.md#diagnostics-page-and-logs)). |
 | `PORTLY_PAGES_REPO` | *(unset)* | Your local clone of the public Pages repository. In a checkout, `portly --rebuild` (and `portly --update`) publishes the Pages site there. `install-cli.ps1 -PublicRepoPath` sets it. |
 

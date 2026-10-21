@@ -269,9 +269,11 @@ describe('loadConfig: PORTLY_REMOTE_ORIGIN', () => {
     expect(() => loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: raw })).toThrow(ConfigError);
   });
 
-  it('accepts a loopback address on another port (a local HTTPS proxy, to try the flow on this PC) with a warning', () => {
+  it('accepts a loopback address on another port (a local proxy, to try the flow on this PC), https or http, with a warning', () => {
     for (const [raw, host] of [
       ['https://localhost:8443', 'localhost:8443'],
+      ['http://localhost:8443', 'localhost:8443'],
+      ['http://127.0.0.1:8443', '127.0.0.1:8443'],
       ['https://127.0.0.1:8443', '127.0.0.1:8443'],
       ['https://[::1]:8443', '[::1]:8443'],
       ['https://localhost', 'localhost'],

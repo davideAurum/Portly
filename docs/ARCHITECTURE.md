@@ -1041,7 +1041,9 @@ animations are in §7a Theme rendering.
 
 ### 10.5 Settings
 Hash routes `#/settings/<section>`; nav: general, appearance, search, bookmarks, accounts, calendars, profiles,
-import-export, diagnostics (§17), about. About shows the version, data dir, log path and vault state. The Todoist
+devices (other PCs using this Portly through the reverse proxy on the main PC: the requests waiting with Approve
+and Deny on Portly's own page on the main PC, the connected PCs with Remove; design in docs/design/multi-pc.md,
+guide docs/setup/other-pcs.md), import-export, diagnostics (§17), about. About shows the version, data dir, log path and vault state. The Todoist
 section moved into Accounts: `#/settings/todoist` still resolves (to `accounts`, with `focus=todoist`;
 `MOVED_SETTINGS_SECTIONS` in `settings/nav.ts`), and Todoist links use `#/settings/accounts?focus=todoist`.
 

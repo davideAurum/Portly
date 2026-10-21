@@ -163,9 +163,12 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
     enrollment cookie outlives the request by an hour, so the last poll can still say expired;
   - a route tag `samePc()` beside `paired()`: the paired Pages site (on this PC) may call it,
     another PC may not. It marks the vault reset, the browser bookmark import (`sources` and
-    `browser`), the OAuth start and the diagnostics report (it carries this PC's paths and log
-    files); approving devices and pairings stays untagged (local-only). Overlapping registrations
-    let in only the callers every one of them names, so a tag never widens another route.
+    `browser`), the OAuth start, the OAuth client settings, every pairing route, removing a
+    device and the diagnostics report (it carries this PC's paths and log files); approving and
+    denying device requests and approving pairings stay untagged (local-only). So another PC
+    manages neither pairings nor other PCs nor the OAuth clients: it may list the devices and
+    disconnect itself. Overlapping registrations let in only the callers every one of them
+    names, so a tag never widens another route.
     A tag `enrollment()` marks the two routes another PC may call without a device cookie;
   - the remote branch of the gate applies the same request-header rules as a local request
     (`X-Portly: 1`, `Sec-Fetch-Site` absent or `same-origin`, an absent or exactly-remote
@@ -182,5 +185,26 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
     "revoked" (with the reason) rather than "unknown", like pairing tombstones; the 30-day idle
     rule is applied on every listing and write, not only when a device presents its own cookie;
   - the device cookie's lifetime is renewed on use (at most every 10 minutes), except on an answer
-    that set or cleared the cookie itself (disconnecting, the enrollment swap);
+    that set or cleared the cookie itself (disconnecting, the enrollment swap).
+- **What phase 2 built** (the web side, B.2):
+  - the page decides before its first render whether it is another PC's: `GET /api/health` says
+    `remote: true` on the remote port (never a loopback shortcut, so a local proxy on another
+    port is seen as what the server says); `remote: false` on a non-loopback address that the
+    server does not name as its own page means the proxy points at the main port, and a warning
+    page says so;
+  - a connected device is one `GET /api/device` answers; otherwise the connect screen (a name,
+    the code, polling every 2 s, slower while hidden; approved → reload; denied, expired or gone
+    → ask again). That check runs before the page counts as another PC's, because on one that
+    does, any 401 `login_required` reloads the page once (a device revoked mid-session lands on
+    the connect screen);
+  - the `remoteClient` capability turns off what the server refuses from another PC: the Google
+    and Microsoft sign-ins (tiles, Reconnect, Add a service; app-password accounts and Todoist
+    stay), the vault reset button, the browser bookmark import, the pairing approval page, the
+    paired-browsers card and the diagnostics report download; About says the data lives on the
+    main PC;
+  - Settings → Devices: the address for other PCs or the setup steps, the requests waiting
+    (Approve and Deny on Portly's own page on the main PC only; the paired Pages site and a
+    connected PC see the list and a note), the connected PCs with "This PC" and Remove, polled
+    every 5 s while the page is visible;
+  - the Pages forward never takes another PC's page load.
   - logs carry request and device ids only; the diagnostics log filters gained `deviceId`.

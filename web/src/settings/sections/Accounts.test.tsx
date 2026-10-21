@@ -169,3 +169,34 @@ describe('Accounts settings on the in-browser backend', () => {
     expect(requestsTo('GET /api/oauth-clients/google')).toHaveLength(0);
   });
 });
+
+describe('Accounts settings on another PC', () => {
+  it('offers Yahoo, Todoist and Other only, no app registrations, no vault reset, and says the rest happens on the main PC', async () => {
+    setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
+    const { requestsTo } = renderWithProviders(<AccountsSettings />, {
+      apiMocks: {
+        'GET /api/health': health('locked'),
+        'GET /api/accounts': [account({ id: 'acc-1', kind: 'google', status: 'reauth' })],
+        'GET /api/todoist/token': { configured: false },
+      },
+    });
+    const tiles = within(await screen.findByRole('list', { name: 'Add a connection' })).getAllByRole('button');
+    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Yahoo', 'Connect Todoist', 'Connect another account (CalDAV or IMAP)']);
+    expect(screen.getByText(/Google and Microsoft accounts are connected on the main PC/)).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'App registrations' })).not.toBeInTheDocument();
+    expect(requestsTo('GET /api/oauth-clients/google')).toEqual([]);
+    // The reauth account offers no Reconnect here, and the locked vault no reset.
+    expect(await screen.findByText('Reconnect it on the main PC, in its Settings → Accounts.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reset credentials' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Reset them on the main PC/)).toBeInTheDocument();
+  });
+
+  it('with no account yet, the empty state names what can be connected from here', async () => {
+    setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
+    renderWithProviders(<AccountsSettings />, {
+      apiMocks: { 'GET /api/health': health(), 'GET /api/accounts': [], 'GET /api/todoist/token': { configured: false } },
+    });
+    expect(await screen.findByText(/Connect Yahoo, Todoist, a CalDAV server or an IMAP mailbox below/)).toBeInTheDocument();
+  });
+});

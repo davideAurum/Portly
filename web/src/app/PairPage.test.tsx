@@ -267,6 +267,17 @@ describe('PairPage in the Pages build', () => {
   });
 });
 
+describe('PairPage on another PC', () => {
+  it('only explains that pairing happens on the main PC, with a way back to the dashboard', () => {
+    setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
+    const { requests } = renderWithProviders(<PairPage nonce={NONCE} />);
+    expect(screen.getByRole('heading', { name: 'Pairing happens on the main PC' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['Back to the dashboard']);
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(requests).toEqual([]);
+  });
+});
+
 describe('App', () => {
   it('renders the pairing page on its own for #/pair', async () => {
     renderWithProviders(<App />, {

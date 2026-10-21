@@ -4,6 +4,7 @@
  */
 import { LogIn } from 'lucide-react';
 import { useAccount, useStartOAuth } from '../../api/accounts.ts';
+import { getCapabilities } from '../../capabilities.ts';
 import { Button, type ButtonSize } from '../Button.tsx';
 import { reconnectsWithOAuth } from './accountKinds.ts';
 import styles from '../Display.module.css';
@@ -18,6 +19,10 @@ export function ReconnectButton({ accountId, size = 'sm', variant = 'primary' }:
   const account = useAccount(accountId);
   const start = useStartOAuth();
 
+  if (account && reconnectsWithOAuth(account.kind) && getCapabilities().remoteClient) {
+    // The sign-in's redirect lands on the main PC: say so instead of starting one here.
+    return <span className={styles.setupLink}>Reconnect on the main PC</span>;
+  }
   if (account && reconnectsWithOAuth(account.kind)) {
     const provider = account.kind;
     return (

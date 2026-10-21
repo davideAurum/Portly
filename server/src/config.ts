@@ -204,10 +204,11 @@ function parsePagesUrl(raw: string | undefined, ownOrigins: ReadonlySet<string>)
 }
 
 /**
- * `PORTLY_REMOTE_ORIGIN`: the address other PCs use. `https:` only (the device cookie is `Secure`),
- * a bare origin (no path, query, fragment or credentials), and neither one of this server's own
- * hosts nor the Pages site. A loopback host on another port is accepted with a start-up warning
- * (a local HTTPS proxy, to try the connect flow on this PC): the Host header still tells it apart.
+ * `PORTLY_REMOTE_ORIGIN`: the address other PCs use. `https:` (the device cookie is `Secure`), a
+ * bare origin (no path, query, fragment or credentials), and neither one of this server's own
+ * hosts nor the Pages site. A loopback host on another port is accepted with a start-up warning,
+ * over https or plain http (browsers treat `localhost` as secure, cookies included): a local proxy
+ * to try the connect flow on this PC before any second PC exists.
  */
 function parseRemoteOrigin(
   raw: string | undefined,
@@ -218,7 +219,9 @@ function parseRemoteOrigin(
   const name = 'PORTLY_REMOTE_ORIGIN';
   const url = tryUrl(value);
   if (url === null) throw new ConfigError(`${name} must be an absolute https origin like https://pc.tailnet.ts.net (got ${echoUrl(null)})`);
-  if (url.protocol !== 'https:') throw new ConfigError(`${name} must use https (got ${echoUrl(url)})`);
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && LOOPBACK_PAGES_HOSTS.has(url.hostname))) {
+    throw new ConfigError(`${name} must use https (http only for localhost, 127.0.0.1 or [::1]) (got ${echoUrl(url)})`);
+  }
   if (url.username || url.password || (url.pathname !== '/' && url.pathname !== '') || url.search || url.hash) {
     throw new ConfigError(`${name} must be a bare origin like https://pc.tailnet.ts.net (got ${echoUrl(url)} with more after it)`);
   }
