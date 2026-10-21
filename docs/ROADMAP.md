@@ -52,7 +52,8 @@ saved so it can be brought over in phase 1.
    - a check that every file of the browser-only build is one `publish-static.ps1` recognises,
      so the next publish isn't refused;
    - the PowerShell extension ID check also uses Chromium's own vectors.
-5. **Version 0.2.0-alpha.1** with a CHANGELOG.
+5. **Version 0.2.0-alpha.1** with a [CHANGELOG](../CHANGELOG.md) (prepared; publishing it waits
+   for phase 4, since a release can't be published from a private repository).
 
 ## Phase 2: switch existing installs over
 
@@ -111,8 +112,8 @@ or fold them into a phase.
     browser.
 - **Dependencies:** two dev-only advisories (`shell-quote` through `concurrently`, and
   `source-map-js`) need a dependency upgrade to clear. This needs a go-ahead.
-- **Versions:** the extension is at 0.5.3 while the app is at 0.1.0. Decide whether they should
-  match when 0.2.0-alpha.1 goes out. After the first release, run `publish-static.ps1`.
+- **After the first release:** run `publish-static.ps1`. (Versions are decided: the extension
+  keeps its own version and the CHANGELOG names it; see [Releases](setup/releases.md#cutting-a-release).)
 - **Backgrounds:** an SVG background with blur above 0 can look a little softer than intended.
   It was left alone because it is rare.
 - **Brand:** make animated versions of the logo without its tile and of the lockup with the name,
