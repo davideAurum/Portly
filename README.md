@@ -80,8 +80,8 @@ client that refuses private-network addresses. Details: [ARCHITECTURE §4](docs/
 
 - Windows 11 (DPAPI vault, Task Scheduler autostart)
 - Chrome or Edge for the new-tab extension
-- From the source code: Node.js ≥ 24 and npm ≥ 11.10 (enforced by `engine-strict`). A release
-  package brings its own Node.js.
+- From the source code: Node.js 24 (any 24.x release; other majors are refused by `engine-strict`)
+  and npm ≥ 11.10. A release package brings its own Node.js.
 
 ## Install
 

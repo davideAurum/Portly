@@ -26,7 +26,7 @@ Homebase; see "Renamed from Homebase".
 
 ## Commands
 - Install: `npm ci` only. `.npmrc` sets `ignore-scripts`, `min-release-age=7`, `engine-strict`
-  (Node >= 24, npm >= 11.10). Do not add or upgrade dependencies unless asked.
+  (Node 24 only, `>=24 <25`; npm >= 11.10). Do not add or upgrade dependencies unless asked.
 - `npm run typecheck`
 - `npm test`: vitest (projects `server`, `web`, `static`), extension tests, native host tests,
   then `npm audit --omit=dev --audit-level=high`.

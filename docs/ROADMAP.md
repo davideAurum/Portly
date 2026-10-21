@@ -245,6 +245,25 @@ Items:
   whose fix version is younger than 7 days (`npm view <pkg>@<fixed> time`), each named here; the
   serveStatic double-encoding result recorded; CI green on main.
 
+  *Status:* done 2026-10-21 (CI on main pending the push). `npm audit fix` within the declared
+  ranges: hono 4.13.13, vite 8.3.4, concurrently 10.0.6 with shell-quote 1.12.0, source-map-js
+  1.2.2, and vitest 5.0.4 for two dev-only advisories that appeared the same day
+  (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp); nothing held back, `npm audit` reports 0; imapflow
+  stays 2.0.5. The persister is gone; `engines.node` is `>=24 <25` and `check-scripts.ps1`
+  fails when `package.json`, `scripts/release/node-runtime.json`, `ci.yml` or Common.ps1's
+  minimum disagree on the major (checked in both PowerShell versions). Checked here: `npm ci`,
+  typecheck, `npm test` (3,691 passed, 1 skipped; 344 extension and 79 native-host checks; audit
+  gate 0), both builds, check-scripts.ps1 319/319 and check-release.ps1 27/27.
+  The serveStatic answer (GHSA-5r4p-p66f-jhc7): not exploitable in Portly, checked live against a
+  scratch server. Portly's static files go through `@hono/node-server`'s own `serveStatic`, which
+  has the same second decode as hono's middleware, but every middleware is mounted on `*` and the
+  gate checks the raw path, everything under `web/dist` is public, and traversal attempts are
+  refused by the gate or by serveStatic's own post-decode check (the only effect seen: a
+  malformed path such as `/%%36%31ssets/<asset>` serves a public asset with `no-cache` instead of
+  the immutable cache header). The hono bump only clears the audit entry. The TimeoutOverflowWarning
+  still prints (1.9). Found on the way: setup.ps1 would install Node 26 once winget's LTS moves,
+  which the pin refuses: 1.11.
+
 - **1.8 Harden publish-static.ps1 and portly --update** (M; after 1.1).
   `publish-static.ps1` merges a diverged Pages repository keeping Portly's files (or prints the
   exact commands) and prints the 10-minute cache note after a publish; `portly --update` refuses a
@@ -285,6 +304,16 @@ Items:
   *Done when:* each changed sentence grepped against the code it cites;
   `grep -rn 'UX-[0-9]' web/src` resolves to the documented list or returns nothing; the shortcuts
   dialog test lists the new entry.
+
+- **1.11 setup.ps1 installs Node.js 24, not whatever LTS winget has** (S; after 1.7).
+  With the Node major pinned (1.7), a fresh PC must get Node 24: `setup.ps1` installs winget's
+  `OpenJS.NodeJS.LTS`, which moves to Node 26 when that becomes the LTS, and `Resolve-HbNode` in
+  `scripts/lib/Common.ps1` accepts 24 or newer. Install `OpenJS.NodeJS.24` (winget lists one id per
+  major) and have the checks refuse a major other than the pinned one, with the same wording in
+  [SETUP](SETUP.md) and [Autostart](setup/autostart.md). Lands before any other PC is set up (3.3).
+
+  *Done when:* `setup.ps1 -DryRun` on a PC without Node names the 24 package; `check-scripts.ps1`
+  passes in both PowerShell versions with a fake for the refused major; CI green on main.
 
 ## Phase 2: Prove what is built, on this PC
 
@@ -841,6 +870,7 @@ date and the outcome once a row has been run for real.
 | The animated lighthouse logo in Firefox and as the extension's New Tab page; frames were checked by eye in Chromium only | 7657e96, 2026-10-13 | 2.4 | not yet |
 | A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | not yet |
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
+| `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: winget's LTS id installs Node 26 once that is the LTS, which `engine-strict` refuses | 2d7b20e, 2026-10-21 | 1.11 | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
 
 ### Closed

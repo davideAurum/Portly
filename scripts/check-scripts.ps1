@@ -4,7 +4,9 @@
     stops nothing, and never writes the registry.
 
 .DESCRIPTION
-    1. Every .ps1 under scripts\ parses without errors, is ASCII-only and uses CRLF endings.
+    1. Every .ps1 under scripts\ parses without errors, is ASCII-only and uses CRLF endings; every
+       GitHub Actions action is pinned to a commit SHA; package.json engines.node,
+       scripts\release\node-runtime.json and ci.yml name the same Node major.
     2. Unit checks of scripts\lib\Common.ps1 (port parsing, access-denied detection, task-result
        text, process selection (node.exe and Portly's copies portly-supervisor.exe and
        portly-server.exe), the copies themselves - made, refreshed, kept while in use and refused
@@ -121,6 +123,26 @@ if (Test-Path -LiteralPath $workflowDir -PathType Container) {
             $usesLines.Count -gt 0 -and $unpinned.Count -eq 0) -Detail "not pinned: $($unpinned -join ', ')"
     }
 }
+
+# The Node major is pinned (ARCHITECTURE 2a): package.json engines.node (">=N <N+1"), the release
+# runtime in scripts\release\node-runtime.json and ci.yml's node-version must name the same major,
+# and Common.ps1's minimum is that major. Moving to a new major changes them together.
+$packageJson = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'package.json')) | ConvertFrom-Json
+$enginesNode = "$(Get-HbProperty (Get-HbProperty $packageJson 'engines') 'node')"
+$enginesPin = [regex]::Match($enginesNode, '^>=\s*(\d+)(?:\.\d+){0,2}\s+<\s*(\d+)(?:\.\d+){0,2}$')
+$enginesMajor = -1
+if ($enginesPin.Success -and [int]$enginesPin.Groups[2].Value -eq ([int]$enginesPin.Groups[1].Value + 1)) { $enginesMajor = [int]$enginesPin.Groups[1].Value }
+$runtimePin = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'scripts\release\node-runtime.json')) | ConvertFrom-Json
+$runtimeVersion = "$(Get-HbProperty $runtimePin 'version')"
+$runtimeMajor = -1
+if ($runtimeVersion -match '^(\d+)\.\d+\.\d+$') { $runtimeMajor = [int]$Matches[1] }
+$ciNodeVersions = @([regex]::Matches([System.IO.File]::ReadAllText((Join-Path $repoRoot '.github\workflows\ci.yml')), '(?m)^\s*node-version:\s*["'']?([^\s"'']+)') | ForEach-Object { $_.Groups[1].Value })
+$ciMajor = -1
+if ($ciNodeVersions.Count -eq 1 -and $ciNodeVersions[0] -match '^(\d+)(?:\.\d+)*$') { $ciMajor = [int]$Matches[1] }
+Assert-That -Name "package.json engines.node ($enginesNode), scripts\release\node-runtime.json ($runtimeVersion) and .github\workflows\ci.yml node-version ($($ciNodeVersions -join ', ')) name the same Node major" -Condition (
+    $enginesMajor -gt 0 -and $runtimeMajor -eq $enginesMajor -and $ciMajor -eq $enginesMajor) -Detail (
+    "engines.node must be '>=N <N+1' (one major; got '$enginesNode'), node-runtime.json version must be N.x.y (got '$runtimeVersion') and ci.yml must have one node-version: N (got '$($ciNodeVersions -join ', ')'); change the three together")
+Assert-That -Name "scripts\lib\Common.ps1 PortlyMinNodeMajor ($PortlyMinNodeMajor) is that major" -Condition ($PortlyMinNodeMajor -eq $enginesMajor) -Detail "engines.node '$enginesNode'"
 
 # ---------------------------------------------------------------------------------------------
 Write-Host ''
