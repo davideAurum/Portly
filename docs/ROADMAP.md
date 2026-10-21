@@ -288,6 +288,13 @@ Items:
   *Done when:* `npx vitest run` prints no TimeoutOverflowWarning; a unit test pins the clamp if app
   code was at fault.
 
+  *Status:* done 2026-10-21. Traced with `NODE_OPTIONS=--trace-warnings` (the flag has to reach the
+  worker processes) to a test fixture, not app code: the mail widget test seeded the accounts
+  query on the real clock and then faked Date to 2026-09-25, so TanStack Query armed its stale
+  timer for "real timestamp + 60 s minus the fake now", about 26 days. The seed now carries the
+  test's clock, and the web test setup turns any TimeoutOverflowWarning into a failure that names
+  the arming site (checked: the old seeding now fails the run).
+
 - **1.10 Contract and docs drift, review tags, shortcut help** (S; after 1.1).
   ARCHITECTURE: section 13's "100k-VEVENT" becomes the 5,000-VEVENT feed cap and the 100,000-row
   cache, and notes that CI also runs on `workflow_dispatch`; 4.2 step 1 names the `%2e` forms and
