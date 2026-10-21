@@ -62,9 +62,17 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
 
 ## Cutting a release
 
-1. **Version.** Every release needs a new version in the root `package.json` (the server reports it;
-   the package and its tag are named after it). For alpha releases use a pre-release version, and
-   keep the extension's `manifest.json` version at least the same `major.minor.patch`:
+1. **Version and changelog.** Every release needs a new version in the root `package.json` (the
+   server reports it, the web build shows it, the package and its tag are named after it). The
+   `server`, `shared` and `web` packages are internal and keep their own version. For alpha
+   releases use a pre-release version. Add the release's entry to
+   [CHANGELOG.md](../../CHANGELOG.md), naming the new-tab extension version it ships with.
+
+   The extension keeps its own version in `extension/manifest.json`. Raise it only when the
+   extension's code changes. Chrome accepts only plain numbers there (no `-alpha.1`), and the
+   stores refuse a lower version than the last one uploaded. When the extension and the native
+   host must change together, raise the protocol version instead (`LAUNCHER_PROTOCOL_VERSION` in
+   `extension/lib/launcher.js` and `PROTOCOL_VERSION` in `native-host/launcher.mjs`).
 
    ```powershell
    npm version 0.2.0-alpha.1 --no-git-tag-version

@@ -5,7 +5,7 @@ runs entirely on your own Windows 11 PC. A small Node.js server bound to loopbac
 dashboard and holds every credential; a tiny browser extension makes it the New Tab page in Chrome
 and Edge. There is no cloud service: the only outside traffic is to the providers you connect.
 
-**Get started: [docs/SETUP.md](docs/SETUP.md)**
+**Get started: [docs/SETUP.md](docs/SETUP.md)** · What changed: [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
