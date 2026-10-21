@@ -168,9 +168,10 @@ Items:
   **Wikipedia suggestions instead** switch under Settings > Search, and the live `install.ps1` is
   the new one (33,446 bytes: the built file with LF endings, see 1.8). Two findings: the installed
   native-host launcher is the 2026-10-12 version (installed on 2026-10-18, before b5f5cc5 changed
-  it on 2026-10-19), so this PC still lacks the refusal of a Homebase health answer; a real
-  `install-autostart.ps1` run refreshes it (go-ahead) and would also date the install-autostart row
-  in the checks table. And the Pages clone commits the scripts with LF endings (1.8).
+  it on 2026-10-19), so this PC lacked the refusal of a Homebase health answer. Refreshed the same
+  day with a real `install-autostart.ps1` run (the install-autostart row in the checks table): the
+  installed `launcher.mjs` now matches main. And the Pages clone commits the scripts with LF
+  endings (1.8).
 
 - **1.4 Register the Pages origin as a Single-page application redirect** (S; go-ahead; after
   1.3).
@@ -196,6 +197,15 @@ Items:
   `server/src/modules/diagnostics/report.ts`, `server/src/modules/bookmarks/favicons.ts` and
   "Who sees what" in [Browser-only build](setup/static-build.md)); every host named; "Homebase"
   appears only in a "formerly" line.
+
+  *Status:* done 2026-10-21 (not published yet; that is 1.6). The three pages were rewritten and
+  then reviewed against the code from three sides (facts, coverage of every host the CSPs, the
+  well-known-hosts list and the favicon and suggestion code can reach, and plain language). The
+  review found and fixed five things the first draft got wrong: hybrid mode was missing, the
+  Wikipedia engine asks Wikipedia without the opt-in, the extension's fallback page has a Google
+  search box, adding or editing a bookmark fetches the page for its title, and Portly's own page
+  keeps the same 24-hour browser snapshot as the site. `site/index.html` now also says Portly
+  runs as a browser-only site; its own-OAuth-client line is unchanged.
 
 - **1.6 Republish the consent pages to homebase-site** (S; go-ahead; after 1.5).
   Publish `site/` to the homebase-site repository at its existing URLs (CLAUDE.md keeps them). The
@@ -817,7 +827,7 @@ date and the outcome once a row has been run for real.
 | The hybrid pairing check in a real browser: a pairing change reloads each background tab only when you switch to it, after one more probe | 3407dfc, 2026-10-18 | 2.3 | not yet |
 | Background upload preparation in Edge or Firefox, with a real camera photo, and with EXIF-rotated files; only Chrome's built-in browser pane was tried | 501e85b, 2026-10-18 | 2.4 | not yet |
 | The frosted glass switch and the baked photo blur in a visible browser window and in browsers other than Chrome; only headless Chrome measurements and screenshots were made | 1169e15, 2026-10-18 | 2.4 | not yet |
-| A real `install-autostart` run that registers the task to run `portly-supervisor.exe`; nothing in the repository records one (the installed task on the developer's PC does name it, dated 2026-10-18 in the memory note, but that is outside the repository) | 89e4325, 2026-10-18 | 4.3 | not yet |
+| A real `install-autostart` run that registers the task to run `portly-supervisor.exe`; nothing in the repository records one (the installed task on the developer's PC does name it, dated 2026-10-18 in the memory note, but that is outside the repository) | 89e4325, 2026-10-18 | 4.3 (on a fresh account) | 2026-10-21 (after 1.3, on this PC): `install-autostart.ps1` replaced the running Browser-mode task, found the `node.exe` copies up to date, rewrote the native host files and registry keys, stopped the old processes and started the task; `/api/health` answered 0.2.0-alpha.1 and `portly --status` shows no warning. The fresh-account run stays with 4.3 |
 | `update.ps1` and `portly --start` for real, refreshing out-of-date copies of `node.exe` before starting the task | 89e4325, 2026-10-18 | 1.3 (`update.ps1`), 5.4 (its task restart), 4.3 (`portly --start` on a fresh install) | 2026-10-21 (1.3): `portly --update` ran `npm ci` (the lockfile had changed), the build and the publish; the server was stopped at the time, so the task-restart path did not run. `portly --start` then started the task and waited for health; the copies of `node.exe` were up to date, so the refresh path did not run |
 | A PC whose policy blocks running programs from `%LOCALAPPDATA%` (the task should fall back to `node.exe` and the supervisor to its own program) | 89e4325, 2026-10-18 | none: parked, cannot be reproduced on Windows 11 Home | not yet |
 | The Weather widget's location prompt flow in a real browser (permission already granted, *Use my location*, a one-time *Allow this time*); the browser APIs are faked in the tests | 82fb2f8, 2026-10-13 | 2.4 | not yet |

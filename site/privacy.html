@@ -18,12 +18,14 @@
   </header>
 
   <h1>Privacy policy</h1>
-  <p class="updated">Effective October 6, 2026</p>
+  <p class="updated">Effective October 21, 2026</p>
 
-  <p>Portly is a self-hosted browser home page. It runs as a small server on the user's own
-    Windows PC, listening only on that computer (<code>localhost</code>). There is no Portly cloud
-    service: its developer, davideAurum, does not operate any server that receives, stores or processes your
-    data.</p>
+  <p>Portly is a self-hosted browser home page. It runs either as a small server on your own
+    Windows PC, listening only on that computer (<code>localhost</code>), or as a browser-only
+    site served from GitHub Pages that keeps its data in the browser. There is no Portly cloud
+    service: its developer, davideAurum, does not operate any server that receives, stores or
+    processes your data. Portly was called Homebase until October 2026; this policy replaces the
+    one published under that name.</p>
 
   <h2>Data Portly accesses from Google</h2>
   <p>When you connect a Google account and approve access on Google's consent screen, Portly
@@ -43,40 +45,147 @@
       or unread, archive them, or move them to the trash when you ask it to. It never sends mail
       and never permanently deletes mail.</li>
   </ul>
+  <p>Portly asks only for the services you tick when you connect the account. Google accounts can
+    be connected to Portly on your PC only, not to the browser-only site.</p>
 
-  <h2>How the data is stored</h2>
+  <h2>Data Portly accesses from Microsoft (Outlook.com)</h2>
+  <p>When you connect a personal Microsoft account and approve access on Microsoft's consent
+    screen (the sign-in at <code>login.microsoftonline.com</code>; your data then goes through
+    Microsoft Graph, <code>graph.microsoft.com</code>), Portly can access your account identity
+    (<code>openid</code>, <code>profile</code>, <code>email</code>, <code>User.Read</code>) to
+    label the account, can stay signed in without asking you again
+    (<code>offline_access</code>), and, for the services you tick:</p>
   <ul>
-    <li>OAuth tokens are stored only on your PC, encrypted (AES-256-GCM under a key protected by
-      Windows DPAPI), and are never returned to the browser.</li>
-    <li>Calendar events are cached in a local database on your PC so the page loads quickly.</li>
-    <li>Mail is never written to disk; message lists are held in memory for about a minute.</li>
+    <li><strong>Calendar</strong> (<code>Calendars.ReadWrite</code>): your calendars and their
+      events, to display them and to create, edit and delete events when you ask it to.</li>
+    <li><strong>Mail</strong> (<code>Mail.ReadWrite</code>): the unread count and, for recent inbox
+      messages, the sender, subject, date and preview. Portly uses this permission only to mark
+      messages read or unread, archive them, or move them to the trash when you ask it to. It
+      never sends mail and never permanently deletes mail. Mail is available only in Portly on
+      your PC; the browser-only site asks for calendar access only.</li>
   </ul>
 
+  <h2>Other accounts and addresses you add</h2>
+  <ul>
+    <li><strong>Yahoo</strong> (<code>caldav.calendar.yahoo.com</code>,
+      <code>imap.mail.yahoo.com</code>) <strong>and other CalDAV or IMAP servers</strong>, with an
+      app password you create at the provider: calendars (read-only) and, for mail, the same inbox
+      summary and actions as described for Microsoft above.</li>
+    <li><strong>Todoist</strong> (<code>api.todoist.com</code>), with a personal API token: your
+      tasks and projects, and the tasks you add, edit, complete or reopen.</li>
+    <li><strong>Calendar subscriptions</strong> (ICS or webcal links) and <strong>RSS or Atom
+      feeds</strong>: Portly on your PC fetches the addresses you add; the browser-only site does
+      not offer them.</li>
+  </ul>
+
+  <h2>How the data is stored</h2>
+  <p><strong>Portly on your PC:</strong></p>
+  <ul>
+    <li>OAuth tokens, app passwords, API tokens, the OAuth client secret you enter for Google and
+      the addresses of calendar subscriptions are stored only on your PC, encrypted (AES-256-GCM
+      under a key protected by Windows DPAPI), and are never returned to the browser.</li>
+    <li>Calendar events are cached in a local database on your PC so the page loads quickly.</li>
+    <li>Mail is never written to disk; message lists are held in memory for about a minute.</li>
+    <li>Bookmark icons that were fetched are kept on your PC.</li>
+    <li>So that the page can appear at once, your browser also keeps a snapshot of what it last
+      showed, including the calendar events on screen but never mail, in its local storage for
+      Portly's address. The snapshot is dropped after 24 hours or when Portly is updated.</li>
+  </ul>
+  <p><strong>The browser-only site:</strong></p>
+  <ul>
+    <li>Settings, layouts, bookmarks, uploaded images, the Todoist token, the tokens of your
+      Microsoft sign-in and a copy of your Outlook.com calendars are stored by the browser, in its
+      storage for the site's address (IndexedDB), on that device. Portly does not encrypt them;
+      they are as safe as the browser profile they live in.</li>
+    <li>The browser keeps the same kind of snapshot for the site, including the calendar events on
+      screen, dropped after 24 hours or when Portly is updated.</li>
+    <li>None of it is sent to GitHub, which only serves the page, or to Portly's developer. Data
+      moves to another browser or device only when you export it and import it there.</li>
+  </ul>
+  <p>If you pair the browser-only site with Portly on your PC (hybrid mode, described below), the
+    site shows and changes the data on your PC instead, under the rules for Portly on your PC
+    above, and the browser keeps a snapshot of what the site last showed (never accounts or mail)
+    for up to 7 days, next to the pairing token, in its local storage for the site.</p>
+
   <h2>Sharing</h2>
-  <p>Portly does not sell, share or transfer Google user data to anyone. The only network
-    traffic carrying your Google data is between your PC and Google's own APIs. Portly has no
-    analytics, advertising or tracking, and does not use Google user data to develop, improve or
-    train AI or machine-learning models.</p>
+  <p>Portly does not sell, share or transfer Google user data, or any other data from the accounts
+    you connect, to anyone. The only network traffic carrying data from those accounts is between
+    your PC or browser and that provider's own services. Portly has no analytics, advertising or
+    tracking, and does not use Google user data to develop, improve or train AI or
+    machine-learning models.</p>
 
   <h2>Limited Use</h2>
   <p>Portly's use and transfer to any other app of information received from Google APIs will
     adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google
     API Services User Data Policy</a>, including the Limited Use requirements.</p>
 
-  <h2>Other services</h2>
-  <p>If you connect them, Portly talks directly from your PC to Microsoft (Outlook.com), Yahoo,
-    CalDAV/IMAP servers and Todoist under the same rules: data stays on your PC and is used only
-    to show and act on your own calendar, mail and tasks. Weather requests send the coordinates
-    of the location you choose to Open-Meteo. Bookmark icons are fetched from the bookmarked
-    websites.</p>
+  <h2>Services that receive data from Portly</h2>
+  <p>Besides the accounts you connect, these services receive data when the feature that uses
+    them is on:</p>
+  <ul>
+    <li><strong>Open-Meteo</strong> (<code>api.open-meteo.com</code>,
+      <code>geocoding-api.open-meteo.com</code>): the coordinates of the location you choose for
+      the weather, and the text you type when searching for a place.</li>
+    <li><strong>ESPN</strong> (<code>site.api.espn.com</code>, team logos from
+      <code>a.espncdn.com</code>): which leagues and teams you follow in the sports scores
+      widget.</li>
+    <li><strong>Search suggestions:</strong> while suggestions are on, what you have typed so far
+      goes to the suggestion provider of the search engine you are using: Google
+      (<code>suggestqueries.google.com</code>, also for YouTube), DuckDuckGo
+      (<code>duckduckgo.com</code>), Bing (<code>api.bing.com</code>) or Wikipedia
+      (<code>en.wikipedia.org</code>). The browser-only site can ask only Wikipedia: when you
+      search with the Wikipedia engine, or in place of the other engines' suggestions only if you
+      turn on Wikipedia suggestions in Settings → Search.</li>
+    <li><strong>Bookmark icons and titles:</strong> when you add or edit a bookmark, Portly on
+      your PC fetches the page at the address you typed to suggest its title and icon. For a
+      bookmark set to an automatic icon, and for the sites of your search engines while automatic
+      icons are on, it asks the website itself first, then the DuckDuckGo icon service
+      (<code>icons.duckduckgo.com</code>) and Google's favicon service
+      (<code>www.google.com/s2/favicons</code>), which receive the site's host name, not the full
+      address. The browser-only site uses only the DuckDuckGo icon service. Hosts that look
+      private are never looked up, and you can choose a custom icon or a letter tile instead.</li>
+    <li><strong>Calendar subscriptions and feeds:</strong> the servers at the addresses you add
+      see the request, like any feed reader.</li>
+    <li><strong>Links you click:</strong> opening a message or task from Portly takes you to the
+      provider's own site (Gmail, Outlook.com, Yahoo Mail, Todoist), with that message or task
+      named in the address, like any link.</li>
+    <li><strong>GitHub Pages</strong>, when you use the browser-only site, or when you have told
+      Portly on your PC about your site (Portly's own page then checks that the site can be
+      reached and opens it there): your IP address, like for any website.</li>
+    <li><strong>Portly on this PC</strong> (<code>http://127.0.0.1:5757</code>, hybrid mode): when
+      Portly also runs on the PC you browse from, the browser-only site checks on each page load
+      whether it is running (your browser may first ask you to allow the site to reach this PC)
+      and, after you have paired that browser on Portly's own page, sends every request of the
+      page to it with the pairing token and shows Portly's data instead of the browser's copy.
+      Nothing leaves the PC.</li>
+    <li><strong>GitHub</strong> (<code>github.com</code>), when you install or update Portly on
+      your PC with its install script: the download of the release, like any software
+      download.</li>
+  </ul>
+
+  <h2>The new-tab extension</h2>
+  <p>The Portly extension for Chrome and Edge replaces the browser's New Tab page with Portly. It
+    talks only to Portly on your PC (<code>localhost</code>) and to Portly's launcher on your PC,
+    which starts the server when needed; if you have told Portly about your browser-only site, a
+    new tab opens that site. Its toolbar button reads the address and title of the current tab
+    only when you click it, to add that page as a bookmark. When Portly cannot be started, the
+    page it shows instead has a plain Google search box; what you type there goes to Google
+    (<code>www.google.com</code>) only when you submit it, like any search. The extension keeps
+    only its own settings and what Portly last told it about its browser-only site in the
+    browser, makes no request to any other website and collects nothing.</p>
 
   <h2>Removing access and deleting data</h2>
   <ul>
-    <li>Removing an account in Portly (Settings → Accounts) deletes its tokens and cached
-      events from your PC and revokes Portly's access at Google.</li>
+    <li>Removing an account in Portly (Settings → Accounts) deletes its tokens and cached data
+      from your PC or browser and, for Google, revokes Portly's access at Google.</li>
     <li>You can also revoke access at any time at
-      <a href="https://myaccount.google.com/connections">myaccount.google.com/connections</a>.</li>
-    <li>Uninstalling Portly and deleting its data folder removes everything it stored.</li>
+      <a href="https://myaccount.google.com/connections">myaccount.google.com/connections</a> or,
+      for Microsoft, at
+      <a href="https://account.live.com/consent/Manage">account.live.com/consent/Manage</a>.</li>
+    <li>Uninstalling Portly and deleting its data folder removes everything it stored on your PC;
+      clearing the browser's data for Portly's address removes the browser's snapshot. Clearing
+      the browser's data for the site removes everything the browser-only site stored, the
+      pairing included.</li>
   </ul>
 
   <h2>Changes and contact</h2>
