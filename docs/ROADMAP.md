@@ -215,6 +215,13 @@ Items:
   *Done when:* `curl https://davideaurum.github.io/homebase-site/privacy.html` contains "Portly"
   and the new effective date; the Google and Microsoft consent-screen links still resolve.
 
+  *Status:* done 2026-10-21. `site/` was copied into a fresh clone of davideAurum/homebase-site
+  (Pages serves its main branch root), committed as 307fbf0 and pushed at 20:56Z; the Pages build
+  finished within a minute. The live privacy and terms pages say Portly with "Effective October
+  21, 2026", the home page names the browser-only site, "Homebase" appears once (the "formerly"
+  line), the three consent-screen URLs answer 200, and the new font file is served. The clone
+  gained `*.woff2 binary` in its `.gitattributes`.
+
 - **1.7 One hygiene commit: advisories, persister, engine pin** (S; go-ahead; after 1.1).
   One commit that clears the open advisories, drops the unused persister and pins the Node major,
   with the reasons recorded where they belong:
