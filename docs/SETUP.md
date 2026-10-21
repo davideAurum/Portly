@@ -107,6 +107,10 @@ PowerShell:
 irm https://davideaurum.github.io/setup.ps1 | iex
 ```
 
+> Until the repository is public ([roadmap](ROADMAP.md) phase 5), this command and the
+> [quick start](#quick-start) below work only for the repository's owner, because both need a
+> clone of a private repository.
+
 The script comes from the Pages site: the static build adds a copy, so every publish updates it.
 To pass options:
 

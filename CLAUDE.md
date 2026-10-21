@@ -40,6 +40,12 @@ Homebase; see "Renamed from Homebase".
 - After release/install changes: `.\scripts\check-release.ps1` (temporary folder only).
 - Before committing, run what CI runs (`.github/workflows/ci.yml`): typecheck, `npm test`, both
   builds, `check-scripts.ps1`, `check-release.ps1`.
+- Before a release, check both production builds for CSP violations by hand (serve `web/dist`
+  from a scratch server and `web/dist-static` with `npm run preview:static`, DevTools open): no
+  automated step covers it (ARCHITECTURE section 13, ROADMAP 2.5).
+- Never run the full test suite in several sessions at once. Tests that start processes get
+  busy-machine timeouts (today the DPAPI and vault tests; give any new one, such as the
+  supervisor's, the same).
 
 ## Code conventions
 - TypeScript is strict with `noUncheckedIndexedAccess`. Relative imports include `.ts`/`.tsx`.
@@ -91,7 +97,8 @@ Homebase; see "Renamed from Homebase".
   - a summary line under about 75 characters ("Area: what" or imperative);
   - a blank line, then a short paragraph on the user-visible effect;
   - `- file/area: change` bullets and a `Docs: ...` line;
-  - an honest note on what was and wasn't tested;
+  - an honest note on what was and wasn't tested, its "Not tested" part copied into the
+    "Checks never run for real" table of `docs/ROADMAP.md` in the same commit;
   - wrap at about 72 columns.
 - Versions come from `package.json`. A release tags the exact commit it was built from, and a
   version can be published once.
