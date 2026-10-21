@@ -10,8 +10,10 @@
        portly-server.exe), the copies themselves - made, refreshed, kept while in use and refused
        when they do not run, in a temporary folder - the retry of a file another program reads
        for a moment (Invoke-HbSharingRetry), the task definition objects for -Trigger
-       Browser and Logon, extension IDs (the manifest key against Node's crypto, the extension's
-       PINNED_EXTENSION_ID and every ID quoted in the docs), the native host files and their
+       Browser and Logon, extension IDs (Chromium's own vectors, the manifest key against Node's
+       crypto, the extension's PINNED_EXTENSION_ID and every ID quoted in the docs), the top-level
+       files of web\dist-static against the names publish-static.ps1 recognises as a Portly publish
+       (when built), the native host files and their
        registration - written to a temporary folder with a fake registry - the health check
        against a loopback fixture server).
     3. Runs the generated launcher.cmd exactly as Chrome starts a native host
@@ -19,7 +21,8 @@
        scripts\tests\schtasks-stub.mjs (so the real task is never run).
     4. Runs the native host's node tests (node scripts\check-native-host.mjs).
     5. Runs install-autostart.ps1 -DryRun (both modes), uninstall-autostart.ps1 -DryRun,
-       status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl, update.ps1 -DryRun,
+       status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl, a copy of setup.ps1
+       -DryRun on this checkout (it says it does not update it), update.ps1 -DryRun,
        try-branch.ps1 -DryRun, the portly command, install-cli.ps1 -DryRun and publish-static.ps1
        -DryRun (against throwaway repositories in a temporary folder) in child processes of
        Windows PowerShell 5.1 and PowerShell 7 (when installed), and verifies that the scheduled
@@ -537,10 +540,19 @@ if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
 Write-Host ''
 Write-Host 'Extension ID and native host' -ForegroundColor White
 
-# The ID Chrome gives an extension folder loaded unpacked without a
-# "key" (SHA-256 of the UTF-16LE path): a real-world vector for the hash -> a-p mapping.
+# Observed values: Chromium's own vectors (components/crx_file/id_util_unittest.cc), where
+# GenerateId hashes its input as GenerateIdFromPublicKey hashes the DER key. They pin the
+# hash -> a-p mapping to the browser's implementation, not to ours.
+foreach ($vector in @(@('test', 'jpignaibiiemhngfjkcpokkamffknabf'), @('_', 'ncocknphbhhlhkikpnnlmbcnbgdempcd'))) {
+    $vectorHash = Get-HbSha256 -Bytes ([System.Text.Encoding]::ASCII.GetBytes($vector[0]))
+    Assert-That -Name "ConvertTo-HbExtensionId matches Chromium's vector for '$($vector[0])'" -Condition (
+        (ConvertTo-HbExtensionId -Hash $vectorHash) -ceq $vector[1]) -Detail (ConvertTo-HbExtensionId -Hash $vectorHash)
+}
+# The ID Chrome gives an extension folder loaded unpacked without a "key" (SHA-256 of the UTF-16LE
+# path), for the folder's placeholder path before the rename: computed, quoted in the docs as the
+# old ID.
 $pathHash = Get-HbSha256 -Bytes ([System.Text.Encoding]::Unicode.GetBytes('C:\Users\you\Coding\Homebase\extension'))
-Assert-That -Name 'ConvertTo-HbExtensionId matches a path-derived Chrome ID' -Condition (
+Assert-That -Name 'ConvertTo-HbExtensionId gives the path-derived ID the docs quote' -Condition (
     (ConvertTo-HbExtensionId -Hash $pathHash) -ceq 'daklamdnkmbdeegnkhmpeccgggbgiole') -Detail (ConvertTo-HbExtensionId -Hash $pathHash)
 # A fixed RSA-2048 public key and its ID, computed independently with Node's crypto.
 $vectorKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwSv/UP1vJ8MyvwqBWm4lcTFePyJYPWixf8yHB9liQC7X0XyYLooDgSv2xh0VeWPLaoGwwg5AR4n4ngv0MAi5YtQzStMwY64ClckW+d490mOiQzZkz9dFPFELVhxqqcXg+AlYwmO2y1NnI0FGoCxdyyoZ/5LcBzeFWyArHOUI+hl6leGBcCJSgeF4qFpk2jliql05TCoEDvk54DgVzrE5UPIQtu+ZxPNj/ynpliG0kFGgB5RWp6c8S3OjOuYmMG95le14WLoDN8o5K43IkjBhucwyHoJ/uCjInoJtKEY9Co2V6ZwJGjO1EovHqYW7JO9YIa1dXd19GHeLSwPScWtknQIDAQAB'
@@ -856,6 +868,37 @@ Assert-Throws -Name 'Remove-HbNativeHostFolder refuses any folder not named nati
 
 # ---------------------------------------------------------------------------------------------
 Write-Host ''
+Write-Host 'Browser-only build and publish-static.ps1' -ForegroundColor White
+# publish-static.ps1 replaces a repository only when it holds nothing but names an earlier Portly
+# publish has (Get-HbPublishedNames). A build that gains a top-level file not on that list is
+# published once, and every later publish is then refused as "not part of a Portly build". The
+# function and the two lists it uses are loaded from the script without running it.
+$publishTokens = $null
+$publishErrors = $null
+$publishAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'publish-static.ps1'), [ref]$publishTokens, [ref]$publishErrors)
+$publishNodes = @($publishAst.FindAll({
+            param($node)
+            ($node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-HbPublishedNames') -or
+            ($node -is [System.Management.Automation.Language.AssignmentStatementAst] -and @('$HbPublishKeep', '$HbNoJekyll') -contains "$($node.Left)")
+        }, $false))
+Assert-That -Name 'publish-static.ps1 defines Get-HbPublishedNames, $HbPublishKeep and $HbNoJekyll' -Condition ($publishNodes.Count -eq 3)
+foreach ($node in $publishNodes) { . ([scriptblock]::Create($node.Extent.Text)) }
+$distStatic = Join-Path $repoRoot 'web\dist-static'
+if (Test-Path -LiteralPath (Join-Path $distStatic 'index.html') -PathType Leaf) {
+    $publishedNames = Get-HbPublishedNames -RepoRoot $repoRoot
+    $buildNames = @(Get-ChildItem -LiteralPath $distStatic -Force | ForEach-Object { $_.Name })
+    $unknownNames = @($buildNames | Where-Object { $publishedNames -cnotcontains $_ })
+    Assert-That -Name 'every top-level file of web\dist-static is one publish-static.ps1 knows from a Portly publish' -Condition (
+        $unknownNames.Count -eq 0) -Detail "not on Get-HbPublishedNames: $($unknownNames -join ', ')"
+    $missingNames = @(@('index.html', 'assets', 'install.ps1', 'setup.ps1') | Where-Object { $buildNames -cnotcontains $_ })
+    Assert-That -Name 'web\dist-static holds the names Get-HbPublishedNames lists for the build (index.html, assets, install.ps1, setup.ps1)' -Condition (
+        $missingNames.Count -eq 0) -Detail "missing: $($missingNames -join ', ')"
+} else {
+    Write-Host '  skip  web\dist-static is not built (npm run build:static; CI builds it before this check)' -ForegroundColor DarkYellow
+}
+
+# ---------------------------------------------------------------------------------------------
+Write-Host ''
 Write-Host 'Native host launcher tests (node scripts\check-native-host.mjs)' -ForegroundColor White
 $previousPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
@@ -1126,6 +1169,18 @@ try {
             }
             Assert-That -Name 'setup.ps1 -DryRun left the user environment variable PORTLY_PAGES_URL alone' -Condition (
                 [System.Environment]::GetEnvironmentVariable('PORTLY_PAGES_URL', 'User') -ceq $pagesBefore)
+
+            # A copy of setup.ps1 (as irm | iex runs it) pointed at an existing checkout says it
+            # does not update that checkout, and how to.
+            $setupCopyDir = Join-Path $workDir "setup-copy-$label"
+            $null = New-Item -ItemType Directory -Path $setupCopyDir -Force
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'setup.ps1') -Destination $setupCopyDir
+            $setupReuse = & $run (Join-Path $setupCopyDir 'setup.ps1') @('-InstallDir', $repoRoot, '-DryRun', '-NoBrowser', '-SkipAutostart', '-SkipCli')
+            Assert-That -Name 'setup.ps1 run on its own with an existing checkout says it uses that code without updating it, and how to update' -Condition (
+                $setupReuse.ExitCode -eq 0 -and $setupReuse.Text.Contains("Found an existing checkout in $repoRoot. Setup uses its code as it is and does not update it.") -and
+                $setupReuse.Text -match 'Its code: \S+ at [0-9a-f]{7,} from \d{4}-\d{2}-\d{2}' -and
+                $setupReuse.Text.Contains("instead: git -C ""$repoRoot"" pull, then run setup again") -and
+                $setupReuse.Text.Contains('Dry run finished; nothing was changed.')) -Detail $setupReuse.Text
 
             # publish-static.ps1: argument checks and the dry run, against folders under $workDir only
             # (-DryRun never builds, commits or pushes).

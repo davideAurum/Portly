@@ -43,12 +43,15 @@ saved so it can be brought over in phase 1.
    **Wikipedia suggestions instead** (off by default). The first-run layout has no gaps, and the
    Diagnostics page has its own intro and links to Portly on this PC only once it answers. See
    [Browser-only build](setup/static-build.md).
-4. **Smaller fixes:**
-   - an update rollback also restores the database backup;
-   - longer timeouts for the credential vault tests;
-   - a clearer message from `setup.ps1` about updating;
-   - a test that ties the web build's files to what `publish-static.ps1` allows;
-   - an observed value for the extension ID test.
+4. **Smaller fixes** (done):
+   - when an update fails, the database copied before it is put back with the previous version
+     (the one the new version left is kept in `backups\`);
+   - the DPAPI and vault tests that start processes allow for a busy PC;
+   - `setup.ps1` says plainly that it does not update an existing checkout, shows its commit and
+     how to update it;
+   - a check that every file of the browser-only build is one `publish-static.ps1` recognises,
+     so the next publish isn't refused;
+   - the PowerShell extension ID check also uses Chromium's own vectors.
 5. **Version 0.2.0-alpha.1** with a CHANGELOG.
 
 ## Phase 2: switch existing installs over

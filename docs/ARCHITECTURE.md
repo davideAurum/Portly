@@ -1813,12 +1813,14 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
   `app`, relinks and runs `install-autostart.ps1 -Trigger <mode> -NodePath <app>/runtime/node.exe`. The mode is
   `install.ps1 -Trigger` when given, otherwise the installed task's (Logon when it has a trigger, else Browser;
   Browser for a new install); `portly --update` never passes `-Trigger`, so it keeps the mode. If that fails, `app` →
-  `app.failed`, `app.previous` → `app`, and the old version's `install-autostart.ps1` runs with the same mode. On an
+  `app.failed`, `app.previous` → `app`, the backup is copied back as `portly.db` (`-wal`/`-shm` with it; the failed
+  version's files move to `<data>/backups/portly-failed-<version>-<time>.db`, newest three kept), and the old version's
+  `install-autostart.ps1` runs with the same mode. On an
   update, a task that runs another copy (a checkout) is left alone with a warning. The data folder is never moved or
   deleted.
 - **Trust:** the SHA-256 comes from the same release as the package, so it detects corruption, not a
   compromised repository; packages are not code-signed (alpha).
-- **Checks:** `scripts/check-release.ps1` (install, the installed CLI and autostart dry run, a server started from the
+- **Checks:** `scripts/check-release.ps1` (`Restore-InstDatabase` on a temporary data folder, install, the installed CLI and autostart dry run, a server started from the
   package on a free port with a temporary data folder, re-install, `-Force` update with backup and `app.previous`,
   refusals) — in `ci.yml` with a test package and in `release.yml` with the real one.
 

@@ -14,7 +14,8 @@
        portly-supervisor.exe / portly-server.exe from %LOCALAPPDATA%\Portly\node), copies the database to
        <data folder>\backups\portly-before-<version>-<time>.db, keeps the old version as
        <InstallDir>\app.previous and moves the new one to <InstallDir>\app. If the new version
-       does not start, the old one is put back and started again.
+       does not start, the old one and the database copy are put back and the old one is started
+       again (the database the new version left is kept as backups\portly-failed-<version>-<time>.db).
     5. Links node_modules\@portly\shared to the package's shared folder (a junction).
     6. With -PagesUrl: saves the Pages site's address as PORTLY_PAGES_URL (as setup.ps1 does).
     7. Runs app\scripts\install-autostart.ps1 with app\runtime\node.exe (the scheduled task, run as
@@ -336,14 +337,46 @@ function Backup-InstDatabase {
     foreach ($suffix in @('-wal', '-shm')) {
         if (Test-Path -LiteralPath "$db$suffix" -PathType Leaf) { Copy-Item -LiteralPath "$db$suffix" -Destination "$copy$suffix" }
     }
-    $old = @(Get-ChildItem -LiteralPath $backups -Filter 'portly-before-*.db' -File | Sort-Object LastWriteTimeUtc -Descending |
+    Remove-InstOldBackups -Dir $backups -Filter 'portly-before-*.db'
+    return $copy
+}
+
+# Keeps the newest $InstKeepBackups database copies matching -Filter (with their -wal/-shm files).
+function Remove-InstOldBackups {
+    param([Parameter(Mandatory)][string]$Dir, [Parameter(Mandatory)][string]$Filter)
+    $old = @(Get-ChildItem -LiteralPath $Dir -Filter $Filter -File | Sort-Object LastWriteTimeUtc -Descending |
             Select-Object -Skip $InstKeepBackups)
     foreach ($file in $old) {
         foreach ($path in @($file.FullName, "$($file.FullName)-wal", "$($file.FullName)-shm")) {
             if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
         }
     }
-    return $copy
+}
+
+# After a failed update, puts the copy Backup-InstDatabase made back as portly.db, so the previous
+# version opens the data it left (the new version may already have changed it). The database the
+# failed version left is kept as backups\portly-failed-<Label>-<time>.db. Portly must be stopped.
+# Returns that copy's path ($null when there was no database to keep).
+function Restore-InstDatabase {
+    param([Parameter(Mandatory)][string]$Backup, [Parameter(Mandatory)][string]$Label)
+    $backups = Split-Path -Parent $Backup
+    $db = Join-Path (Split-Path -Parent $backups) 'portly.db'
+    $kept = $null
+    if (Test-Path -LiteralPath $db -PathType Leaf) {
+        $kept = Join-Path $backups "portly-failed-$Label-$((Get-Date).ToString('yyyyMMdd-HHmmss')).db"
+        Move-Item -LiteralPath $db -Destination $kept
+    }
+    foreach ($suffix in @('-wal', '-shm')) {
+        if (Test-Path -LiteralPath "$db$suffix" -PathType Leaf) {
+            if ($null -ne $kept) { Move-Item -LiteralPath "$db$suffix" -Destination "$kept$suffix" } else { Remove-Item -LiteralPath "$db$suffix" -Force }
+        }
+    }
+    Copy-Item -LiteralPath $Backup -Destination $db
+    foreach ($suffix in @('-wal', '-shm')) {
+        if (Test-Path -LiteralPath "$Backup$suffix" -PathType Leaf) { Copy-Item -LiteralPath "$Backup$suffix" -Destination "$db$suffix" }
+    }
+    Remove-InstOldBackups -Dir $backups -Filter 'portly-failed-*.db'
+    return $kept
 }
 
 # The -PagesUrl address normalised by the rules server/src/config.ts applies (as setup.ps1).
@@ -433,14 +466,25 @@ function Test-InstPackage {
     return $info
 }
 
-# Puts the previous version back after a failed update and starts it again when the task runs it.
+# Puts the previous version and the database copied before the update back after a failed
+# update, and starts it again when the task runs it.
 function Restore-InstPrevious {
-    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)]$Task, [Parameter(Mandatory)][string]$Mode)
+    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)]$Task, [Parameter(Mandatory)][string]$Mode,
+        [string]$Backup, [Parameter(Mandatory)][string]$Label)
     $app = Join-Path $Root 'app'
     $previous = Join-Path $Root 'app.previous'
     $failed = Join-Path $Root 'app.failed'
     Write-InstStep 'Putting the previous version back'
     $null = Stop-InstAppProcesses -AppDir $app
+    if (-not [string]::IsNullOrEmpty($Backup)) {
+        try {
+            $kept = Restore-InstDatabase -Backup $Backup -Label $Label
+            Write-InstOk "The database copied before the update is back (from $Backup)."
+            if ($null -ne $kept) { Write-InstInfo "The database Portly $Label left is kept in $kept" }
+        } catch {
+            Write-Warning "Could not put the database copied before the update back: $($_.Exception.Message). It is in $Backup."
+        }
+    }
     Remove-InstAppFolder -Path $failed
     if (Test-Path -LiteralPath $app) {
         Remove-InstLinks -AppDir $app
@@ -576,7 +620,7 @@ function Invoke-InstMain {
             if ($task.Ours -or -not $task.Exists) {
                 if ((Invoke-InstAutostart -AppDir $app -Mode $mode) -ne 0) {
                     Write-InstFailure "Portly $newVersion did not start (see above)."
-                    Restore-InstPrevious -Root $root -Task $task -Mode $mode
+                    Restore-InstPrevious -Root $root -Task $task -Mode $mode -Backup $backup -Label $newVersion
                     return 1
                 }
             } else {

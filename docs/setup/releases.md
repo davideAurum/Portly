@@ -49,8 +49,11 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
   `portly.db` to `<data folder>\backups\portly-before-<old version>-<time>.db` (the newest three
   are kept), moves `app` to `app.previous` (replacing the one before) and `app.new` to `app`, then
   runs the new `install-autostart.ps1`, which refreshes those copies from the new
-  `runtime\node.exe`, starts Portly and waits for it. If it doesn't come up, the new version is moved to `app.failed`, the previous one back to `app`, and
-  that one is started again. The autostart mode (Browser or Logon) is kept, unless you run
+  `runtime\node.exe`, starts Portly and waits for it. If it doesn't come up, the new version is
+  moved to `app.failed`, the previous one back to `app`, the database copy is put back as
+  `portly.db` (the one the new version left is kept as
+  `backups\portly-failed-<new version>-<time>.db`, the newest three), and the previous version is
+  started again. The autostart mode (Browser or Logon) is kept, unless you run
   `install.ps1 -Trigger Browser` or `-Trigger Logon` to change it. When the extension's
   version changed, it says to click **Reload** on it.
 - **Already a Git checkout on this PC?** One Portly per Windows user: installing a release
