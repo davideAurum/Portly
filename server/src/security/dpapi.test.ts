@@ -34,6 +34,15 @@ function fakeHelper(behavior: 'xor' | 'fail' | 'policy' | 'garbage' | 'hang' | '
   return () => ['-e', source];
 }
 
+/**
+ * Tests that start processes. Each start takes about 0.1 s on a quiet PC but seconds on a busy
+ * one: next to a CPU hog the stand-in helper tests took over 5 s and real PowerShell about 8 s.
+ */
+const SPAWN_TEST_TIMEOUT_MS = 30_000;
+const REAL_DPAPI_TEST_TIMEOUT_MS = 120_000;
+/** The helper's own timeout for the real-DPAPI test: well above the 20 s the server allows. */
+const REAL_DPAPI_TIMEOUT_MS = 60_000;
+
 describe('DPAPI protector', () => {
   it('runs Windows PowerShell by absolute path, never via PATH', () => {
     expect(powershellPath({ SystemRoot: 'D:\\Win' })).toBe('D:\\Win\\System32\\WindowsPowerShell\\v1.0\\powershell.exe');
@@ -64,7 +73,7 @@ describe('DPAPI protector', () => {
     const blob = await protector.protect(key);
     expect(blob.equals(key)).toBe(false);
     expect((await protector.unprotect(blob)).equals(key)).toBe(true);
-  });
+  }, SPAWN_TEST_TIMEOUT_MS);
 
   it('reports failures as DpapiError with only the exception type', async () => {
     const failing = createDpapiProtector({ command: process.execPath, argsFor: fakeHelper('fail') });
@@ -75,7 +84,7 @@ describe('DPAPI protector', () => {
     await expect(missing.protect(randomBytes(32))).rejects.toMatchObject({ message: expect.stringMatching(/could not start PowerShell/), transient: true });
     // A real DPAPI refusal is not transient (the blob is bad).
     await expect(failing.unprotect(randomBytes(64))).rejects.toMatchObject({ transient: false });
-  });
+  }, SPAWN_TEST_TIMEOUT_MS);
 
   it('treats failures that never reached DPAPI as transient (the key file is not known to be bad)', async () => {
     // e.g. Constrained Language Mode / WDAC refusing the .NET call: not a verdict on the blob.
@@ -88,7 +97,7 @@ describe('DPAPI protector', () => {
     await expect(garbage.protect(randomBytes(32))).rejects.toMatchObject({ message: expect.stringMatching(/malformed output/), transient: true });
     const flood = createDpapiProtector({ command: process.execPath, argsFor: fakeHelper('flood') });
     await expect(flood.protect(randomBytes(32))).rejects.toMatchObject({ message: expect.stringMatching(/too much output/), transient: true });
-  });
+  }, SPAWN_TEST_TIMEOUT_MS);
 
   it('reports the innermost exception type (PowerShell wraps .NET exceptions)', () => {
     for (const op of ['Protect', 'Unprotect'] as const) {
@@ -99,7 +108,7 @@ describe('DPAPI protector', () => {
   it('times out and kills a hanging helper (transient failure)', async () => {
     const hanging = createDpapiProtector({ command: process.execPath, argsFor: fakeHelper('hang'), timeoutMs: 300 });
     await expect(hanging.protect(randomBytes(32))).rejects.toMatchObject({ message: 'DPAPI Protect timed out', transient: true });
-  });
+  }, SPAWN_TEST_TIMEOUT_MS);
 
   it('refuses empty or oversized input without spawning', async () => {
     const protector = createDpapiProtector({ command: path.join(process.cwd(), 'never-run.exe') });
@@ -118,7 +127,7 @@ describe('DPAPI protector', () => {
   it.skipIf(process.platform !== 'win32')(
     'real DPAPI: protects and unprotects a 32-byte key; foreign blobs fail',
     async () => {
-      const dpapi = createDpapiProtector();
+      const dpapi = createDpapiProtector({ timeoutMs: REAL_DPAPI_TIMEOUT_MS });
       const key = randomBytes(32);
       const blob = await dpapi.protect(key);
       expect(blob.length).toBeGreaterThan(key.length);
@@ -129,6 +138,6 @@ describe('DPAPI protector', () => {
       // DPAPI's own refusal is reported by type and is not transient (the vault quarantines the file).
       expect(refused).toMatchObject({ message: expect.stringMatching(/CryptographicException$/), transient: false });
     },
-    60_000,
+    REAL_DPAPI_TEST_TIMEOUT_MS,
   );
 });

@@ -33,7 +33,7 @@ the browser's extensions page for the one manual step (**Developer mode** → **
 (`-DryRun` shows what it would do; all options: `Get-Help` on `scripts\install.ps1`).
 
 **Updating:** `portly --update` installs the newest release: it copies your database to
-`backups\` first, keeps the previous version in `app.previous`, and puts it back if the new one
+`backups\` first, keeps the previous version in `app.previous`, and puts both back if the new one
 doesn't start. Click **Reload** on the extension when it says the extension changed. Details,
 and how releases are built and published: [Releases](setup/releases.md).
 

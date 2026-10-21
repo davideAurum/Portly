@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.ts';
 import { openDb, type Db } from '../db/open.ts';
 import { createMemoryLogger } from '../lib/logger.ts';
-import { DpapiError, createRawProtector, type KeyProtector } from './dpapi.ts';
+import { DpapiError, createDpapiProtector, createRawProtector, type KeyProtector } from './dpapi.ts';
 import { KEY_VERSION, SECRET_ALG, VaultLockedError, createMemoryVault, openVault, type Vault } from './vault.ts';
 
 const MAGIC = Buffer.from('FAKE-DPAPI:');
@@ -348,17 +348,20 @@ describe('openVault (persistent vault, §4.6)', () => {
   it.skipIf(process.platform !== 'win32')(
     'real DPAPI end to end: first start creates a protected key, a restart reads the secrets',
     async () => {
-      const first = await openVault({ config: { paths: { vaultKey: keyFile } }, db, log });
+      // Starting PowerShell takes seconds on a busy PC (about 8 s each next to a CPU hog), so the
+      // helper gets more than the server's 20 s.
+      const protector = createDpapiProtector({ timeoutMs: 60_000 });
+      const first = await openVault({ config: { paths: { vaultKey: keyFile } }, db, log, protector });
       expect(first.state).toBe('ready');
       first.put('todoist:token', 'tok-real-dpapi');
       const file = JSON.parse(fs.readFileSync(keyFile, 'utf8')) as { alg: string; blob: string };
       expect(file.alg).toBe('dpapi-cu');
       expect(Buffer.from(file.blob, 'base64').length).toBeGreaterThan(32);
-      const reopened = await openVault({ config: { paths: { vaultKey: keyFile } }, db, log });
+      const reopened = await openVault({ config: { paths: { vaultKey: keyFile } }, db, log, protector });
       expect(reopened.state).toBe('ready');
       expect(reopened.get('todoist:token')).toBe('tok-real-dpapi');
     },
-    60_000,
+    120_000,
   );
 
   it('validates secret ids and reserves the canary id', async () => {

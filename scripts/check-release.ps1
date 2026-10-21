@@ -17,6 +17,9 @@
        kept in app.previous, app\ is complete and linked again.
     6. A wrong -Sha256 and a missing package are refused and change nothing.
     7. install.ps1 -DryRun changes nothing.
+    Before all of this, install.ps1's Restore-InstDatabase is run on a temporary data folder: after
+    a failed update the database copied before it is put back, and the one the failed version left
+    is kept in backups\.
 
 .PARAMETER ZipPath
     The package to check (default: build one).
@@ -98,6 +101,35 @@ $builtOut = $null
 $exitCode = 1
 
 try {
+    Write-Host ''
+    Write-Host 'Database after a failed update (install.ps1 functions, temporary folder)' -ForegroundColor White
+    # install.ps1 runs as soon as it is loaded, so only its functions are loaded here.
+    $installTokens = $null
+    $installErrors = $null
+    $installAst = [System.Management.Automation.Language.Parser]::ParseFile($installScript, [ref]$installTokens, [ref]$installErrors)
+    foreach ($definition in $installAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
+        . ([scriptblock]::Create($definition.Extent.Text))
+    }
+    $InstKeepBackups = 3
+    $rollbackData = Join-Path $workDir 'rollback-data'
+    $rollbackBackups = Join-Path $rollbackData 'backups'
+    $null = New-Item -ItemType Directory -Path $rollbackBackups -Force
+    $beforeCopy = Join-Path $rollbackBackups 'portly-before-1.0.0-20260101-000000.db'
+    Set-Content -LiteralPath $beforeCopy -Value 'old db' -NoNewline
+    Set-Content -LiteralPath "$beforeCopy-wal" -Value 'old wal' -NoNewline
+    $liveDb = Join-Path $rollbackData 'portly.db'
+    Set-Content -LiteralPath $liveDb -Value 'new db' -NoNewline
+    Set-Content -LiteralPath "$liveDb-wal" -Value 'new wal' -NoNewline
+    Set-Content -LiteralPath "$liveDb-shm" -Value 'new shm' -NoNewline
+    $kept = Restore-InstDatabase -Backup $beforeCopy -Label '2.0.0'
+    Assert-That -Name 'Restore-InstDatabase puts the copy made before the update back as portly.db (with its -wal, without the new -shm)' -Condition (
+        (Get-Content -LiteralPath $liveDb -Raw) -eq 'old db' -and (Get-Content -LiteralPath "$liveDb-wal" -Raw) -eq 'old wal' -and
+        -not (Test-Path -LiteralPath "$liveDb-shm") -and (Test-Path -LiteralPath $beforeCopy -PathType Leaf))
+    Assert-That -Name 'Restore-InstDatabase keeps the failed version''s database as backups\portly-failed-<version>-<time>.db' -Condition (
+        $null -ne $kept -and (Split-Path -Leaf $kept) -like 'portly-failed-2.0.0-*.db' -and
+        (Get-Content -LiteralPath $kept -Raw) -eq 'new db' -and (Get-Content -LiteralPath "$kept-wal" -Raw) -eq 'new wal' -and
+        (Get-Content -LiteralPath "$kept-shm" -Raw) -eq 'new shm') -Detail "$kept"
+
     if ([string]::IsNullOrWhiteSpace($ZipPath)) {
         Write-Host ''
         Write-Host 'Building a test package (build-release.ps1 -AllowDirty)' -ForegroundColor White
