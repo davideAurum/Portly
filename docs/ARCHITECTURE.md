@@ -71,7 +71,7 @@ personal Microsoft accounts only and the `/consumers` authority is hard-coded).
 ## 2. Repository & toolchain
 
 ```
-/package.json          workspaces ["shared","server","web"]; engines {node:">=24", npm:">=11.10"}
+/package.json          workspaces ["shared","server","web"]; engines {node:">=24 <25", npm:">=11.10"} (§2a)
 /.npmrc                ignore-scripts=true, min-release-age=7, engine-strict=true
 /package-lock.json     committed; installs use `npm ci`
 /.gitattributes        LF everywhere; CRLF for .ps1, .cmd and .bat
@@ -100,15 +100,23 @@ use the newest version older than 7 days.
   `ical.js@^2.2`, `tsdav@^2.3`, `imapflow@2.0.x` (exact pin), `node-html-parser@^9`, `entities` (HTML
   entity decoding), `tldts` (eTLD+1).
 - **web:** `react@^19`, `react-dom@^19`, `zod@^4`, `@tanstack/react-query@^5`, `@tanstack/react-query-persist-client`,
-  `@tanstack/query-sync-storage-persister`, `react-grid-layout@^2.2` + `react-resizable` (direct dep, for CSS),
-  `@dnd-kit/core@^6.3`, `@dnd-kit/sortable@^10`, `@dnd-kit/utilities`, `radix-ui@^1.6`, `sonner@^2`,
-  `lucide-react`, `date-fns@^4`, `@date-fns/tz@^1`, `entities` and `node-html-parser` (the in-browser backend).
+  `react-grid-layout@^2.2` + `react-resizable` (direct dep, for CSS), `@dnd-kit/core@^6.3`, `@dnd-kit/sortable@^10`,
+  `@dnd-kit/utilities`, `radix-ui@^1.6`, `sonner@^2`, `lucide-react`, `date-fns@^4`, `@date-fns/tz@^1`, `entities`
+  and `node-html-parser` (the in-browser backend).
 - **root dev:** `typescript@~7.0` (only via `tsc --noEmit`; nothing may import the TS API — if TS 7 blocks
   anything, pin `~6.0` instead), `@types/node@^24`, `@types/react`, `@types/react-dom`, `vite@^8`,
   `@vitejs/plugin-react@^6`, `vitest@^5`, `jsdom`, `fake-indexeddb` (static tests), `@testing-library/react`,
   `@testing-library/user-event`, `@testing-library/jest-dom`, `concurrently`.
 - **Not used:** tsup, tsx, esbuild bundling of the server, `@types/react-grid-layout`, `@dnd-kit/react`,
-  web fonts, lodash.merge/deepmerge, googleapis / msgraph SDKs (plain fetch), any native module.
+  `@tanstack/query-sync-storage-persister` (`app/providers.tsx` has its own `Persister`), web fonts,
+  lodash.merge/deepmerge, googleapis / msgraph SDKs (plain fetch), any native module.
+- **Node major pinned:** `engines.node` in the root `package.json` is `>=24 <25`, and `engine-strict` makes `npm ci`
+  refuse any other major. The server runs its TypeScript through Node's type stripping and the supervisor starts
+  it with `--no-warnings` (§3), so a new Node major can change behaviour that only the `process.on('warning')`
+  log line would report. Moving to a new major is a deliberate step that changes three places together:
+  `engines.node` here, `version` (with its SHA-256) in `scripts/release/node-runtime.json` (§18) and
+  `node-version` in `.github/workflows/ci.yml` (§13); `scripts/check-scripts.ps1` fails when they disagree (or
+  when `$PortlyMinNodeMajor` in `scripts/lib/Common.ps1` does).
 
 ### 2b. TypeScript
 `tsconfig.base.json`: `strict`, `noEmit`, `allowImportingTsExtensions`, `verbatimModuleSyntax`,
