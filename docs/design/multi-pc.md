@@ -1,8 +1,9 @@
 # Design: using Portly from several PCs, with a login
 
-**Status:** proposal, not built. This is the ROADMAP Phase 3 item "one server reachable from
-several PCs, with a login". Until it ships, the server stays on loopback only (ARCHITECTURE
-section 4).
+**Status:** proposal, not built. The [ROADMAP](../ROADMAP.md) parks it under "Revisit after
+phase 6": it is built only after the first public release and an explicit go, and its probes wait
+for Tailscale and a second tailnet device. Until it ships, the server stays on loopback only
+(ARCHITECTURE section 4).
 
 **Main idea:** the server still listens only on `127.0.0.1` and `::1`. Other PCs reach it through
 an HTTPS reverse proxy running on the main PC, such as Tailscale Serve. Each PC must be approved

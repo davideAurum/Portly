@@ -22,7 +22,7 @@ What it reuses from the Outlook.com calendar support:
 - `https://graph.microsoft.com`, already in the static CSP (`staticCsp()` in `web/vite.config.ts`).
 
 Sync depends on the Outlook.com browser flow. The phase 0 spike also tested that flow with a real
-account (ROADMAP phase 1 item 2).
+account on a localhost copy (ROADMAP item 2.1 repeats it on the published address).
 
 ## 1. What the user gets
 
@@ -473,7 +473,8 @@ The Accounts redesign itself is out of scope. Sync adds these pieces to it:
 Rough working days for one developer, tests included.
 
 0. **Spike with a real Outlook.com account, ½–1 day. Done: go, see section 13.** It also did the
-   real-account test of ROADMAP phase 1 item 2. It checked:
+   localhost half of the real-account test (ROADMAP item 2.1 finishes it on the published
+   address). It checked:
    - the sign-in and the 24-hour automatic renewal with the larger scope set, and which scopes
      the token response reports for an account that only asked for calendars;
    - `special/approot` and `$select=@microsoft.graph.downloadUrl` on a path address;
@@ -517,7 +518,7 @@ joining the sync.
 - the browser was the desktop app's Chromium-based browser pane.
 
 The same origin also served a local static build, which connected the account and synced its
-calendars (ROADMAP phase 1 item 2).
+calendars (ROADMAP item 2.1 repeats this on the published address).
 
 **Sign-in and scopes.** Only the token response's `scope` field and error codes were read.
 
