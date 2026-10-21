@@ -198,6 +198,15 @@ Items:
   "Who sees what" in [Browser-only build](setup/static-build.md)); every host named; "Homebase"
   appears only in a "formerly" line.
 
+  *Status:* done 2026-10-21 (not published yet; that is 1.6). The three pages were rewritten and
+  then reviewed against the code from three sides (facts, coverage of every host the CSPs, the
+  well-known-hosts list and the favicon and suggestion code can reach, and plain language). The
+  review found and fixed five things the first draft got wrong: hybrid mode was missing, the
+  Wikipedia engine asks Wikipedia without the opt-in, the extension's fallback page has a Google
+  search box, adding or editing a bookmark fetches the page for its title, and Portly's own page
+  keeps the same 24-hour browser snapshot as the site. `site/index.html` now also says Portly
+  runs as a browser-only site; its own-OAuth-client line is unchanged.
+
 - **1.6 Republish the consent pages to homebase-site** (S; go-ahead; after 1.5).
   Publish `site/` to the homebase-site repository at its existing URLs (CLAUDE.md keeps them). The
   live privacy page says "Homebase" fifteen times and "Portly" never, and the real sign-ins in 2.2
