@@ -33,38 +33,14 @@ import type { AppContext, AppEnv } from '../../context.ts';
 import { msToIso, msToIsoStrict } from '../../db/helpers.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { paired } from '../../lib/routes.ts';
+import { userAgentSummary } from '../../lib/user-agent.ts';
 import { parseBody } from '../../lib/validate.ts';
 import type { PairingRecord } from '../../security/pairing.ts';
 
 export const prefixes = ['/api/pairing', '/api/pairings'] as const;
 
-const BROWSERS: readonly (readonly [RegExp, string])[] = [
-  [/\bEdg(?:e|A|iOS)?\//, 'Edge'],
-  [/\bOPR\//, 'Opera'],
-  [/\bVivaldi\//, 'Vivaldi'],
-  [/\b(?:Firefox|FxiOS)\//, 'Firefox'],
-  [/\b(?:Chrome|CriOS|Chromium)\//, 'Chrome'],
-  [/\bSafari\//, 'Safari'],
-];
-
-const SYSTEMS: readonly (readonly [RegExp, string])[] = [
-  [/\bWindows\b/, 'Windows'],
-  [/\bAndroid\b/, 'Android'],
-  [/\b(?:iPhone|iPad|iPod)\b/, 'iOS'],
-  [/\bCrOS\b/, 'ChromeOS'],
-  [/\b(?:Macintosh|Mac OS X)\b/, 'macOS'],
-  [/\bLinux\b/, 'Linux'],
-];
-
 /** "<Browser> on <OS>" from a User-Agent header, for the list of paired browsers. */
-export function pairingLabel(userAgent: string | undefined): string {
-  const ua = userAgent ?? '';
-  const browser = BROWSERS.find(([pattern]) => pattern.test(ua))?.[1];
-  const system = SYSTEMS.find(([pattern]) => pattern.test(ua))?.[1];
-  if (browser && system) return `${browser} on ${system}`;
-  if (browser) return browser;
-  return system ? `A browser on ${system}` : 'A browser';
-}
+export const pairingLabel = userAgentSummary;
 
 export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   const log = ctx.log.child({ module: 'pairing' });

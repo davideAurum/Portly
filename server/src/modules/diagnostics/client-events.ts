@@ -48,7 +48,7 @@ interface CallerWindow {
 }
 
 export interface IngestOptions {
-  /** `pairingId` of a Pages request, else `'local'`. */
+  /** `pairingId` of a Pages request, `deviceId` of another PC's, else `'local'`. */
   caller: string;
   /** The upload request's id (logged with each event as `uploadRid`). */
   uploadRid: string | null;

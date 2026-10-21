@@ -19,9 +19,10 @@
  * - `POST /api/import/commit {previewId}` → `{ok: true, summary}`
  * - `POST /api/vault/reset` → `{vault}` (deletes every secret, new key; accounts → reauth with the
  *   status reason `credentials_reset`)
- * - `GET /api/about` → `{version, dataDir, logPath, vault}` (paths blank for the Pages site)
+ * - `GET /api/about` → `{version, dataDir, logPath, vault}` (paths blank for the Pages site and other PCs)
  *
- * Every route except health is declared `paired()`: the paired Pages site may use it (hybrid mode).
+ * Every route except health is declared `paired()`: the paired Pages site (hybrid mode) and
+ * connected devices (other PCs) may use it, except the vault reset, which is `samePc()`.
  *
  * Jobs: `core:backup` (hourly check, one backup per local day) and `core:uploads-gc` (daily:
  * uploads older than 24 h that neither the settings nor any profile layout reference are deleted).
@@ -47,7 +48,7 @@ import { localDateStamp, runDailyBackup, runPreImportBackup } from '../../lib/ba
 import { HttpError } from '../../lib/errors.ts';
 import { errorFields } from '../../lib/logger.ts';
 import { readMultipartFile } from '../../lib/multipart.ts';
-import { exempt, multipart, paired } from '../../lib/routes.ts';
+import { exempt, multipart, paired, samePc } from '../../lib/routes.ts';
 import { isPlainObject, parseSafeBody } from '../../lib/safe-json.ts';
 import { parseBody } from '../../lib/validate.ts';
 import { BOOKMARK_ICONS_JOB } from '../bookmarks/index.ts';
@@ -109,12 +110,12 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   });
 
   app.get('/api/about', paired(), (c) => {
-    // The paths contain the Windows user name; the Pages site's (shared) origin must not learn it.
-    const fromPages = c.get('pagesCors') === true;
+    // The paths contain the Windows user name; the Pages site's (shared) origin and other PCs must not learn it.
+    const hidePaths = c.get('pagesCors') === true || c.get('deviceId') !== undefined;
     const body: AboutResponse = {
       version: ctx.config.version,
-      dataDir: fromPages ? '' : ctx.config.dataDir,
-      logPath: fromPages ? '' : ctx.config.paths.logFile,
+      dataDir: hidePaths ? '' : ctx.config.dataDir,
+      logPath: hidePaths ? '' : ctx.config.paths.logFile,
       vault: ctx.vault.state,
     };
     return c.json(body);
@@ -235,7 +236,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
 
   // ---- vault ----------------------------------------------------------------
 
-  app.post('/api/vault/reset', paired(), async (c) => {
+  app.post('/api/vault/reset', samePc(), async (c) => {
     await parseBody(c, z.object({}).loose());
     await ctx.vault.reset();
     for (const account of ctx.accounts.list()) {

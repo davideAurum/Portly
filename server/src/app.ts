@@ -8,7 +8,8 @@
  * `withLogContext({rid, area})` (area = the module owning the path), registers it with
  * `ctx.runtime.inflight`, warns once when it is still running after 15 s, counts API answers for the
  * periodic status line, and logs one `request` line `{method, route, path, status, ms, code, from,
- * pairingId, aborted}` at a level from {@link requestLevel}. Health checks and the Diagnostics
+ * pairingId, deviceId, aborted}` (`from`: `local`, `pages`, or `remote` for another PC) at a level
+ * from {@link requestLevel}. Health checks and the Diagnostics
  * page's own polling are "quiet": debug, kept out of the memory rings (below 500).
  */
 import fs from 'node:fs';
@@ -153,8 +154,9 @@ function requestLog(ctx: AppContext, modules: readonly ModuleEntry[], counts: Re
             status,
             ms,
             code,
-            from: c.get('pagesCors') ? 'pages' : 'local',
+            from: c.get('pagesCors') ? 'pages' : c.get('remoteClient') ? 'remote' : 'local',
             pairingId: c.get('pairingId'),
+            deviceId: c.get('deviceId'),
             aborted: c.req.raw.signal.aborted || undefined,
             repeatKey: method === 'GET' ? `GET ${route ?? logPath} ${status} ${code ?? ''}` : undefined,
             ring: quiet && status < 500 ? false : undefined,
@@ -220,7 +222,7 @@ export function createApp(ctx: AppContext, options: CreateAppOptions = {}): Port
 
   app.use('*', requestLog(ctx, areaModules, counts));
   app.use('*', createSecurityHeaders({ routes, pagesOrigin: ctx.config.pagesOrigin }));
-  app.use('*', createGate({ config: ctx.config, routes, log: ctx.log, pairing: ctx.pairing }));
+  app.use('*', createGate({ config: ctx.config, routes, log: ctx.log, pairing: ctx.pairing, devices: ctx.devices }));
 
   const modules = registerModules(app, ctx, entries);
   ctx.runtime.modules.splice(0, Infinity, ...modules);

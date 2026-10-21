@@ -197,7 +197,8 @@ describe('app: modules', () => {
     expect(routes.match('POST', '/api/import/preview')).toEqual({ body: 'import', access: 'paired' });
     expect(routes.match('POST', '/api/bookmarks/import/html')).toEqual({ body: 'import', access: 'paired' });
     expect(routes.match('GET', '/api/settings')).toEqual({ access: 'paired' });
-    expect(routes.match('POST', '/api/vault/reset')).toEqual({ access: 'paired' });
+    expect(routes.match('POST', '/api/vault/reset')).toEqual({ access: 'same-pc' });
+    expect(routes.match('POST', '/api/devices/requests')).toEqual({ access: 'enrollment' });
     expect(routes.match('POST', '/api/pairings')).toEqual({});
     expect(routes.match('PATCH', '/api/accounts/a1')).toEqual({ access: 'paired' });
     expect(routes.match('GET', '/api/nope')).toEqual({});
@@ -215,7 +216,7 @@ describe('app: modules', () => {
     for (const [route, expected] of Object.entries(ROUTE_ACCESS)) {
       const [method = '', pattern = ''] = route.split(' ');
       const path = pattern.replace(/:[A-Za-z]+/g, 'sample-id');
-      expect(routes.match(method, path).access === 'paired' ? 'paired' : 'local', route).toBe(expected);
+      expect(routes.match(method, path).access ?? 'local', route).toBe(expected);
     }
   });
 
@@ -229,6 +230,10 @@ describe('app: modules', () => {
     expect(settings.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
     const local: (readonly [string, string])[] = [
       ['POST', '/api/pairings'],
+      ['POST', '/api/devices/requests/sample-id/approve'],
+      ['POST', '/api/devices/requests/sample-id/deny'],
+      ['POST', '/api/devices/requests'],
+      ['GET', '/api/devices/requests/current'],
       ['GET', '/api/oauth/google/callback'],
       ['GET', '/api/nope'],
     ];
@@ -269,18 +274,21 @@ describe('app: modules', () => {
   });
 
   it('registers every module', () => {
-    expect(MODULES.map((m) => m.name)).toEqual(['core', 'accounts', 'bookmarks', 'search', 'weather', 'todoist', 'calendar', 'mail', 'feeds', 'sports', 'pairing', 'diagnostics']);
+    expect(MODULES.map((m) => m.name)).toEqual(['core', 'accounts', 'bookmarks', 'search', 'weather', 'todoist', 'calendar', 'mail', 'feeds', 'sports', 'pairing', 'devices', 'diagnostics']);
     const { modules } = createApp(ctx, { webDist: null });
     expect(modules.every((m) => m.ok)).toBe(true);
   });
 });
 
 /**
- * Every API route and who may call it: `paired` = Portly's own page and the paired Pages site;
- * `local` = Portly's own page on this PC only. Health and the OAuth callback are exempt routes
- * (no token, no pairing); they are listed as local because they are not declared `paired()`.
+ * Every API route and who may call it: `paired` = Portly's own page, the paired Pages site and
+ * connected devices (other PCs); `same-pc` = Portly's own page and the paired Pages site (both on
+ * this PC), never another PC; `enrollment` = anyone on the remote origin (asking to connect) and
+ * Portly's own page, never the Pages site; `local` = Portly's own page on this PC only. Health and
+ * the OAuth callback are exempt routes (no token, no pairing, no cookie); they are listed as local
+ * because they are not declared with an access tag.
  */
-const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'local'>> = {
+const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' | 'local'>> = {
   // core
   'GET /api/health': 'local',
   'GET /api/about': 'paired',
@@ -300,11 +308,11 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'local'>> = {
   'GET /api/export': 'paired',
   'POST /api/import/preview': 'paired',
   'POST /api/import/commit': 'paired',
-  'POST /api/vault/reset': 'paired',
+  'POST /api/vault/reset': 'same-pc',
   // accounts
   'GET /api/oauth-clients/:provider': 'paired',
   'PUT /api/oauth-clients/:provider': 'paired',
-  'POST /api/oauth/:provider/start': 'paired',
+  'POST /api/oauth/:provider/start': 'same-pc',
   'GET /api/oauth/:provider/callback': 'local',
   'GET /api/accounts': 'paired',
   'POST /api/accounts/yahoo': 'paired',
@@ -316,8 +324,8 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'local'>> = {
   // bookmarks
   'GET /api/icons/:id': 'paired',
   'GET /api/site-meta': 'paired',
-  'GET /api/bookmarks/import/sources': 'paired',
-  'POST /api/bookmarks/import/browser': 'paired',
+  'GET /api/bookmarks/import/sources': 'same-pc',
+  'POST /api/bookmarks/import/browser': 'same-pc',
   'POST /api/bookmarks/import/html': 'paired',
   'GET /api/bookmarks': 'paired',
   'POST /api/bookmark-groups/reorder': 'paired',
@@ -372,13 +380,22 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'local'>> = {
   'GET /api/pairings': 'paired',
   'POST /api/pairings': 'local',
   'DELETE /api/pairings/:id': 'paired',
-  // diagnostics (all paired: the Pages site is the main UI)
+  // devices (other PCs): asking and polling need no cookie, approving stays with this PC's own page
+  'POST /api/devices/requests': 'enrollment',
+  'GET /api/devices/requests/current': 'enrollment',
+  'GET /api/devices': 'paired',
+  'POST /api/devices/requests/:id/approve': 'local',
+  'POST /api/devices/requests/:id/deny': 'local',
+  'DELETE /api/devices/:id': 'paired',
+  'GET /api/device': 'paired',
+  'DELETE /api/device': 'paired',
+  // diagnostics (paired: the Pages site is the main UI; the report with this PC's paths and log files stays on this PC)
   'GET /api/diagnostics/summary': 'paired',
   'GET /api/diagnostics/logs': 'paired',
   'GET /api/diagnostics/health/:key/history': 'paired',
   'PUT /api/diagnostics/level': 'paired',
   'POST /api/diagnostics/jobs/:name/run': 'paired',
-  'GET /api/diagnostics/report': 'paired',
+  'GET /api/diagnostics/report': 'same-pc',
   'POST /api/diagnostics/client-events': 'paired',
 };
 

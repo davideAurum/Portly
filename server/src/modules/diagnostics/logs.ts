@@ -2,7 +2,7 @@
  * `GET /api/diagnostics/logs` (ARCHITECTURE §17): log records from memory (the log hub's
  * rings, `scope=memory`, polled with `after=<lastSeq>`) or from the log files (`scope=files`,
  * "Show older"). Both take the same filters: time window, minimum level, area (any tag), source,
- * request id, the context fields `job`/`run`/`accountId`/`calendarId`/`feed`/`pairingId`, a
+ * request id, the context fields `job`/`run`/`accountId`/`calendarId`/`feed`/`pairingId`/`deviceId`, a
  * health `key` (mapped to the field its unit of work sets, `contextFieldForKey`) and a text search.
  */
 import type { LogsQuery, LogsResponse } from '@portly/shared';
@@ -11,7 +11,7 @@ import type { LogHub, LogQuery, LogRecordOut } from '../../lib/logger.ts';
 import { readLogRecords, type RecordFilter, type ScanOptions } from './log-files.ts';
 
 /** Query keys that filter on a context field of the same name. */
-const FIELD_FILTERS = ['job', 'run', 'accountId', 'calendarId', 'feed', 'pairingId'] as const;
+const FIELD_FILTERS = ['job', 'run', 'accountId', 'calendarId', 'feed', 'pairingId', 'deviceId'] as const;
 /** The hub returns at most this many records per query. */
 const HUB_QUERY_LIMIT = 5000;
 

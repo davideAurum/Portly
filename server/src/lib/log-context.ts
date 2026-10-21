@@ -27,6 +27,7 @@ export interface LogContext {
   calendarId?: string;
   feed?: string;
   pairingId?: string;
+  deviceId?: string;
   op?: string;
   /** Debug records of this unit of work skip the memory rings (health checks, the Diagnostics page's own polling). */
   quiet?: boolean;

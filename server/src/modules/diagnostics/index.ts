@@ -34,7 +34,7 @@ import {
 import type { AppContext, AppEnv } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { getLogContext } from '../../lib/log-context.ts';
-import { paired } from '../../lib/routes.ts';
+import { paired, samePc } from '../../lib/routes.ts';
 import { parseSafeBody } from '../../lib/safe-json.ts';
 import { parseBody, parseQuery } from '../../lib/validate.ts';
 import { createClientEventIntake } from './client-events.ts';
@@ -77,7 +77,13 @@ export function register(app: Hono<AppEnv>, ctx: AppContext, options: Diagnostic
   // ---- summary, health history ----------------------------------------------
 
   app.get('/api/diagnostics/summary', paired(), (c) =>
-    c.json(buildSummary(ctx, { fromPages: c.get('pagesCors') === true, now: Date.now(), requestId: c.get('requestId') })),
+    c.json(
+      buildSummary(ctx, {
+        hidePaths: c.get('pagesCors') === true || c.get('deviceId') !== undefined,
+        now: Date.now(),
+        requestId: c.get('requestId'),
+      }),
+    ),
   );
 
   app.get('/api/diagnostics/health/:key/history', paired(), (c) => {
@@ -114,7 +120,9 @@ export function register(app: Hono<AppEnv>, ctx: AppContext, options: Diagnostic
 
   // ---- report ---------------------------------------------------------------
 
-  app.get('/api/diagnostics/report', paired(), async (c) => {
+  // The report carries the data and log paths, the log files and the supervisor and launcher logs:
+  // this PC and its paired Pages site only, never another PC.
+  app.get('/api/diagnostics/report', samePc(), async (c) => {
     const { redact } = parseQuery(c, ReportQuerySchema);
     const started = Date.now();
     const report = await buildReport(ctx, { now: started, launcherLogPath: options.launcherLogPath });
@@ -132,7 +140,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext, options: Diagnostic
   app.post('/api/diagnostics/client-events', paired(), async (c) => {
     const body = await parseSafeBody(c, ClientEventsRequestSchema);
     const uploadRid = c.get('requestId') ?? getLogContext()?.rid ?? null;
-    return c.json(intake.ingest(body, { caller: c.get('pairingId') ?? 'local', uploadRid, now: Date.now() }));
+    return c.json(intake.ingest(body, { caller: c.get('pairingId') ?? c.get('deviceId') ?? 'local', uploadRid, now: Date.now() }));
   });
 
   // ---- daily purge ----------------------------------------------------------

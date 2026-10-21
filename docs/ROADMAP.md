@@ -807,6 +807,87 @@ Items:
   matching SHA-256; the tag points at the built commit; the live site's footer reads
   0.2.0-alpha.2; the phase 6 row reads Done with the date.
 
+## Track B: multi-PC
+
+One Portly server for several PCs, built beside the phases on the go of 2026-10-21 (D10 asked
+for an explicit one; F13 stands: Tailscale and a second tailnet device come when B.5 needs them).
+Design: [design/multi-pc.md](design/multi-pc.md), with its decisions of 2026-10-21 (approval from
+the main PC is the only login, with revoke and a 30-day idle expiry; any HTTPS reverse proxy, with
+Tailscale Serve documented and Funnel ruled out; the proxy must keep the Host header). The rule
+that binds every item: the listener stays loopback-only (ARCHITECTURE section 4) and with no
+`PORTLY_REMOTE_ORIGIN` the server behaves exactly as before, which is what lets the track land on
+main before 5.3 without changing the alpha. The track edits this file in this section and the
+checks table only; each item is its own commit with the usual *Tested* note.
+
+Items:
+
+- **B.1 Server** (M).
+  `PORTLY_REMOTE_ORIGIN` in `server/src/config.ts`; the gate classifies a request by its Host
+  header (the remote origin's host is another PC) and lets it in with a device cookie; a devices
+  module (`server/src/modules/devices`, store in `server/src/security/devices.ts`, tables
+  `devices` and `device_requests`) with the request, poll, approve, deny, list, revoke and
+  disconnect routes; the route tags `samePc()` (the vault reset, the browser bookmark import, the
+  OAuth start: never from another PC) and `enrollment()` (the two routes that need no cookie);
+  paths blanked for a device as for the Pages site; a request with a local Host and a proxy's
+  forwarding header refused. Tests with `testRequest()` and the remote Host: no cookie, revoked and
+  expired cookies, cross-site forgery attempts, local-only and same-PC routes, the Pages site and a
+  device side by side, the feature off; every route in the `ROUTE_ACCESS` table.
+
+  *Done when:* typecheck, `npm test` and both builds green; the server unchanged with the variable
+  unset (the gate tests say so); on main. *Result:* built and merged on 2026-10-21 (B.1 commit).
+
+- **B.2 Web** (M; after B.1).
+  The connect screen a page on the remote origin shows instead of the app ("Connect this device":
+  a label, the code to compare, polling until approved, denied or expired); Settings > Devices on
+  the main PC (requests waiting with code and browser, Approve and Deny; connected devices with
+  last use and Remove; the remote address or how to set it); the `remoteClient` capability flag
+  that hides what only the main PC can do (connecting accounts, the vault reset, the browser
+  bookmark import, approving devices and pairings) and says "on the main PC" instead;
+  `pagesForward` never forwarding a remote client to the Pages site; `login_required` handled by
+  the API client (reload into the connect screen); on a remote address the connect screen first
+  checks that the server treats it as remote (`GET /api/about` without a cookie must answer 401)
+  and stops with a plain warning when the proxy rewrote the Host header.
+
+  *Done when:* web tests and typecheck; both builds; B.4 passes.
+
+- **B.3 Docs and scripts** (S; after B.2).
+  ARCHITECTURE: a new section for other PCs and the section 4.1 update (each approved device is
+  fully trusted, like a paired browser); `docs/setup/other-pcs.md` (Tailscale Serve set-up, the
+  Host-header check, why never Funnel, revoking); `setup.ps1 -RemoteOrigin` with `-DryRun`;
+  README and `docs/SETUP.md` lines; the privacy page text (`site/privacy.html`) that a server
+  reachable from your other PCs needs.
+
+  *Done when:* `check-scripts.ps1` passes in both PowerShell versions; `check-release.ps1`
+  passes; the docs name the real commands and the variable.
+
+- **B.4 The flow in a real browser on this PC** (S; after B.2).
+  A throwaway local HTTPS proxy on another loopback port with a self-signed certificate (scratch
+  only, never committed) in front of a scratch server (`PORTLY_REMOTE_ORIGIN=https://localhost:8443`,
+  a scratch port and data folder, `PORTLY_PAGES_URL` cleared): connect from the proxied address,
+  approve on the plain one, use the app, see the cookie renew, revoke, reconnect; a forged
+  `X-Forwarded-For` on the plain port refused as `proxied_local_host`.
+
+  *Done when:* dated here with what was seen, and the two B.1 rows in the checks table closed or
+  narrowed.
+
+- **B.5 The real check with a second PC** (S; go-ahead; after B.3; needs Tailscale on this PC and
+  a second tailnet device).
+  Tailscale Serve in front of a scratch server first (the installed Portly only on your say-so):
+  whether Serve keeps the Host header (a proxy that rewrites it and adds a forwarding header is
+  refused as `proxied_local_host`; one that rewrites it and adds none would make every other PC
+  count as this one, which is why the setup guide's `GET /api/about` check comes before any
+  approval), which `Tailscale-User-*` and `X-Forwarded-*` headers arrive, the four-way header
+  probe (a forged `Tailscale-User-Login` from this PC and from the second device, each against
+  what Serve adds or strips), then the whole connect flow from the other PC and a revoke from
+  this one.
+
+  *Done when:* the four results and the headers seen are dated in design/multi-pc.md; the B.1
+  Tailscale row closed; the identity-header check (B.6) decided on those results.
+
+- **B.6 Later** (parked): the extension's server address, so the other PC's New Tab opens the main
+  PC's Portly; OAuth sign-in from other PCs (https redirect URIs for the remote origin); a passkey
+  as a second factor; the `Tailscale-User-Login` check once B.5 has shown what Serve does.
+
 ## Checks never run for real
 
 One row per *Not tested* note still open from the commit history, with the item that performs it.
@@ -842,6 +923,8 @@ date and the outcome once a row has been run for real.
 | A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | not yet |
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
+| The device connect flow in a real browser through an HTTPS proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 | not yet |
+| Tailscale Serve in front of Portly: whether it keeps the Host header (rewritten with a forwarding header, every remote request is refused as `proxied_local_host`; rewritten without one, every other PC would count as this one), which `Tailscale-User-*` and `X-Forwarded-*` headers arrive, and whether a forged `Tailscale-User-Login` is stripped; nothing has run against Tailscale | B.1 commit, 2026-10-21 | B.5 | not yet |
 
 ### Closed
 
@@ -858,20 +941,11 @@ date and the outcome once a row has been run for real.
 
 ### Revisit after phase 6
 
-- **Multi-PC: one server for several PCs, with an approve-from-the-main-PC login over Tailscale
-  Serve, and its probes.** The build changes the loopback-only contract (ARCHITECTURE section 4),
-  two login questions are open and the `Tailscale-User-Login` header assumption is unverified; the
-  server logs no received headers today, so even the probe (forged header versus stripped header,
-  from this PC and a second device, through a throwaway debug route on a scratch branch) needs
-  Tailscale on this PC and a second tailnet device, and neither exists. When both exist, the probe
-  runs in a side session and records the four results (device x header) with the date in
-  multi-pc.md, deletes the debug branch, and writes the login and proxy choices there with the
-  ARCHITECTURE, README and privacy-page lines a build would change. For the alpha each PC runs its
-  own server; the Pages site works for anyone with a server on their own PC, and new tabs follow
-  the local server. Build only after the first public release and an explicit go. Design:
-  [design/multi-pc.md](design/multi-pc.md).
-- **Multi-PC later items** (the extension's server address, OAuth from other PCs, a passkey
-  second factor): the design defers them behind the login that is not built.
+- **Multi-PC** moved to [Track B](#track-b-multi-pc) on 2026-10-21, on the explicit go D10 asked
+  for; the loopback-only contract is kept (the listener never changes, other PCs arrive through an
+  HTTPS proxy on the main PC), the two login questions are answered in design/multi-pc.md, and the
+  `Tailscale-User-Login` probe is B.5. The later items (the extension's server address, OAuth from
+  other PCs, a passkey second factor, the identity-header check) are B.6.
 - **First-run checklist in the app.** Your PCs are set up and each widget's empty state already
   deep-links to the right setting; a dismissible card reusing those links is the likely shape,
   with feedback from the first release.

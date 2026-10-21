@@ -91,6 +91,7 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   internal: 'Internal server error',
   pairing_required: 'This browser is not paired with Portly on this PC',
   local_only: "Only available on Portly's own page on this PC",
+  login_required: 'This device is not connected to Portly',
 };
 
 function defaultMessage(code: ErrorCode): string {

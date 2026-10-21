@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
-import { BODY_LIMITS, RouteTable, exempt, multipart, paired, routeMetaOf } from './routes.ts';
+import { BODY_LIMITS, RouteTable, deviceMayCall, enrollment, exempt, multipart, paired, pagesMayCall, routeMetaOf, samePc } from './routes.ts';
 
 describe('route metadata', () => {
   it('records tagged handlers with their method and pattern', () => {
@@ -96,5 +96,59 @@ describe('route metadata', () => {
 
   it('declares the §4.2 body limits', () => {
     expect(BODY_LIMITS).toEqual({ json: 1024 * 1024, upload: 10 * 1024 * 1024, import: 25 * 1024 * 1024 });
+  });
+});
+
+describe('route access levels', () => {
+  it('records samePc() and enrollment() and says who may call each', () => {
+    const app = new Hono();
+    app.post('/api/vault/reset', samePc(), (c) => c.text('ok'));
+    app.post('/api/devices/requests', enrollment(), (c) => c.text('ok'));
+    app.get('/api/settings', paired(), (c) => c.text('ok'));
+    app.post('/api/pairings', (c) => c.text('ok'));
+    const table = new RouteTable();
+    table.collect(app);
+    const reset = table.match('POST', '/api/vault/reset');
+    const enroll = table.match('POST', '/api/devices/requests');
+    const settings = table.match('GET', '/api/settings');
+    const local = table.match('POST', '/api/pairings');
+    expect(reset).toEqual({ access: 'same-pc' });
+    expect(enroll).toEqual({ access: 'enrollment' });
+    expect(settings).toEqual({ access: 'paired' });
+    expect(local).toEqual({});
+    expect([reset, enroll, settings, local].map(pagesMayCall)).toEqual([true, false, true, false]);
+    expect([reset, enroll, settings, local].map(deviceMayCall)).toEqual([false, true, true, false]);
+  });
+
+  it('fails closed to the narrowest access of overlapping registrations', () => {
+    const app = new Hono();
+    app.get('/api/things/:id', paired(), (c) => c.text('any thing'));
+    app.get('/api/things/mine', samePc(), (c) => c.text('this PC only'));
+    app.get('/api/things/ask', enrollment(), (c) => c.text('anyone on the remote origin'));
+    app.get('/api/things/plain', (c) => c.text('local only'));
+    const table = new RouteTable();
+    table.collect(app);
+    expect(table.match('GET', '/api/things/abc')).toEqual({ access: 'paired' });
+    expect(table.match('GET', '/api/things/mine')).toEqual({ access: 'same-pc' });
+    // Paired and enrollment agree on devices only, which no level names: local-only.
+    expect(table.match('GET', '/api/things/ask')).toEqual({});
+    expect(table.match('GET', '/api/things/plain')).toEqual({});
+
+    const recorded = new RouteTable();
+    recorded.record({ method: 'GET', pattern: '/api/x/:id', access: 'enrollment' });
+    recorded.record({ method: 'GET', pattern: '/api/x/:id', exempt: 'image' });
+    expect(recorded.match('GET', '/api/x/1')).toEqual({ exempt: 'image', access: 'enrollment' });
+    recorded.record({ method: 'ALL', pattern: '/api/x/*', access: 'same-pc' });
+    // Enrollment and same-pc share no caller at all.
+    expect(recorded.match('GET', '/api/x/1')).toEqual({ exempt: 'image' });
+    // A registration tagged with two levels names more callers than any one level: local-only.
+    const both = new RouteTable();
+    both.record({ method: 'GET', pattern: '/api/y', access: 'paired' });
+    both.record({ method: 'GET', pattern: '/api/y', access: 'enrollment' });
+    expect(both.match('GET', '/api/y')).toEqual({});
+    // Two paired registrations agree.
+    both.record({ method: 'GET', pattern: '/api/z/:id', access: 'paired' });
+    both.record({ method: 'ALL', pattern: '/api/z/*', access: 'paired' });
+    expect(both.match('GET', '/api/z/1')).toEqual({ access: 'paired' });
   });
 });

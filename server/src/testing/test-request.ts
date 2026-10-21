@@ -9,8 +9,11 @@
  *   path-normalization tricks reach the gate exactly as written.
  * - `pagesHeaders(token)` turns a request into one from the paired Pages site (hybrid mode; the
  *   context needs `env: TEST_PAGES_ENV`).
+ * - `remoteHeaders(secret)` turns a request into one from another PC through the reverse proxy
+ *   (the remote Host and, unless `secret` is null, the device cookie; the context needs
+ *   `env: TEST_REMOTE_ENV`).
  */
-import { PAIRING_TOKEN_HEADER } from '@portly/shared';
+import { DEVICE_COOKIE, PAIRING_TOKEN_HEADER } from '@portly/shared';
 import { TEST_PORT } from './test-context.ts';
 
 /** Any Hono app (whatever its Env type). */
@@ -43,6 +46,21 @@ export const TEST_PAGES_ENV: Readonly<Record<string, string>> = Object.freeze({ 
  */
 export function pagesHeaders(token: string | null, extra: Record<string, string | null> = {}): Record<string, string | null> {
   return { Origin: TEST_PAGES_ORIGIN, 'Sec-Fetch-Site': 'cross-site', [PAIRING_TOKEN_HEADER]: token, ...extra };
+}
+
+/** The remote origin (other PCs) of the device tests, and its Host header. */
+export const TEST_REMOTE_ORIGIN = 'https://pc.tailnet.example';
+export const TEST_REMOTE_HOST = 'pc.tailnet.example';
+/** Environment that configures {@link TEST_REMOTE_ORIGIN} (pass as `createTestContext({env})`). */
+export const TEST_REMOTE_ENV: Readonly<Record<string, string>> = Object.freeze({ PORTLY_REMOTE_ORIGIN: TEST_REMOTE_ORIGIN });
+
+/**
+ * Headers of a request from another PC the way its page's fetches arrive through the proxy: the
+ * remote Host, same-origin fetch metadata (the defaults) and, unless `secret` is null, the device
+ * cookie. `extra` overrides any of them.
+ */
+export function remoteHeaders(secret: string | null, extra: Record<string, string | null> = {}): Record<string, string | null> {
+  return { Host: TEST_REMOTE_HOST, Cookie: secret === null ? null : `${DEVICE_COOKIE}=${secret}`, ...extra };
 }
 
 function isRawBody(body: unknown): boolean {

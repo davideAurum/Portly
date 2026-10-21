@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PORTLY_API_VERSION, HealthResponseSchema, defaultSettings, type AboutResponse, type Settings } from '@portly/shared';
-import { TEST_PAGES_ENV, TEST_PAGES_ORIGIN, pagesHeaders } from '../../testing/test-request.ts';
+import { connectTestDevice } from '../../testing/test-devices.ts';
+import { TEST_PAGES_ENV, TEST_PAGES_ORIGIN, TEST_REMOTE_ENV, pagesHeaders, remoteHeaders } from '../../testing/test-request.ts';
 import { coreTestbed, type CoreTestbed } from './__fixtures__/setup.ts';
 import { BACKUP_CHECK_INTERVAL_MS, BACKUP_INITIAL_DELAY_MS } from './index.ts';
 
@@ -83,6 +84,20 @@ describe('core: health and about', () => {
     const own = await t.json<AboutResponse>('GET', '/api/about');
     expect(own.body.dataDir).toBe(t.ctx.config.dataDir);
     expect(own.body.logPath).toBe(t.ctx.config.paths.logFile);
+  });
+
+  it('GET /api/about hides the data dir and log path from a connected device (another PC)', async () => {
+    t.close();
+    t = coreTestbed({ env: { ...TEST_REMOTE_ENV } });
+    const { secret } = connectTestDevice(t.ctx);
+    const device = await t.json<AboutResponse>('GET', '/api/about', { headers: remoteHeaders(secret) });
+    expect(device.status).toBe(200);
+    expect(device.body).toEqual({ version: t.ctx.config.version, dataDir: '', logPath: '', vault: 'ready' });
+    expect(device.res.headers.get('access-control-allow-origin')).toBeNull();
+    const own = await t.json<AboutResponse>('GET', '/api/about');
+    expect(own.body.dataDir).toBe(t.ctx.config.dataDir);
+    // The vault reset is for this PC only.
+    expect((await t.req('POST', '/api/vault/reset', { headers: remoteHeaders(secret) })).status).toBe(403);
   });
 });
 

@@ -1,9 +1,9 @@
 # Design: using Portly from several PCs, with a login
 
-**Status:** proposal, not built. The [ROADMAP](../ROADMAP.md) parks it under "Revisit after
-phase 6": it is built only after the first public release and an explicit go, and its probes wait
-for Tailscale and a second tailnet device. Until it ships, the server stays on loopback only
-(ARCHITECTURE section 4).
+**Status:** being built as [Track B of the ROADMAP](../ROADMAP.md#track-b-multi-pc), beside the
+phases, on the owner's go of 2026-10-21 (decision D10 asked for one). Phase 1 (the server) is
+built; phases 2 and 3 follow; the "later" items stay later. The server stays on loopback only
+(ARCHITECTURE section 4) throughout: with no `PORTLY_REMOTE_ORIGIN` it behaves exactly as before.
 
 **Main idea:** the server still listens only on `127.0.0.1` and `::1`. Other PCs reach it through
 an HTTPS reverse proxy running on the main PC, such as Tailscale Serve. Each PC must be approved
@@ -119,10 +119,50 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
    - OAuth sign-in from other PCs (https redirect URIs for the remote origin);
    - a passkey as a second factor, in case a laptop is stolen.
 
-## Open questions
+## Decisions of 2026-10-21 (the open questions, answered)
 
-- **Is approve-from-the-main-PC enough as the only login?** It's the simplest and can't be
-  brute-forced, but a stolen laptop with a live cookie has access until the device is revoked.
-- **Tailscale only, or any HTTPS proxy?** Supporting only Tailscale lets Portly add the
-  identity-header check. Supporting any proxy is more flexible but relies only on the device
-  cookie.
+- **Approve-from-the-main-PC is the only login**, with revoke in Settings > Devices and a 30-day
+  idle expiry. It cannot be brute-forced and works like pairing. A stolen laptop with a live
+  cookie has access until the device is revoked from the main PC; the passkey second factor stays
+  a "later" item.
+- **Any HTTPS reverse proxy**, with Tailscale Serve as the documented setup and a plain "never
+  Funnel". The device cookie is the login. The `Tailscale-User-Login` header check stays "later":
+  nobody has verified that Tailscale strips a forged copy of that header, so a check built on it
+  would be false safety until the four-way probe (forged versus stripped header, this PC versus a
+  second device) has run for real.
+- **The proxy must keep the Host header.** The classification in section 2 relies on it: a proxy
+  that rewrote the Host to a loopback one would make every other PC look like this PC, with no
+  login at all. The server can only catch the half-way case: with a remote origin configured, a
+  request with a local Host that carries a forwarding header (`Forwarded`, `X-Forwarded-*`,
+  `Tailscale-User-*`) is refused (403 `proxied_local_host`) and logged. A proxy that rewrites the
+  Host and adds no such header is invisible to it, so the setup guide (B.3) makes one check
+  mandatory before approving anything: from the other PC, `GET /api/about` through the proxy
+  with `X-Portly: 1` and no cookie must answer 401 `login_required`; a 200 means the proxy rewrote
+  the Host. The connect screen (B.2) does the same check on load and refuses to go on when the
+  server answers it as local. The real check with a second device records which headers Tailscale
+  Serve sends.
+- **What phase 1 built, where it differs from the text above:**
+  - the device is made when the other PC polls after approval (`GET /api/devices/requests/current`
+    with the enrollment cookie), so no secret is ever stored in clear: approval only flips the
+    request's status, and the poll mints the device cookie and clears the enrollment cookie. The
+    request row stays, marked claimed, until it expires: while the device has never been used,
+    the same poll mints a fresh cookie for the same device, so a lost answer strands nobody. The
+    enrollment cookie outlives the request by an hour, so the last poll can still say expired;
+  - a route tag `samePc()` beside `paired()`: the paired Pages site (on this PC) may call it,
+    another PC may not. It marks the vault reset, the browser bookmark import (`sources` and
+    `browser`), the OAuth start and the diagnostics report (it carries this PC's paths and log
+    files); approving devices and pairings stays untagged (local-only). Overlapping registrations
+    let in only the callers every one of them names, so a tag never widens another route.
+    A tag `enrollment()` marks the two routes another PC may call without a device cookie;
+  - the remote branch of the gate applies the same request-header rules as a local request
+    (`X-Portly: 1`, `Sec-Fetch-Site` absent or `same-origin`, an absent or exactly-remote
+    `Origin`, the Content-Type rules) before it looks at the cookie, and never sends CORS headers;
+  - a loopback remote origin on another port (`https://localhost:8443`) is accepted with a
+    start-up warning, so the connect flow can be tried on this PC through a local HTTPS proxy
+    before any second PC exists;
+  - revoked and expired devices keep their row for 30 days, so their cookie is refused as
+    "revoked" (with the reason) rather than "unknown", like pairing tombstones; the 30-day idle
+    rule is applied on every listing and write, not only when a device presents its own cookie;
+  - the device cookie's lifetime is renewed on use (at most every 10 minutes), except on an answer
+    that set or cleared the cookie itself (disconnecting, the enrollment swap);
+  - logs carry request and device ids only; the diagnostics log filters gained `deviceId`.

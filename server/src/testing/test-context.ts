@@ -11,7 +11,7 @@
  *   (then `logs` is a separate test logger), or `logs` alone to use that hub as `log` too,
  * - the real health tracker over that database, and a runtime (fresh in-flight registry, no
  *   modules until `createApp` fills them),
- * - the real pairing store over that database (`now` overridable).
+ * - the real pairing store and device store over that database (`now` overridable).
  */
 import os from 'node:os';
 import path from 'node:path';
@@ -28,6 +28,7 @@ import { newRunId } from '../lib/log-context.ts';
 import { createTestLogger, type LogHub, type Logger } from '../lib/logger.ts';
 import { createManualScheduler, type ManualScheduler } from '../lib/scheduler.ts';
 import { createSettingsService } from '../lib/settings.ts';
+import { createDeviceStore } from '../security/devices.ts';
 import { createPairingStore } from '../security/pairing.ts';
 import { createSafeFetch, type SafeFetch } from '../security/safe-fetch.ts';
 import { createMemoryVault, type MemoryVault } from '../security/vault.ts';
@@ -51,7 +52,7 @@ export interface TestContextOverrides {
   log?: Logger;
   /** `ctx.logs`; given alone, it is `ctx.log` too. */
   logs?: Logger & LogHub;
-  /** Clock of the pairing store. */
+  /** Clock of the pairing and device stores. */
   now?: () => number;
 }
 
@@ -105,6 +106,7 @@ export function createTestContext(overrides: TestContextOverrides = {}): TestCon
     settings: createSettingsService({ db, log }),
     accounts,
     pairing: createPairingStore({ db, log, now: overrides.now }),
+    devices: createDeviceStore({ db, log, now: overrides.now }),
     logs,
     health,
     runtime: {
