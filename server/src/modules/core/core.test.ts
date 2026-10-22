@@ -25,6 +25,7 @@ describe('core: health and about', () => {
       instanceId: t.ctx.pairing.instanceId(),
       appUrl: 'http://localhost:5757/',
       pagesUrl: null,
+      remote: false,
     });
     expect(HealthResponseSchema.parse(res.body)).toEqual(res.body);
     t.ctx.vault.setState('locked');
@@ -98,6 +99,9 @@ describe('core: health and about', () => {
     expect(own.body.dataDir).toBe(t.ctx.config.dataDir);
     // The vault reset is for this PC only.
     expect((await t.req('POST', '/api/vault/reset', { headers: remoteHeaders(secret) })).status).toBe(403);
+    // Health tells a page whether the server took it as another PC's.
+    expect((await t.json<{ remote?: boolean }>('GET', '/api/health', { headers: remoteHeaders(null, { 'X-Portly': null }) })).body.remote).toBe(true);
+    expect((await t.json<{ remote?: boolean }>('GET', '/api/health')).body.remote).toBe(false);
   });
 });
 

@@ -10,7 +10,9 @@
  *
  * What this page load can do decides what is offered (`getCapabilities()`): on the in-browser
  * backend only Microsoft (calendar only, signed in from the browser) and Todoist work; Google,
- * Yahoo, CalDAV and IMAP need the Portly server.
+ * Yahoo, CalDAV and IMAP need the Portly server. On another PC's page load (`remoteClient`) the
+ * Google and Microsoft sign-ins stay on the main PC (their redirect lands there); Yahoo, CalDAV,
+ * IMAP and Todoist work from anywhere, because the server keeps the credentials.
  */
 import { CAPABILITIES, OAUTH_PROVIDER_CAPABILITIES, type AccountKind, type Capability, type OAuthProvider } from '@portly/shared';
 import { getCapabilities, type Capabilities } from '../../../capabilities.ts';
@@ -31,7 +33,7 @@ export interface ConnectionInfo {
 /** The tiles, in display order. */
 export const CONNECTIONS: readonly ConnectionInfo[] = Object.freeze([
   { id: 'google', title: 'Google', mark: { letter: 'G', color: '#1a73e8' }, available: (caps) => caps.googleAccounts },
-  { id: 'microsoft', title: 'Microsoft', mark: { letter: 'M', color: '#0f6cbd' }, available: (caps) => caps.accounts },
+  { id: 'microsoft', title: 'Microsoft', mark: { letter: 'M', color: '#0f6cbd' }, available: (caps) => caps.accounts && !caps.remoteClient },
   { id: 'yahoo', title: 'Yahoo', mark: { letter: 'Y', color: '#5f01d1' }, available: (caps) => caps.appPasswordAccounts },
   { id: 'todoist', title: 'Todoist', mark: { letter: 'T', color: '#dc4c3e' }, available: () => true },
   { id: 'other', title: 'Other', mark: null, available: (caps) => caps.appPasswordAccounts },

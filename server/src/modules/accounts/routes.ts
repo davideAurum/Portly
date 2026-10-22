@@ -47,12 +47,14 @@ export function registerAccountsRoutes(app: Hono<AppEnv>, core: AccountsCore): v
 
   // --- OAuth clients -------------------------------------------------------
 
-  app.get('/api/oauth-clients/:provider', paired(), (c) => {
+  // The OAuth client settings (the secret is write-only) stay on this PC: another PC cannot
+  // read what is configured or replace it.
+  app.get('/api/oauth-clients/:provider', samePc(), (c) => {
     const provider = providerParam(c.req.param('provider'));
     return c.json(oauthClientInfo(core, provider));
   });
 
-  app.put('/api/oauth-clients/:provider', paired(), async (c) => {
+  app.put('/api/oauth-clients/:provider', samePc(), async (c) => {
     const provider = providerParam(c.req.param('provider'));
     const body = await parseBody(c, OAuthClientUpdateSchema);
     saveOAuthClient({ db: core.db, vault: core.vault, now: core.now() }, provider, body);

@@ -229,6 +229,8 @@ describe('loadConfig: PORTLY_REMOTE_ORIGIN', () => {
       const c = loadConfig({ ...base, ...env });
       expect(c.remoteOrigin).toBeNull();
       expect(c.remoteHost).toBeNull();
+      expect(c.remotePort).toBeNull();
+      expect(c.remoteHosts.size).toBe(0);
     }
     const on = loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net' });
     const off = loadConfig({ ...base });
@@ -267,9 +269,11 @@ describe('loadConfig: PORTLY_REMOTE_ORIGIN', () => {
     expect(() => loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: raw })).toThrow(ConfigError);
   });
 
-  it('accepts a loopback address on another port (a local HTTPS proxy, to try the flow on this PC) with a warning', () => {
+  it('accepts a loopback address on another port (a local proxy, to try the flow on this PC), https or http, with a warning', () => {
     for (const [raw, host] of [
       ['https://localhost:8443', 'localhost:8443'],
+      ['http://localhost:8443', 'localhost:8443'],
+      ['http://127.0.0.1:8443', '127.0.0.1:8443'],
       ['https://127.0.0.1:8443', '127.0.0.1:8443'],
       ['https://[::1]:8443', '[::1]:8443'],
       ['https://localhost', 'localhost'],
@@ -285,6 +289,22 @@ describe('loadConfig: PORTLY_REMOTE_ORIGIN', () => {
     expect(startupWarnings(loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net' }))).toEqual([]);
     // The dev server's host is local too.
     expect(() => loadConfig({ ...base, PORTLY_DEV: '1', PORTLY_REMOTE_ORIGIN: 'https://localhost:5173' })).toThrow(ConfigError);
+  });
+
+  it('listens for other PCs on the port after the main one unless PORTLY_REMOTE_PORT says otherwise', () => {
+    const c = loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net' });
+    expect(c.remotePort).toBe(5758);
+    expect([...c.remoteHosts].sort()).toEqual(['127.0.0.1:5758', '[::1]:5758', 'localhost:5758', 'pc.tailnet.ts.net']);
+    expect(c.allowedHosts.has('localhost:5758')).toBe(false);
+    const explicit = loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net', PORTLY_REMOTE_PORT: '6000' });
+    expect(explicit.remotePort).toBe(6000);
+    expect(explicit.remoteHosts.has('localhost:6000')).toBe(true);
+    expect(() => loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net', PORTLY_REMOTE_PORT: '5757' })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...base, PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net', PORTLY_REMOTE_PORT: 'abc' })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...base, PORTLY_DEV: '1', PORTLY_VITE_PORT: '5758', PORTLY_REMOTE_ORIGIN: 'https://pc.tailnet.ts.net' })).toThrow(ConfigError);
+    // The port alone makes no sense.
+    expect(() => loadConfig({ ...base, PORTLY_REMOTE_PORT: '5758' })).toThrow(ConfigError);
+    expect(loadConfig({ ...base, PORTLY_REMOTE_PORT: '' }).remotePort).toBeNull();
   });
 
   it('rejects a custom PORTLY_ORIGIN host and the Pages site as the remote origin', () => {

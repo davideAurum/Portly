@@ -127,3 +127,15 @@ describe('ReportPanel', () => {
     expect(requestsTo('GET /api/diagnostics/logs')).toHaveLength(0);
   });
 });
+
+describe('ReportPanel on another PC', () => {
+  it('offers no download (the report stays on the main PC); the summary still copies', async () => {
+    const { capabilitiesFor, setCapabilitiesForTests } = await import('../../capabilities.ts');
+    setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
+    const { requestsTo } = renderWithProviders(<ReportPanel summary={SUMMARY} accounts={ACCOUNTS} />, { apiMocks: mocks() });
+    expect(screen.queryByRole('button', { name: 'Download diagnostic report' })).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Copy summary' }));
+    await waitFor(() => expect(captured.copied).toHaveLength(1));
+    expect(requestsTo('GET /api/diagnostics/report')).toEqual([]);
+  });
+});

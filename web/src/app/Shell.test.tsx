@@ -209,7 +209,7 @@ describe('Shell', () => {
     expect(fake.actions.switchNow).toHaveBeenCalledOnce();
   });
 
-  it('routes #/settings/<section> to the settings shell with all ten sections', async () => {
+  it('routes #/settings/<section> to the settings shell with all eleven sections', async () => {
     // Settings sections are lazily loaded: load About's code first (see the footer test above).
     await import('../settings/sections/About.tsx');
     renderWithProviders(<Shell />, {
@@ -221,7 +221,7 @@ describe('Shell', () => {
     });
     expect(await screen.findByRole('heading', { level: 1, name: 'About' })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Settings sections' });
-    expect(within(nav).getAllByRole('listitem')).toHaveLength(10);
+    expect(within(nav).getAllByRole('listitem')).toHaveLength(11);
     // Todoist is a connection in Accounts, not a section of its own.
     expect(within(nav).queryByRole('link', { name: 'Todoist' })).not.toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'About' })).toHaveAttribute('aria-current', 'page');

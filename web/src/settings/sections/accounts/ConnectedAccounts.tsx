@@ -53,7 +53,9 @@ export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void
         body={
           getCapabilities().googleAccounts
             ? 'Connect Google, Microsoft, Yahoo, Todoist, a CalDAV server or an IMAP mailbox below to see your calendars, mail and tasks.'
-            : 'Connect Microsoft (Outlook.com) or Todoist below to see your calendars and tasks.'
+            : getCapabilities().remoteClient
+              ? 'Connect Yahoo, Todoist, a CalDAV server or an IMAP mailbox below to see your calendars, mail and tasks. Google and Microsoft accounts are connected on the main PC.'
+              : 'Connect Microsoft (Outlook.com) or Todoist below to see your calendars and tasks.'
         }
       />
     );
@@ -158,13 +160,16 @@ function AccountRow({ account, onManage }: { account: Account; onManage(): void 
         {account.status === 'reauth' && !reconnectsWithOAuth(account.kind) ? (
           <span className={styles.itemMeta}>To reconnect, add this account again under “Add a connection” with its current password.</span>
         ) : null}
+        {account.status === 'reauth' && reconnectsWithOAuth(account.kind) && getCapabilities().remoteClient ? (
+          <span className={styles.itemMeta}>Reconnect it on the main PC, in its Settings → Accounts.</span>
+        ) : null}
         <ServiceChips account={account} />
       </div>
       <div className={styles.itemActions}>
         <Button size="sm" variant="secondary" icon={Settings2} onClick={onManage} aria-label={`Manage ${account.label}`}>
           Manage
         </Button>
-        {reconnectsWithOAuth(account.kind) ? (
+        {reconnectsWithOAuth(account.kind) && !getCapabilities().remoteClient ? (
           <Button
             size="sm"
             variant={account.status === 'reauth' ? 'primary' : 'ghost'}
@@ -252,7 +257,11 @@ function ServiceSwitches({ account }: { account: Account }) {
   const start = useStartOAuth();
   const locked = useVaultLocked();
   const oauth = reconnectsWithOAuth(account.kind);
-  const addable = oauth ? connectionServices(account.kind as 'google' | 'microsoft').filter((s) => !account.capabilities.includes(s.capability)) : [];
+  // Adding a service signs in again, which happens on the main PC.
+  const addable =
+    oauth && !getCapabilities().remoteClient
+      ? connectionServices(account.kind as 'google' | 'microsoft').filter((s) => !account.capabilities.includes(s.capability))
+      : [];
   const [adding, setAdding] = useState<Capability | null>(null);
 
   const toggle = (capability: Capability, on: boolean) => {

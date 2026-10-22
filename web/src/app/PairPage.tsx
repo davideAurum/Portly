@@ -73,7 +73,25 @@ export interface PairPageProps {
 }
 
 export function PairPage({ nonce }: PairPageProps) {
-  return getCapabilities().pagesBuild ? <PagesBuildNote /> : <PairRequest nonce={nonce} />;
+  const caps = getCapabilities();
+  if (caps.pagesBuild) return <PagesBuildNote />;
+  if (caps.remoteClient) return <RemoteClientNote />;
+  return <PairRequest nonce={nonce} />;
+}
+
+/** Another PC's page load: approving a pairing is a decision for Portly's own page on the main PC. */
+function RemoteClientNote() {
+  return (
+    <PairPanel icon={Link2} title="Pairing happens on the main PC">
+      <p className={styles.text}>
+        This PC uses Portly on the main PC. A browser is paired with the Pages site from Portly’s own page there, where you approve it, and the
+        browsers already paired are listed in Settings → About there.
+      </p>
+      <div className={styles.actions}>
+        <BackToDashboard />
+      </div>
+    </PairPanel>
+  );
 }
 
 /**

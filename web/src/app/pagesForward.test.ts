@@ -6,7 +6,7 @@ function setup(overrides: Partial<PagesForwardDeps> & { hash?: string; search?: 
   const location = { hash: overrides.hash ?? '#/settings/accounts', search: overrides.search ?? '', replace };
   const pagesUrl = vi.fn(overrides.pagesUrl ?? (async () => 'https://user.github.io/'));
   const probe = vi.fn(overrides.probe ?? (async () => undefined));
-  const run = () => forwardToPages({ location, framed: overrides.framed ?? false, pagesUrl, probe, timeoutMs: 50 });
+  const run = () => forwardToPages({ location, framed: overrides.framed ?? false, remoteClient: overrides.remoteClient, pagesUrl, probe, timeoutMs: 50 });
   return { run, replace, pagesUrl, probe };
 }
 
@@ -39,6 +39,13 @@ describe('forwardToPages', () => {
       expect(await t.run()).toBe('forwarded');
       expect(t.replace).toHaveBeenCalledWith(`https://user.github.io/${hash}`);
     }
+  });
+
+  it('stays on another PC’s page load (through the reverse proxy) without asking the server', async () => {
+    const t = setup({ remoteClient: true });
+    expect(await t.run()).toBe('stay');
+    expect(t.pagesUrl).not.toHaveBeenCalled();
+    expect(t.replace).not.toHaveBeenCalled();
   });
 
   it('stays in a frame', async () => {

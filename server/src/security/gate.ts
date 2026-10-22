@@ -3,12 +3,14 @@
  *
  * 1. 400 if the *raw* request path (as received on the socket, before URL normalization)
  *    contains `//`, `\`, `%2f`, `%5c` (any case), dot segments (incl. `%2e` forms) or control bytes.
- * 2. 403 unless the Host header is in the allowlist derived from config (a local request), or, with
- *    `PORTLY_REMOTE_ORIGIN` and a device store, exactly the remote origin's host (a remote request:
- *    another PC, through the HTTPS reverse proxy on this PC; `remoteClient` is set). With a remote
- *    origin configured, a request with a local Host that carries a proxy's forwarding header is
- *    refused too (403 `proxied_local_host`): the proxy must keep the Host header, or another PC
- *    would count as this one.
+ * 2. 403 unless the Host header is in the allowlist derived from config (a local request). With
+ *    `PORTLY_REMOTE_ORIGIN` and a device store, a request that arrived on the remote port
+ *    (`PORTLY_REMOTE_PORT`, the loopback port the HTTPS reverse proxy forwards other PCs to) is a
+ *    remote request whatever its Host says (`remoteClient` is set), and its Host must be the remote
+ *    origin's or a loopback form of that port; a proxy that rewrites the Host therefore cannot make
+ *    another PC look like this one. On the main port the remote origin's host is refused like any
+ *    other, and a local Host that carries a proxy's forwarding header is refused too (403
+ *    `proxied_local_host`): the proxy must point at the remote port.
  * 3. `/api/*` routes are non-exempt unless declared with `exempt(kind)` (lib/routes.ts); the
  *    declaration is matched with a Hono router instance.
  *    Pages site (hybrid mode, only with `PORTLY_PAGES_URL` and a pairing store): a local `/api`
@@ -63,8 +65,8 @@ import { foreignOrigins as defaultForeignOrigins, isNamedForeignOrigin, webOrigi
 import type { PairingRecord, PairingStore } from './pairing.ts';
 
 export interface GateOptions {
-  /** `pagesOrigin`, `remoteOrigin` and `remoteHost` are optional so test beds without them can pass a plain config. */
-  config: Pick<Config, 'allowedHosts' | 'allowedOrigins'> & Partial<Pick<Config, 'pagesOrigin' | 'remoteOrigin' | 'remoteHost'>>;
+  /** The Pages and remote settings are optional so test beds without them can pass a plain config. */
+  config: Pick<Config, 'allowedHosts' | 'allowedOrigins'> & Partial<Pick<Config, 'pagesOrigin' | 'remoteOrigin' | 'remotePort' | 'remoteHosts'>>;
   routes: RouteTable;
   log?: Logger;
   /**
@@ -109,14 +111,21 @@ export const PAGES_ALLOWED_HEADERS: ReadonlySet<string> = new Set(['content-type
 const PAGES_FETCH_SITES: ReadonlySet<string> = new Set(['cross-site', 'same-site']);
 /**
  * Headers a reverse proxy adds to what it forwards (lower-case). With a remote origin configured,
- * a request carrying one of them must also carry the remote Host: a proxy that rewrote the Host
- * to a loopback one would make every other PC look like this PC.
+ * a request carrying one of them belongs on the remote port: on the main port it means the proxy
+ * points at the wrong port, and it is refused rather than counted as this PC's own.
  */
 export const PROXY_HEADERS: readonly string[] = Object.freeze([
   'forwarded',
   'x-forwarded-for',
   'x-forwarded-host',
   'x-forwarded-proto',
+  'x-forwarded-port',
+  'x-forwarded-server',
+  'x-real-ip',
+  'x-original-host',
+  'x-original-url',
+  'cf-connecting-ip',
+  'via',
   'tailscale-user-login',
   'tailscale-user-name',
   'tailscale-user-profile-pic',
@@ -218,6 +227,13 @@ export function hasProxyHeader(c: Context): boolean {
   return PROXY_HEADERS.some((name) => c.req.header(name) !== undefined);
 }
 
+/** The local port the request came in on (Node's socket), or null when unknown (tests, odd transports). */
+export function listenerPort(c: Context<AppEnv>): number | null {
+  const incoming = (c.env as AppEnv['Bindings'] | undefined)?.incoming as { socket?: { localPort?: unknown } } | undefined;
+  const port = incoming?.socket?.localPort;
+  return typeof port === 'number' && Number.isInteger(port) && port > 0 ? port : null;
+}
+
 // ---------------------------------------------------------------------------
 // Pages site (hybrid mode)
 // ---------------------------------------------------------------------------
@@ -283,7 +299,8 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
   const configuredPages = config.pagesOrigin ?? null;
   // Other PCs: only with a device store to check their cookies against.
   const remoteOrigin = devices ? (config.remoteOrigin ?? null) : null;
-  const remoteHost = devices ? (config.remoteHost ?? null) : null;
+  const remotePort = devices ? (config.remotePort ?? null) : null;
+  const remoteHosts: ReadonlySet<string> = devices ? (config.remoteHosts ?? new Set()) : new Set();
 
   /**
    * The request's Origin when it may be logged: ours, the Pages site's, the remote origin, or a
@@ -437,15 +454,18 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
     const problem = rawPathProblem(rawPathOf(rawRequestTarget(c)));
     if (problem) return refuse(c, 'bad_request', `Malformed request path (${problem})`, 'bad_path');
 
-    // 2. Host allowlist (DNS rebinding); the remote origin's host is another PC.
+    // 2. Host allowlist (DNS rebinding). The remote port decides what is another PC, not the Host.
     const host = c.req.header('host')?.trim().toLowerCase();
     if (!host) return refuse(c, 'forbidden', 'Host not allowed', 'host_not_allowed');
-    const remote = !config.allowedHosts.has(host);
-    if (remote && (remoteHost === null || host !== remoteHost)) return refuse(c, 'forbidden', 'Host not allowed', 'host_not_allowed');
+    const remote = remotePort !== null && listenerPort(c) === remotePort;
     if (remote) {
+      if (!remoteHosts.has(host)) return refuse(c, 'forbidden', 'Host not allowed', 'host_not_allowed');
       c.set('remoteClient', true);
-    } else if (remoteHost !== null && hasProxyHeader(c)) {
-      return refuse(c, 'forbidden', 'A proxied request must keep the Host header of the remote origin', 'proxied_local_host');
+    } else {
+      if (!config.allowedHosts.has(host)) return refuse(c, 'forbidden', 'Host not allowed', 'host_not_allowed');
+      if (remotePort !== null && hasProxyHeader(c)) {
+        return refuse(c, 'forbidden', 'A proxied request belongs on the remote port, not on this one', 'proxied_local_host');
+      }
     }
 
     const path = c.req.path;

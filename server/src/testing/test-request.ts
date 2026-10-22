@@ -11,10 +11,13 @@
  *   context needs `env: TEST_PAGES_ENV`).
  * - `remoteHeaders(secret)` turns a request into one from another PC through the reverse proxy
  *   (the remote Host and, unless `secret` is null, the device cookie; the context needs
- *   `env: TEST_REMOTE_ENV`).
+ *   `env: TEST_REMOTE_ENV`). Such a request arrives on the remote port (`TEST_REMOTE_PORT`, like
+ *   the proxy forwards it); `listenerPort` overrides which port any request came in on.
  */
 import { DEVICE_COOKIE, PAIRING_TOKEN_HEADER } from '@portly/shared';
 import { TEST_PORT } from './test-context.ts';
+
+export { TEST_PORT };
 
 /** Any Hono app (whatever its Env type). */
 export interface RequestableApp {
@@ -26,6 +29,8 @@ type RequestBody = NonNullable<RequestInit['body']>;
 export interface TestRequestOptions {
   body?: unknown;
   headers?: Record<string, string | null>;
+  /** The local port the request came in on (default: the remote port for the remote Host, else the main port). */
+  listenerPort?: number;
 }
 
 export const DEFAULT_TEST_HEADERS: Readonly<Record<string, string>> = Object.freeze({
@@ -48,9 +53,10 @@ export function pagesHeaders(token: string | null, extra: Record<string, string 
   return { Origin: TEST_PAGES_ORIGIN, 'Sec-Fetch-Site': 'cross-site', [PAIRING_TOKEN_HEADER]: token, ...extra };
 }
 
-/** The remote origin (other PCs) of the device tests, and its Host header. */
+/** The remote origin (other PCs) of the device tests, its Host header and the loopback port the proxy forwards to. */
 export const TEST_REMOTE_ORIGIN = 'https://pc.tailnet.example';
 export const TEST_REMOTE_HOST = 'pc.tailnet.example';
+export const TEST_REMOTE_PORT = TEST_PORT + 1;
 /** Environment that configures {@link TEST_REMOTE_ORIGIN} (pass as `createTestContext({env})`). */
 export const TEST_REMOTE_ENV: Readonly<Record<string, string>> = Object.freeze({ PORTLY_REMOTE_ORIGIN: TEST_REMOTE_ORIGIN });
 
@@ -106,9 +112,11 @@ export async function testRequest(
     init.body = body;
     if (body instanceof ReadableStream) init.duplex = 'half';
   }
-  // The URL's host is fixed; the gate reads the Host *header*, like in production.
+  // The URL's host is fixed; the gate reads the Host *header*, like in production, and the
+  // listener port from the socket: the remote Host arrives on the remote port unless told otherwise.
   const url = `http://localhost:${TEST_PORT}${path.startsWith('/') ? path : `/${path}`}`;
-  const env = { incoming: { url: path, headers: {} } };
+  const localPort = options.listenerPort ?? (headers.get('host')?.trim().toLowerCase() === TEST_REMOTE_HOST ? TEST_REMOTE_PORT : TEST_PORT);
+  const env = { incoming: { url: path, headers: {}, socket: { localPort } } };
   return app.request(url, init, env as never);
 }
 

@@ -8,6 +8,8 @@
  * - on `#/settings/diagnostics`, so that Portly's full diagnostics on this PC can always be
  *   opened here (the Pages site links to it), even when the Pages site or its connection to this
  *   server is what is broken;
+ * - on another PC's page load (`remoteClient`: through the reverse proxy on the main PC, where
+ *   the Pages site would look for a server on that PC's own loopback and find none);
  * - in a frame, or when no Pages site is configured or its address is unusable;
  * - when the Pages site can't be reached (offline): this page is the fallback, and says so.
  */
@@ -23,6 +25,8 @@ export type PagesForwardResult = 'forwarded' | 'stay' | 'offline';
 export interface PagesForwardDeps {
   location: Pick<Location, 'hash' | 'search' | 'replace'>;
   framed: boolean;
+  /** This page load is another PC's (ARCHITECTURE §4.2 remote branch): it stays here. */
+  remoteClient?: boolean;
   /** The configured Pages address (`GET /api/pairings`). */
   pagesUrl?: (signal: AbortSignal) => Promise<string | null>;
   /** Resolves when the Pages site answers, rejects when it can't be reached. */
@@ -57,7 +61,7 @@ function staysHere(hash: string): boolean {
 
 export async function forwardToPages(deps: PagesForwardDeps): Promise<PagesForwardResult> {
   const { location, framed } = deps;
-  if (framed || staysHere(location.hash)) return 'stay';
+  if (framed || deps.remoteClient === true || staysHere(location.hash)) return 'stay';
   const timeoutMs = deps.timeoutMs ?? PAGES_PROBE_TIMEOUT_MS;
 
   let pagesUrl: string | null;

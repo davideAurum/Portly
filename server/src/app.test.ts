@@ -116,6 +116,7 @@ describe('app: modules', () => {
       instanceId: ctx.pairing.instanceId(),
       appUrl: `${ctx.config.appOrigin}/`,
       pagesUrl: null,
+      remote: false,
     });
     ctx.vault.setState('locked');
     const locked = (await (await testRequest(app, 'GET', '/api/health')).json()) as HealthResponse;
@@ -310,8 +311,8 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   'POST /api/import/commit': 'paired',
   'POST /api/vault/reset': 'same-pc',
   // accounts
-  'GET /api/oauth-clients/:provider': 'paired',
-  'PUT /api/oauth-clients/:provider': 'paired',
+  'GET /api/oauth-clients/:provider': 'same-pc',
+  'PUT /api/oauth-clients/:provider': 'same-pc',
   'POST /api/oauth/:provider/start': 'same-pc',
   'GET /api/oauth/:provider/callback': 'local',
   'GET /api/accounts': 'paired',
@@ -375,18 +376,19 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   'GET /api/sports/teams': 'paired',
   'GET /api/sports/games': 'paired',
   // pairing
-  'GET /api/pairing': 'paired',
-  'DELETE /api/pairing': 'paired',
-  'GET /api/pairings': 'paired',
+  'GET /api/pairing': 'same-pc',
+  'DELETE /api/pairing': 'same-pc',
+  'GET /api/pairings': 'same-pc',
   'POST /api/pairings': 'local',
-  'DELETE /api/pairings/:id': 'paired',
-  // devices (other PCs): asking and polling need no cookie, approving stays with this PC's own page
+  'DELETE /api/pairings/:id': 'same-pc',
+  // devices (other PCs): asking and polling need no cookie; approving stays with this PC's own
+  // page and removing on this PC (own page or the Pages site); a device may only disconnect itself
   'POST /api/devices/requests': 'enrollment',
   'GET /api/devices/requests/current': 'enrollment',
   'GET /api/devices': 'paired',
   'POST /api/devices/requests/:id/approve': 'local',
   'POST /api/devices/requests/:id/deny': 'local',
-  'DELETE /api/devices/:id': 'paired',
+  'DELETE /api/devices/:id': 'same-pc',
   'GET /api/device': 'paired',
   'DELETE /api/device': 'paired',
   // diagnostics (paired: the Pages site is the main UI; the report with this PC's paths and log files stays on this PC)

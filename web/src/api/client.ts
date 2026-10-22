@@ -254,6 +254,30 @@ function switchingBackend(err: unknown): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Another PC whose device cookie stopped working
+// ---------------------------------------------------------------------------
+
+let loginReloadRequested = false;
+let loginReload: () => void = () => window.location.reload();
+
+/** Tests: what a `login_required` answer on another PC's page load runs instead of reloading (null restores it). */
+export function setLoginReloadForTests(reload: (() => void) | null): void {
+  loginReload = reload ?? (() => window.location.reload());
+  loginReloadRequested = false;
+}
+
+/**
+ * The server no longer takes this page as a connected device (revoked or expired on the main PC,
+ * or the cookie is gone): reload once, into the connect screen (`main.tsx`). Only on another PC's
+ * page load; elsewhere the error is the caller's to show.
+ */
+function noteLoginRequired(): void {
+  if (loginReloadRequested || !getCapabilities().remoteClient) return;
+  loginReloadRequested = true;
+  loginReload();
+}
+
+// ---------------------------------------------------------------------------
 // Requests
 // ---------------------------------------------------------------------------
 
@@ -303,6 +327,7 @@ export async function apiResponse(path: string, options: ApiRequestOptions = {})
   if (!res.ok) {
     const error = await toApiError(res);
     noteRefusal(facts(), error);
+    if (error.code === 'login_required') noteLoginRequired();
     throw error;
   }
   noteSlow(facts(), res);

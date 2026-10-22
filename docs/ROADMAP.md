@@ -857,13 +857,17 @@ Items:
   `devices` and `device_requests`) with the request, poll, approve, deny, list, revoke and
   disconnect routes; the route tags `samePc()` (the vault reset, the browser bookmark import, the
   OAuth start: never from another PC) and `enrollment()` (the two routes that need no cookie);
-  paths blanked for a device as for the Pages site; a request with a local Host and a proxy's
-  forwarding header refused. Tests with `testRequest()` and the remote Host: no cookie, revoked and
+  paths blanked for a device as for the Pages site; a second loopback listener on
+  `PORTLY_REMOTE_PORT` (default main port plus one) that the proxy forwards other PCs to, so the
+  classification never trusts the Host header; a request on the main port with a proxy's
+  forwarding header refused. Tests with `testRequest()` on the remote port: no cookie, revoked and
   expired cookies, cross-site forgery attempts, local-only and same-PC routes, the Pages site and a
   device side by side, the feature off; every route in the `ROUTE_ACCESS` table.
 
   *Done when:* typecheck, `npm test` and both builds green; the server unchanged with the variable
-  unset (the gate tests say so); on main. *Result:* built and merged on 2026-10-21 (B.1 commit).
+  unset (the gate tests say so); on main. *Result:* built and merged on 2026-10-21 (2f3c647); the
+  remote port replaced the Host-based classification the same day (B.1b commit), after the
+  review found that a proxy rewriting the Host would have made every other PC count as this one.
 
 - **B.2 Web** (M; after B.1).
   The connect screen a page on the remote origin shows instead of the app ("Connect this device":
@@ -873,18 +877,21 @@ Items:
   that hides what only the main PC can do (connecting accounts, the vault reset, the browser
   bookmark import, approving devices and pairings) and says "on the main PC" instead;
   `pagesForward` never forwarding a remote client to the Pages site; `login_required` handled by
-  the API client (reload into the connect screen); on a remote address the connect screen first
-  checks that the server treats it as remote (`GET /api/about` without a cookie must answer 401)
-  and stops with a plain warning when the proxy rewrote the Host header.
+  the API client (reload into the connect screen); on an address that is not loopback the connect
+  screen reads `GET /api/health` first and stops with a plain warning when `remote` is false (the
+  proxy points at the main port instead of the remote one).
 
-  *Done when:* web tests and typecheck; both builds; B.4 passes.
+  *Done when:* web tests and typecheck; both builds; B.4 passes. *Result:* built on 2026-10-21
+  (B.2 commit), B.4 passed the same day.
 
 - **B.3 Docs and scripts** (S; after B.2).
   ARCHITECTURE: a new section for other PCs and the section 4.1 update (each approved device is
-  fully trusted, like a paired browser); `docs/setup/other-pcs.md` (Tailscale Serve set-up, the
-  Host-header check, why never Funnel, revoking); `setup.ps1 -RemoteOrigin` with `-DryRun`;
-  README and `docs/SETUP.md` lines; the privacy page text (`site/privacy.html`) that a server
-  reachable from your other PCs needs.
+  fully trusted, like a paired browser); `docs/setup/other-pcs.md` brought up to the setup script
+  (its first version, with the Tailscale Serve set-up pointed at the remote port, why never
+  Funnel, approving and removing, landed with B.2 because the app names it, as did the two
+  `docs/SETUP.md` rows and the installer carrying the variables); `setup.ps1 -RemoteOrigin` with
+  `-DryRun`; a README line; the privacy page text (`site/privacy.html`) that a server reachable
+  from your other PCs needs.
 
   *Done when:* `check-scripts.ps1` passes in both PowerShell versions; `check-release.ps1`
   passes; the docs name the real commands and the variable.
@@ -897,18 +904,26 @@ Items:
   `X-Forwarded-For` on the plain port refused as `proxied_local_host`.
 
   *Done when:* dated here with what was seen, and the two B.1 rows in the checks table closed or
-  narrowed.
+  narrowed. *Result:* 2026-10-21, in the desktop app's browser pane, through a throwaway plain-HTTP
+  proxy on `http://localhost:8443` forwarding to a scratch server's remote port 5800 (the pane
+  refuses a self-signed certificate, so `PORTLY_REMOTE_ORIGIN` now also accepts `http://` on a
+  loopback host, with the start-up warning): the connect screen, a request with its code, the
+  request listed on the server's own page with Approve and Deny, the approved tab reloading into
+  the app by itself, Settings → Devices on the other side showing "This PC" without Approve, the
+  Accounts page without the Google and Microsoft tiles, About with no paths, then Remove on the
+  main page sending the other tab back to the connect screen once it was visible again; the
+  server's log carried ids only. Found and fixed on the way: a reload loop (the page counted as
+  another PC's before its own "am I connected?" check, whose 401 then reloaded it) and the
+  loopback shortcut that took the proxied page as this PC's own without asking the server.
 
 - **B.5 The real check with a second PC** (S; go-ahead; after B.3; needs Tailscale on this PC and
   a second tailnet device).
-  Tailscale Serve in front of a scratch server first (the installed Portly only on your say-so):
-  whether Serve keeps the Host header (a proxy that rewrites it and adds a forwarding header is
-  refused as `proxied_local_host`; one that rewrites it and adds none would make every other PC
-  count as this one, which is why the setup guide's `GET /api/about` check comes before any
-  approval), which `Tailscale-User-*` and `X-Forwarded-*` headers arrive, the four-way header
-  probe (a forged `Tailscale-User-Login` from this PC and from the second device, each against
-  what Serve adds or strips), then the whole connect flow from the other PC and a revoke from
-  this one.
+  Tailscale Serve in front of a scratch server first (the installed Portly only on your say-so),
+  pointed at the remote port: which Host, `Tailscale-User-*` and `X-Forwarded-*` headers arrive
+  and whether the `Origin` header passes through unchanged (the cross-site check needs it), the
+  four-way header probe (a forged `Tailscale-User-Login` from this PC and from the second device,
+  each against what Serve adds or strips), then the whole connect flow from the other PC and a
+  revoke from this one.
 
   *Done when:* the four results and the headers seen are dated in design/multi-pc.md; the B.1
   Tailscale row closed; the identity-header check (B.6) decided on those results.
@@ -953,13 +968,14 @@ date and the outcome once a row has been run for real.
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
 | `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: winget's LTS id installs Node 26 once that is the LTS, which `engine-strict` refuses | 2d7b20e, 2026-10-21 | 1.11 | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
-| The device connect flow in a real browser through an HTTPS proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 | not yet |
-| Tailscale Serve in front of Portly: whether it keeps the Host header (rewritten with a forwarding header, every remote request is refused as `proxied_local_host`; rewritten without one, every other PC would count as this one), which `Tailscale-User-*` and `X-Forwarded-*` headers arrive, and whether a forged `Tailscale-User-Login` is stripped; nothing has run against Tailscale | B.1 commit, 2026-10-21 | B.5 | not yet |
+| The device cookies over real https on an address that is not loopback (a Tailscale Serve address): the B.4 check ran on `http://localhost`, which Chromium treats as secure, so the `Secure` and `__Host-` attributes were never exercised against a certificate | B.2 commit, 2026-10-21 | B.5 | not yet |
+| Tailscale Serve pointed at Portly's remote port: which Host, `Tailscale-User-*` and `X-Forwarded-*` headers arrive, whether `Origin` passes through unchanged, and whether a forged `Tailscale-User-Login` is stripped; nothing has run against Tailscale | B.1 commit, 2026-10-21 | B.5 | not yet |
 
 ### Closed
 
 | Check | From | Closed by |
 | --- | --- | --- |
+| The device connect flow in a real browser through a proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 on 2026-10-21 (the B.2 commit's body): the whole flow in the desktop app's browser pane through a plain-HTTP loopback proxy; real https stays open as the row above |
 | The browser-only polish (*Browser only* footer label, Diagnostics intro and link, gap-free first-run layout, suggestion labels, probe throttles) in a real browser | 8bb97b1, 2026-10-19 | 8bb97b1's own body: checked on 2026-10-19 with `npm run preview:static` on localhost, built against an unused port so it acted like a PC without Portly |
 | Preparing background uploads in a real browser (canvas decoding, WebP encoding and SVG drawing were only exercised through fakes) | a7859df, 2026-10-18 | 501e85b (2026-10-18): tried in Chrome's built-in browser pane on the Vite dev server and the browser-only build with scratch data (large JPEG and PNG to WebP, small JPEG unchanged, animated GIF first frame, sized and unsized SVGs, corrupt JPEG error, *Optimize image* keeping blur and dim) |
 | Outlook.com calendars in the browser-only build against a real Outlook.com account | 23abdd5, 2026-10-13 | 3b3edd7 (2026-10-19): a real account on a localhost copy of the site (*Single-page application* redirect) connected the account and synced its calendars; the published address is the 2.1 row above |
