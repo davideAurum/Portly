@@ -30,6 +30,7 @@ npm-debug.log*
 
 # Personal reference material
 /Personal Page Info/
+/Personal/
 
 # OS / editor noise (incl. per-machine Claude Code session files such as .claude/launch.json)
 .claude/
