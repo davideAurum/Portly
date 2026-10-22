@@ -72,6 +72,24 @@ Without `PORTLY_REMOTE_ORIGIN`, Portly behaves exactly as before: one PC, loopba
 4. The other PC's page loads Portly by itself. A request not answered within 10 minutes expires;
    ask again.
 
+## One address on every PC
+
+If you use Portly through your Pages site (`https://<user>.github.io`), that address only shows the
+copy saved in the browser on a PC without Portly. To make it open Portly on the main PC instead:
+
+1. On the other PC, open your Pages site, then Settings → Devices.
+2. Under **Portly on your main PC**, enter the main PC's address
+   (`https://<pc>.<tailnet>.ts.net`) and choose **Use this address**, then confirm.
+3. From then on, opening the Pages site in that browser goes straight to Portly on the main PC,
+   on the same page you asked for. Connect the PC there as above if you have not yet.
+
+This is remembered by that browser only (another browser or profile needs it again), and it never
+applies on a PC whose browser is paired with its own Portly, such as the main PC.
+
+When the main PC is off, the browser shows an error page. To open the copy saved in this browser
+instead, add `?here` to the Pages address (`https://<user>.github.io/?here`); that is also how you
+get back to Settings → Devices to change or forget the address.
+
 If the other PC's page shows **This address reaches Portly the wrong way**, the proxy forwards to
 Portly's main port instead of its port for other PCs: run the `tailscale serve` command above
 with the right port.

@@ -1657,6 +1657,9 @@ pairing page) is loaded on demand, so the server build's main chunk does not car
 only ask the service worker to warm Portly up; the site finds the server itself. A server without `PORTLY_PAGES_URL`
 gets Portly's own page instead.
 
+**Other PCs.** On a PC without Portly, a browser that remembers the main PC's address (§20, "One address for every
+PC") forwards from the Pages site to Portly on the main PC before this section's boot runs.
+
 ---
 
 ## 17. Diagnostics
@@ -2097,6 +2100,22 @@ the setup steps, the requests waiting with Approve and Deny on Portly's own page
 list and a note; the paired Pages site sees the list and a link to Portly's own page's Devices section, which never
 forwards to the Pages site, like `#/pair`), the connected PCs with "This PC" and Remove (a device may only
 "Disconnect this PC"), polled every 5 s while the page is visible, never persisted.
+
+**One address for every PC** (`web/src/localServer/mainPc.ts`, `settings/sections/MainPcCard.tsx`). On a PC without
+Portly, the Pages site would open its in-browser copy, so the user would need the remote origin there and the Pages
+address on the main PC. Instead, in the Pages build's Settings → Devices (browser backend), the user can type the main
+PC's address once; this browser keeps it (`portly:main-pc:<base>` in localStorage: never in the published site, which
+is public, and never set from a link, which could plant a look-alike target; saving confirms with the address spelled
+out). Before anything else in a Pages page load (`main.tsx`, ahead of the hybrid boot), the page forwards with
+`location.replace` to `<address>/<hash>` when an address is saved, this browser holds no pairing record (a paired
+browser is on a PC that runs Portly: the main PC itself, or one with its own install; unpaired, the Pages site never
+probes this PC by itself, so pairing is the signal), the page is not framed and the address has no query (a sign-in
+answer or a pairing return belongs to this page). `?here` keeps one page load here and is taken out of the address:
+the escape hatch when the main PC is off, and the way back to this card. There is no reachability check first: an
+address known only at run time would need `connect-src https:` in the Pages CSP, so an unreachable main PC shows the
+browser's own error page. The address is checked on save and again on read: `https:` only, no credentials, not a
+loopback host, not the Pages origin, kept as an origin. The local server panel, unpaired with nothing found, links to
+the card.
 
 **Setup** (`setup.ps1 -RemoteOrigin <address>`, `off` removes it; or the user variable by hand, then
 `install-autostart.ps1` so the task carries it: `PortlyEnvNames` in `scripts/lib/Common.ps1` lists both variables)

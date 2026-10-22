@@ -1,7 +1,7 @@
 /**
  * Settings → Devices: the setup steps without a remote origin, the requests with Approve and Deny
  * (on Portly's own page on the main PC only), the connected PCs with Remove, and the note on a
- * page load whose data lives in this browser.
+ * page load whose data lives in this browser, with the main PC's address on the Pages site.
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,6 +10,7 @@ import type { DevicesResponse } from '@portly/shared';
 import { DEVICES_POLL_MS } from '../../api/devices.ts';
 import { qk } from '../../api/keys.ts';
 import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
+import { mainPcKey } from '../../localServer/mainPc.ts';
 import { mockError, mockResponse, renderWithProviders } from '../../test/render.tsx';
 import DevicesSettings from './Devices.tsx';
 
@@ -164,5 +165,38 @@ describe('Devices settings', () => {
     const t = renderWithProviders(<DevicesSettings />);
     expect(screen.getByText(/nothing for another PC to connect to here/)).toBeInTheDocument();
     expect(t.requests).toHaveLength(0);
+  });
+
+  it('on the Pages site in this browser, saves the main PC address after confirming, then forgets it', async () => {
+    const user = userEvent.setup();
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    localStorage.removeItem(mainPcKey());
+    renderWithProviders(<DevicesSettings />);
+    const field = screen.getByLabelText('Main PC address');
+
+    await user.type(field, 'http://pc.tailnet.example');
+    await user.click(screen.getByRole('button', { name: 'Use this address' }));
+    expect(await screen.findByText(/Enter the https address/)).toBeInTheDocument();
+    expect(localStorage.getItem(mainPcKey())).toBeNull();
+
+    await user.clear(field);
+    await user.type(field, 'https://pc.tailnet.example/#/settings');
+    await user.click(screen.getByRole('button', { name: 'Use this address' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('https://pc.tailnet.example')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Use this address' }));
+    await waitFor(() => expect(localStorage.getItem(mainPcKey())).toBe('https://pc.tailnet.example'));
+    expect(await screen.findByRole('button', { name: 'Open Portly on the main PC' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Forget this address' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Forget' }));
+    await waitFor(() => expect(localStorage.getItem(mainPcKey())).toBeNull());
+    expect(await screen.findByLabelText('Main PC address')).toBeInTheDocument();
+  });
+
+  it('offers no main PC address on Portly’s own page', () => {
+    setCapabilitiesForTests(capabilitiesFor(false, 'browser'));
+    renderWithProviders(<DevicesSettings />);
+    expect(screen.queryByLabelText('Main PC address')).not.toBeInTheDocument();
   });
 });

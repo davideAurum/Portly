@@ -124,7 +124,9 @@ describe('LocalServerPanel', () => {
     const adds = within(card).getByText('What Portly on this PC adds').parentElement!;
     expect(within(adds).getAllByRole('listitem').map((item) => item.textContent)).toContain('Mail and RSS feed widgets, and ICS calendar subscriptions');
     expect(adds).toHaveTextContent('The copy saved in this browser stays as it is');
-    expect(within(card).queryByRole('link')).not.toBeInTheDocument();
+    // Not paired and nothing found: where to save the main PC's address is the only link.
+    expect(within(card).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['#/settings/devices']);
+    expect(card).toHaveTextContent('Portly runs on another PC?');
     expect(within(card).queryByRole('button', { name: /Disconnect/ })).not.toBeInTheDocument();
     await userEvent.setup().click(within(card).getByRole('button', { name: 'Look for Portly on this PC' }));
     expect(controller.actions.lookForServer).toHaveBeenCalledOnce();

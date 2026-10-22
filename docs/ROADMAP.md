@@ -996,6 +996,7 @@ date and the outcome once a row has been run for real.
 
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
+| The Pages site's main-PC forward on the published Pages address, in the other PC's own Chrome with its device cookie (a local preview of the Pages build in the desktop app's browser pane forwarded to the real main PC and `?here` stayed); the CSP of both builds by hand; `check-scripts.ps1` and `check-release.ps1` (both stop at the Node 24 check on a PC with only Node 26; the change touches no script) | Pages main-PC forward, 2026-10-22 | the next Pages publish | not yet |
 | A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | not yet |
 | The settings dialog's focus change (it keeps looking for the requested field for 10 s and stops once focus has moved inside the dialog), by hand in a browser; only the new tests cover it | 29347b8, 2026-10-19 | 2.4 | not yet |
 | The browser-only build's Outlook.com sign-in on the published Pages address itself: the same sign-in and sync check, the automatic 24-hour renewal and writing an event (the localhost copy passed) | 3b3edd7, 2026-10-19 | 2.1 | not yet |

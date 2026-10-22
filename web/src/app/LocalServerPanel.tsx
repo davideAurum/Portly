@@ -2,7 +2,8 @@
  * The local server panel (Pages build, hybrid mode): where this page load's data comes from, what
  * the local server controller found on this PC, and the next step — look for Portly, check
  * again, pair this browser, open Portly's own page, disconnect this browser or switch now — with
- * how to allow the browser's local network permission and what Portly on this PC adds. It is
+ * how to allow the browser's local network permission and what Portly on this PC adds (with
+ * nothing found and no pairing, also where to save the main PC's address instead). It is
  * the footer indicator's popover (`LocalServerStatus`) and a card in Settings → About.
  *
  * State and actions come from the local server store (`useLocalServer`, `localServerActions`).
@@ -245,6 +246,11 @@ function PanelBody({ state, status, variant, onDisconnect }: PanelBodyProps) {
         <p className={styles.text}>
           To allow it, open this site's settings (the icon to the left of the address), set <strong>Local network access</strong>{' '}
           (called <strong>Apps on device</strong> in some versions) to <strong>Allow</strong>, then check again.
+        </p>
+      ) : null}
+      {!onServer && !state.paired && (status === 'idle' || status === 'absent') ? (
+        <p className={styles.text}>
+          Portly runs on another PC? Save its address in <a href="#/settings/devices">Settings → Devices</a> and this site opens it there.
         </p>
       ) : null}
       {pending !== null ? <p className={styles.text}>{pendingSwitchText(pending)}</p> : null}

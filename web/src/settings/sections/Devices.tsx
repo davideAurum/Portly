@@ -15,7 +15,8 @@
  *
  * The list is polled every few seconds while the page is open, so a request shows up by itself.
  * On a page load whose data lives in this browser (the Pages build's browser backend) there is no
- * server to manage: a note says so.
+ * server to manage: a note says so, and the Pages build adds where this browser can remember the
+ * main PC's address (`MainPcCard`), so the Pages site forwards there on load.
  */
 import { useState, type ReactNode } from 'react';
 import { Check, Laptop, MonitorSmartphone, Trash2, X } from 'lucide-react';
@@ -35,6 +36,7 @@ import { RelativeTime } from '../../ui/RelativeTime.tsx';
 import { FactList, SettingsCard } from '../../ui/Section.tsx';
 import { SkeletonList } from '../../ui/Skeleton.tsx';
 import { toast } from '../../ui/toast.ts';
+import { MainPcCard } from './MainPcCard.tsx';
 import pairStyles from '../../app/PairPage.module.css';
 import styles from '../../styles/settings.module.css';
 
@@ -83,6 +85,7 @@ export default function DevicesSettings() {
             Portly’s own Settings → Devices.
           </p>
         </SettingsCard>
+        {caps.pagesBuild ? <MainPcCard /> : null}
       </div>
     );
   }

@@ -18,6 +18,7 @@ import { queryKeysForSlices } from './app/staticStatus.ts';
 import { setRemoteClient, type Backend } from './capabilities.ts';
 import { recordClientEvent } from './diagnostics/clientLog.ts';
 import { HYBRID_ENABLED } from './localServer/config.ts';
+import { mainPcRedirect } from './localServer/mainPc.ts';
 import { isFramed } from './localServer/page.ts';
 import { browserLocalStorage, browserSessionStorage, consumePairingReturn, createPairingStore, type PairingReturnResult } from './localServer/pairing.ts';
 import { applyPersistedTheme, firstPaintSnapshot } from './theme/persistedTheme.ts';
@@ -238,6 +239,13 @@ async function start(): Promise<void> {
     offlineFallback = forward === 'offline';
   }
   if (__PORTLY_STATIC__) {
+    // One address for every PC: a browser with no Portly of its own that remembers the main PC's
+    // address goes there (`?here` stays), before anything opens this browser's copy.
+    const mainPc = mainPcRedirect({ location: window.location, history: window.history, storage: browserLocalStorage(), framed: isFramed() });
+    if (mainPc !== null) {
+      window.location.replace(mainPc);
+      return;
+    }
     // Before the first dynamic import, which is itself a chunk that may be gone after a deploy.
     reloadOnMissingChunks();
     // A page load that will stay on this browser's copy (hybrid mode off, framed, or the hints say

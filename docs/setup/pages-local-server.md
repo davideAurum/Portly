@@ -26,6 +26,9 @@ the copy it keeps in this browser. This is called *hybrid mode*.
   [Using Portly from your other PCs](other-pcs.md)), to show its diagnostics
   (`#/settings/diagnostics`, see [Finding out why](#finding-out-why)), or when the Pages site
   can't be reached (offline), when it serves the copy on this PC and says so.
+- **Other PCs.** On a PC without Portly, the Pages site can open Portly on your main PC instead
+  of the copy in the browser: save the main PC's address once in Settings → Devices there
+  ([One address on every PC](other-pcs.md#one-address-on-every-pc)).
 
 You need: Portly installed and running on this PC ([setup](../SETUP.md), ideally with
 [autostart](autostart.md)), a published Pages site ([static-build.md](static-build.md)) and Chrome
