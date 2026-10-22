@@ -1,9 +1,11 @@
 # Design: using Portly from several PCs, with a login
 
-**Status:** being built as [Track B of the ROADMAP](../ROADMAP.md#track-b-multi-pc), beside the
-phases, on the owner's go of 2026-10-21 (decision D10 asked for one). Phase 1 (the server) is
-built; phases 2 and 3 follow; the "later" items stay later. The server stays on loopback only
-(ARCHITECTURE section 4) throughout: with no `PORTLY_REMOTE_ORIGIN` it behaves exactly as before.
+**Status:** built as [Track B of the ROADMAP](../ROADMAP.md#track-b-multi-pc), beside the phases,
+on the owner's go of 2026-10-21 (decision D10 asked for one): phases 1 to 3 (server, web, docs and
+scripts) are on main or on their way there; ARCHITECTURE section 20 is now the binding text, this
+document the design and its history; the "later" items (phase 4) stay later, and the real check
+with a second PC is B.5. The server stays on loopback only (ARCHITECTURE section 4) throughout:
+with no `PORTLY_REMOTE_ORIGIN` it behaves exactly as before.
 
 **Main idea:** the server still listens only on `127.0.0.1` and `::1`. Other PCs reach it through
 an HTTPS reverse proxy running on the main PC, such as Tailscale Serve. Each PC must be approved

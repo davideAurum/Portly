@@ -130,6 +130,13 @@ Portly, and new tabs then open that site (the extension follows Portly on this P
 new tabs open Portly itself at `http://localhost:5757`. `-PagesUrl off` turns the Pages site off
 again.
 
+To use this Portly from your other PCs ([Using Portly from your other PCs](setup/other-pcs.md)),
+first run `tailscale serve --bg 5758` on this PC (it prints the address, like
+`https://<pc>.<tailnet>.ts.net`), then add `-RemoteOrigin <that address>`: setup saves it as
+`PORTLY_REMOTE_ORIGIN` before it starts Portly, which then also listens for the proxy on the port
+after its own (`5758`). Approve each PC once in **Settings → Devices**. `-RemoteOrigin off` turns
+it off again (and removes `PORTLY_REMOTE_PORT`).
+
 Accounts are not copied: the vault is encrypted for this PC's Windows user, so connect them again;
 move layout and settings with **Settings → Import & export**.
 
@@ -301,7 +308,8 @@ the same version.
    delete the Google Cloud project / Entra app registration if you no longer need them.
 4. Delete `%LOCALAPPDATA%\Portly` and the Portly folder (in a release install,
    `%LOCALAPPDATA%\Programs\Portly`). Remove any `PORTLY_*` user environment variables you set,
-   such as `PORTLY_PAGES_URL`.
+   such as `PORTLY_PAGES_URL` or `PORTLY_REMOTE_ORIGIN` (and stop the reverse proxy you ran for
+   your other PCs).
 
 ## More
 

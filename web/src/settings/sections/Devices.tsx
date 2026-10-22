@@ -55,13 +55,11 @@ export function RemoteSetupSteps() {
           (for example <code className={pairStyles.code}>tailscale serve --bg 5758</code>).
         </li>
         <li>
-          Set the Windows user environment variable <code className={pairStyles.code}>PORTLY_REMOTE_ORIGIN</code> to the address the proxy
-          gives you, for example <code className={pairStyles.code}>https://&lt;pc&gt;.&lt;tailnet&gt;.ts.net</code>.
-        </li>
-        <li>
-          Re-run <code className={pairStyles.code}>scripts/install-autostart.ps1</code> from your Portly folder (add{' '}
-          <code className={pairStyles.code}>-Trigger Logon</code> if you use Logon mode), or sign out of Windows and back in, so Portly starts
-          with it.
+          From your Portly folder run <code className={pairStyles.code}>scripts\setup.ps1 -RemoteOrigin &lt;address&gt;</code> with the
+          address the proxy gives you, for example <code className={pairStyles.code}>https://&lt;pc&gt;.&lt;tailnet&gt;.ts.net</code> (add{' '}
+          <code className={pairStyles.code}>-Trigger Logon</code> if you use Logon mode). It saves <code className={pairStyles.code}>PORTLY_REMOTE_ORIGIN</code>{' '}
+          and restarts Portly with it. Setting the variable by hand and re-running{' '}
+          <code className={pairStyles.code}>scripts\install-autostart.ps1</code> does the same.
         </li>
         <li>On the other PC, open that address and choose a name; then approve the request here.</li>
       </ol>
