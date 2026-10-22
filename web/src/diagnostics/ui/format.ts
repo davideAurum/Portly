@@ -7,7 +7,7 @@
 import type { DiagnosticArea, LogLevelState } from '@portly/shared';
 import { isApiError } from '../../api/client.ts';
 import { LOCAL_SERVER_ORIGIN } from '../../localServer/config.ts';
-import { DEFAULT_LOCAL_SERVER_ORIGIN } from '../../localServer/origin.ts';
+import { localServerPageUrl } from '../../localServer/origin.ts';
 import type { LocalServerState } from '../../localServer/types.ts';
 
 /** DEL and C1 controls, line/paragraph separators and bidi controls: `JSON.stringify` leaves them raw. */
@@ -117,7 +117,7 @@ export function diagnosticsUnavailable(error: unknown): boolean {
 
 /** The diagnostics page of Portly on this PC, which always stays there (see `app/pagesForward.ts`). */
 export function localDiagnosticsUrl(origin: string = LOCAL_SERVER_ORIGIN): string {
-  return `${origin === '' ? DEFAULT_LOCAL_SERVER_ORIGIN : origin.replace(/\/+$/, '')}/#/settings/diagnostics`;
+  return localServerPageUrl('settings/diagnostics', origin);
 }
 
 /**

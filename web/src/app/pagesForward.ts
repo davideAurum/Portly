@@ -5,6 +5,8 @@
  *
  * It stays here:
  * - on `#/pair`, where a browser on the Pages site is approved (the trust starts on this page);
+ * - on `#/settings/devices`, where another PC is approved, for the same reason: the Pages site may
+ *   not approve one, and on a PC with a Pages site this is the only way to reach that section;
  * - on `#/settings/diagnostics`, so that Portly's full diagnostics on this PC can always be
  *   opened here (the Pages site links to it), even when the Pages site or its connection to this
  *   server is what is broken;
@@ -53,10 +55,10 @@ function usablePagesUrl(raw: string | null): string | null {
   return url.href;
 }
 
-/** Routes that always stay on this page: pairing approval and the diagnostics page. */
+/** Routes that always stay on this page: pairing approval, the devices section and the diagnostics page. */
 function staysHere(hash: string): boolean {
   const route = parseHash(hash);
-  return route.name === 'pair' || (route.name === 'settings' && route.section === 'diagnostics');
+  return route.name === 'pair' || (route.name === 'settings' && (route.section === 'diagnostics' || route.section === 'devices'));
 }
 
 export async function forwardToPages(deps: PagesForwardDeps): Promise<PagesForwardResult> {

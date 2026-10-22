@@ -64,8 +64,11 @@ Without `PORTLY_REMOTE_ORIGIN`, Portly behaves exactly as before: one PC, loopba
 2. Give the PC a name and choose **Ask to connect**. The screen shows a code such as `K7Q-4MP`.
    With Tailscale Serve the name is filled in for you (the PC's computer name, which Tailscale on
    the main PC knows); change it if you like.
-3. On the main PC, open Settings → Devices, check that the request shows the same name and code,
-   and choose **Approve**. Choose **Deny** for a request you did not make.
+3. On the main PC, open Settings → Devices on Portly's own page
+   (`http://localhost:5757/#/settings/devices`; it stays there even when Portly forwards to a
+   Pages site, which may not approve other PCs and links to it instead), check that the request
+   shows the same name and code, and choose **Approve**. Choose **Deny** for a request you did
+   not make.
 4. The other PC's page loads Portly by itself. A request not answered within 10 minutes expires;
    ask again.
 

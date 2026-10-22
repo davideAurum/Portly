@@ -10,6 +10,15 @@ export const DEFAULT_LOCAL_SERVER_ORIGIN = 'http://127.0.0.1:5757';
 /** `PORTLY_STATIC_SERVER` value that turns hybrid mode off. */
 export const LOCAL_SERVER_OFF = 'off';
 
+/**
+ * A page of Portly's own site on this PC (`<origin>/#/<route>`), for the routes that never forward
+ * to the Pages site (`app/pagesForward.ts`: pairing, diagnostics, devices). An empty origin means
+ * the default one.
+ */
+export function localServerPageUrl(route: string, origin: string): string {
+  return `${origin === '' ? DEFAULT_LOCAL_SERVER_ORIGIN : origin.replace(/\/+$/, '')}/#/${route}`;
+}
+
 /** `<label>.localhost` as `URL.hostname` spells it (lowercase, punycode). */
 const LOCALHOST_SUBDOMAIN = /^(?:[a-z0-9-]+\.)+localhost$/;
 

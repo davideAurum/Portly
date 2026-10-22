@@ -22,9 +22,10 @@ the copy it keeps in this browser. This is called *hybrid mode*.
   with.
 - **One page.** Everything is done on the Pages site, account sign-in and OAuth client setup
   included. `http://localhost:5757` forwards to the Pages site; it only stays put to approve a
-  pairing, to show its diagnostics (`#/settings/diagnostics`, see
-  [Finding out why](#finding-out-why)), or when the Pages site can't be reached (offline), when it
-  serves the copy on this PC and says so.
+  pairing, to approve your other PCs (`#/settings/devices`, see
+  [Using Portly from your other PCs](other-pcs.md)), to show its diagnostics
+  (`#/settings/diagnostics`, see [Finding out why](#finding-out-why)), or when the Pages site
+  can't be reached (offline), when it serves the copy on this PC and says so.
 
 You need: Portly installed and running on this PC ([setup](../SETUP.md), ideally with
 [autostart](autostart.md)), a published Pages site ([static-build.md](static-build.md)) and Chrome

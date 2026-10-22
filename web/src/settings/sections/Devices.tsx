@@ -22,6 +22,8 @@ import { Check, Laptop, MonitorSmartphone, Trash2, X } from 'lucide-react';
 import type { DeviceRequestSummary, DeviceSummary } from '@portly/shared';
 import { useApproveDevice, useDenyDevice, useDevices, useDisconnectDevice, useRevokeDevice } from '../../api/devices.ts';
 import { getCapabilities } from '../../capabilities.ts';
+import { LOCAL_SERVER_ORIGIN } from '../../localServer/config.ts';
+import { localServerPageUrl } from '../../localServer/origin.ts';
 import { Badge } from '../../ui/Badge.tsx';
 import { Banner } from '../../ui/Banner.tsx';
 import { Button } from '../../ui/Button.tsx';
@@ -142,9 +144,16 @@ function DevicesOnServer() {
           </ul>
         )}
         {!canDecide && data.requests.length > 0 ? (
-          <Banner tone="info" title="Approve on the main PC">
-            Open Portly’s own page on the main PC (Settings → Devices) to approve or deny these requests.
-          </Banner>
+          caps.remoteServer ? (
+            <Banner tone="info" title="Approve on Portly’s own page">
+              This site may not approve other PCs. Open Portly’s own page on this PC, which keeps its Devices section even when it forwards to
+              this site: <ExternalLink href={localServerPageUrl('settings/devices', LOCAL_SERVER_ORIGIN)}>Settings → Devices on this PC</ExternalLink>.
+            </Banner>
+          ) : (
+            <Banner tone="info" title="Approve on the main PC">
+              Open Portly’s own page on the main PC (Settings → Devices) to approve or deny these requests.
+            </Banner>
+          )
         ) : null}
       </SettingsCard>
 

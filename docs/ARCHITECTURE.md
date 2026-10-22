@@ -1491,8 +1491,10 @@ like the server's own page; otherwise it uses its in-browser copy. The two datas
 happens once, on the server's own page. Everything else, account sign-in, OAuth client setup and the vault reset
 included, happens on the Pages site: there is one page. The server's own page forwards to the Pages site (keeping the
 query and hash, so the OAuth callback's `?oauth=` result arrives there) unless it is approving a pairing (`#/pair`),
-showing diagnostics (`#/settings/diagnostics`, §17: full diagnostics on this PC must open even when the Pages site or
-the connection to it is what is broken) or the Pages site can't be reached, when it serves the app as the offline
+approving other PCs (`#/settings/devices`, §20: the Pages site may not, and on a PC with a Pages site this is the only
+way to that section; the site links to it), showing diagnostics (`#/settings/diagnostics`, §17: full diagnostics on
+this PC must open even when the Pages site or the connection to it is what is broken) or the Pages site can't be
+reached, when it serves the app as the offline
 fallback (`web/src/app/pagesForward.ts`; the HTML CSP's `connect-src` allows the Pages origin for that check). User
 guide: `docs/setup/pages-local-server.md`.
 
@@ -2091,8 +2093,9 @@ approved → reload; denied, expired or gone → ask again; Retry when unreachab
 approval page give way to a line saying "on the main PC"; the browser bookmark import, the paired-browsers card, the
 app registrations and the report download are simply not shown; About says the data lives on the main PC. The Pages forward never takes
 a remote page load. Settings → Devices (every build; the browser backend shows a note): the address for other PCs or
-the setup steps, the requests waiting with Approve and Deny on Portly's own page on the main PC only (the paired Pages
-site and a device see the list and a note), the connected PCs with "This PC" and Remove (a device may only
+the setup steps, the requests waiting with Approve and Deny on Portly's own page on the main PC only (a device sees the
+list and a note; the paired Pages site sees the list and a link to Portly's own page's Devices section, which never
+forwards to the Pages site, like `#/pair`), the connected PCs with "This PC" and Remove (a device may only
 "Disconnect this PC"), polled every 5 s while the page is visible, never persisted.
 
 **Setup** (`setup.ps1 -RemoteOrigin <address>`, `off` removes it; or the user variable by hand, then

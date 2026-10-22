@@ -255,6 +255,15 @@ Serve address in front of it. Through the Serve address `/api/health` answers wi
 and the app page loads; a forwarding header on the main port is refused (`proxied_local_host`).
 `status.ps1` showed nothing about it, so its Settings section gained an "Other PCs" line.
 
+**The first real approve (2026-10-21).** The second PC's first request to the installed Portly
+could not be approved from the main PC's page: with a Pages site set, that page is the Pages site
+(hybrid mode), which may not approve other PCs by design, and Portly's own page forwarded
+`#/settings/devices` to the Pages site, so the section was unreachable. The request was approved
+through the local API for the owner, and the second PC connected to the real install. Fixed the
+way pairing already was: `#/settings/devices` never forwards (`pagesForward.ts`), and the Pages
+site's note links to it (`localServerPageUrl`). Not seen in B.4 or B.5, which approved through the
+API and ran against a scratch server without a Pages site.
+
 **Still open:** the later items of phase 4.
 
 ## The name the connect screen fills in (2026-10-21)

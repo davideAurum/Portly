@@ -150,11 +150,13 @@ describe('Devices settings', () => {
     await waitFor(() => expect(reload).toHaveBeenCalled());
   });
 
-  it('on the paired Pages site lists everything but leaves approving to Portly’s own page', async () => {
+  it('on the paired Pages site lists everything but leaves approving to Portly’s own page, and links to it', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     renderWithProviders(<DevicesSettings />, { apiMocks: { 'GET /api/devices': () => devices() } });
     expect(await screen.findByText('Tablet')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approve Tablet' })).not.toBeInTheDocument();
+    expect(screen.getByText('Approve on Portly’s own page')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Settings → Devices on this PC/ })).toHaveAttribute('href', expect.stringMatching(/^http:\/\/(127\.0\.0\.1|localhost):\d+\/#\/settings\/devices$/));
   });
 
   it('on a page whose data lives in this browser only says where to set other PCs up', () => {
