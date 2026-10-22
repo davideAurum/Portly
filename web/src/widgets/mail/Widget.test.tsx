@@ -127,7 +127,10 @@ describe('MailWidget: no mail account (PERF-2)', () => {
   it('knows from the (persisted) account list that there is nothing to load: no summary request, no 409', async () => {
     const calendarOnly = [account({ id: 'c1', kind: 'caldav', label: 'Calendar only', capabilities: ['calendar'], enabledCapabilities: ['calendar'] })];
     const queryClient = createTestQueryClient();
-    queryClient.setQueryData(qk.accounts(), calendarOnly);
+    // Stamped with the test's clock: renderMail fakes Date to NOW, and data stamped with the real
+    // clock would look weeks younger than "now", so the stale timer would be armed for weeks
+    // (a TimeoutOverflowWarning, which the web test setup turns into a failure).
+    queryClient.setQueryData(qk.accounts(), calendarOnly, { updatedAt: NOW });
     const { requestsTo } = renderMail([GMAIL], { mocks: { 'GET /api/accounts': calendarOnly }, queryClient });
     expect(await screen.findByText('Connect your mail')).toBeInTheDocument();
     expect(requestsTo('GET /api/mail/summary')).toHaveLength(0);

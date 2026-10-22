@@ -5,8 +5,9 @@
 
 .DESCRIPTION
     1. Refuses to run from a worktree under .claude\worktrees (those are deleted when their
-       session ends) and shows the branch and commit being deployed, warning about uncommitted
-       changes (they would be deployed too).
+       session ends) and shows the branch and commit being deployed. Uncommitted changes are
+       refused too, so what is built and published is always a commit; -AllowDirty builds and
+       publishes them as they are (with a warning). A branch other than main is only a warning.
     2. Installs dependencies (npm ci) when package-lock.json is newer than node_modules. The
        server is stopped first, since it runs from node_modules.
     3. Builds web\dist (npm run build), the page served at http://localhost:<port>.
@@ -27,8 +28,13 @@
 .PARAMETER SkipServer
     Do not restart the server (the new page is still served: web\dist is read from disk).
 
+.PARAMETER AllowDirty
+    Build and publish uncommitted changes too (by default they are refused). `portly --update
+    --allow-dirty` in a checkout.
+
 .PARAMETER DryRun
     Print what would run and change nothing (the publish step runs publish-static.ps1 -DryRun).
+    Refuses what a real run refuses (a worktree, uncommitted changes without -AllowDirty).
 
 .PARAMETER TimeoutSeconds
     How long to wait for the restarted server to answer (default 60).
@@ -42,6 +48,7 @@ param(
     [string]$PublicRepoPath,
     [switch]$SkipPublish,
     [switch]$SkipServer,
+    [switch]$AllowDirty,
     [switch]$DryRun,
     [ValidateRange(5, 600)][int]$TimeoutSeconds = 60
 )
@@ -138,9 +145,17 @@ function Invoke-Update {
     if ($null -ne $branch -and ($branch -join '') -ne 'main') {
         Write-Warning "The checked-out branch is '$($branch -join '')', not main."
     }
+    # Uncommitted changes (modified or untracked files) would be built and published as if they
+    # were the commit shown above: refused unless asked for.
     $dirty = Invoke-UpdateGit -RepoRoot $repoRoot -Arguments @('status', '--porcelain')
-    if ($null -ne $dirty -and @($dirty | Where-Object { $_ }).Count -gt 0) {
-        Write-Warning 'There are uncommitted changes in this checkout; they will be built and published too.'
+    $dirtyCount = 0
+    if ($null -ne $dirty) { $dirtyCount = @($dirty | Where-Object { "$_".Trim() }).Count }
+    if ($dirtyCount -gt 0) {
+        if (-not $AllowDirty) {
+            throw ("This checkout has $dirtyCount uncommitted change(s) (git status). Commit or discard them first, so that what is built and " +
+                'published is a commit; or re-run with -AllowDirty (portly --update --allow-dirty) to build and publish them as they are.')
+        }
+        Write-Warning "Building and publishing $dirtyCount uncommitted change(s) as they are (-AllowDirty)."
     }
 
     $port = (Get-HbPortSetting -Scope Task).Port

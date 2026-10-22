@@ -97,8 +97,9 @@ Homebase's own folders are left as they were, so you can go back until you delet
 
 ### One-command setup on a new PC
 
-`scripts\setup.ps1` does everything below that a script can do: installs Git and Node.js with
-winget when they are missing, clones Portly into `%USERPROFILE%\Coding\Portly`, installs and
+`scripts\setup.ps1` does everything below that a script can do: installs Git and Node.js 24 with
+winget when they are missing (and stops if another Node.js major is installed, since Portly runs
+on 24 only), clones Portly into `%USERPROFILE%\Coding\Portly`, installs and
 builds, turns on autostart, installs the `portly` command, and opens the browser's extensions page
 for the one manual step (Load unpacked → the `extension` folder). On a PC without the code, in
 PowerShell:
@@ -270,7 +271,13 @@ bookmarks (never accounts or credentials) to move them to another PC.
 
 A release install: `portly --update` (see [Install](#install)).
 
-From the source code:
+From the source code, in one go: after `git pull`, `portly --rebuild` (`portly --update` does the
+same in a checkout) runs `scripts\update.ps1`: `npm ci` when the lockfile changed, the build, a
+restart of the server if it was running, and the Pages publish when `PORTLY_PAGES_REPO` is set.
+It refuses a checkout with uncommitted changes, so what it builds and publishes is always a
+commit; `--allow-dirty` builds and publishes them as they are, and `--dry-run` shows the plan.
+
+Or by hand:
 
 ```powershell
 git pull
@@ -286,7 +293,10 @@ Portly (Ctrl+C) and start it again instead of running the last line.
 Then click **Reload** on the extension in `chrome://extensions` / `edge://extensions`. If you use
 the Pages site, publish it again too (`scripts\publish-static.ps1`, see
 [static-build.md](setup/static-build.md#publish-to-github-pages)) so the site and Portly stay on
-the same version.
+the same version. The script fetches your Pages clone first and fast-forwards it when another PC
+published meanwhile; a clone that has diverged (commits of its own and commits on the origin it
+lacks) is refused with the exact commands to merge it. GitHub Pages can serve the previous page
+for up to 10 minutes after a publish, so hard-refresh (Ctrl+F5) before judging it.
 
 ## Uninstalling
 

@@ -4,9 +4,9 @@
 #
 # It runs on Windows because Portly does: the vault uses DPAPI, autostart uses Task Scheduler,
 # and the native host tests run launcher.cmd through cmd.exe exactly as Chrome does. Windows
-# runners bill private-repository minutes at twice the Linux rate, so it runs on pushes to main
-# and on pull requests only (not on every branch push), and a newer run of the same branch or pull
-# request cancels the older one.
+# runners bill private-repository minutes at twice the Linux rate, so it runs on pushes to main,
+# on pull requests and when started by hand (workflow_dispatch), not on every branch push, and a
+# newer run of the same branch or pull request cancels the older one.
 #
 # Actions are pinned to full commit SHAs with their version as a comment (scripts\check-scripts.ps1
 # checks this); see static-pages.yml for how to upgrade one.
