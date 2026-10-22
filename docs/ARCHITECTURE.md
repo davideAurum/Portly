@@ -290,7 +290,10 @@ reported `appUrl` is only used when it is a loopback root page, and the server's
 the wrong server, not authentication — the token is.
 
 ### 4.2 Request gate (global middleware, `app.use('*', …)`, in this order)
-1. Reject (400) if the raw request path contains `//`, `\`, `%2f`, `%5c` (case-insensitive) or dot segments.
+1. Reject (400) if the raw request path (the target as received, query and fragment cut off; an absolute-form target
+   is reduced to its path) does not start with `/`, or contains `//`, `\`, `%2f`, `%5c` (case-insensitive), `%00` or
+   a raw control byte (0x00–0x1f, 0x7f), or a segment that is `.` or `..` once `%2e` is decoded (`%2e`, `%2e%2e`,
+   `.%2e`, `%2e.`, in any case). `rawPathProblem` in `server/src/security/gate.ts`; the query string is not inspected.
 2. **Host allowlist** (derived from config): `localhost:PORT`, `127.0.0.1:PORT`, `[::1]:PORT`, origin host;
    dev adds `localhost:VITE_PORT`. Otherwise 403.
 3. `/api/*` routes are **non-exempt by default**. Exemptions are declared as metadata when the route is
@@ -1029,14 +1032,26 @@ buttons, drag handle in edit mode) and sets `container-type: inline-size` on the
 All types allow multiple instances.
 
 ### 10.4 UI kit (`web/src/ui/`)
-Button (primary|secondary|ghost|danger; sm|md; loading), IconButton (required aria-label), Input, TextArea, Select,
-Checkbox, Switch, SegmentedControl, Field (label/help/error), Dialog + ConfirmDialog, Popover, Menu, Tooltip, Tabs,
-toast (sonner; supports Undo action), ColorPicker (12 swatches + native color input + hex field), ImageUpload (optional
-`prepare` step that turns the chosen file into the one uploaded),
-Spinner, Skeleton, EmptyState {icon | media, title, body, action}, BrandMark / BrandLockup (the Beacon lighthouse,
-full drawing at 48 px and up), ErrorState (maps ApiError codes: `reauth_required` →
-ReconnectButton, `not_configured` → "Set up" link, else Retry), Badge, LetterTile, ExternalLink, RelativeTime, Kbd,
-plus `ui/accounts/{AccountPicker, AccountBadge, ReconnectButton}`.
+As `web/src/ui/index.ts` exports it: Button (primary|secondary|ghost|danger; sm|md; loading), IconButton (required
+aria-label), Input, PasswordInput (show/hide toggle, never autofilled from saved logins), TextArea, Select, Checkbox,
+Switch, SegmentedControl, Slider (native range input with a value readout), Field (label/help/error; `useField` and
+`useFieldControlProps` wire a control to it), FieldGroup (fieldset + legend), Dialog + ConfirmDialog + DialogClose,
+Popover (+ Trigger, Content, Anchor, Close), Menu (+ Trigger, Content, Item, CheckboxItem, RadioGroup, RadioItem,
+Group, Label, Separator, Sub, SubTrigger, SubContent), Tooltip, Tabs (+ List, Trigger, Content), toast (sonner;
+`toastError`, `toastUndo` with an Undo action, `errorMessage`), ColorPicker + ColorPickerPopover (12 swatches + native
+color input + hex field; `normalizeHexInput`), ImageUpload (optional `prepare` step that turns the chosen file into
+the one uploaded), Spinner, Skeleton + SkeletonLines + SkeletonList, EmptyState {icon | media, title, body, action},
+BrandMark / BrandLockup (the Beacon lighthouse, full drawing at 48 px and up), ErrorState (maps ApiError codes:
+`reauth_required` → ReconnectButton, `not_configured` → "Set up" link, `network_error` → what an unreachable backend
+means for this page load, else Retry), StaleIndicator ("Updated N min ago" with a warning when a refetch failed but
+cached data is still shown), QueryView (renders a TanStack query: skeleton on first load, ErrorState when there is no
+data, an optional empty state, otherwise the children), ErrorBoundary (fallback with a reset callback; records the
+error as a client event), Badge, Kbd, LetterTile, ExternalLink, RelativeTime, Banner (info / warning / danger /
+success notice with actions), CopyField (read-only value with a Copy button), the `Section.tsx` set for settings
+pages (SettingsCard, FormFooter, FieldGrid, FactList), plus `ui/accounts/{AccountPicker, AccountBadge + accountColor,
+ReconnectButton}` and the account constants `ACCOUNT_KIND_LABELS`, `CAPABILITY_LABELS`, `CAPABILITY_ICONS`.
+ServerOnlyNotice (`ui/ServerOnlyNotice.tsx`, imported from its file, not from the index) is what a server-only
+feature shows on a page whose data lives in the browser (§16).
 Tokens (`web/src/styles/tokens.css`, light + dark): `--hb-bg, --hb-surface, --hb-surface-2, --hb-text, --hb-text-muted,
 --hb-border, --hb-accent, --hb-accent-contrast, --hb-danger, --hb-warning, --hb-success, --hb-focus,
 --hb-radius-{sm,md,lg}, --hb-space-{1..6}, --hb-font-sans, --hb-font-mono, --hb-text-{xs,sm,md,lg,xl},
@@ -1091,7 +1106,9 @@ rendering: background uploads).
 ### 10.6 Hotkeys & focus
 `useHotkey` ignores events from input/textarea/select/contenteditable. `/` focus search; `e` toggle edit mode;
 `Esc` close dialog / exit edit mode; `?` shortcut help. When loaded with `?src=newtab` or directly, the (first) search
-widget with `autofocus` focuses its input.
+widget with `autofocus` focuses its input. On a focused launch pad tile, `Shift+F10` or the context-menu key opens
+its menu (handled by the tile, `ViewTile` in `widgets/launchpad/Widget.tsx`); the help dialog, and the About page's
+copy of the same list, show it under "On a launch pad tile", after the page-wide keys and the search box keys.
 
 ### 10.7 Widget definition of done (every widget)
 1. Not-configured state with a CTA deep link (e.g. `#/settings/accounts?focus=todoist`, `#/settings/accounts`; weather "Set location" opens widget settings).
@@ -1113,8 +1130,15 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   opted in, §16); ↑/↓ navigate, Enter
   current tab, Ctrl/Shift+Enter new tab. Config `{engineIds: 'all'|string[], showEngineSwitcher, autofocus,
   placeholder}`.
-- **Launch pad** — config `{groupIds: 'all'|string[], iconSize: 's'|'m'|'l', showLabels, columns: 'auto'|number,
-  style: 'tiles'|'list'}`. Add/edit dialog: URL → debounced `/api/site-meta` fills title/icon; icon modes auto | upload |
+- **Launch pad** — config (`launchpadConfigSchema` in `web/src/widgets/launchpad/index.ts`, fourteen fields)
+  `{groupIds: 'all'|string[] (≤ 200), iconSize: 's'|'m'|'l', showLabels, columns: 'auto'|1–12, style: 'tiles'|'list',
+  groupLayout: 'stack'|'columns' (groups one under another, or side by side in a grid of group columns),
+  groupColumns: 'auto'|1–6, groupSpans: {[groupId]: 1–6} (how many group columns a group spans; fixed `groupColumns`
+  only, missing = 1), showGroupHeaders (name, color, count, collapse; when more than one group is shown), listTitle,
+  listDetail: 'none'|'domain'|'url', listDetailPlacement: 'inline'|'below', listIcons, listDensity:
+  'compact'|'normal'|'roomy'}` (the `list*` fields apply to the list style). Defaults: `all`, `m`, on, `auto`, `tiles`,
+  `stack`, `auto`, `{}`, on, on, `domain`, `inline`, on, `normal`.
+  Add/edit dialog: URL → debounced `/api/site-meta` fills title/icon; icon modes auto | upload |
   letter (+ color). Group CRUD with color and collapse. Reorder within/across groups with @dnd-kit (pointer + keyboard)
   **in edit mode** via `POST /api/bookmarks/:id/move` (the edit board and the dialogs are separate chunks, preloaded
   when the browser is idle, so the view chunk carries no @dnd-kit). Empty state links to import (`#/settings/bookmarks`).
@@ -1337,9 +1361,9 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
 
 - `npm run typecheck`, `npm test`, `npm run build` must pass. No live network in tests. No secrets in the repo.
   `.github/workflows/ci.yml` runs them, `npm run build:static`, `scripts/check-scripts.ps1` and
-  `scripts/check-release.ps1` (a test package) on `windows-latest` for every push to `main` and every pull request
-  (Windows because DPAPI, Task Scheduler and the `launcher.cmd` tests need it; not on other branch pushes, to spare
-  private-repository minutes).
+  `scripts/check-release.ps1` (a test package) on `windows-latest` for every push to `main`, every pull request and
+  on request (`workflow_dispatch`, from the Actions tab) (Windows because DPAPI, Task Scheduler and the `launcher.cmd`
+  tests need it; not on other branch pushes, to spare private-repository minutes).
 - Test harness: `server/src/testing/test-context.ts` — `createTestContext(overrides?)` → AppContext with `:memory:`
   DB (migrations applied), in-memory vault (fixed key, no DPAPI), fake fetch, `FakeAccountService` (canned tokens and
   secrets), manual scheduler (`runDue()`), a test logger (`createTestLogger()`: rings and `lines()`, no file or
@@ -1356,8 +1380,11 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   round-trip + locked states (corrupted key, missing key with secrets), migrations, settings merge-patch incl.
   prototype-pollution payloads (`({}).polluted === undefined` afterwards), safe-fetch (lookup returning public then
   private, IPv4-mapped IPv6, decimal/octal literals, 302 → 127.0.0.1, gzip bomb), OAuth state/PKCE/consume/upsert,
-  favicon HTML parsing, ICS parse/expand incl. RECURRENCE-ID overrides, Windows TZIDs, FREQ=SECONDLY and 100k-VEVENT
-  limits, provider response mappers (fixtures), IMAP id/UIDVALIDITY handling, Todoist mapping.
+  favicon HTML parsing, ICS parse/expand incl. RECURRENCE-ID overrides, Windows TZIDs, FREQ=SECONDLY, the feed cap
+  (`maxVevents` 5,000 in `ical/expand.ts`: 5,001 and 100,000 VEVENTs fail the job) and the events-cache cap
+  (`MAX_STORED_EVENTS` 100,000 rows / `MAX_STORED_EVENT_CHARS` 64 × 1024 × 1024 characters of text in
+  `calendar/store.ts`, recorded as `STORAGE_LIMIT_ERROR`), provider response mappers (fixtures), IMAP id/UIDVALIDITY
+  handling, Todoist mapping.
 - The production build runs without CSP violations.
 
 ---

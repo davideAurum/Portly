@@ -34,6 +34,16 @@ not in the first-run layout (it needs the Outlook.com setup first): add it from 
 layout fills the page without gaps: the search box and clock on top, the launch pad with Todoist
 below it, and the weather, with its 7-day forecast, down the right-hand side.
 
+## Browsers
+
+The alpha supports Chromium browsers: **Chrome** and **Edge**. Firefox is checked by hand at most
+(a smoke run: the page loads and its widgets work), never with the full test pass, and even that
+run is still to come, so it is not supported yet. Safari is not supported: it deletes a site's
+script-written storage after seven days without a visit (see
+[Where your data lives](#where-your-data-lives)), which would take your settings and bookmarks
+with it. The server build's new-tab extension is for Chrome and Edge as well
+([README](../../README.md#requirements)).
+
 ## Where your data lives
 
 - **In this browser, on this device.** Settings, layouts, bookmarks, uploaded images, the

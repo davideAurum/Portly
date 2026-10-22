@@ -34,10 +34,9 @@ account on a localhost copy (ROADMAP item 2.1 repeats it on the published addres
 - Changes arrive when a page loads or gets focus, and while it stays open. There is no
   background job: a browser with no Portly tab open does nothing.
 
-The Accounts page is being redesigned in another session: connected accounts at the top, then
-"Add a connection" with a tile per provider, and a dialog per tile where the user picks the
-services to use. That redesign is out of scope here. Sections 3 and 10 say what sync needs from
-it.
+The Accounts page shipped in this shape on 2026-10-19 (commit 9cce15e): connected accounts at the
+top, then "Add a connection" with a tile per provider, and a dialog per tile where the user picks
+the services to use before signing in. Sections 3 and 10 say what sync adds to it.
 
 ## 2. Where the data lives in OneDrive
 
@@ -101,14 +100,15 @@ in OneDrive. `Files.ReadWrite` (the whole drive) is not needed and is not reques
 - **Unticking the service** stops sync in this browser. It keeps the local data and the file,
   and it doesn't withdraw the consent: the docs will explain how to do that at
   <https://account.live.com/consent/Manage>. Removing the connection unticks it.
-- **What sync needs from the Accounts redesign:**
+- **What sync needs from the Accounts page:**
   - a service id (`launchpadSync`) with its scope, in the service list of Microsoft connections;
   - a per-connection on/off, stored in this browser;
   - room on the connection's card for the service's status line (section 10).
 
-  Whether services are stored in the existing `capabilities`/`enabledCapabilities` fields (a new
-  shared `Capability` value) or in a new list is the redesign's decision. Sync's own state stays
-  in its slice (section 2).
+  The shipped page lists a provider's services as capabilities (`OAUTH_PROVIDER_CAPABILITIES` in
+  `shared/src/accounts.ts`, today `calendar` and `mail`) and keeps the ones in use in the
+  account's `enabledCapabilities`, so the natural place for `launchpadSync` is a new shared
+  `Capability` value. Sync's own state stays in its slice (section 2).
 - **Offered only where it can run.** The service is offered when this page's data lives in the
   browser (the `launchpadSync` capability, section 9). On a server-backend page and in the
   server build it shows as unavailable, with a one-line reason.
@@ -405,7 +405,8 @@ reads the token (ARCHITECTURE section 4.1). So the file is checked exactly like 
 
 ## 10. The Accounts page, Diagnostics and docs
 
-The Accounts redesign itself is out of scope. Sync adds these pieces to it:
+The Accounts page is in place (pick the services, then sign in; Manage switches them later); sync
+adds these pieces to it:
 - **In the connection dialog** (the Microsoft tile, or adding a service to a connection): a
   **Launch pad sync** checkbox next to **Calendar**, with one line on what it does and where the
   data goes: "Keeps your launch pad the same in every browser where you turn this on. Stored in
@@ -494,9 +495,8 @@ Rough working days for one developer, tests included.
    an oversized file, a missing file.
 4. **Accounts and UI, 2 days:** scopes per service, the consent step, the service's checkbox
    and status line, the first-sync dialog, the Bookmarks pointer, the import warning, the `sync`
-   event category and the CSP. This plugs into the redesigned Accounts page. If sync is built
-   first, the same checkbox and status line go on today's Outlook.com card and move with the
-   redesign.
+   event category and the CSP. This plugs into the Accounts page as it shipped on 2026-10-19: the
+   Microsoft tile's connect dialog and the account's row under "Connected accounts".
 5. **Docs and a two-browser test, 1 day:** the docs in section 10, then a real test with two
    browsers (or two PCs) on one account.
 

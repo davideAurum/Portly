@@ -312,6 +312,16 @@ Items:
   `grep -rn 'UX-[0-9]' web/src` resolves to the documented list or returns nothing; the shortcuts
   dialog test lists the new entry.
 
+  *Status:* done 2026-10-21. Each changed sentence was read against the code it cites and
+  reviewed once more by a second reader (three corrections: a calendar sizing claim, the order of
+  the connect dialog's steps, a broken link). ARCHITECTURE 4.2, 10.4, 10.6, 10.8 and 13 match the
+  code; README names every script and both README and static-build.md state the alpha's browsers;
+  launchpad-sync.md describes the shipped Accounts page; the 16 review tags resolve in
+  docs/design/review-2026-10.md; the `?` dialog lists Shift+F10 and the context-menu key for a
+  launch pad tile (ViewTile handles both), with a test. ci.yml's header comment now also names
+  workflow_dispatch. Checked: typecheck and the two scoped test files; the dialog was not looked
+  at in a real browser.
+
 - **1.11 setup.ps1 installs Node.js 24, not whatever LTS winget has** (S; after 1.7).
   With the Node major pinned (1.7), a fresh PC must get Node 24: `setup.ps1` installs winget's
   `OpenJS.NodeJS.LTS`, which moves to Node 26 when that becomes the LTS, and `Resolve-HbNode` in
