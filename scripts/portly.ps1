@@ -5,11 +5,12 @@
 .DESCRIPTION
     portly --update [--version <x>] [--dry-run] [--force]
         In a release install: download and install the newest release (or <x>) with
-        scripts\install.ps1, run from a temporary copy. In a Git checkout: the same as --rebuild.
-    portly --rebuild [--dry-run] [--skip-publish] [--skip-server]
+        scripts\install.ps1, run from a temporary copy. In a Git checkout: the same as --rebuild
+        (with its options).
+    portly --rebuild [--dry-run] [--skip-publish] [--skip-server] [--allow-dirty]
         Git checkout: update everything from the code checked out: dependencies, the local page,
-        the server and the GitHub Pages site (scripts\update.ps1). A release install says to use
-        --update instead.
+        the server and the GitHub Pages site (scripts\update.ps1). Uncommitted changes are
+        refused unless --allow-dirty. A release install says to use --update instead.
     portly --version
         The installed version, and whether it is a release install or a Git checkout.
     portly --status [--logs]
@@ -39,7 +40,7 @@ $PortlyCliUsage = @'
 Usage: portly <command> [options]
 
   --update      Install the newest release (release installs; in a Git
-                checkout the same as --rebuild).
+                checkout the same as --rebuild, with its options).
                   --version <x>   install release <x> instead
                   --dry-run       show what would happen, change nothing
                   --force         reinstall even the installed version
@@ -48,6 +49,8 @@ Usage: portly <command> [options]
                   --dry-run       show what would happen, change nothing
                   --skip-publish  leave the GitHub Pages site alone
                   --skip-server   do not restart the server
+                  --allow-dirty   build and publish uncommitted changes too
+                                  (refused otherwise)
   --version     Show the installed version.
   --status      Is Portly running and healthy?  (--logs adds the log tails)
   --settings    How Portly is set up: port, folders, logs, autostart,
@@ -224,6 +227,7 @@ function Invoke-HbCli {
                 '--dry-run'      = @{ Name = 'DryRun'; Value = $true }
                 '--skip-publish' = @{ Name = 'SkipPublish'; Value = $true }
                 '--skip-server'  = @{ Name = 'SkipServer'; Value = $true }
+                '--allow-dirty'  = @{ Name = 'AllowDirty'; Value = $true }
             }
             if ($null -eq $mapped) { return 2 }
             return Invoke-HbCliScript -Script 'update.ps1' -Parameters $mapped

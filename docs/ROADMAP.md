@@ -148,7 +148,7 @@ Items:
   In the main checkout: `git pull` to cd547e3 or later, `git status` clean,
   `git -C $env:PORTLY_PAGES_REPO fetch` and confirm the Pages repository has not diverged, then
   `portly --update` (`update.ps1` refuses worktrees and deploys the checkout as-is, warning about
-  uncommitted changes rather than refusing them). This is the first real `update.ps1` run under
+  uncommitted changes rather than refusing them; refused since 1.8). This is the first real `update.ps1` run under
   `portly-supervisor.exe` and `portly-server.exe` (the update.ps1 row in the checks table).
   GitHub Pages serves the old page for up to 10 minutes after a publish; hard-refresh before
   judging.
@@ -277,6 +277,16 @@ Items:
 
   *Done when:* `check-scripts.ps1` passes with new fake cases (diverged repository, dirty tree) in
   both PowerShell versions; the next real `portly --update` shows the new messages.
+
+  *Status:* done 2026-10-21, except the real run. `publish-static.ps1` fetches the clone's upstream
+  first, fast-forwards a clone that is only behind, refuses a diverged one with the merge command
+  (also in `-DryRun`, which now fetches), writes and stages a `.gitattributes` so `install.ps1` and
+  `setup.ps1` are committed byte for byte, and prints the 10-minute cache note after a push;
+  `update.ps1` refuses a dirty tree unless `-AllowDirty` (`portly --update --allow-dirty`), before
+  `npm ci` or the build. check-scripts.ps1 gained the fake cases (behind, ahead, diverged, dirty,
+  `-AllowDirty`, `.gitattributes` written and staged) and passes in both PowerShell versions. The
+  next real `portly --update` (5.4 or earlier) shows the new messages and fixes the live
+  `install.ps1` size: see the checks table.
 
 - **1.9 Attribute and fix the TimeoutOverflowWarning** (S; after 1.1).
   Every vitest run prints, part-way through, "TimeoutOverflowWarning: ~2.25e9 does not fit into a
@@ -968,6 +978,7 @@ date and the outcome once a row has been run for real.
 | The animated lighthouse logo in Firefox and as the extension's New Tab page; frames were checked by eye in Chromium only | 7657e96, 2026-10-13 | 2.4 | not yet |
 | A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | not yet |
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
+| The next real `portly --update`: the dirty-tree refusal and the fetch/fast-forward messages for real, and a publish that writes `.gitattributes` to the live Pages clone (which makes the live `install.ps1` byte-equal to the built one) | 1.8, 2026-10-21 | 5.4, or the next republish of the Pages site | not yet |
 | `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: winget's LTS id installs Node 26 once that is the LTS, which `engine-strict` refuses | 2d7b20e, 2026-10-21 | 1.11 | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
 | The device connect flow in a real browser through an HTTPS proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 | not yet |

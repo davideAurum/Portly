@@ -161,19 +161,22 @@ One-time setup:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-static.ps1 -PublicRepoPath ..\portly-pages -Base /portly-pages/
 ```
 
-`scripts\publish-static.ps1` does, in order: `npm run build:static` with `PORTLY_STATIC_BASE`
-set to `-Base`; checks that `web\dist-static\index.html` exists and uses that base; lists and
-removes every tracked file of the public clone (`CNAME` and `README.md` are kept — they belong to
-the repository, not to the build — and `.git` is never touched); copies `web\dist-static\*` plus
-an empty `.nojekyll` in and stages exactly those files; commits (skipped when nothing changed);
-pushes. Run it with `-DryRun` first to see the list. Options:
+`scripts\publish-static.ps1` does, in order: fetches the clone's upstream and fast-forwards a clone
+that is only behind it (a clone that has diverged is refused with the merge command to run);
+`npm run build:static` with `PORTLY_STATIC_BASE` set to `-Base`; checks that
+`web\dist-static\index.html` exists and uses that base; lists and removes every tracked file of the
+public clone (`CNAME` and `README.md` are kept — they belong to the repository, not to the build —
+and `.git` is never touched); copies `web\dist-static\*` plus an empty `.nojekyll` and a
+`.gitattributes` (`*.ps1 -text`, `*.woff2 binary`, so `install.ps1` and `setup.ps1` are stored byte
+for byte whatever the clone's line-ending setting) in and stages exactly those files; commits
+(skipped when nothing changed); pushes. Run it with `-DryRun` first to see the list. Options:
 
 | Option | Meaning |
 | --- | --- |
 | `-PublicRepoPath <folder>` | The local clone of the public repository (required; its checked-out branch is the one Pages deploys from). Everything tracked in it except `CNAME` and `README.md` is deleted. |
 | `-Base </repo/>` | The site's URL path; default `/`. Same rule as `PORTLY_STATIC_BASE`. |
 | `-Message "<text>"` | Commit message; default `Publish Portly <version> (<date>)`. |
-| `-DryRun` | Print the plan — what would be built, removed, copied, committed, pushed — and change nothing (no build either). It refuses exactly what a real run refuses. |
+| `-DryRun` | Fetch the upstream, print the plan — what would be fast-forwarded, built, removed, copied, committed, pushed — and change nothing else (no build either). It refuses exactly what a real run refuses. |
 | `-NoPush` | Commit, but leave the push to you. |
 | `-ReplaceEverything` | Publish even though the repository holds files that are not an earlier Portly publish (they are deleted). Only for a repository whose content you really mean to throw away. |
 
@@ -185,14 +188,15 @@ Portly publish, unless you pass `-ReplaceEverything`. An earlier publish holds o
 - `index.html` with `<meta name="portly-build" content="static">` (or `homebase-build`, from a
   publish made before the rename);
 - `assets/`, `install.ps1` and `setup.ps1`;
-- the files in `web\public` (today `favicon.svg` and `.nojekyll`);
+- the files in `web\public` (today `favicon.svg` and `.nojekyll`), and `.gitattributes`;
 - `CNAME` and `README.md`, which a publish never deletes.
 
 When `origin` is on github.com and there is no `CNAME`, `-Base` must match the repository: `/` for
 `<user>.github.io`, `/<repo>/` for any other (for a custom domain, set it up in the repository's
-Pages settings first and pull, so its `CNAME` file is in the clone; `-Base` is then `/`). GitHub
-Pages picks the push up within a minute or two; the script prints the site URL when the remote is
-on github.com.
+Pages settings first and pull, so its `CNAME` file is in the clone; `-Base` is then `/`). The
+script prints the site URL when the remote is on github.com. GitHub Pages can serve the previous
+page for up to 10 minutes after a publish (`Cache-Control: max-age=600`), so hard-refresh (Ctrl+F5)
+before judging it.
 
 **Published into the wrong repository?** The old files are still in that repository's history. In
 its clone, undo the publish commit and push: `git revert HEAD` (or `git revert <publish commit>`),

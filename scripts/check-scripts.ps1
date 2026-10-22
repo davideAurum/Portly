@@ -15,18 +15,22 @@
        Browser and Logon, extension IDs (Chromium's own vectors, the manifest key against Node's
        crypto, the extension's PINNED_EXTENSION_ID and every ID quoted in the docs), the top-level
        files of web\dist-static against the names publish-static.ps1 recognises as a Portly publish
-       (when built), the native host files and their
-       registration - written to a temporary folder with a fake registry - the health check
-       against a loopback fixture server).
+       (when built), publish-static.ps1's helpers against throwaway repositories (the fetch and
+       fast-forward of a clone behind its origin, a fetch that fails; the .gitattributes that
+       keeps install.ps1 and setup.ps1 byte for byte under core.autocrlf=true), the native host
+       files and their registration - written to a temporary folder with a fake registry - the
+       health check against a loopback fixture server).
     3. Runs the generated launcher.cmd exactly as Chrome starts a native host
        (cmd.exe /d /s /c) and checks the answers, with schtasks.exe replaced by
        scripts\tests\schtasks-stub.mjs (so the real task is never run).
     4. Runs the native host's node tests (node scripts\check-native-host.mjs).
     5. Runs install-autostart.ps1 -DryRun (both modes), uninstall-autostart.ps1 -DryRun,
        status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl, a copy of setup.ps1
-       -DryRun on this checkout (it says it does not update it), update.ps1 -DryRun,
-       try-branch.ps1 -DryRun, the portly command, install-cli.ps1 -DryRun and publish-static.ps1
-       -DryRun (against throwaway repositories in a temporary folder) in child processes of
+       -DryRun on this checkout (it says it does not update it), update.ps1 -DryRun (a checkout
+       with uncommitted changes is refused unless -AllowDirty), try-branch.ps1 -DryRun, the
+       portly command, install-cli.ps1 -DryRun and publish-static.ps1 -DryRun (against throwaway
+       repositories in a temporary folder: clones level with, behind, ahead of and diverged from
+       their origin, and one whose origin cannot be fetched) in child processes of
        Windows PowerShell 5.1 and PowerShell 7 (when installed), and verifies that the scheduled
        task, the native host registry keys, the native host folder and the folder of Portly's
        copies of node.exe did not change.
@@ -893,17 +897,22 @@ Write-Host ''
 Write-Host 'Browser-only build and publish-static.ps1' -ForegroundColor White
 # publish-static.ps1 replaces a repository only when it holds nothing but names an earlier Portly
 # publish has (Get-HbPublishedNames). A build that gains a top-level file not on that list is
-# published once, and every later publish is then refused as "not part of a Portly build". The
-# function and the two lists it uses are loaded from the script without running it.
+# published once, and every later publish is then refused as "not part of a Portly build". That
+# function, the helpers that work the clone (fetch and fast-forward, the .gitattributes, the
+# replacement of the tracked files) and the lists they use are loaded from the script without
+# running it.
+$publishFunctionNames = @('Invoke-HbGit', 'Get-HbPublishedNames', 'Get-HbPublishSyncState', 'Invoke-HbPublishFastForward', 'Get-HbGitAttributesText', 'Update-HbPublishTree')
+$publishVariableNames = @('$HbPublishKeep', '$HbNoJekyll', '$HbGitAttributes', '$HbGitAttributesLines')
 $publishTokens = $null
 $publishErrors = $null
 $publishAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'publish-static.ps1'), [ref]$publishTokens, [ref]$publishErrors)
 $publishNodes = @($publishAst.FindAll({
             param($node)
-            ($node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-HbPublishedNames') -or
-            ($node -is [System.Management.Automation.Language.AssignmentStatementAst] -and @('$HbPublishKeep', '$HbNoJekyll') -contains "$($node.Left)")
+            ($node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $publishFunctionNames -contains $node.Name) -or
+            ($node -is [System.Management.Automation.Language.AssignmentStatementAst] -and $publishVariableNames -contains "$($node.Left)")
         }, $false))
-Assert-That -Name 'publish-static.ps1 defines Get-HbPublishedNames, $HbPublishKeep and $HbNoJekyll' -Condition ($publishNodes.Count -eq 3)
+Assert-That -Name "publish-static.ps1 defines $($publishFunctionNames -join ', ') and $($publishVariableNames -join ', ')" -Condition (
+    $publishNodes.Count -eq ($publishFunctionNames.Count + $publishVariableNames.Count)) -Detail "$($publishNodes.Count) found"
 foreach ($node in $publishNodes) { . ([scriptblock]::Create($node.Extent.Text)) }
 $distStatic = Join-Path $repoRoot 'web\dist-static'
 if (Test-Path -LiteralPath (Join-Path $distStatic 'index.html') -PathType Leaf) {
@@ -917,6 +926,127 @@ if (Test-Path -LiteralPath (Join-Path $distStatic 'index.html') -PathType Leaf) 
         $missingNames.Count -eq 0) -Detail "missing: $($missingNames -join ', ')"
 } else {
     Write-Host '  skip  web\dist-static is not built (npm run build:static; CI builds it before this check)' -ForegroundColor DarkYellow
+}
+
+# The publish helpers against throwaway repositories under $workDir: an "origin" and clones of it
+# (local folders, so a fetch is offline; nothing is ever pushed).
+$unitGit = Get-Command -Name 'git.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($null -eq $unitGit) {
+    Write-Host '  skip  git.exe is not on PATH; the publish helpers are not checked' -ForegroundColor DarkYellow
+} else {
+    $unitGitIn = {
+        param([string]$Repo, [string[]]$Arguments)
+        $previous = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try { return (@(& $unitGit.Source -C $Repo @Arguments 2>&1 | ForEach-Object { "$_" }) -join "`n") } finally { $ErrorActionPreference = $previous }
+    }
+    $unitCommit = {
+        param([string]$Repo, [hashtable]$Files, [string]$Message)
+        foreach ($path in $Files.Keys) {
+            $full = Join-Path $Repo $path
+            $null = New-Item -ItemType Directory -Path (Split-Path -Parent $full) -Force
+            [System.IO.File]::WriteAllText($full, $Files[$path])
+        }
+        $null = & $unitGitIn $Repo @('add', '-A')
+        $null = & $unitGitIn $Repo @('commit', '-q', '-m', $Message)
+    }
+    $unitRepo = {
+        param([string]$Name, [hashtable]$Files)
+        $repo = Join-Path $workDir $Name
+        $null = New-Item -ItemType Directory -Path $repo -Force
+        $null = & $unitGitIn $repo @('init', '-q', '-b', 'main')
+        $null = & $unitGitIn $repo @('config', 'user.email', 'check@example.invalid')
+        $null = & $unitGitIn $repo @('config', 'user.name', 'check-scripts')
+        & $unitCommit $repo $Files 'existing content'
+        return $repo
+    }
+    $unitClone = {
+        param([string]$Origin, [string]$Name)
+        $clone = Join-Path $workDir $Name
+        $null = & $unitGitIn $workDir @('clone', '-q', $Origin, $clone)
+        $null = & $unitGitIn $clone @('config', 'user.email', 'check@example.invalid')
+        $null = & $unitGitIn $clone @('config', 'user.name', 'check-scripts')
+        return $clone
+    }
+    $unitMarker = '<!doctype html><html><head><meta name="portly-build" content="static"></head></html>'
+
+    # The .gitattributes text: Portly's lines once, after whatever else the clone's file holds.
+    $ownAttributes = Get-HbGitAttributesText -Existing $null
+    $mixedAttributes = Get-HbGitAttributesText -Existing "*.md text`r`n# Portly (an earlier publish): x`r`n*.ps1 -text`r`n`r`n"
+    Assert-That -Name 'Get-HbGitAttributesText: Portly''s lines alone, or after the clone''s own lines (Portly''s earlier ones dropped); the same text when run on its output' -Condition (
+        $ownAttributes -ceq (($HbGitAttributesLines -join "`n") + "`n") -and
+        $mixedAttributes -ceq ("*.md text`n`n" + $ownAttributes) -and
+        (Get-HbGitAttributesText -Existing $mixedAttributes) -ceq $mixedAttributes -and
+        $HbGitAttributesLines -ccontains '*.ps1 -text') -Detail "$ownAttributes|$mixedAttributes"
+
+    # A clone with core.autocrlf=true (the Git for Windows default): without the attributes git
+    # stores install.ps1 with LF endings (the finding of roadmap item 1.3); with them, byte for
+    # byte, CRLF endings included.
+    $attrDist = Join-Path $workDir 'publish-attributes-dist'
+    $null = New-Item -ItemType Directory -Path (Join-Path $attrDist 'assets') -Force
+    [System.IO.File]::WriteAllText((Join-Path $attrDist 'index.html'), $unitMarker)
+    [System.IO.File]::WriteAllText((Join-Path $attrDist 'assets\app.js'), 'app')
+    [System.IO.File]::WriteAllText((Join-Path $attrDist 'install.ps1'), "# first`r`n# second`r`n")
+    [System.IO.File]::WriteAllText((Join-Path $attrDist 'setup.ps1'), "# setup`r`n")
+    $attrControl = & $unitRepo 'publish-attributes-control' @{ 'index.html' = 'old' }
+    $null = & $unitGitIn $attrControl @('config', 'core.autocrlf', 'true')
+    Copy-Item -LiteralPath (Join-Path $attrDist 'install.ps1') -Destination $attrControl
+    $null = & $unitGitIn $attrControl @('add', 'install.ps1')
+    $controlEol = & $unitGitIn $attrControl @('ls-files', '--eol', 'install.ps1')
+    Assert-That -Name 'without a .gitattributes, a clone with core.autocrlf=true stages install.ps1 with LF endings' -Condition (
+        $controlEol -match '^i/lf\s') -Detail $controlEol
+    $attrClone = & $unitRepo 'publish-attributes' @{ '.gitattributes' = "*.md text`n"; 'index.html' = 'old' }
+    $null = & $unitGitIn $attrClone @('config', 'core.autocrlf', 'true')
+    $staged = Update-HbPublishTree -Git $unitGit.Source -TargetRoot $attrClone -DistStatic $attrDist -ToRemove @('.gitattributes', 'index.html')
+    $null = & $unitGitIn $attrClone @('commit', '-q', '-m', 'publish')
+    $attrEol = & $unitGitIn $attrClone @('ls-files', '--eol', 'install.ps1', 'setup.ps1')
+    $attrTracked = & $unitGitIn $attrClone @('ls-files')
+    $attrText = [System.IO.File]::ReadAllText((Join-Path $attrClone '.gitattributes'))
+    Assert-That -Name 'Update-HbPublishTree writes and stages .gitattributes (the clone''s own line kept) with the build and .nojekyll; install.ps1 and setup.ps1 are committed with CRLF endings' -Condition (
+        $staged.Count -eq 6 -and @(@('assets', 'index.html', 'install.ps1', 'setup.ps1', $HbNoJekyll, $HbGitAttributes) | Where-Object { $staged -cnotcontains $_ }).Count -eq 0 -and
+        $attrEol -match '(?m)^i/crlf\s+w/crlf\s+attr/-text\s+install\.ps1$' -and $attrEol -match '(?m)^i/crlf\s+w/crlf\s+attr/-text\s+setup\.ps1$' -and
+        $attrText -ceq ("*.md text`n`n" + $ownAttributes) -and
+        $attrTracked -match '(?m)^\.gitattributes$' -and $attrTracked -match '(?m)^\.nojekyll$' -and $attrTracked -match '(?m)^assets/app\.js$' -and
+        (& $unitGitIn $attrClone @('status', '--porcelain', '--untracked-files=all')) -eq '') -Detail "$($staged -join ',')`n$attrEol`n$attrTracked`n$attrText"
+    $null = Update-HbPublishTree -Git $unitGit.Source -TargetRoot $attrClone -DistStatic $attrDist -ToRemove @('.gitattributes', '.nojekyll', 'assets/app.js', 'index.html', 'install.ps1', 'setup.ps1')
+    $null = & $unitGitIn $attrClone @('diff', '--cached', '--quiet')
+    $attrAgain = $LASTEXITCODE
+    Assert-That -Name 'Update-HbPublishTree again with the same build stages no change (a publish then says nothing changed)' -Condition ($attrAgain -eq 0) -Detail "git diff --cached --quiet: $attrAgain"
+
+    # A clone behind its origin (a publish from elsewhere): fetched, counted and fast-forwarded;
+    # with a commit of its own as well it has diverged (the script then refuses).
+    $syncOrigin = & $unitRepo 'publish-sync-origin' @{ 'index.html' = $unitMarker; '.nojekyll' = '' }
+    $syncClone = & $unitClone $syncOrigin 'publish-sync-clone'
+    $syncLevel = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    & $unitCommit $syncOrigin @{ 'assets/new.js' = 'new' } 'published elsewhere'
+    $syncBehind = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    $forwarded = Invoke-HbPublishFastForward -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    $syncAfter = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    Assert-That -Name 'Get-HbPublishSyncState fetches and counts (level, then 1 behind); Invoke-HbPublishFastForward brings the clone level with its origin' -Condition (
+        $syncLevel.Upstream -ceq 'origin/main' -and $syncLevel.Ahead -eq 0 -and $syncLevel.Behind -eq 0 -and
+        $syncBehind.Ahead -eq 0 -and $syncBehind.Behind -eq 1 -and
+        $forwarded -ceq (& $unitGitIn $syncOrigin @('rev-parse', '--short', 'HEAD')) -and
+        $syncAfter.Ahead -eq 0 -and $syncAfter.Behind -eq 0 -and (Test-Path -LiteralPath (Join-Path $syncClone 'assets\new.js') -PathType Leaf)) -Detail "level $($syncLevel.Ahead)/$($syncLevel.Behind), behind $($syncBehind.Ahead)/$($syncBehind.Behind), forwarded to $forwarded, after $($syncAfter.Ahead)/$($syncAfter.Behind)"
+    & $unitCommit $syncClone @{ 'README.md' = 'mine' } 'local'
+    $syncAhead = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    & $unitCommit $syncOrigin @{ 'assets/more.js' = 'more' } 'published elsewhere again'
+    $syncDiverged = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    $syncNone = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncOrigin -Upstream $null
+    Assert-That -Name 'Get-HbPublishSyncState: 1 ahead after a local commit; 1 ahead and 1 behind once the origin moved too (diverged); nothing without an upstream' -Condition (
+        $syncAhead.Ahead -eq 1 -and $syncAhead.Behind -eq 0 -and $syncDiverged.Ahead -eq 1 -and $syncDiverged.Behind -eq 1 -and
+        $null -eq $syncNone.Upstream -and $syncNone.Ahead -eq 0 -and $syncNone.Behind -eq 0) -Detail "ahead $($syncAhead.Ahead)/$($syncAhead.Behind), diverged $($syncDiverged.Ahead)/$($syncDiverged.Behind)"
+    Assert-Throws -Name 'Invoke-HbPublishFastForward refuses a diverged clone (git: not possible to fast-forward)' -Action {
+        Invoke-HbPublishFastForward -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main' } -Pattern 'fast-forward'
+    # An origin that cannot be reached (offline, or gone): a real run stops at the fetch; the dry
+    # run (-AllowFetchFailure) reports it in FetchError and counts nothing.
+    $offlineClone = & $unitClone $syncOrigin 'publish-sync-offline'
+    $null = & $unitGitIn $offlineClone @('remote', 'set-url', 'origin', (Join-Path $workDir 'publish-sync-missing'))
+    Assert-Throws -Name 'Get-HbPublishSyncState throws when the fetch fails (a real run stops there, naming the upstream)' -Action {
+        Get-HbPublishSyncState -Git $unitGit.Source -Directory $offlineClone -Upstream 'origin/main' } -Pattern 'git fetch failed .* origin/main'
+    $syncOffline = Get-HbPublishSyncState -Git $unitGit.Source -Directory $offlineClone -Upstream 'origin/main' -AllowFetchFailure
+    Assert-That -Name 'Get-HbPublishSyncState -AllowFetchFailure (the dry run) puts the failed fetch into FetchError and counts nothing; a fetch that works leaves it empty' -Condition (
+        $syncOffline.Upstream -ceq 'origin/main' -and "$($syncOffline.FetchError)".StartsWith('git fetch failed (exit code ') -and
+        $syncOffline.Ahead -eq 0 -and $syncOffline.Behind -eq 0 -and $null -eq $syncLevel.FetchError) -Detail "FetchError: $($syncOffline.FetchError)"
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -1334,6 +1464,73 @@ try {
                 $publishDirty = & $run 'publish-static.ps1' @('-PublicRepoPath', $pagesRepo, '-DryRun', '-NoPush')
                 Assert-That -Name 'publish-static.ps1 refuses a target with untracked or uncommitted files' -Condition (
                     $publishDirty.ExitCode -eq 1 -and $publishDirty.Text.Contains('uncommitted changes or untracked files')) -Detail $publishDirty.Text
+
+                # Clones of a local "origin" (nothing leaves this PC: a dry run fetches, but never
+                # pushes). Level: reported as such. Only behind: a real run fast-forwards first, so
+                # the plan lists the origin's files. Diverged: refused with the commands to merge,
+                # never merged here. Ahead only: fine, the push carries the local commits. A
+                # .gitattributes from an earlier publish counts as Portly's own file.
+                $commitIn = {
+                    param([string]$Repo, [string]$Path, [string]$Text)
+                    $full = Join-Path $Repo $Path
+                    $null = New-Item -ItemType Directory -Path (Split-Path -Parent $full) -Force
+                    [System.IO.File]::WriteAllText($full, $Text)
+                    $null = & $gitIn $Repo @('add', '-A')
+                    $null = & $gitIn $Repo @('commit', '-q', '-m', "add $Path")
+                }
+                $cloneOf = {
+                    param([string]$Origin, [string]$Name)
+                    $clone = Join-Path $workDir "$Name-$label"
+                    $null = & $gitIn $workDir @('clone', '-q', $Origin, $clone)
+                    $null = & $gitIn $clone @('config', 'user.email', 'check@example.invalid')
+                    $null = & $gitIn $clone @('config', 'user.name', 'check-scripts')
+                    return $clone
+                }
+                $pagesOrigin = & $newPagesRepo 'publish-origin' @{ 'index.html' = $markerIndex; 'assets/app.js' = 'app'; '.nojekyll' = ''; '.gitattributes' = "*.ps1 -text`n" }
+                $behindClone = & $cloneOf $pagesOrigin 'publish-behind'
+                $publishLevel = & $run 'publish-static.ps1' @('-PublicRepoPath', $behindClone, '-Base', '/pages/', '-DryRun')
+                Assert-That -Name 'publish-static.ps1 -DryRun fetches and reports a clone level with origin/main, plans git push and .gitattributes, and accepts an earlier publish that has one' -Condition (
+                    $publishLevel.ExitCode -eq 0 -and (& $flat $publishLevel.Text).Contains('origin/main, fetched: level with this clone') -and
+                    $publishLevel.Text.Contains('- .gitattributes') -and $publishLevel.Text.Contains('+ .nojekyll + .gitattributes') -and
+                    $publishLevel.Text.Contains('git push') -and $publishLevel.Text.Contains('Dry run complete')) -Detail $publishLevel.Text
+                & $commitIn $pagesOrigin 'assets/new.js' 'new'
+                $behindHead = & $gitIn $behindClone @('rev-parse', 'HEAD')
+                $publishBehind = & $run 'publish-static.ps1' @('-PublicRepoPath', $behindClone, '-Base', '/pages/', '-DryRun')
+                Assert-That -Name 'publish-static.ps1 -DryRun on a clone behind origin/main says a real run fast-forwards it first, lists the origin''s files, and changes nothing' -Condition (
+                    $publishBehind.ExitCode -eq 0 -and (& $flat $publishBehind.Text).Contains('1 commit(s) behind it and has no local commits, so it is fast-forwarded first') -and
+                    $publishBehind.Text.Contains('- assets/new.js') -and $publishBehind.Text.Contains('Dry run complete') -and
+                    (& $gitIn $behindClone @('rev-parse', 'HEAD')) -ceq $behindHead -and (& $gitStatus $behindClone) -eq '' -and
+                    -not (Test-Path -LiteralPath (Join-Path $behindClone 'assets\new.js'))) -Detail $publishBehind.Text
+                & $commitIn $behindClone 'README.md' 'mine'
+                $divergedHead = & $gitIn $behindClone @('rev-parse', 'HEAD')
+                $publishDiverged = & $run 'publish-static.ps1' @('-PublicRepoPath', $behindClone, '-Base', '/pages/', '-DryRun')
+                $divergedText = & $flat $publishDiverged.Text
+                Assert-That -Name 'publish-static.ps1 refuses a diverged clone, also in -DryRun, with the merge (and the reset) command for it, and merges nothing' -Condition (
+                    $publishDiverged.ExitCode -eq 1 -and
+                    $divergedText.Contains('has diverged from origin/main (fetched): 1 local commit(s) are not on origin/main, and 1 commit(s) of origin/main are not here') -and
+                    $divergedText.Contains("git -C ""$behindClone"" merge -X ours --no-edit origin/main") -and
+                    $divergedText.Contains("git -C ""$behindClone"" reset --hard origin/main") -and
+                    -not $divergedText.Contains('Dry run complete') -and
+                    (& $gitIn $behindClone @('rev-parse', 'HEAD')) -ceq $divergedHead -and (& $gitStatus $behindClone) -eq '') -Detail $publishDiverged.Text
+                $aheadClone = & $cloneOf $pagesOrigin 'publish-ahead'
+                & $commitIn $aheadClone 'README.md' 'mine'
+                $publishAhead = & $run 'publish-static.ps1' @('-PublicRepoPath', $aheadClone, '-Base', '/pages/', '-DryRun')
+                Assert-That -Name 'publish-static.ps1 -DryRun accepts a clone ahead of origin/main (its commits go out with the push)' -Condition (
+                    $publishAhead.ExitCode -eq 0 -and (& $flat $publishAhead.Text).Contains('1 local commit(s) not on it yet go out with the next push') -and
+                    $publishAhead.Text.Contains('kept: README.md')) -Detail $publishAhead.Text
+                # An origin that cannot be fetched (offline): a real run stops there; the dry run
+                # says so, warns that it cannot tell behind from diverged, and plans with the
+                # clone's own files.
+                $offlineClone = & $cloneOf $pagesOrigin 'publish-offline'
+                $null = & $gitIn $offlineClone @('remote', 'set-url', 'origin', (Join-Path $workDir "publish-missing-$label"))
+                $offlineHead = & $gitIn $offlineClone @('rev-parse', 'HEAD')
+                $publishOffline = & $run 'publish-static.ps1' @('-PublicRepoPath', $offlineClone, '-Base', '/pages/', '-DryRun')
+                $offlineText = & $flat $publishOffline.Text
+                Assert-That -Name 'publish-static.ps1 -DryRun goes on when the fetch fails (offline): says so, warns, lists the clone''s own files and changes nothing' -Condition (
+                    $publishOffline.ExitCode -eq 0 -and $offlineText.Contains('origin/main, not fetched: git fetch failed (exit code ') -and
+                    $offlineText.Contains('a real run stops at the fetch') -and $publishOffline.Text.Contains('- assets/app.js') -and
+                    $publishOffline.Text.Contains('Dry run complete') -and
+                    (& $gitIn $offlineClone @('rev-parse', 'HEAD')) -ceq $offlineHead -and (& $gitStatus $offlineClone) -eq '') -Detail $publishOffline.Text
             }
 
             # update.ps1: copies in scratch checkouts, -DryRun only.
@@ -1391,6 +1588,46 @@ try {
             $cliRebuildWorktree = & $run (Join-Path $updateCopies.worktree 'scripts\portly.ps1') @('--rebuild', '--dry-run')
             Assert-That -Name 'portly --rebuild passes update.ps1 exit code through (worktree refused: 1)' -Condition (
                 $cliRebuildWorktree.ExitCode -eq 1 -and $cliRebuildWorktree.Text.Contains('temporary worktree')) -Detail $cliRebuildWorktree.Text
+            Assert-That -Name 'portly --help lists --allow-dirty under --rebuild' -Condition ($cliHelp.Text.Contains('--allow-dirty')) -Detail $cliHelp.Text
+            if ($null -ne $checkGit) {
+                # update.ps1 on a checkout (a scratch git repository) with uncommitted changes:
+                # refused, also in -DryRun, unless -AllowDirty; the portly command passes
+                # --allow-dirty through, for --update too.
+                $updateRepo = Join-Path $workDir "update-git-$label"
+                $null = New-Item -ItemType Directory -Path (Join-Path $updateRepo 'scripts\lib') -Force
+                foreach ($name in @('update.ps1', 'portly.ps1', 'install-cli.ps1', 'status.ps1')) {
+                    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $updateRepo 'scripts')
+                }
+                Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'lib\Common.ps1') -Destination (Join-Path $updateRepo 'scripts\lib')
+                [System.IO.File]::WriteAllText((Join-Path $updateRepo 'package-lock.json'), '{}')
+                $null = & $gitIn $updateRepo @('init', '-q', '-b', 'main')
+                $null = & $gitIn $updateRepo @('config', 'user.email', 'check@example.invalid')
+                $null = & $gitIn $updateRepo @('config', 'user.name', 'check-scripts')
+                $null = & $gitIn $updateRepo @('add', '-A')
+                $null = & $gitIn $updateRepo @('commit', '-q', '-m', 'checkout')
+                $updateArgs = @('-DryRun', '-SkipPublish', '-SkipServer')
+                $updateClean = & $run (Join-Path $updateRepo 'scripts\update.ps1') $updateArgs
+                Assert-That -Name 'update.ps1 -DryRun on a clean checkout of main plans the build with no warning' -Condition (
+                    $updateClean.ExitCode -eq 0 -and $updateClean.Text.Contains('[dry run] Building the local page') -and
+                    -not $updateClean.Text.Contains('uncommitted') -and -not $updateClean.Text.Contains('not main')) -Detail $updateClean.Text
+                [System.IO.File]::WriteAllText((Join-Path $updateRepo 'notes.txt'), 'x')
+                [System.IO.File]::WriteAllText((Join-Path $updateRepo 'package-lock.json'), '{"changed":1}')
+                $updateDirty = & $run (Join-Path $updateRepo 'scripts\update.ps1') $updateArgs
+                $updateDirtyText = & $flat $updateDirty.Text
+                Assert-That -Name 'update.ps1 refuses a checkout with uncommitted changes (their count, -AllowDirty named), before npm ci or the build, also in -DryRun' -Condition (
+                    $updateDirty.ExitCode -eq 1 -and $updateDirtyText.Contains('2 uncommitted change(s)') -and
+                    $updateDirtyText.Contains('-AllowDirty (portly --update --allow-dirty)') -and
+                    -not $updateDirty.Text.Contains('Installing dependencies') -and -not $updateDirty.Text.Contains('Building the local page')) -Detail $updateDirty.Text
+                $updateAllow = & $run (Join-Path $updateRepo 'scripts\update.ps1') ($updateArgs + @('-AllowDirty'))
+                Assert-That -Name 'update.ps1 -AllowDirty goes on, with a warning that names the count' -Condition (
+                    $updateAllow.ExitCode -eq 0 -and (& $flat $updateAllow.Text).Contains('2 uncommitted change(s) as they are (-AllowDirty)') -and
+                    $updateAllow.Text.Contains('[dry run] Building the local page')) -Detail $updateAllow.Text
+                $cliAllow = & $run (Join-Path $updateRepo 'scripts\portly.ps1') @('--update', '--dry-run', '--allow-dirty', '--skip-publish', '--skip-server')
+                $cliRefused = & $run (Join-Path $updateRepo 'scripts\portly.ps1') @('--rebuild', '--dry-run', '--skip-publish', '--skip-server')
+                Assert-That -Name 'portly --update --allow-dirty passes it to update.ps1 in a checkout; without it the refusal (exit 1) comes through' -Condition (
+                    $cliAllow.ExitCode -eq 0 -and $cliAllow.Text.Contains('(-AllowDirty)') -and $cliAllow.Text.Contains('[dry run] Building the local page') -and
+                    $cliRefused.ExitCode -eq 1 -and (& $flat $cliRefused.Text).Contains('2 uncommitted change(s)')) -Detail "$($cliAllow.Text)`n$($cliRefused.Text)"
+            }
             $cliInstallWorktree = & $run (Join-Path $updateCopies.worktree 'scripts\install-cli.ps1') @('-DryRun')
             Assert-That -Name 'install-cli.ps1 refuses to point the command into a .claude\worktrees checkout' -Condition (
                 $cliInstallWorktree.ExitCode -eq 1 -and $cliInstallWorktree.Text.Contains('temporary worktree')) -Detail $cliInstallWorktree.Text

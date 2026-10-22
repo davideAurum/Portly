@@ -7,8 +7,18 @@
     Runs `npm run build:static` with PORTLY_STATIC_BASE set to -Base, checks that
     web\dist-static\index.html exists and uses that base, then replaces the contents of the
     public repository's working tree with it: every tracked file is removed (CNAME and README.md
-    are kept, .git is never touched), web\dist-static\* and an empty .nojekyll are copied in, the
-    result is committed (skipped when nothing changed) and pushed (unless -NoPush).
+    are kept, .git is never touched), web\dist-static\*, an empty .nojekyll and a .gitattributes
+    are copied in, the result is committed (skipped when nothing changed) and pushed (unless
+    -NoPush).
+
+    Before that, the clone is checked against its upstream branch (git fetch): a clone that is
+    only behind it (no local commits) is fast-forwarded first; one that has diverged (local
+    commits the upstream lacks, and upstream commits this clone lacks) is refused with the exact
+    commands to merge it - the script never merges on its own. The .gitattributes (`*.ps1 -text`,
+    `*.woff2 binary`; lines of its own that the clone already has are kept) makes git store
+    install.ps1 and setup.ps1 byte for byte, CRLF endings included, whatever core.autocrlf the
+    clone uses. After the push it reminds you that GitHub Pages can serve the previous page for up
+    to 10 minutes (Cache-Control: max-age=600).
 
     It DELETES EVERY TRACKED FILE (except CNAME and README.md) of the repository it is given. Use a
     new, empty public repository created for this site; never point it at a repository that holds
@@ -19,11 +29,13 @@
     Portly checkout or any other Portly checkout. The repository must be empty or hold only
     an earlier Portly publish (index.html with <meta name="portly-build" content="static">, or
     "homebase-build" from before the rename, assets/, install.ps1, setup.ps1, the files of
-    web\public, .nojekyll, CNAME, README.md); anything else is refused
+    web\public, .nojekyll, .gitattributes, CNAME, README.md); anything else is refused
     unless -ReplaceEverything. When origin is on github.com and there is no CNAME file, -Base must
     match the repository ('/' for <user>.github.io, '/<repo>/' otherwise). Only the build's own
-    paths are staged. -DryRun only prints the plan: it builds nothing and changes nothing, and it
-    refuses exactly what a real run would refuse.
+    paths are staged. -DryRun only prints the plan: it fetches (to report the same as a real
+    run), builds nothing and changes nothing, and it refuses what a real run would refuse - except
+    a fetch that fails (offline, say), which stops a real run while a dry run says so and goes on
+    with this clone's own files.
 
     A publish into the wrong repository can be undone there: `git revert <publish commit>`, then
     `git push` (the old files are still in its history).
@@ -45,7 +57,9 @@
     Commit message. Default: "Publish Portly <version> (<date>)".
 
 .PARAMETER DryRun
-    Print what would be built, removed, copied, committed and pushed; change nothing.
+    Print what would be built, removed, copied, committed and pushed. Fetches the clone's upstream
+    to report it (when that fails, the plan says so and goes on with this clone's own files);
+    otherwise changes nothing.
 
 .PARAMETER NoPush
     Commit, but do not push.
@@ -78,12 +92,24 @@ $ErrorActionPreference = 'Stop'
 # Files of the public repository that are not part of the build and survive a publish.
 $HbPublishKeep = @('CNAME', 'README.md')
 $HbNoJekyll = '.nojekyll'
+$HbGitAttributes = '.gitattributes'
+# What the publish puts into the public repository's .gitattributes. With core.autocrlf=true (the
+# Git for Windows default) and no attributes, git would commit install.ps1 and setup.ps1 with LF
+# endings, and the site would serve files that differ from the build (web\vite.config.ts copies
+# them byte for byte). Lines of the file that are not these (the repository's own) are kept.
+$HbGitAttributesLines = @(
+    '# Portly (scripts\publish-static.ps1): install.ps1 and setup.ps1 are published byte for byte (CRLF endings).',
+    '*.ps1 -text',
+    '*.woff2 binary'
+)
 # web\vite.config.ts (staticHtml) puts this tag into every static build's index.html (homebase-build
 # before the rename to Portly).
 $HbBuildMarker = '<meta\s[^>]*name\s*=\s*["'']?(portly|homebase)-build["'']?[^>]*content\s*=\s*["'']?static\b'
 
 # Runs git in a folder. Output is captured (stderr included) unless -ShowOutput, which streams it
-# to the console (commit, push). Throws on a non-zero exit code unless -AllowFailure.
+# to the console (commit, push). Throws on a non-zero exit code unless -AllowFailure. Windows
+# PowerShell 5.1 wraps each stderr line in an ErrorRecord, and a blank one prints as its exception
+# type name ("System.Management.Automation.RemoteException"), so the message is taken instead.
 function Invoke-HbGit {
     param(
         [Parameter(Mandatory)][string]$Git,
@@ -99,7 +125,8 @@ function Invoke-HbGit {
             & $Git -C $Directory @Arguments | Out-Host
             $lines = @()
         } else {
-            $lines = @(& $Git -C $Directory @Arguments 2>&1 | ForEach-Object { "$_" })
+            $lines = @(& $Git -C $Directory @Arguments 2>&1 | ForEach-Object {
+                    if ($_ -is [System.Management.Automation.ErrorRecord]) { "$($_.Exception.Message)" } else { "$_" } })
         }
         $exitCode = $LASTEXITCODE
     } finally {
@@ -161,11 +188,12 @@ function Get-HbPagesUrl {
 }
 
 # Top-level names an earlier publish leaves in the public repository: the build's own entries
-# (index.html, assets, install.ps1, setup.ps1, whatever web\public holds), .nojekyll and the kept files.
+# (index.html, assets, install.ps1, setup.ps1, whatever web\public holds), .nojekyll, .gitattributes
+# and the kept files.
 function Get-HbPublishedNames {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $names = New-Object System.Collections.Generic.List[string]
-    foreach ($name in (@('index.html', 'assets', 'install.ps1', 'setup.ps1', $HbNoJekyll) + $HbPublishKeep)) { $names.Add($name) }
+    foreach ($name in (@('index.html', 'assets', 'install.ps1', 'setup.ps1', $HbNoJekyll, $HbGitAttributes) + $HbPublishKeep)) { $names.Add($name) }
     $publicDir = Join-Path $RepoRoot 'web\public'
     if (Test-Path -LiteralPath $publicDir -PathType Container) {
         foreach ($entry in @(Get-ChildItem -LiteralPath $publicDir -Force)) { $names.Add($entry.Name) }
@@ -180,6 +208,102 @@ function Write-HbRemovalList {
     if ($Plan.Kept.Count -gt 0) { $keptText = "; kept: $($Plan.Kept -join ', ')" }
     Write-HbField -Name 'Remove' -Value "$($Plan.ToRemove.Count) tracked file(s)$keptText"
     foreach ($file in $Plan.ToRemove) { Write-HbInfo "- $file" }
+}
+
+# Fetches the checked-out branch's upstream and counts the commits on each side: {Upstream, Ahead
+# (local commits the upstream lacks), Behind (upstream commits this clone lacks), FetchError}.
+# Without an upstream nothing is fetched, Upstream is $null and both counts are 0. A fetch that
+# fails throws (a real run stops there); with -AllowFetchFailure (the dry run) it is reported in
+# FetchError instead, with both counts 0.
+function Get-HbPublishSyncState {
+    param(
+        [Parameter(Mandatory)][string]$Git,
+        [Parameter(Mandatory)][string]$Directory,
+        [AllowNull()][AllowEmptyString()][string]$Upstream,
+        [switch]$AllowFetchFailure
+    )
+    $state = [pscustomobject]@{ Upstream = $null; Ahead = 0; Behind = 0; FetchError = $null }
+    if ([string]::IsNullOrWhiteSpace($Upstream)) { return $state }
+    $state.Upstream = $Upstream
+    $fetch = Invoke-HbGit -Git $Git -Directory $Directory -Arguments @('fetch', '--quiet') -AllowFailure
+    if ($fetch.ExitCode -ne 0) {
+        $detail = (@($fetch.Lines | Where-Object { $_.Trim() }) -join ' ')
+        if ($AllowFetchFailure) {
+            $state.FetchError = "git fetch failed (exit code $($fetch.ExitCode)): $detail"
+            return $state
+        }
+        throw ("git fetch failed in $Directory (exit code $($fetch.ExitCode)): $detail - so the clone could not be checked against $Upstream. " +
+            'Check the connection and the remote, then run the publish again.')
+    }
+    $counts = Invoke-HbGit -Git $Git -Directory $Directory -Arguments @('rev-list', '--left-right', '--count', "HEAD...$Upstream")
+    $parts = @()
+    if ($counts.Lines.Count -gt 0) { $parts = @("$($counts.Lines[0])".Trim() -split '\s+') }
+    if ($parts.Count -ne 2) { throw "Could not compare HEAD with $Upstream (git rev-list printed '$($counts.Lines -join ' ')')." }
+    $state.Ahead = [int]$parts[0]
+    $state.Behind = [int]$parts[1]
+    return $state
+}
+
+# Fast-forwards the checked-out branch to its upstream (git refuses when that would need a merge);
+# returns the new short HEAD.
+function Invoke-HbPublishFastForward {
+    param([Parameter(Mandatory)][string]$Git, [Parameter(Mandatory)][string]$Directory, [Parameter(Mandatory)][string]$Upstream)
+    $null = Invoke-HbGit -Git $Git -Directory $Directory -Arguments @('merge', '--ff-only', '--quiet', $Upstream)
+    return (Invoke-HbGit -Git $Git -Directory $Directory -Arguments @('rev-parse', '--short', 'HEAD')).Lines[0]
+}
+
+# The .gitattributes text to publish: the lines the clone's file holds that are not Portly's (in
+# their order), a blank line, then Portly's lines ($HbGitAttributesLines). Running it on its own
+# output gives the same text, so a publish that changes nothing else stays "nothing changed".
+function Get-HbGitAttributesText {
+    param([AllowNull()][AllowEmptyString()][string]$Existing)
+    $own = New-Object System.Collections.Generic.List[string]
+    if (-not [string]::IsNullOrEmpty($Existing)) {
+        foreach ($line in ($Existing -split "`r?`n")) {
+            $trimmed = $line.Trim()
+            if ($trimmed.StartsWith('# Portly', [System.StringComparison]::Ordinal) -or $HbGitAttributesLines -ccontains $trimmed) { continue }
+            $own.Add($line.TrimEnd())
+        }
+        while ($own.Count -gt 0 -and $own[$own.Count - 1] -eq '') { $own.RemoveAt($own.Count - 1) }
+    }
+    $lines = New-Object System.Collections.Generic.List[string]
+    if ($own.Count -gt 0) {
+        foreach ($line in $own) { $lines.Add($line) }
+        $lines.Add('')
+    }
+    foreach ($line in $HbGitAttributesLines) { $lines.Add($line) }
+    return (($lines -join "`n") + "`n")
+}
+
+# Replaces the clone's content with the build: git rm removes the tracked files to remove (from
+# the index and the working tree; untracked files, .git and the kept files are not touched),
+# web\dist-static\* is copied in, .nojekyll is added when the build has none, the .gitattributes
+# is written (before the add, so that it governs how the scripts are stored), and exactly those
+# paths are staged: a file that a removed .gitignore used to hide (a log, a Thumbs.db) must not
+# slip into the public commit. Returns the staged top-level paths.
+function Update-HbPublishTree {
+    param(
+        [Parameter(Mandatory)][string]$Git,
+        [Parameter(Mandatory)][string]$TargetRoot,
+        [Parameter(Mandatory)][string]$DistStatic,
+        [AllowEmptyCollection()][string[]]$ToRemove = @()
+    )
+    $attributesPath = Join-Path $TargetRoot $HbGitAttributes
+    $existingAttributes = $null
+    if (Test-Path -LiteralPath $attributesPath -PathType Leaf) { $existingAttributes = [System.IO.File]::ReadAllText($attributesPath) }
+    if ($ToRemove.Count -gt 0) {
+        $null = Invoke-HbGit -Git $Git -Directory $TargetRoot -Arguments (@('rm', '-r', '-q', '--') + $ToRemove)
+    }
+    $buildEntries = @(Get-ChildItem -LiteralPath $DistStatic -Force)
+    $buildEntries | Copy-Item -Destination $TargetRoot -Recurse -Force
+    $noJekyll = Join-Path $TargetRoot $HbNoJekyll
+    if (-not (Test-Path -LiteralPath $noJekyll -PathType Leaf)) {
+        [System.IO.File]::WriteAllText($noJekyll, '')
+    }
+    [System.IO.File]::WriteAllText($attributesPath, (Get-HbGitAttributesText -Existing $existingAttributes))
+    $stagePaths = @(@($buildEntries | ForEach-Object { $_.Name }) + @($HbNoJekyll, $HbGitAttributes) | Select-Object -Unique)
+    $null = Invoke-HbGit -Git $Git -Directory $TargetRoot -Arguments (@('add', '-A', '--') + $stagePaths)
+    return , $stagePaths
 }
 
 # Validates everything and returns the plan; throws with a message for the user when something is off.
@@ -267,7 +391,38 @@ function Get-PublishPlan {
         throw 'The public repository has no upstream branch and no remote named origin, so there is nothing to push to. Add the remote (git remote add origin <url>) or use -NoPush.'
     }
 
-    $tracked = @((Invoke-HbGit -Git $gitExe -Directory $targetRoot -Arguments @('ls-files')).Lines | Where-Object { $_.Trim() })
+    # The clone against its upstream (fetched). Only behind (another PC or the workflow published
+    # meanwhile): a real run fast-forwards it before anything else, so the plan describes the
+    # upstream's files. Diverged: refused with the commands to resolve it - never merged here. A
+    # fetch that fails stops a real run; a dry run reports it and plans with this clone's files.
+    $sync = Get-HbPublishSyncState -Git $gitExe -Directory $targetRoot -Upstream $upstreamName -AllowFetchFailure:$DryRun
+    if ($sync.Ahead -gt 0 -and $sync.Behind -gt 0) {
+        throw ("The public repository $targetRoot has diverged from $upstreamName (fetched): $($sync.Ahead) local commit(s) are not on $upstreamName, " +
+            "and $($sync.Behind) commit(s) of $upstreamName are not here. This script never merges on its own. Merge first, keeping this clone's " +
+            "version of any file both sides changed (the publish replaces Portly's files anyway; look at CNAME and README.md afterwards), " +
+            "then run the publish again:`n" +
+            "  git -C `"$targetRoot`" merge -X ours --no-edit $upstreamName`n" +
+            "If the local commits are only earlier publishes you do not need, discard them instead:`n" +
+            "  git -C `"$targetRoot`" reset --hard $upstreamName")
+    }
+    $syncText = 'none'
+    if ($null -ne $sync.Upstream) {
+        if ($null -ne $sync.FetchError) {
+            $syncText = "$upstreamName, not fetched: $($sync.FetchError)"
+        } elseif ($sync.Behind -gt 0) {
+            $syncText = "$upstreamName, fetched: this clone is $($sync.Behind) commit(s) behind it and has no local commits, so it is fast-forwarded first (the files below are those of $upstreamName)"
+        } elseif ($sync.Ahead -gt 0) {
+            $syncText = "$upstreamName, fetched: $($sync.Ahead) local commit(s) not on it yet go out with the next push"
+        } else {
+            $syncText = "$upstreamName, fetched: level with this clone"
+        }
+    }
+
+    if ($sync.Behind -gt 0) {
+        $tracked = @((Invoke-HbGit -Git $gitExe -Directory $targetRoot -Arguments @('ls-tree', '-r', '--name-only', $upstreamName)).Lines | Where-Object { $_.Trim() })
+    } else {
+        $tracked = @((Invoke-HbGit -Git $gitExe -Directory $targetRoot -Arguments @('ls-files')).Lines | Where-Object { $_.Trim() })
+    }
     $toRemove = @($tracked | Where-Object { $HbPublishKeep -notcontains $_ })
     $kept = @($tracked | Where-Object { $HbPublishKeep -contains $_ })
 
@@ -285,8 +440,13 @@ function Get-PublishPlan {
         } else {
             $indexPath = Join-Path $targetRoot 'index.html'
             $indexText = ''
-            if ($tracked -ccontains 'index.html' -and (Test-Path -LiteralPath $indexPath -PathType Leaf)) {
-                $indexText = [System.IO.File]::ReadAllText($indexPath)
+            if ($tracked -ccontains 'index.html') {
+                if ($sync.Behind -gt 0) {
+                    # The upstream's index.html: the working tree still has this clone's.
+                    $indexText = (Invoke-HbGit -Git $gitExe -Directory $targetRoot -Arguments @('show', "$upstreamName`:index.html")).Lines -join "`n"
+                } elseif (Test-Path -LiteralPath $indexPath -PathType Leaf) {
+                    $indexText = [System.IO.File]::ReadAllText($indexPath)
+                }
             }
             if ($indexText -notmatch $HbBuildMarker) {
                 $reason = 'its index.html is missing or is not a Portly build (no <meta name="portly-build" content="static">)'
@@ -327,6 +487,8 @@ function Get-PublishPlan {
         TargetRoot    = $targetRoot
         Branch        = $branchName
         Upstream      = $upstreamName
+        Sync          = $sync
+        SyncText      = $syncText
         RemoteUrl     = $remoteUrl
         PushCommand   = $pushCommand
         Tracked       = $tracked
@@ -365,9 +527,15 @@ if ($DryRun) {
     $remoteText = 'no remote'
     if ($plan.RemoteUrl) { $remoteText = "origin $($plan.RemoteUrl)" }
     Write-HbField -Name 'Target' -Value "$($plan.TargetRoot)  (branch $($plan.Branch), $remoteText)"
+    Write-HbField -Name 'Upstream' -Value $plan.SyncText
+    if ($null -ne $plan.Sync.FetchError) {
+        Write-Warning ("$($plan.Upstream) could not be fetched, so this plan lists this clone's own files and cannot tell whether " +
+            "the clone is behind $($plan.Upstream) or has diverged from it; a real run stops at the fetch. Check the connection and the remote.")
+    }
     Write-HbRemovalList -Plan $plan
-    Write-HbField -Name 'Copy' -Value "web\dist-static\* + $HbNoJekyll"
+    Write-HbField -Name 'Copy' -Value "web\dist-static\* + $HbNoJekyll + $HbGitAttributes"
     foreach ($file in $buildFiles) { Write-HbInfo "+ $file" }
+    Write-HbInfo "+ $HbGitAttributes  ($(@($HbGitAttributesLines | Select-Object -Skip 1) -join ', '); lines of its own that the clone has are kept)"
     Write-HbField -Name 'Commit' -Value "`"$($plan.CommitMessage)`"  (skipped when nothing changed)"
     if ($NoPush) {
         Write-HbField -Name 'Push' -Value 'skipped (-NoPush)'
@@ -380,6 +548,18 @@ if ($DryRun) {
 }
 
 try {
+    if ($null -ne $plan.Sync.Upstream) {
+        if ($plan.Sync.Behind -gt 0) {
+            Write-HbStep "Fast-forwarding $($plan.TargetRoot) to $($plan.Upstream): $($plan.Sync.Behind) commit(s) behind it, no local commits"
+            $head = Invoke-HbPublishFastForward -Git $plan.Git -Directory $plan.TargetRoot -Upstream $plan.Upstream
+            Write-HbOk "Fast-forwarded to $head"
+        } elseif ($plan.Sync.Ahead -gt 0) {
+            Write-HbInfo "Fetched $($plan.Upstream): $($plan.Sync.Ahead) local commit(s) not on it yet go out with the next push"
+        } else {
+            Write-HbInfo "Fetched $($plan.Upstream): level with this clone"
+        }
+    }
+
     Write-HbStep "Building the browser-only site: npm run build:static (PORTLY_STATIC_BASE=$Base)"
     Invoke-HbStaticBuild -RepoRoot $plan.RepoRoot -BasePath $Base
     $indexHtml = Join-Path $plan.DistStatic 'index.html'
@@ -395,22 +575,8 @@ try {
 
     Write-HbStep "Replacing the contents of $($plan.TargetRoot) (branch $($plan.Branch))"
     Write-HbRemovalList -Plan $plan
-    if ($plan.ToRemove.Count -gt 0) {
-        # git rm removes the files (and directories left empty) from the index and the working tree;
-        # untracked files, .git and the kept files are not touched.
-        $null = Invoke-HbGit -Git $plan.Git -Directory $plan.TargetRoot -Arguments (@('rm', '-r', '-q', '--') + $plan.ToRemove)
-    }
-    $buildEntries = @(Get-ChildItem -LiteralPath $plan.DistStatic -Force)
-    $buildEntries | Copy-Item -Destination $plan.TargetRoot -Recurse -Force
-    $noJekyll = Join-Path $plan.TargetRoot $HbNoJekyll
-    if (-not (Test-Path -LiteralPath $noJekyll -PathType Leaf)) {
-        [System.IO.File]::WriteAllText($noJekyll, '')
-    }
-    # Stage the build's own paths only: a file that a removed .gitignore used to hide (a log, a
-    # Thumbs.db) must not slip into the public commit.
-    $stagePaths = @(@($buildEntries | ForEach-Object { $_.Name }) + $HbNoJekyll | Select-Object -Unique)
-    $null = Invoke-HbGit -Git $plan.Git -Directory $plan.TargetRoot -Arguments (@('add', '-A', '--') + $stagePaths)
-    Write-HbInfo "removed $($plan.ToRemove.Count) tracked file(s), copied $($buildFiles.Count) file(s) + $HbNoJekyll"
+    $null = Update-HbPublishTree -Git $plan.Git -TargetRoot $plan.TargetRoot -DistStatic $plan.DistStatic -ToRemove $plan.ToRemove
+    Write-HbInfo "removed $($plan.ToRemove.Count) tracked file(s), copied $($buildFiles.Count) file(s) + $HbNoJekyll + $HbGitAttributes"
 
     # Exit code 0: the index matches HEAD (nothing to commit); 1: something is staged.
     $staged = Invoke-HbGit -Git $plan.Git -Directory $plan.TargetRoot -Arguments @('diff', '--cached', '--quiet') -AllowFailure
@@ -430,10 +596,12 @@ try {
         Write-HbStep "Pushing: git $($plan.PushCommand -join ' ')"
         $null = Invoke-HbGit -Git $plan.Git -Directory $plan.TargetRoot -Arguments $plan.PushCommand -ShowOutput
         if ($plan.PagesUrl) {
-            Write-HbOk "Published. GitHub Pages usually updates within a minute or two: $($plan.PagesUrl)"
+            Write-HbOk "Published: $($plan.PagesUrl)"
         } else {
             Write-HbOk 'Published.'
         }
+        Write-HbInfo 'GitHub Pages picks the push up within a minute or two, but can serve the previous page for up to'
+        Write-HbInfo '10 minutes (Cache-Control: max-age=600): hard-refresh (Ctrl+F5) before judging the result.'
     }
 } catch {
     Write-HbFailure $_.Exception.Message
