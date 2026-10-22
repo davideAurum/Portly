@@ -210,3 +210,39 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
     every 5 s while the page is visible;
   - the Pages forward never takes another PC's page load.
   - logs carry request and device ids only; the diagnostics log filters gained `deviceId`.
+
+## The real check with a second PC (B.5, 2026-10-22)
+
+Tailscale 1.104 on both PCs (Windows 11), the same account, Serve enabled on the tailnet from the
+link the CLI prints. On the main PC: a scratch server (port 5799, remote port 5800, a scratch data
+folder, `PORTLY_REMOTE_ORIGIN=https://<pc>.<tailnet>.ts.net`), a throwaway relay on 5801 that
+recorded every header before forwarding to 5800, and `tailscale serve --bg 5801` (tailnet only;
+the certificate was issued on the first request, a few seconds). Nothing was committed from it.
+
+**What Tailscale Serve sends** (seen at the relay for every request, from this PC and from the
+second PC alike): `Host` and `X-Forwarded-Host` are the Serve address, unchanged;
+`X-Forwarded-Proto: https`; `X-Forwarded-For` is the sender's tailnet IP (100.x);
+`Tailscale-User-Login`, `Tailscale-User-Name` and `Tailscale-User-Profile-Pic` carry the sender's
+tailnet identity. `Origin` passes through unchanged (a foreign `Origin` arrived as sent, and the
+server refused it as designed).
+
+**The four-way header probe.** A request with a forged `Tailscale-User-Login`, a forged
+`Tailscale-User-Name` and a forged `X-Forwarded-For`, sent through the Serve address from this PC
+(curl) and from the second PC (PowerShell): in all four cases the forged values never reached the
+relay; Serve replaced them with the real identity and the real tailnet IP. So the identity header
+is trustworthy inside a Serve-only setup, and the optional `PORTLY_REMOTE_LOGIN` check of section
+2 can be built as defence in depth (B.6); it is still not a substitute for the device cookie,
+because any other proxy may pass such headers through.
+
+**The connect flow.** The second PC (Chrome) opened the Serve address and got the connect screen;
+its request arrived with `Origin` = the Serve origin and `Sec-Fetch-Site: same-origin`; it polled
+every 2 s; the request was listed on the main PC with the same code, approved there, and the
+second PC's next poll connected it: from then on every request carried `__Host-portly_device`
+over real https on a non-loopback host (the `Secure` and `__Host-` attributes hold), the app
+loaded and its first-run seeding ran against the scratch data. Removing the device on the main PC
+answered the second PC's next request with 401 `device_revoked`, and its page went back to the
+connect screen. The server's log carried request and device ids only; the relay's log (deleted
+afterwards) was the only place the identity headers were written.
+
+**Still open:** `setup.ps1 -RemoteOrigin` for real on the installed Portly (B.5's last step, on
+the owner's say-so); the later items of phase 4.

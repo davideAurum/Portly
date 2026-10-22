@@ -929,11 +929,19 @@ Items:
   revoke from this one.
 
   *Done when:* the four results and the headers seen are dated in design/multi-pc.md; the B.1
-  Tailscale row closed; the identity-header check (B.6) decided on those results.
+  Tailscale row closed; the identity-header check (B.6) decided on those results. *Result:*
+  2026-10-22, on a scratch server with Tailscale Serve pointed at its remote port through a
+  header-recording relay: Serve keeps the Host and passes `Origin` through, adds `X-Forwarded-*`
+  and `Tailscale-User-*`, and replaced forged identity and `X-Forwarded-For` headers from this PC
+  and from the second PC alike (four of four); the whole connect flow ran from the second PC and a
+  revoke from this one sent it back to the connect screen (design/multi-pc.md, "The real check").
+  `setup.ps1 -RemoteOrigin` for real on the installed Portly is the step left.
 
 - **B.6 Later** (parked): the extension's server address, so the other PC's New Tab opens the main
   PC's Portly; OAuth sign-in from other PCs (https redirect URIs for the remote origin); a passkey
-  as a second factor; the `Tailscale-User-Login` check once B.5 has shown what Serve does.
+  as a second factor; an optional `PORTLY_REMOTE_LOGIN` check of the `Tailscale-User-Login` header
+  as defence in depth (B.5 showed Serve replaces a forged one from inside the tailnet; it would
+  stay optional, since any other proxy may pass the header through).
 
 ## Checks never run for real
 
@@ -971,15 +979,15 @@ date and the outcome once a row has been run for real.
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
 | `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: winget's LTS id installs Node 26 once that is the LTS, which `engine-strict` refuses | 2d7b20e, 2026-10-21 | 1.11 | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
-| The device cookies over real https on an address that is not loopback (a Tailscale Serve address): the B.4 check ran on `http://localhost`, which Chromium treats as secure, so the `Secure` and `__Host-` attributes were never exercised against a certificate | B.2 commit, 2026-10-21 | B.5 | not yet |
 | `setup.ps1 -RemoteOrigin` for real (the variable saved and the task restarted with it); only `-DryRun` and the `check-scripts.ps1` dry runs | B.3 commit, 2026-10-21 | B.5 (on this PC, before the second device connects) | not yet |
-| Tailscale Serve pointed at Portly's remote port: which Host, `Tailscale-User-*` and `X-Forwarded-*` headers arrive, whether `Origin` passes through unchanged, and whether a forged `Tailscale-User-Login` is stripped; nothing has run against Tailscale | B.1 commit, 2026-10-21 | B.5 | not yet |
 
 ### Closed
 
 | Check | From | Closed by |
 | --- | --- | --- |
-| The device connect flow in a real browser through a proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 on 2026-10-21 (the B.2 commit's body): the whole flow in the desktop app's browser pane through a plain-HTTP loopback proxy; real https stays open as the row above |
+| The device connect flow in a real browser through a proxy (the `__Host-` cookies with `SameSite=Strict`, the renewal, approving on the main PC while the other page polls); only `testRequest()` tests with a remote Host header | B.1 commit, 2026-10-21 | B.4 on 2026-10-21 (the B.2 commit's body): the whole flow in the desktop app's browser pane through a plain-HTTP loopback proxy; real https closed by B.5 below |
+| Tailscale Serve pointed at Portly's remote port: which Host, `Tailscale-User-*` and `X-Forwarded-*` headers arrive, whether `Origin` passes through unchanged, and whether a forged `Tailscale-User-Login` is stripped | B.1 commit, 2026-10-21 | B.5 on 2026-10-22: Host kept, Origin unchanged, the forwarding and identity headers added and forged ones replaced from both PCs (design/multi-pc.md, "The real check") |
+| The device cookies over real https on an address that is not loopback (a Tailscale Serve address) | B.2 commit, 2026-10-21 | B.5 on 2026-10-22: the second PC's every request carried the `__Host-` cookie over the Serve address, and the app loaded |
 | The browser-only polish (*Browser only* footer label, Diagnostics intro and link, gap-free first-run layout, suggestion labels, probe throttles) in a real browser | 8bb97b1, 2026-10-19 | 8bb97b1's own body: checked on 2026-10-19 with `npm run preview:static` on localhost, built against an unused port so it acted like a PC without Portly |
 | Preparing background uploads in a real browser (canvas decoding, WebP encoding and SVG drawing were only exercised through fakes) | a7859df, 2026-10-18 | 501e85b (2026-10-18): tried in Chrome's built-in browser pane on the Vite dev server and the browser-only build with scratch data (large JPEG and PNG to WebP, small JPEG unchanged, animated GIF first frame, sized and unsized SVGs, corrupt JPEG error, *Optimize image* keeping blur and dim) |
 | Outlook.com calendars in the browser-only build against a real Outlook.com account | 23abdd5, 2026-10-13 | 3b3edd7 (2026-10-19): a real account on a localhost copy of the site (*Single-page application* redirect) connected the account and synced its calendars; the published address is the 2.1 row above |
