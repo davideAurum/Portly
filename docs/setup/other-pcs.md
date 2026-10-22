@@ -50,7 +50,8 @@ Accounts connected on the main PC work from every PC, because the server keeps t
    In a release install (no checkout: Portly in `%LOCALAPPDATA%\Programs\Portly`) there is no
    `setup.ps1`: set the variable by hand and re-run `app\scripts\install-autostart.ps1` from that
    folder, or sign out of Windows and back in.
-4. Open Portly on the main PC: Settings → Devices shows the address for other PCs.
+4. Open Portly on the main PC: Settings → Devices shows the address for other PCs. So does
+   `portly --settings` ("Other PCs", with the remote port the proxy must forward to).
 
 `setup.ps1 -RemoteOrigin off` turns it off again (it removes `PORTLY_REMOTE_ORIGIN` and
 `PORTLY_REMOTE_PORT`): Portly listens on this PC only, and PCs connected before are refused.

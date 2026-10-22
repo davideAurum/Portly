@@ -211,7 +211,7 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
   - the Pages forward never takes another PC's page load.
   - logs carry request and device ids only; the diagnostics log filters gained `deviceId`.
 
-## The real check with a second PC (B.5, 2026-10-22)
+## The real check with a second PC (B.5, 2026-10-21)
 
 Tailscale 1.104 on both PCs (Windows 11), the same account, Serve enabled on the tailnet from the
 link the CLI prints. On the main PC: a scratch server (port 5799, remote port 5800, a scratch data
@@ -244,5 +244,12 @@ answered the second PC's next request with 401 `device_revoked`, and its page we
 connect screen. The server's log carried request and device ids only; the relay's log (deleted
 afterwards) was the only place the identity headers were written.
 
-**Still open:** `setup.ps1 -RemoteOrigin` for real on the installed Portly (B.5's last step, on
-the owner's say-so); the later items of phase 4.
+**The real install (2026-10-21).** After `update.ps1` had put the installed Portly on main,
+`setup.ps1 -RemoteOrigin https://<pc>.<tailnet>.ts.net` ran for real from the main checkout: it
+saved the user variable, re-registered the task (Browser mode) and restarted Portly, whose ready
+line named the remote origin and port 5758 beside 5757; `tailscale serve --bg 5758` then put the
+Serve address in front of it. Through the Serve address `/api/health` answers with `remote: true`
+and the app page loads; a forwarding header on the main port is refused (`proxied_local_host`).
+`status.ps1` showed nothing about it, so its Settings section gained an "Other PCs" line.
+
+**Still open:** the later items of phase 4.

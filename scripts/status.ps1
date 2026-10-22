@@ -14,7 +14,8 @@
     Settings - how it is set up: port, URL, checkout, data folder and log files, the task's mode
     and command, what it runs as (portly-supervisor.exe and portly-server.exe, copies of which
     node.exe), the extension ID pinned by the "key" in extension\manifest.json, the native host
-    manifests, and the GitHub Pages settings (PORTLY_PAGES_URL, PORTLY_PAGES_REPO).
+    manifests, the GitHub Pages settings (PORTLY_PAGES_URL, PORTLY_PAGES_REPO), and the address
+    for other PCs (PORTLY_REMOTE_ORIGIN, with the remote port the proxy forwards to).
 
     Exits with 0 when http://localhost:<port>/api/health answers as Portly and 1 otherwise, so
     it can be used from other scripts (-View Settings always exits 0).
@@ -238,6 +239,27 @@ function Invoke-Status {
         $pagesRepoText = if ($pagesRepo) { "$pagesRepo (PORTLY_PAGES_REPO)" } else { 'not set (PORTLY_PAGES_REPO: portly --rebuild skips publishing)' }
         Write-HbField 'Pages site' $pagesUrlText
         if ($null -eq $release) { Write-HbField 'Pages repo' $pagesRepoText }
+        # The variables the task sees (user/machine scope), like the Pages settings above. The default
+        # remote port follows the server's rule (config.ts: the port after Portly's own, or the one
+        # before it at 65535) from the task's port, not from -Port or this window's PORTLY_PORT.
+        $remoteOrigin = Get-HbEnvValue -Name 'PORTLY_REMOTE_ORIGIN' -Scope Task
+        $remotePort = Get-HbEnvValue -Name 'PORTLY_REMOTE_PORT' -Scope Task
+        $remoteText = if ($remoteOrigin) {
+            $remotePortText = if ($remotePort) {
+                "$remotePort (PORTLY_REMOTE_PORT)"
+            } else {
+                $taskPort = $checkPort
+                try { $taskPort = (Get-HbPortSetting -Scope Task).Port } catch { }
+                $defaultRemotePort = if ($taskPort -lt 65535) { $taskPort + 1 } else { $taskPort - 1 }
+                "$defaultRemotePort (default: the port after Portly's own)"
+            }
+            "$remoteOrigin (PORTLY_REMOTE_ORIGIN); the proxy forwards to remote port $remotePortText"
+        } elseif ($null -ne $release) {
+            'not set (PORTLY_REMOTE_ORIGIN: this PC only; to let your other PCs in, set it and re-run app\scripts\install-autostart.ps1, docs\setup\other-pcs.md)'
+        } else {
+            'not set (PORTLY_REMOTE_ORIGIN: this PC only; setup.ps1 -RemoteOrigin lets your other PCs in, docs\setup\other-pcs.md)'
+        }
+        Write-HbField 'Other PCs' $remoteText
     }
 
     if ($LogLines -gt 0) {

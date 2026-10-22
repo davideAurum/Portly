@@ -17,7 +17,7 @@
         Is Portly running and healthy? (scripts\status.ps1 -View Status; --logs adds the log
         tails)
     portly --settings
-        How it is set up: port, folders, logs, autostart, extension, Pages (status.ps1 -View Settings).
+        How it is set up: port, folders, logs, autostart, extension, Pages, other PCs (status.ps1 -View Settings).
     portly --start
         Start the Portly Server scheduled task (first refreshing Portly's named copies of
         node.exe, portly-supervisor.exe and portly-server.exe, when they are out of date).
@@ -54,7 +54,7 @@ Usage: portly <command> [options]
   --version     Show the installed version.
   --status      Is Portly running and healthy?  (--logs adds the log tails)
   --settings    How Portly is set up: port, folders, logs, autostart,
-                browser extension and GitHub Pages.
+                browser extension, GitHub Pages and other PCs.
   --start      Start the Portly server.
   --copy-from-homebase
                 Copy the data of Homebase (Portly's old name) into Portly,
