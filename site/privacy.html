@@ -21,8 +21,10 @@
   <p class="updated">Effective October 21, 2026</p>
 
   <p>Portly is a self-hosted browser home page. It runs either as a small server on your own
-    Windows PC, listening only on that computer (<code>localhost</code>), or as a browser-only
-    site served from GitHub Pages that keeps its data in the browser. There is no Portly cloud
+    Windows PC, listening only on that computer (<code>localhost</code>; your other PCs can reach it
+    only through a reverse proxy you run yourself, such as Tailscale, and only after you approve
+    each of them on that PC), or as a browser-only site served from GitHub Pages that keeps its
+    data in the browser. There is no Portly cloud
     service: its developer, davideAurum, does not operate any server that receives, stores or
     processes your data. Portly was called Homebase until October 2026; this policy replaces the
     one published under that name.</p>
@@ -90,6 +92,14 @@
     <li>So that the page can appear at once, your browser also keeps a snapshot of what it last
       showed, including the calendar events on screen but never mail, in its local storage for
       Portly's address. The snapshot is dropped after 24 hours or when Portly is updated.</li>
+    <li>If you let your other PCs use Portly on this PC (through a reverse proxy you run, after
+      approving each PC here), Portly keeps on this PC, for each PC that asks to connect, the name
+      you gave it, a short description of its browser and system (such as "Chrome on Windows"),
+      when it asked, connected and last used Portly, and a hash of its login cookie, never the
+      cookie itself; a removed PC's record is kept for 30 days so a stale cookie is recognised.
+      Each approved PC's browser keeps the login cookie for Portly's address, which lasts 30 days
+      of inactivity. Removing a PC in Settings ends its access at once. Portly still listens only
+      on this PC; the proxy is yours, and no Portly service is involved.</li>
   </ul>
   <p><strong>The browser-only site:</strong></p>
   <ul>

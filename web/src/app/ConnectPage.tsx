@@ -240,8 +240,8 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
         <Panel icon={Laptop} title="Connect this PC to Portly">
           <p className={styles.text}>
             This PC is not connected to Portly on the main PC yet. Give it a name, ask to connect, and approve the request on the main PC in{' '}
-            <strong>Settings → Devices</strong>. Once approved, this PC can use Portly like the main one, except for the few things that stay
-            there: signing in to Google and Microsoft accounts, resetting credentials and approving other PCs.
+            <strong>Settings → Devices</strong>. Once approved, this PC can use Portly like the main one, except for what needs the main PC
+            itself, such as signing in to Google and Microsoft accounts, resetting credentials and approving other PCs.
           </p>
           <form onSubmit={(event) => void ask(event)} className={styles.form}>
             <Field label="Name of this PC" help="Shown on the main PC when approving, and in its list of connected PCs.">

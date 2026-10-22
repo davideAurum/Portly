@@ -894,7 +894,10 @@ Items:
   from your other PCs needs.
 
   *Done when:* `check-scripts.ps1` passes in both PowerShell versions; `check-release.ps1`
-  passes; the docs name the real commands and the variable.
+  passes; the docs name the real commands and the variable. *Result:* built on 2026-10-21 (B.3
+  commit): ARCHITECTURE section 20 with the 3, 4.1, 4.2, 5, 6, 7, 7a, 10.5 and 17 updates;
+  `setup.ps1 -RemoteOrigin` (`off` removes it) with its dry-run checks in `check-scripts.ps1`;
+  the guide, README, SETUP and the privacy page.
 
 - **B.4 The flow in a real browser on this PC** (S; after B.2).
   A throwaway local HTTPS proxy on another loopback port with a self-signed certificate (scratch
@@ -969,6 +972,7 @@ date and the outcome once a row has been run for real.
 | `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: winget's LTS id installs Node 26 once that is the LTS, which `engine-strict` refuses | 2d7b20e, 2026-10-21 | 1.11 | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
 | The device cookies over real https on an address that is not loopback (a Tailscale Serve address): the B.4 check ran on `http://localhost`, which Chromium treats as secure, so the `Secure` and `__Host-` attributes were never exercised against a certificate | B.2 commit, 2026-10-21 | B.5 | not yet |
+| `setup.ps1 -RemoteOrigin` for real (the variable saved and the task restarted with it); only `-DryRun` and the `check-scripts.ps1` dry runs | B.3 commit, 2026-10-21 | B.5 (on this PC, before the second device connects) | not yet |
 | Tailscale Serve pointed at Portly's remote port: which Host, `Tailscale-User-*` and `X-Forwarded-*` headers arrive, whether `Origin` passes through unchanged, and whether a forged `Tailscale-User-Login` is stripped; nothing has run against Tailscale | B.1 commit, 2026-10-21 | B.5 | not yet |
 
 ### Closed

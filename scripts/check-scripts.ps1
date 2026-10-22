@@ -23,7 +23,7 @@
        scripts\tests\schtasks-stub.mjs (so the real task is never run).
     4. Runs the native host's node tests (node scripts\check-native-host.mjs).
     5. Runs install-autostart.ps1 -DryRun (both modes), uninstall-autostart.ps1 -DryRun,
-       status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl, a copy of setup.ps1
+       status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl and -RemoteOrigin, a copy of setup.ps1
        -DryRun on this checkout (it says it does not update it), update.ps1 -DryRun,
        try-branch.ps1 -DryRun, the portly command, install-cli.ps1 -DryRun and publish-static.ps1
        -DryRun (against throwaway repositories in a temporary folder) in child processes of
@@ -1191,6 +1191,26 @@ try {
             }
             Assert-That -Name 'setup.ps1 -DryRun left the user environment variable PORTLY_PAGES_URL alone' -Condition (
                 [System.Environment]::GetEnvironmentVariable('PORTLY_PAGES_URL', 'User') -ceq $pagesBefore)
+
+            # setup.ps1 -DryRun -RemoteOrigin (other PCs): checked and only printed, like -PagesUrl.
+            $remoteArgs = @('-DryRun', '-NoBrowser', '-SkipAutostart', '-SkipCli', '-RemoteOrigin')
+            $remoteBefore = [System.Environment]::GetEnvironmentVariable('PORTLY_REMOTE_ORIGIN', 'User')
+            $remoteDry = & $run 'setup.ps1' ($remoteArgs + @('https://PC.Tailnet.ts.net/'))
+            Assert-That -Name 'setup.ps1 -DryRun -RemoteOrigin prints the normalised address and changes nothing' -Condition (
+                $remoteDry.ExitCode -eq 0 -and $remoteDry.Text.Contains('PORTLY_REMOTE_ORIGIN = https://pc.tailnet.ts.net') -and
+                $remoteDry.Text.Contains('tailscale serve --bg 5758') -and
+                $remoteDry.Text.Contains('Dry run finished; nothing was changed.')) -Detail $remoteDry.Text
+            $remoteOff = & $run 'setup.ps1' ($remoteArgs + @('off'))
+            Assert-That -Name 'setup.ps1 -DryRun -RemoteOrigin off says it removes both variables' -Condition (
+                $remoteOff.ExitCode -eq 0 -and $remoteOff.Text.Contains('removing the user environment variables PORTLY_REMOTE_ORIGIN and PORTLY_REMOTE_PORT')) -Detail $remoteOff.Text
+            foreach ($badRemote in @('http://pc.tailnet.ts.net', 'pc.tailnet.ts.net', 'https://pc.tailnet.ts.net/portly', 'https://pc.tailnet.ts.net/?x=1', 'https://user:pw@pc.tailnet.ts.net')) {
+                $remoteBad = & $run 'setup.ps1' ($remoteArgs + @($badRemote))
+                Assert-That -Name "setup.ps1 refuses -RemoteOrigin '$badRemote' before installing anything" -Condition (
+                    $remoteBad.ExitCode -eq 1 -and $remoteBad.Text.Contains('-RemoteOrigin must be') -and
+                    -not $remoteBad.Text.Contains('Installing dependencies')) -Detail $remoteBad.Text
+            }
+            Assert-That -Name 'setup.ps1 -DryRun left the user environment variable PORTLY_REMOTE_ORIGIN alone' -Condition (
+                [System.Environment]::GetEnvironmentVariable('PORTLY_REMOTE_ORIGIN', 'User') -ceq $remoteBefore)
 
             # A copy of setup.ps1 (as irm | iex runs it) pointed at an existing checkout says it
             # does not update that checkout, and how to.

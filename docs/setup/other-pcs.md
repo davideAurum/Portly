@@ -4,9 +4,6 @@ Portly runs on one PC, the **main PC**, and listens only on that PC (`localhost`
 can use it too, through an encrypted reverse proxy on the main PC, after you approve each of them
 once. Nothing opens a port on your network, and nothing goes through a cloud.
 
-This guide is the first version that ships with the connect screen and Settings → Devices; the
-setup script option (`setup.ps1 -RemoteOrigin`) follows in the next step of the roadmap.
-
 ## How it works
 
 1. A reverse proxy on the main PC gives Portly an HTTPS address that only your own devices can
@@ -38,12 +35,25 @@ Accounts connected on the main PC work from every PC, because the server keeps t
    Tailscale prints the address, like `https://<pc>.<tailnet>.ts.net`. **Never use Tailscale
    Funnel**: it would put Portly on the public internet, where the approval screen would be the
    only thing between strangers and your mail and calendar.
-3. Set the Windows user environment variable `PORTLY_REMOTE_ORIGIN` to that address (the origin
-   only: `https://<pc>.<tailnet>.ts.net`, no path). `PORTLY_REMOTE_PORT` is only needed when
-   `5758` is taken.
-4. Re-run `scripts/install-autostart.ps1` from your Portly folder (add `-Trigger Logon` if you use
-   Logon mode), or sign out of Windows and back in, so Portly starts with the variable.
-5. Open Portly on the main PC: Settings → Devices shows the address for other PCs.
+3. Tell Portly that address. From your Portly folder:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -RemoteOrigin https://<pc>.<tailnet>.ts.net
+   ```
+
+   Setup saves it as the user environment variable `PORTLY_REMOTE_ORIGIN` (the address only, no
+   path) and replaces Portly's scheduled task so it starts with it. Add `-Trigger Logon` if you use
+   Logon mode; otherwise the task is registered in Browser mode. Setting the variable by hand and
+   re-running `scripts\install-autostart.ps1` (same `-Trigger` note), or signing out of Windows and
+   back in, does the same. `PORTLY_REMOTE_PORT` is only needed when `5758` is taken.
+
+   In a release install (no checkout: Portly in `%LOCALAPPDATA%\Programs\Portly`) there is no
+   `setup.ps1`: set the variable by hand and re-run `app\scripts\install-autostart.ps1` from that
+   folder, or sign out of Windows and back in.
+4. Open Portly on the main PC: Settings → Devices shows the address for other PCs.
+
+`setup.ps1 -RemoteOrigin off` turns it off again (it removes `PORTLY_REMOTE_ORIGIN` and
+`PORTLY_REMOTE_PORT`): Portly listens on this PC only, and PCs connected before are refused.
 
 Without `PORTLY_REMOTE_ORIGIN`, Portly behaves exactly as before: one PC, loopback only.
 
@@ -64,7 +74,7 @@ with the right port.
 
 - On the main PC: Settings → Devices → **Remove** next to the PC. Its next request is refused and
   its page goes back to the connect screen.
-- On the other PC itself: Settings → Devices → **Disconnect this PC**.
+- On the other PC itself: Settings → Devices → **Disconnect** next to the PC marked **This PC**.
 
 A PC not used for 30 days is disconnected by itself. At most 20 PCs can be connected at once.
 

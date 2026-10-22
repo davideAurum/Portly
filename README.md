@@ -71,6 +71,8 @@ same-origin fetch metadata on API calls, sends CORS headers to nobody but the on
 configure (and answers it only for browsers paired on Portly's own page, with a token on every
 request; the paired site can do everything Portly's own page does except approve a new pairing —
 see [Pages site with Portly on this PC](docs/setup/pages-local-server.md#security-one-site-every-page-on-it)),
+lets your other PCs in only through a reverse proxy you run on this one and only after you approve each PC here
+([Using Portly from your other PCs](docs/setup/other-pcs.md); the server itself never listens beyond loopback),
 serves the app with a strict Content-Security-Policy (no inline or eval'd script), stores
 credentials encrypted with a DPAPI-protected key and never returns them to the browser, treats every
 email, calendar feed and favicon as hostile input, and fetches untrusted URLs only through a guarded
@@ -137,6 +139,13 @@ this PC: it opens the Pages site when the server has one. Set-up:
 [docs/setup/pages-local-server.md](docs/setup/pages-local-server.md) (server: `PORTLY_PAGES_URL`;
 build: `PORTLY_STATIC_SERVER`, default `http://127.0.0.1:5757`, `off` to disable).
 
+**Other PCs.** One Portly can serve your other PCs too: an encrypted reverse proxy on the main PC (Tailscale
+Serve, inside your own tailnet) forwards them to a second loopback port, each PC asks to connect once and shows a
+short code, and you approve it in Settings → Devices on the main PC. Accounts connected on the main PC work from
+every PC; what needs the main PC itself stays there: signing in to Google or Microsoft, resetting credentials,
+importing browser bookmarks, approving PCs and paired browsers, the OAuth client settings and the diagnostics report. Set-up:
+[docs/setup/other-pcs.md](docs/setup/other-pcs.md) (`setup.ps1 -RemoteOrigin`, or `PORTLY_REMOTE_ORIGIN` by hand).
+
 ## Repository layout
 
 | Path | Package | What it is |
@@ -191,7 +200,7 @@ tests also run alone (`node scripts/check-extension.mjs`, `node scripts/check-na
 
 Portly reads its settings from environment variables (`server/src/config.ts`): the port
 (`PORTLY_PORT`, default `5757`), the data folder (`PORTLY_DATA_DIR`), your Pages site
-(`PORTLY_PAGES_URL`) and a few more. Every variable, including the development and build-time ones,
+(`PORTLY_PAGES_URL`), the address your other PCs use (`PORTLY_REMOTE_ORIGIN`) and a few more. Every variable, including the development and build-time ones,
 is listed in [SETUP: Configuration](docs/SETUP.md#configuration).
 
 ## Documentation
@@ -203,7 +212,8 @@ is listed in [SETUP: Configuration](docs/SETUP.md#configuration).
 - [New-tab extension](docs/setup/extension.md) · [Autostart](docs/setup/autostart.md) ·
   [Troubleshooting](docs/setup/troubleshooting.md)
 - [Browser-only build on GitHub Pages](docs/setup/static-build.md) ·
-  [Pages site with Portly on this PC](docs/setup/pages-local-server.md)
+  [Pages site with Portly on this PC](docs/setup/pages-local-server.md) ·
+  [Using Portly from your other PCs](docs/setup/other-pcs.md)
 - [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md)
 
 ## License

@@ -149,9 +149,15 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   `PORTLY_PAGES_URL` (unset = hybrid mode off) → `pagesUrl` (path ends with `/`) and `pagesOrigin`: absolute,
   `https:` (or `http:` on `localhost`/`127.0.0.1`/`[::1]`, with a startup warning naming the origin), no credentials,
   query or fragment, not `*`/`null`, and not one of the server's own origins. Kept apart from the origin allowlist
-  and never part of `Settings`.
-- **Listeners:** one `serve({fetch: app.fetch, hostname, port})` per bind address. `EADDRINUSE` on any →
-  log and `process.exit(3)` (EXIT_ALREADY_RUNNING). `EADDRNOTAVAIL`/`EAFNOSUPPORT` on `::1` → warn, continue IPv4-only.
+  and never part of `Settings`. `PORTLY_REMOTE_ORIGIN` (unset = other PCs off, §20) → `remoteOrigin` and `remoteHost`:
+  a bare `https:` origin (or `http:` on a loopback host, with a startup warning), no credentials, path, query or
+  fragment, neither one of the server's own hosts nor the Pages origin; `PORTLY_REMOTE_PORT` (default `<port> + 1`;
+  only with the remote origin; must differ from the main and dev ports) → `remotePort` and `remoteHosts` (the remote
+  host and the loopback forms of that port). Never part of `allowedHosts`/`allowedOrigins`.
+- **Listeners:** one `serve({fetch: app.fetch, hostname, port})` per bind address, on `PORTLY_PORT` and, with a
+  remote origin, on `PORTLY_REMOTE_PORT` too (both probed first; the remote listener is loopback like the main one).
+  `EADDRINUSE` on any → log and `process.exit(3)` (EXIT_ALREADY_RUNNING). `EADDRNOTAVAIL`/`EAFNOSUPPORT` on `::1` →
+  warn, continue IPv4-only.
 - **Static:** `serveStatic({root: <absolute path to web/dist>})` computed from `import.meta.dirname`, never cwd.
   An `/api/*` JSON 404 handler is mounted before the SPA fallback. The SPA fallback serves `index.html`
   only for GET requests whose path is not under `/api/` or `/assets/` and has no file extension.
@@ -289,10 +295,25 @@ used only for the site removes the risk (docs/setup/pages-local-server.md). The 
 reported `appUrl` is only used when it is a loopback root page, and the server's `instanceId` is a guard against using
 the wrong server, not authentication — the token is.
 
+**Other PCs (§20) add trusted devices:** with `PORTLY_REMOTE_ORIGIN` set, a PC approved once from Portly's own page
+(its device cookie) may call the routes declared `paired()` through the remote port, as a paired browser may. Each
+approved PC is fully trusted, like a paired browser: a stolen PC has that access until it is removed in Settings →
+Devices (a 30-day idle expiry bounds a forgotten one; a passkey second factor is a later item). Mitigations: nothing
+opens a LAN socket (the proxy is the user's own, documented as Tailscale Serve inside the tailnet, never Funnel); what
+is decided on this PC stays here (`samePc()` or untagged: approving and removing devices, every pairing route, the OAuth
+client settings, the OAuth start, the vault reset, the browser bookmark import, the diagnostics report); a device may
+only disconnect itself; paths are blanked for it as for the Pages site; requests on the main port never count as another
+PC's and a proxy's forwarding header there is refused. The listener stays loopback-only.
+
 ### 4.2 Request gate (global middleware, `app.use('*', …)`, in this order)
 1. Reject (400) if the raw request path contains `//`, `\`, `%2f`, `%5c` (case-insensitive) or dot segments.
 2. **Host allowlist** (derived from config): `localhost:PORT`, `127.0.0.1:PORT`, `[::1]:PORT`, origin host;
-   dev adds `localhost:VITE_PORT`. Otherwise 403.
+   dev adds `localhost:VITE_PORT`. Otherwise 403. **Remote port** (§20, only with `PORTLY_REMOTE_ORIGIN` and a device
+   store): a request that came in on `PORTLY_REMOTE_PORT` is another PC's whatever its Host says (`remoteClient`),
+   and its Host must be the remote origin's or a loopback form of that port (else 403); on the main port the remote
+   origin's host is just another unknown host, and a local Host that carries a proxy's forwarding header
+   (`Forwarded`, `X-Forwarded-*`, `Via`, `X-Real-IP`, `Tailscale-User-*` …) is refused (403 `proxied_local_host`:
+   the proxy points at the wrong port, and must never count as this PC's own request).
 3. `/api/*` routes are **non-exempt by default**. Exemptions are declared as metadata when the route is
    registered (a helper records `{method, pattern, kind}`; the gate matches with a Hono router instance —
    never string-prefix checks):
@@ -300,23 +321,38 @@ the wrong server, not authentication — the token is.
    - `image` — `GET /api/icons/:id`, `GET /api/uploads/:id` (accept `Sec-Fetch-Site` `same-origin`/`none`/absent)
    - `oauth-callback` — `GET /api/oauth/:provider/callback`
 
-   Route **access** (hybrid mode) is metadata too: `paired()` marks a route the paired Pages site may call. Default
-   deny — untagged routes are local-only: `POST /api/pairings`, the OAuth callback and unknown routes. `RouteTable.match` **fails closed**: a request
-   counts as paired only if every registration it matches is `paired()`. The 503 handlers of failed modules are
-   tagged `paired()`. A test pins the access of every registered route.
+   Route **access** is metadata too (`lib/routes.ts`): `paired()` marks a route the paired Pages site (hybrid mode)
+   and connected devices (other PCs, §20) may call; `samePc()` one the paired Pages site may call but never another
+   PC (the vault reset, the browser bookmark import, the OAuth start, the OAuth client settings, every pairing route
+   but `POST /api/pairings`, removing a device, the diagnostics report); `enrollment()` one anyone on the remote port may call without a device
+   cookie (asking for and polling a device request; the Pages site may not). Default deny — untagged routes are
+   local-only: `POST /api/pairings`, approving and denying device requests, the OAuth callback and unknown routes.
+   `RouteTable.match` **fails closed**: each registration a request matches lets in the callers its tags name, the
+   route lets in only the callers every registration agrees on, and that set must be exactly one level's (so a
+   paired pattern over an enrollment route closes it). The 503 handlers of failed modules are tagged `paired()`. A
+   test pins the access of every registered route (`ROUTE_ACCESS` in `app.test.ts`).
 
    **Pages branch** (only with `PORTLY_PAGES_URL` and a pairing store): an `/api` request whose `Origin` equals the
    configured `pagesOrigin` exactly skips step 4 and is marked for CORS (refusals included, so the page can read them):
    - preflight (`OPTIONS` + `Access-Control-Request-Method`): method ∈ GET/HEAD/POST/PUT/PATCH/DELETE and every
      requested header ∈ {content-type, x-portly, x-portly-token} → 204, else 403; never passed on;
    - `GET /api/health` passes as for anyone (no token);
-   - anything else: route access must be `paired` (else 403 `local_only`), `X-Portly: 1`, `Sec-Fetch-Site`
+   - anything else: route access must be `paired` or `same-pc` (else 403 `local_only`), `X-Portly: 1`, `Sec-Fetch-Site`
      `cross-site`/`same-site`/absent (the exact Origin match is the real check), a pairing token
      (`X-Portly-Token`) that verifies **and** was issued for that origin (else 401 `pairing_required`), and the
      Content-Type rules of step 4 (image routes too: the page fetches images with the token). The pairing's
      last-used time is touched (at most every 10 min).
 
    Any other `Origin` (or none) goes through step 4 unchanged.
+
+   **Remote branch** (§20; a request on the remote port): `GET /api/health` passes as for anyone; the OAuth callback
+   is refused (403 `local_only`); every other request needs an absent-or-remote `Origin` (exactly `remoteOrigin`),
+   `Sec-Fetch-Site` absent or `same-origin` (`image` routes also `none`), `X-Portly: 1` (not for `image` routes) and the
+   Content-Type of step 4, then the device cookie `__Host-portly_device` that verifies (else 401 `login_required`, with
+   the sub-reason logged) and a route a device may call (else 403 `local_only`). `enrollment()` routes need no cookie
+   (a stale one is ignored, a valid one still noted). The device's last use is recorded (at most every 10 min) and the
+   cookie's lifetime renewed then, unless the route set or cleared the cookie itself or stopped the device. Never
+   CORS headers, never preflights.
 4. Non-exempt `/api` requests must have: `X-Portly: 1`; `Origin` absent or in the origin allowlist;
    `Sec-Fetch-Site` absent or `same-origin` (reject `same-site`, `cross-site`, `none`); for bodies,
    `Content-Type: application/json`, except routes declared multipart (uploads, imports).
@@ -573,6 +609,18 @@ server_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)   -- 'instance_id': rando
 ```
 `server_meta` also holds `pairing.tombstones` (§17), `diagnostics.verbose` and `diagnostics.verbose.untilOff` (§17).
 
+`006_devices.sql` (other PCs, §20):
+```sql
+devices(id TEXT PRIMARY KEY, label TEXT NOT NULL /* the name the PC gave itself */, secret_hash TEXT NOT NULL UNIQUE
+        /* SHA-256 hex of the device cookie; never the cookie */, browser TEXT NOT NULL /* "<Browser> on <OS>" */,
+        created_at INTEGER NOT NULL, last_used_at INTEGER, revoked_at INTEGER /* kept 30 days: the gate then says
+        "revoked", not "unknown" */, revoked_by TEXT /* revoked | expired | evicted | disconnected */)
+device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL /* K7Q-4MP: for comparing by eye */, secret_hash TEXT NOT NULL
+        UNIQUE /* of the enrollment cookie */, label TEXT NOT NULL, browser TEXT NOT NULL, created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL /* created + 10 min */, status TEXT NOT NULL /* pending | approved | denied |
+        claimed */, device_id TEXT /* the device a claimed request became */)
+```
+
 `003_diagnostics.sql` (§17): `diag_health` (one row per health subject) and `diag_outcomes` (its outcome history).
 Machine-local: never exported or imported.
 
@@ -593,14 +641,15 @@ server/src/
   index.ts               bootstrap: the start-up phases of §3
   supervisor.ts          autostart supervisor (§3)
   config.ts  app.ts  context.ts
-  db/{open,migrate,helpers}.ts, db/migrations/{001_init,002_pairing,003_diagnostics,004_beacon_defaults}.sql
-  security/{gate,headers,vault,safe-fetch,private-address,dpapi,pairing,foreign-origins}.ts
+  db/{open,migrate,helpers}.ts, db/migrations/{001_init,002_pairing,003_diagnostics,004_beacon_defaults,
+       005_oauth_state_capabilities,006_devices}.sql
+  security/{gate,headers,vault,safe-fetch,private-address,dpapi,pairing,foreign-origins,devices,cookies}.ts
   lib/{logger,log-context,health,inflight,provider-errors,exit-codes,startup,ids,errors,cache,scheduler,validate,
-       settings,routes,backups,html-scan,image-sniff,ipc,legacy-homebase,merge-patch,multipart,safe-json}.ts
-  testing/{test-context,test-request,fake-fetch,fake-accounts}.ts
+       settings,routes,backups,html-scan,image-sniff,ipc,legacy-homebase,merge-patch,multipart,safe-json,user-agent}.ts
+  testing/{test-context,test-request,test-devices,fake-fetch,fake-accounts}.ts
   modules/index.ts       static list of all modules (`MODULES`); each register() wrapped in try/catch — a failing
                          module is logged and its route prefix returns 503 `module_unavailable`
-  modules/{core,accounts,bookmarks,search,weather,todoist,calendar,mail,feeds,sports,pairing,diagnostics}/index.ts
+  modules/{core,accounts,bookmarks,search,weather,todoist,calendar,mail,feeds,sports,pairing,devices,diagnostics}/index.ts
 ```
 
 Each module exports `register(app: Hono<AppEnv>, ctx: AppContext): void`. `lib/routes.ts` provides
@@ -627,6 +676,7 @@ interface AppContext {
   settings: SettingsService; // get<K extends keyof Settings>(ns: K): Settings[K]; onChange(ns, cb)
   accounts: AccountService;
   pairing: PairingStore; // hybrid mode, §16
+  devices: DeviceStore;  // other PCs, §20
   logs: LogHub;         // the logger's rings, level switch and queries (§3, §17; in production the same object as `log`)
   health: HealthRecorder; // §17
   runtime: RuntimeInfo; // boot id, start time, supervised + restart, in-flight requests, module status (§17)
@@ -739,13 +789,28 @@ is scheduled; soccer adds `?fixture=true`) with the league scoreboard (cached 20
 now (30 min before start to 8 h after). Team lists cached 1 day; the static build reads them from `/standings`
 (ESPN's `/teams` sends no CORS header). Plain text only; links https; logos from `a.espncdn.com` only.
 
-**Pairing** (hybrid mode, §16; `shared/src/pairing.ts`) — `GET /api/pairing` [paired] → `PairingStatusResponse
-{paired, pairingId, instanceId, label, createdAt}` for the presenting `X-Portly-Token` (none → 409 `not_configured`,
-unknown → 401 `pairing_required`) · `DELETE /api/pairing` [paired] → 204 (the browser unpairs itself) ·
-`GET /api/pairings` [paired] → `{pagesUrl|null, instanceId, pairings: {id, label, origin, createdAt, lastUsedAt|null,
-current}[]}` (`current` = made for the configured origin) · `POST /api/pairings {nonce}` [local] → 201 `{redirectUrl}`
-= `<pagesUrl>#/paired?token=…&nonce=…&instance=…` built from config only (409 `not_configured` without a Pages URL) ·
-`DELETE /api/pairings/:id` [paired] → 204 / 404. Every other route except those listed local-only in §4.2 is `paired()`.
+**Pairing** (hybrid mode, §16; `shared/src/pairing.ts`; `samePc()` except `POST /api/pairings`, which is untagged
+and so local-only: another PC has no say over pairings)
+— `GET /api/pairing` → `PairingStatusResponse {paired, pairingId, instanceId, label, createdAt}` for the presenting
+`X-Portly-Token` (none → 409 `not_configured`, unknown → 401 `pairing_required`) · `DELETE /api/pairing` → 204 (the
+browser unpairs itself) · `GET /api/pairings` → `{pagesUrl|null, instanceId, pairings: {id, label, origin, createdAt,
+lastUsedAt|null, current}[]}` (`current` = made for the configured origin) · `POST /api/pairings {nonce}` [local] →
+201 `{redirectUrl}` = `<pagesUrl>#/paired?token=…&nonce=…&instance=…` built from config only (409 `not_configured`
+without a Pages URL) · `DELETE /api/pairings/:id` → 204 / 404.
+
+**Devices** (other PCs, §20; `shared/src/devices.ts`) — `POST /api/devices/requests {label}` [enrollment] → 201
+`{id, code, expiresAt}` and the enrollment cookie (only from the remote port: 409 `not_configured` without a remote
+origin, 409 `conflict` from this PC's own page; 429 `rate_limited` with `Retry-After` while 3 requests wait) ·
+`GET /api/devices/requests/current` [enrollment] → `{status: pending|approved|denied|expired, id, code, expiresAt,
+device|null}` for the enrollment cookie (`approved` sets the device cookie and clears the enrollment one; asked again
+before the device's first use, the same device gets a fresh cookie; 404 without a cookie or for one the server does
+not know) · `GET /api/devices` [paired] → `{remoteOrigin|null, devices: {id, label, browser, createdAt, lastUsedAt|null,
+current}[], requests: {id, code, label, browser, createdAt, expiresAt}[]}` · `POST /api/devices/requests/:id/approve`
+[local] → `{approved: true}` / 404 · `POST /api/devices/requests/:id/deny` [local] → 204 / 404 ·
+`DELETE /api/devices/:id` [same-pc] → 204 / 404 · `GET /api/device` [paired] → `{device: {id, label, createdAt}}` for
+the device the gate verified (none → 409 `not_configured`) · `DELETE /api/device` [paired] → 204 (the device
+disconnects itself; its cookie cleared). Every other route except those listed `samePc()` or local-only in §4.2 is
+`paired()`; `GET /api/about` and the diagnostics summary blank the paths for a device as for the Pages site.
 
 **Diagnostics** (§17; `shared/src/diagnostics.ts`, all [paired]) — `GET /api/diagnostics/summary` ·
 `GET /api/diagnostics/logs?scope=memory|files&…` · `GET /api/diagnostics/health/:key/history?limit=` ·
@@ -756,7 +821,7 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
 - **errors.ts** — `ErrorCode = 'bad_request'|'validation_failed'|'forbidden'|'not_found'|'conflict'|'not_configured'|
   'reauth_required'|'provider_error'|'rate_limited'|'upstream_timeout'|'payload_too_large'|'module_unavailable'|'internal'`;
   statuses 400/422/403/404/409/409/409/502/429/504/413/503/500; hybrid mode adds `pairing_required` (401) and
-  `local_only` (403). `ApiErrorBody {error:{code,message,details?,accountId?}}`.
+  `local_only` (403); other PCs add `login_required` (401). `ApiErrorBody {error:{code,message,details?,accountId?}}`.
   Multi-account aggregates return 200 with a per-item `error?: ApiErrorBody['error']`.
 - **core.ts** — `SafeHttpUrl`, `HexColor`, `Uuid`, id/timestamp helpers, `Paged<T>` if needed.
 - **profiles.ts** — `WidgetFrame {title?: string; showHeader: boolean; transparent: boolean}`;
@@ -866,6 +931,11 @@ current}[]}` (`current` = made for the configured origin) · `POST /api/pairings
   (`<pagesUrl>#/paired?token&nonce&instance`). Response schemas are strict on the server; the Pages site reads
   them with tolerant copies (`z.object(Schema.shape)`), because the published site and the server are updated
   separately — `apiVersion` decides compatibility.
+- **devices.ts** (other PCs, §20) — `DEVICE_COOKIE` (`__Host-portly_device`), `ENROLL_COOKIE`
+  (`__Host-portly_enroll`), `DEVICE_REQUEST_TTL_MS` (10 min), `MAX_PENDING_DEVICE_REQUESTS` (3), `DEVICE_IDLE_TTL_MS`
+  (30 days), `MAX_DEVICES` (20), `DEVICE_CODE_ALPHABET`/`DeviceCodeSchema` (`XXX-XXX` without 0/O/1/I/L),
+  `DeviceSecretSchema` (32 random bytes base64url), `DeviceLabelSchema` (one line ≤ 60, no control or bidi
+  characters), `DeviceRequestCreateSchema`, the response schemas of §7 Devices.
 - **diagnostics.ts** (§17) — log levels, `DIAGNOSTIC_AREAS`, `HEALTH_CODES`, `REQUEST_ID_HEADER`, the scrubbers
   (`scrub`, `maskUserPaths`, `scrubFields`, `redactForSharing`) shared by the server and the browser, and the DTOs of
   `/api/diagnostics/*` (log records and queries, health entries and outcome rows, jobs, log level, summary, browser
@@ -1424,10 +1494,11 @@ and never reloads for this.
    restore the snapshot; render; start probing.
 
 **Capabilities (`web/src/capabilities.ts`)** — `getCapabilities()` returns frozen per-load flags: `pagesBuild`,
-`backend`, `remoteServer` (Pages + server), `accounts` and `calendar` (every backend: on the browser backend
-Outlook.com signs in and its calendars sync from Microsoft Graph in the page, `web/src/static/handlers/accounts.ts`,
-`calendar.ts`), `googleAccounts|appPasswordAccounts|icsSubscriptions|mail|feeds|vault|browserBookmarkImport|
-siteMetaFetch|serverSearchSuggestions` (server backend), `browserBackups` (browser backend), `iconPolling` (server
+`backend`, `remoteServer` (Pages + server), `remoteClient` (the server build opened from another PC, §20), `accounts`
+and `calendar` (every backend: on the browser backend Outlook.com signs in and its calendars sync from Microsoft Graph
+in the page, `web/src/static/handlers/accounts.ts`, `calendar.ts`), `appPasswordAccounts|icsSubscriptions|mail|feeds|
+vault|siteMetaFetch|serverSearchSuggestions` (server backend), `googleAccounts` and `browserBookmarkImport` (server
+backend on the main PC only: off when `remoteClient` is on), `browserBackups` (browser backend), `iconPolling` (server
 backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
 `backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
 feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
@@ -1638,8 +1709,8 @@ last line that run logged). `idle(ms)` waits for every run in flight (shutdown);
 - **Request line** (`app.ts`, the outermost middleware): a request id (10 characters `[a-z0-9]`) → `X-Request-Id` on
   every answer; the request runs in `withLogContext({rid, area})` (area = the module owning the path,
   `/api/diagnostics` → `diagnostics`, else `server`) and in `runtime.inflight`; still running after 15 s → one
-  `warn 'request still running'`; then one `request {method, route, path, status, ms, code, from: pages|local,
-  pairingId, aborted}` (`route` = the matched pattern, `path` without query). Levels: 5xx warn; API GET/HEAD below
+  `warn 'request still running'`; then one `request {method, route, path, status, ms, code, from: local|pages|remote,
+  pairingId, deviceId, aborted}` (`route` = the matched pattern, `path` without query). Levels: 5xx warn; API GET/HEAD below
   400 debug (info past 3 s); other API answers (mutations, any 4xx) info; OPTIONS and non-API debug. *Quiet*
   requests — `GET /api/health`, `GET /api/diagnostics/*`, `POST /api/diagnostics/client-events` — are debug and stay
   out of the rings below 500. GET lines are repeat-collapsed per route, status and code.
@@ -1650,17 +1721,24 @@ last line that run logged). `idle(ms)` waits for every run in flight (shutdown);
 - **Gate refusals** (`security/gate.ts`): `info 'request refused by gate' {method, path, status, reason, origin?,
   secFetchSite?}`, repeat-collapsed per reason and origin. `reason`: `bad_path`, `host_not_allowed`,
   `preflight_refused`, `local_only`, `x_portly_missing`, `cross_site`, `content_type`, `origin_not_allowed`,
-  `bad_content_length`, `too_large`, and for a Pages token `token_missing`, `token_malformed`, `token_unknown`
-  (never issued by this server), `token_revoked {pairingId, removedBy}`, `token_origin_mismatch {pairingId}` (made
-  for another Pages address) — never the token. Origins are logged only when they are ours, the Pages site's or a
-  named foreign one; a browser extension's only as its scheme (`chrome-extension:`). A paired Pages request's route
-  runs with `pairingId` in its log context.
+  `bad_content_length`, `too_large`, `proxied_local_host` (§20), and for a Pages token `token_missing`,
+  `token_malformed`, `token_unknown` (never issued by this server), `token_revoked {pairingId, removedBy}`,
+  `token_origin_mismatch {pairingId}` (made for another Pages address) — never the token; for a device cookie (§20)
+  `device_missing`, `device_malformed`, `device_unknown`, `device_revoked {deviceId, removedBy}` — never the cookie.
+  Origins are logged only when they are ours, the Pages site's, the remote origin or a named foreign one; a browser
+  extension's only as its scheme (`chrome-extension:`). A paired Pages request's route runs with `pairingId` in its
+  log context, a device's with `deviceId`; the request line says `from: local|pages|remote` with the `deviceId`.
 - **Pairing tombstones** (`security/pairing.ts`): a removed pairing leaves `{pairingId, removedAt, removedBy:
   revoked | unpaired-itself | evicted | unused}` under its token hash — 50 in memory, the last 20 in `server_meta`
   `pairing.tombstones` — so `explain(token)` (`ok | malformed | unknown | removed`) tells a token removed on this PC
   from one never issued. Lines: `pairing created {pairingId, label}`, `pairing removed {pairingId, by}`, `unused
   pairings removed {count, pairingIds}`, `least recently used pairings removed to make room {count, pairingIds}`,
   `instance id created {replacedInvalid}`.
+- **Devices** (§20; `security/devices.ts`, `modules/devices`): `device request created|approved|denied
+  {deviceRequestId}`, `device connected {deviceId, deviceRequestId}`, `device connected again` (a lost answer
+  retried), `device removed {deviceId, by: revoked|disconnected}`, `device expired {deviceId}`, `idle devices expired
+  {count, deviceIds}`, `least recently used devices removed to make room {count, deviceIds}` — ids only, never the
+  name the PC gave itself, the code or a cookie. The log filters accept `deviceId` like `pairingId`.
 - **Foreign origins** (`security/foreign-origins.ts`): an `/api` request (health included) whose `Origin` is an
   http(s) origin that is neither allowed nor the configured Pages origin. *Named* — a `*.github.io` site, a loopback
   origin, or one under the registrable domain of `PORTLY_PAGES_URL` — it is kept (≤ 5, least recently seen dropped)
@@ -1894,3 +1972,76 @@ data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark impor
   database is kept as it is. A database without the marker is never touched.
 - **Files:** import accepts `format: 'homebase-export'` (`isExportFormat`), and `publish-static.ps1` recognises a
   Pages repository holding a `homebase-build` publish.
+
+---
+
+## 20. Other PCs (one server for several PCs)
+
+Portly runs on one PC, the **main PC**, and listens on loopback only (§4). Other PCs use it through an HTTPS
+reverse proxy the user runs on the main PC (documented: Tailscale Serve, reachable only inside the user's tailnet,
+with a real certificate and no firewall change; never Funnel), after each of them is approved once from Portly's own
+page. The design, its decisions and what each phase built are in docs/design/multi-pc.md; the user guide is
+docs/setup/other-pcs.md. With `PORTLY_REMOTE_ORIGIN` unset nothing below exists and the server behaves as before.
+
+**Two listeners, one door.** `PORTLY_REMOTE_ORIGIN` (`https://<pc>.<tailnet>.ts.net`, the address other PCs use;
+`http://localhost:<port>` is accepted with a warning for trying the flow on one PC) makes the server also listen on
+`PORTLY_REMOTE_PORT` (default main port + 1, so 5758), on the same loopback addresses. The proxy forwards to that
+port, and whatever arrives there is another PC's request, whatever its Host header says (§4.2 step 2): a proxy that
+rewrites the Host to its loopback target cannot make another PC look like the main one. On the main port the remote
+host is unknown and a forwarding header is refused (`proxied_local_host`), which is how a proxy pointed at the wrong
+port shows up. `GET /api/health` answers `remote: true` on the remote port, so a page can tell how it was taken.
+
+**Login by approval** (`security/devices.ts`, `modules/devices`, `shared/src/devices.ts`; the request gate's remote
+branch in §4.2 step 3). No passwords: the other PC asks (`POST /api/devices/requests {label}`: a name it gives itself,
+one line) and gets a display code (`K7Q-4MP`, letters and digits that are hard to confuse) and an enrollment cookie
+(`__Host-portly_enroll`; 10 minutes plus the hour the request is retained, so the last poll can still say expired).
+At most 3 requests wait at once (429). The main PC approves or denies from Settings → Devices (`POST
+/api/devices/requests/:id/approve|deny`, local-only). The other PC polls `GET /api/devices/requests/current` every 2 s
+(10 s hidden): `approved` creates the device on that poll (no secret is ever stored in clear; approval only flips the
+request's status) and answers with the device cookie `__Host-portly_device` (32 random bytes, `Secure; HttpOnly;
+SameSite=Strict; Path=/`, Max-Age 30 days) while clearing the enrollment cookie. The request row stays, marked
+`claimed`, until it expires: while the device has never been used, the same enrollment cookie claims again and gets a
+fresh cookie for the same device, so a lost answer strands nobody. Only SHA-256 hashes of both cookies are stored
+(`devices`, `device_requests`, §5). A device's last use is recorded at most every 10 minutes and its cookie's
+lifetime renewed then (never on an answer that set or cleared the cookie itself, nor for a device the route just
+stopped); a device idle for 30 days expires, on its own request, on any listing, and when a request is created or
+claimed; at most 20 devices
+(the least recently used goes first); revoked and expired rows are kept 30 days so the gate refuses their cookie as
+"revoked" with the reason, like pairing tombstones. `DELETE /api/devices/:id` (this PC, own page or paired Pages
+site) stops a device at once; `DELETE /api/device` lets a device disconnect itself. Why a cookie and not a token
+header like pairing: the page and the API share the remote origin, so an `HttpOnly` cookie cannot be read by injected
+script; cross-site forgery is stopped by `SameSite=Strict`, the `X-Portly: 1` requirement (no preflight is ever
+answered), the exact `Origin` check and the `Sec-Fetch-Site` rule. The web page on the main PC cannot use the remote
+port either: it has no device cookie for it (the cookie is bound to the remote origin's host) and cannot send
+`X-Portly` cross-site.
+
+**What a device may do** (§4.2 access levels; `ROUTE_ACCESS` in `app.test.ts` pins every route): everything the
+paired Pages site may, except what stays on the main PC: the vault reset, the browser bookmark import, the OAuth
+start (its redirect lands on the main PC; accounts connected there work from every PC because the server keeps the
+tokens; app-password accounts and Todoist can be connected from any PC), the OAuth client settings, every pairing
+route, removing other devices, approving and denying requests, and the diagnostics report (the logs, level and jobs
+stay open, as for the Pages site: scrubbed and home-directory-masked). `/api/about` and the diagnostics summary blank
+the paths. The later items (design phase 4): the extension's server address, OAuth sign-in from other PCs, a passkey
+second factor, the `Tailscale-User-Login` identity check (once the real check with a second device has shown what
+Serve adds or strips).
+
+**The web side** (`web/src/app/remoteClient.ts`, `ConnectPage.tsx`, `settings/sections/Devices.tsx`,
+`api/devices.ts`, `capabilities.ts` `remoteClient`). Before the first render the server build asks `GET /api/health`
+(never a loopback shortcut): `remote: true` → another PC's page load; `remote: false` → this PC's own when the server
+names the page's origin as its own (`appUrl`) or the address is loopback, else `misrouted` (the proxy points at the
+main port: a warning page, nothing else). A remote page then asks `GET /api/device` *before* it counts as remote
+(`setRemoteClient` comes after, because on a remote page any 401 `login_required` reloads it once, into the connect
+screen, and that check's own 401 must not): not connected → the connect screen (the form, the code while waiting,
+approved → reload; denied, expired or gone → ask again; Retry when unreachable); connected → the app, with
+`remoteClient` on: the Google and Microsoft tiles, Reconnect and Add a service, the vault reset button and the pairing
+approval page give way to a line saying "on the main PC"; the browser bookmark import, the paired-browsers card, the
+app registrations and the report download are simply not shown; About says the data lives on the main PC. The Pages forward never takes
+a remote page load. Settings → Devices (every build; the browser backend shows a note): the address for other PCs or
+the setup steps, the requests waiting with Approve and Deny on Portly's own page on the main PC only (the paired Pages
+site and a device see the list and a note), the connected PCs with "This PC" and Remove (a device may only
+"Disconnect this PC"), polled every 5 s while the page is visible, never persisted.
+
+**Setup** (`setup.ps1 -RemoteOrigin <address>`, `off` removes it; or the user variable by hand, then
+`install-autostart.ps1` so the task carries it: `PortlyEnvNames` in `scripts/lib/Common.ps1` lists both variables)
+and the guide's order: point the proxy at the remote port (`tailscale serve --bg 5758`), set the variable, restart
+Portly, approve each PC. `off` removes both variables. Logs (§17) carry device and request ids only.
