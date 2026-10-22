@@ -97,8 +97,9 @@ Homebase's own folders are left as they were, so you can go back until you delet
 
 ### One-command setup on a new PC
 
-`scripts\setup.ps1` does everything below that a script can do: installs Git and Node.js with
-winget when they are missing, clones Portly into `%USERPROFILE%\Coding\Portly`, installs and
+`scripts\setup.ps1` does everything below that a script can do: installs Git and Node.js 24 with
+winget when they are missing (and stops if another Node.js major is installed, since Portly runs
+on 24 only), clones Portly into `%USERPROFILE%\Coding\Portly`, installs and
 builds, turns on autostart, installs the `portly` command, and opens the browser's extensions page
 for the one manual step (Load unpacked → the `extension` folder). On a PC without the code, in
 PowerShell:

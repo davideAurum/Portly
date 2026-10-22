@@ -130,7 +130,8 @@ if (Test-Path -LiteralPath $workflowDir -PathType Container) {
 
 # The Node major is pinned (ARCHITECTURE 2a): package.json engines.node (">=N <N+1"), the release
 # runtime in scripts\release\node-runtime.json and ci.yml's node-version must name the same major,
-# and Common.ps1's minimum is that major. Moving to a new major changes them together.
+# and so must Common.ps1's $PortlyNodeMajor (with the winget id built from it) and setup.ps1's own
+# $SetupNodeMajor (it cannot dot-source Common.ps1). Moving to a new major changes them together.
 $packageJson = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'package.json')) | ConvertFrom-Json
 $enginesNode = "$(Get-HbProperty (Get-HbProperty $packageJson 'engines') 'node')"
 $enginesPin = [regex]::Match($enginesNode, '^>=\s*(\d+)(?:\.\d+){0,2}\s+<\s*(\d+)(?:\.\d+){0,2}$')
@@ -146,7 +147,15 @@ if ($ciNodeVersions.Count -eq 1 -and $ciNodeVersions[0] -match '^(\d+)(?:\.\d+)*
 Assert-That -Name "package.json engines.node ($enginesNode), scripts\release\node-runtime.json ($runtimeVersion) and .github\workflows\ci.yml node-version ($($ciNodeVersions -join ', ')) name the same Node major" -Condition (
     $enginesMajor -gt 0 -and $runtimeMajor -eq $enginesMajor -and $ciMajor -eq $enginesMajor) -Detail (
     "engines.node must be '>=N <N+1' (one major; got '$enginesNode'), node-runtime.json version must be N.x.y (got '$runtimeVersion') and ci.yml must have one node-version: N (got '$($ciNodeVersions -join ', ')'); change the three together")
-Assert-That -Name "scripts\lib\Common.ps1 PortlyMinNodeMajor ($PortlyMinNodeMajor) is that major" -Condition ($PortlyMinNodeMajor -eq $enginesMajor) -Detail "engines.node '$enginesNode'"
+Assert-That -Name "scripts\lib\Common.ps1 PortlyNodeMajor ($PortlyNodeMajor) is that major and PortlyNodeWingetId is OpenJS.NodeJS.$enginesMajor" -Condition (
+    $PortlyNodeMajor -eq $enginesMajor -and $PortlyNodeWingetId -ceq "OpenJS.NodeJS.$enginesMajor") -Detail "engines.node '$enginesNode', winget id '$PortlyNodeWingetId'"
+$setupText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'setup.ps1'))
+$setupMajor = -1
+if ($setupText -match '(?m)^\$SetupNodeMajor\s*=\s*(\d+)\s*$') { $setupMajor = [int]$Matches[1] }
+Assert-That -Name "scripts\setup.ps1 SetupNodeMajor ($setupMajor) is that major (it cannot dot-source Common.ps1)" -Condition ($setupMajor -eq $enginesMajor) -Detail "engines.node '$enginesNode'"
+Assert-That -Name "scripts\setup.ps1 builds winget's OpenJS.NodeJS.$enginesMajor from that constant and falls back to OpenJS.NodeJS.LTS" -Condition (
+    $setupText -match '(?m)^\$SetupNodePackage\s*=\s*"OpenJS\.NodeJS\.\$SetupNodeMajor"\s*$' -and
+    $setupText -match '(?m)^\$SetupNodeLtsPackage\s*=\s*''OpenJS\.NodeJS\.LTS''\s*$')
 
 # ---------------------------------------------------------------------------------------------
 Write-Host ''
@@ -374,6 +383,26 @@ Assert-That -Name 'Get-HbEnvMismatches reports a variable set only in this windo
     @($mismatches | Where-Object { $_.Name -eq 'PORTLY_VITE_PORT' -and $_.Process -eq $marker }).Count -eq 1)
 
 $checkNode = (Resolve-HbNode).Path
+# Resolve-HbNode accepts the pinned major only (older and newer are refused alike). The fakes are
+# .cmd files that answer "-p process.versions.node" with a version: a file named node.exe would
+# have to be a real program to run, and Resolve-HbNode only asks the file for its version.
+function New-CheckFakeNode {
+    param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Version)
+    $path = Join-Path $workDir "fake-node\$Name\node.cmd"
+    $null = New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force
+    [System.IO.File]::WriteAllText($path, "@echo $Version`r`n", [System.Text.Encoding]::ASCII)
+    return $path
+}
+$newerMajor = $PortlyNodeMajor + 2
+$olderMajor = $PortlyNodeMajor - 2
+Assert-Throws -Name "Resolve-HbNode refuses a fake node reporting v$newerMajor.0.0 (a newer major) and says what to install" -Action {
+    Resolve-HbNode -NodePath (New-CheckFakeNode -Name 'newer' -Version "$newerMajor.0.0") } -Pattern (
+    "^Portly needs Node\.js $PortlyNodeMajor, found v$newerMajor\.0\.0 \(.*\\fake-node\\newer\\node\.cmd\); install Node\.js $PortlyNodeMajor from https://nodejs\.org/ or with winget install OpenJS\.NodeJS\.$PortlyNodeMajor \(OpenJS\.NodeJS\.LTS while ")
+Assert-Throws -Name "Resolve-HbNode still refuses an older major (a fake reporting v$olderMajor.12.0)" -Action {
+    Resolve-HbNode -NodePath (New-CheckFakeNode -Name 'older' -Version "$olderMajor.12.0") } -Pattern "^Portly needs Node\.js $PortlyNodeMajor, found v$olderMajor\.12\.0 "
+$fakeCurrent = Resolve-HbNode -NodePath (New-CheckFakeNode -Name 'current' -Version "$PortlyNodeMajor.99.1")
+Assert-That -Name "Resolve-HbNode accepts any $PortlyNodeMajor.x (a fake reporting v$PortlyNodeMajor.99.1)" -Condition (
+    $fakeCurrent.Version -eq "$PortlyNodeMajor.99.1" -and $fakeCurrent.Path -like '*\fake-node\current\node.cmd') -Detail "$($fakeCurrent.Version) $($fakeCurrent.Path)"
 $badConfig = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_BIND = 'not-an-ip' }
 Assert-That -Name 'Test-HbServerConfig reports a value the server rejects' -Condition (
     -not $badConfig.Ok -and $badConfig.Error -match 'PORTLY_BIND') -Detail "$($badConfig.Error)"
@@ -1333,6 +1362,58 @@ try {
                 $setupReuse.Text -match 'Its code: \S+ at [0-9a-f]{7,} from \d{4}-\d{2}-\d{2}' -and
                 $setupReuse.Text.Contains("instead: git -C ""$repoRoot"" pull, then run setup again") -and
                 $setupReuse.Text.Contains('Dry run finished; nothing was changed.')) -Detail $setupReuse.Text
+
+            # PATH without the folders that hold any of the named programs, to hide them from a
+            # child. ([System.IO.File]::Exists answers False for a malformed entry, such as one in
+            # quotes, where Join-Path throws and would abort this whole section.)
+            $pathWithout = {
+                param([string[]]$Programs)
+                $kept = foreach ($entry in @($env:Path -split ';')) {
+                    if (-not $entry) { continue }
+                    $dir = $entry.Trim('"')
+                    $hit = $false
+                    foreach ($program in $Programs) {
+                        if ([System.IO.File]::Exists("$dir\$program")) { $hit = $true }
+                    }
+                    if (-not $hit) { $entry }
+                }
+                return (@($kept) -join ';')
+            }
+            # setup.ps1 -DryRun on a PC without Node.js: node.exe is hidden from the child's PATH,
+            # and winget.exe with it, so the plan is printed without asking winget anything (no
+            # network) and names the package for the pinned major.
+            $hiddenPath = & $pathWithout @('node.exe', 'winget.exe')
+            $setupNoNode = Invoke-WithProcessEnv @{ Path = $hiddenPath } { & $run 'setup.ps1' @('-DryRun', '-NoBrowser', '-SkipAutostart', '-SkipCli') }
+            Assert-That -Name "setup.ps1 -DryRun without node.exe on PATH plans the Node.js $PortlyNodeMajor install and names $PortlyNodeWingetId (OpenJS.NodeJS.LTS as the fallback)" -Condition (
+                $setupNoNode.ExitCode -eq 0 -and $setupNoNode.Text.Contains("Node.js is not installed; installing Node.js $PortlyNodeMajor with winget") -and
+                $setupNoNode.Text.Contains("winget install --id $PortlyNodeWingetId --exact --source winget") -and
+                $setupNoNode.Text.Contains("(or OpenJS.NodeJS.LTS while winget's LTS is still Node.js $PortlyNodeMajor") -and
+                $setupNoNode.Text.Contains('winget is not available on this PC') -and
+                $setupNoNode.Text.Contains('Dry run finished; nothing was changed.')) -Detail $setupNoNode.Text
+            # Node.js of another major on PATH: the real node.exe, told through a NODE_OPTIONS
+            # preload to report v<major+2>.0.0 (setup.ps1 only asks it for process.versions.node).
+            # setup.ps1 stops before installing anything, with the same message as Resolve-HbNode.
+            # winget.exe is hidden from that child's PATH: with it at hand the message would also
+            # name the id that carries the pinned major today, a lookup this check keeps off the
+            # network.
+            $otherMajor = $PortlyNodeMajor + 2
+            $otherMajorPreload = Join-Path $workDir 'fake-node\report-other-major.mjs'
+            $null = New-Item -ItemType Directory -Path (Split-Path -Parent $otherMajorPreload) -Force
+            [System.IO.File]::WriteAllText($otherMajorPreload, (@(
+                'const real = globalThis.process;',
+                "const versions = Object.assign({}, real.versions, { node: '$otherMajor.0.0' });",
+                'Object.defineProperty(globalThis, ''process'', { configurable: true, writable: true, value: new Proxy(real, {',
+                '  get(target, key) { return key === ''versions'' ? versions : Reflect.get(target, key); }',
+                '}) });') -join "`n"), [System.Text.Encoding]::ASCII)
+            $otherMajorUrl = ([System.Uri]$otherMajorPreload).AbsoluteUri
+            $noWingetPath = & $pathWithout @('winget.exe')
+            $setupOtherMajor = Invoke-WithProcessEnv @{ NODE_OPTIONS = "--import=$otherMajorUrl"; Path = $noWingetPath } { & $run 'setup.ps1' @('-DryRun', '-NoBrowser', '-SkipAutostart', '-SkipCli') }
+            Assert-That -Name "setup.ps1 stops when the node.exe on PATH is another major (v$otherMajor.0.0), before installing anything, with what to do" -Condition (
+                $setupOtherMajor.ExitCode -eq 1 -and
+                $setupOtherMajor.Text.Contains("ERROR: Portly needs Node.js $PortlyNodeMajor, found v$otherMajor.0.0; install Node.js $PortlyNodeMajor from https://nodejs.org/ or with winget install $PortlyNodeWingetId (OpenJS.NodeJS.LTS while winget's LTS is still $PortlyNodeMajor)") -and
+                $setupOtherMajor.Text.Contains(', open a new PowerShell window and run this again.') -and
+                -not $setupOtherMajor.Text.Contains('Today winget lists') -and
+                -not $setupOtherMajor.Text.Contains('Installing dependencies') -and -not $setupOtherMajor.Text.Contains('winget install --id')) -Detail $setupOtherMajor.Text
 
             # publish-static.ps1: argument checks and the dry run, against folders under $workDir only
             # (-DryRun never builds, commits or pushes).

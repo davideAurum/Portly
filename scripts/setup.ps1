@@ -5,7 +5,10 @@
 
 .DESCRIPTION
     1. Installs what is missing with winget: Git (only when the code must be cloned) and Node.js
-       LTS (24 or newer). Upgrades npm when it is older than 11.10 (package.json requires it).
+       24, the major package.json pins (winget's OpenJS.NodeJS.24, or OpenJS.NodeJS.LTS while that
+       still is 24). A PC with another Node.js major stops here with what to do, naming the
+       winget id that carries 24 today. Upgrades npm when it is older than 11.10 (package.json
+       requires it).
     2. Gets the code: when this script runs from a Portly checkout it uses that checkout;
        otherwise (for example `irm <url> | iex`) it clones -RepoUrl into -InstallDir and runs
        that checkout's copy of this script, so the rest always
@@ -62,7 +65,9 @@
     Do not open the browser's extensions page or copy to the clipboard.
 
 .PARAMETER DryRun
-    Print what would happen and change nothing.
+    Print what would happen and change nothing. When winget is present and Node.js is missing
+    (or another major), it still asks winget, read-only, which package carries Node.js 24, so
+    the plan and the message name the id that works today.
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
@@ -88,9 +93,17 @@ param(
     [switch]$DryRun
 )
 
-$SetupMinNodeMajor = 24
+# Node.js 24: the major package.json pins in engines.node, which npm's engine-strict enforces, so
+# this script and lib\Common.ps1's Resolve-HbNode refuse any other major too. check-scripts.ps1
+# keeps $SetupNodeMajor equal to $PortlyNodeMajor in lib\Common.ps1; this script cannot dot-source
+# that file because it also runs on its own, before any checkout exists.
+$SetupNodeMajor = 24
+# winget's packages that install that major, tried in this order: winget gives a major its own
+# id (OpenJS.NodeJS.22, ...) once it is no longer winget's LTS; until then OpenJS.NodeJS.LTS is
+# the one that installs it, and it is used only while its version still is that major.
+$SetupNodePackage = "OpenJS.NodeJS.$SetupNodeMajor"
+$SetupNodeLtsPackage = 'OpenJS.NodeJS.LTS'
 $SetupMinNpm = [version]'11.10.0'
-$SetupNodePackage = 'OpenJS.NodeJS.LTS'
 $SetupGitPackage = 'Git.Git'
 
 function Write-SetupStep { param([string]$Message) Write-Host "==> $Message" -ForegroundColor Cyan }
@@ -128,13 +141,59 @@ function Invoke-SetupProgram {
     }
 }
 
-# Major version of node.exe on PATH, or 0 when there is none.
-function Get-SetupNodeMajor {
+# Version of node.exe on PATH (x.y.z), or $null when there is none.
+function Get-SetupNodeVersion {
     $node = Get-SetupCommand 'node.exe'
-    if ($null -eq $node) { return 0 }
+    if ($null -eq $node) { return $null }
     $text = "$(& $node.Source -p 'process.versions.node' 2>$null)".Trim()
-    if ($text -notmatch '^([0-9]+)\.') { return 0 }
-    return [int]$Matches[1]
+    if ($text -notmatch '^[0-9]+\.[0-9]+\.[0-9]+') { return $null }
+    return $Matches[0]
+}
+
+# The major of a version string (x.y.z), or 0 for $null.
+function Get-SetupMajor {
+    param([string]$Version)
+    if ([string]::IsNullOrWhiteSpace($Version)) { return 0 }
+    return [int]$Version.Split('.')[0]
+}
+
+# The winget install command for a package id, as the arguments winget gets.
+function Get-SetupWingetInstallArguments {
+    param([Parameter(Mandatory)][string]$Id)
+    return @('install', '--id', $Id, '--exact', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements')
+}
+
+# The version winget would install for a package id (x.y.z), or $null when winget does not list
+# that id. Read-only: 'winget search --exact' prints one table row, "<name> <id> <version>",
+# which is read by the id so the column headings' language does not matter.
+function Get-SetupWingetVersion {
+    param([Parameter(Mandatory)][string]$Winget, [Parameter(Mandatory)][string]$Id)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $lines = @(& $Winget search --id $Id --exact --source winget --accept-source-agreements 2>$null | ForEach-Object { "$_" })
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    if ($exitCode -ne 0) { return $null }
+    $pattern = '\s' + [regex]::Escape($Id) + '\s+([0-9]+\.[0-9]+\.[0-9]+)'
+    foreach ($line in $lines) {
+        if ($line -match $pattern) { return $Matches[1] }
+    }
+    return $null
+}
+
+# The winget package that installs Node.js $SetupNodeMajor right now (Id and Version), or $null.
+function Find-SetupNodePackage {
+    param([Parameter(Mandatory)][string]$Winget)
+    foreach ($id in @($SetupNodePackage, $SetupNodeLtsPackage)) {
+        $version = Get-SetupWingetVersion -Winget $Winget -Id $id
+        if ($null -ne $version -and (Get-SetupMajor $version) -eq $SetupNodeMajor) {
+            return [pscustomobject]@{ Id = $id; Version = $version }
+        }
+    }
+    return $null
 }
 
 function Get-SetupNpmVersion {
@@ -152,7 +211,7 @@ function Install-SetupWingetPackage {
         throw ("$What is missing and winget is not available to install it. Install 'App Installer' from the " +
             "Microsoft Store (it provides winget), or install $What yourself, then run this again.")
     }
-    $arguments = @('install', '--id', $Id, '--exact', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements')
+    $arguments = Get-SetupWingetInstallArguments -Id $Id
     Write-SetupInfo "winget $($arguments -join ' ')"
     if ($DryRun) { return }
     # winget exits non-zero for "already installed"; whether the program now works is checked by the caller.
@@ -163,20 +222,60 @@ function Install-SetupWingetPackage {
 }
 
 function Install-SetupNode {
-    $major = Get-SetupNodeMajor
-    if ($major -ge $SetupMinNodeMajor) {
-        Write-SetupOk "Node.js $major found"
-    } else {
-        $found = if ($major -gt 0) { "Node.js $major is too old" } else { 'Node.js is not installed' }
-        Write-SetupStep "$found; installing Node.js LTS (Windows may ask for permission)"
-        Install-SetupWingetPackage -Id $SetupNodePackage -What 'Node.js'
-        if ($DryRun) { return }
-        $major = Get-SetupNodeMajor
-        if ($major -lt $SetupMinNodeMajor) {
-            throw ("Node.js $SetupMinNodeMajor or newer is still not on PATH (found: $major). Install it from " +
-                'https://nodejs.org/, open a new PowerShell window and run this again.')
+    $version = Get-SetupNodeVersion
+    $major = Get-SetupMajor $version
+    if ($major -eq $SetupNodeMajor) {
+        Write-SetupOk "Node.js $version found"
+    } elseif ($major -gt 0) {
+        # Another major, older or newer: npm ci would refuse it (engine-strict), so stop before
+        # anything is installed, with the message lib\Common.ps1's Resolve-HbNode gives too. Only
+        # one of the two winget ids carries the pinned major at a time, so when winget is at hand
+        # the message also names the one that does today (a read-only lookup).
+        $message = ("Portly needs Node.js $SetupNodeMajor, found v$version; install Node.js $SetupNodeMajor from https://nodejs.org/ " +
+            "or with winget install $SetupNodePackage ($SetupNodeLtsPackage while winget's LTS is still $SetupNodeMajor), " +
+            'open a new PowerShell window and run this again.')
+        $winget = Get-SetupCommand 'winget.exe'
+        if ($null -ne $winget) {
+            $package = Find-SetupNodePackage -Winget $winget.Source
+            if ($null -ne $package) {
+                $message += " Today winget lists Node.js $($package.Version) as $($package.Id): winget $((Get-SetupWingetInstallArguments -Id $package.Id) -join ' ')"
+            }
         }
-        Write-SetupOk "Node.js $major installed"
+        throw $message
+    } else {
+        Write-SetupStep "Node.js is not installed; installing Node.js $SetupNodeMajor with winget (Windows may ask for permission)"
+        $winget = Get-SetupCommand 'winget.exe'
+        if ($null -eq $winget) {
+            if ($DryRun) {
+                # The plan, without asking winget which of the two ids carries that major today.
+                Write-SetupInfo "winget $((Get-SetupWingetInstallArguments -Id $SetupNodePackage) -join ' ')"
+                Write-SetupInfo "(or $SetupNodeLtsPackage while winget's LTS is still Node.js $SetupNodeMajor; decided when it runs)"
+                Write-SetupInfo ("winget is not available on this PC: install 'App Installer' from the Microsoft Store first, " +
+                    "or Node.js $SetupNodeMajor from https://nodejs.org/")
+                return
+            }
+            throw ("Node.js is missing and winget is not available to install it. Install 'App Installer' from the " +
+                "Microsoft Store (it provides winget), or install Node.js $SetupNodeMajor from https://nodejs.org/, then run this again.")
+        }
+        $package = Find-SetupNodePackage -Winget $winget.Source
+        if ($null -eq $package) {
+            throw ("winget has no package that installs Node.js $SetupNodeMajor right now (no $SetupNodePackage, and " +
+                "$SetupNodeLtsPackage is not $SetupNodeMajor.x). Install Node.js $SetupNodeMajor from https://nodejs.org/, " +
+                'open a new PowerShell window and run this again.')
+        }
+        Write-SetupInfo "winget lists Node.js $($package.Version) as $($package.Id)"
+        if ($package.Id -ne $SetupNodePackage) {
+            Write-SetupInfo "(winget has no $SetupNodePackage yet: a major gets its own id once a newer LTS replaces it)"
+        }
+        Install-SetupWingetPackage -Id $package.Id -What "Node.js $SetupNodeMajor"
+        if ($DryRun) { return }
+        $version = Get-SetupNodeVersion
+        if ((Get-SetupMajor $version) -ne $SetupNodeMajor) {
+            $found = if ($null -eq $version) { 'none' } else { "v$version" }
+            throw ("Node.js $SetupNodeMajor is still not on PATH (found: $found). Install it from https://nodejs.org/, " +
+                'open a new PowerShell window and run this again.')
+        }
+        Write-SetupOk "Node.js $version installed"
     }
 
     $npmVersion = Get-SetupNpmVersion

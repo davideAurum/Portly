@@ -116,7 +116,8 @@ use the newest version older than 7 days.
   log line would report. Moving to a new major is a deliberate step that changes three places together:
   `engines.node` here, `version` (with its SHA-256) in `scripts/release/node-runtime.json` (§18) and
   `node-version` in `.github/workflows/ci.yml` (§13); `scripts/check-scripts.ps1` fails when they disagree (or
-  when `$PortlyMinNodeMajor` in `scripts/lib/Common.ps1` does).
+  when `$PortlyNodeMajor` in `scripts/lib/Common.ps1` or `$SetupNodeMajor` in `scripts/setup.ps1`, which is
+  self-contained, does).
 
 ### 2b. TypeScript
 `tsconfig.base.json`: `strict`, `noEmit`, `allowImportingTsExtensions`, `verbatimModuleSyntax`,
