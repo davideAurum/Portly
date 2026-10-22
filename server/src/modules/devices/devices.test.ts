@@ -329,11 +329,16 @@ describe('devices routes', () => {
       expect(ctx.devices.verify(fresh.secret)).not.toBeNull();
     });
 
-    it('a device may revoke another device (like pairings), never approve one', async () => {
+    it('a device may not remove another device (nor approve one): other PCs are managed on the main PC', async () => {
       const a = connectTestDevice(ctx, { label: 'A' });
       const b = connectTestDevice(ctx, { label: 'B' });
-      expect((await testRequest(app, 'DELETE', `/api/devices/${b.record.id}`, { headers: remoteHeaders(a.secret) })).status).toBe(204);
-      expect(ctx.devices.verify(b.secret)).toBeNull();
+      const res = await json<ErrorBody>('DELETE', `/api/devices/${b.record.id}`, { headers: remoteHeaders(a.secret) });
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('local_only');
+      expect(ctx.devices.verify(b.secret)).not.toBeNull();
+      // It may still disconnect itself, and read the list.
+      expect((await json<DevicesResponse>('GET', '/api/devices', { headers: remoteHeaders(a.secret) })).status).toBe(200);
+      expect((await testRequest(app, 'DELETE', '/api/device', { headers: remoteHeaders(a.secret) })).status).toBe(204);
     });
   });
 

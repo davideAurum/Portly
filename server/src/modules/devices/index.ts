@@ -21,7 +21,9 @@
  * - `POST /api/devices/requests/:id/approve` → `{approved: true}` (this PC's own page only: the
  *   trust starts here; 404 unless pending and unexpired). The device is made when the other PC polls.
  * - `POST /api/devices/requests/:id/deny` → 204 (this PC's own page only; 404 unless pending).
- * - `DELETE /api/devices/:id` [paired] → 204 (the device's cookie stops working at once), or 404.
+ * - `DELETE /api/devices/:id` [same-pc] → 204 (the device's cookie stops working at once), or 404.
+ *   Other PCs are managed from this PC (its own page or the paired Pages site), never from
+ *   another PC; a device may only disconnect itself (`DELETE /api/device`).
  * - `GET /api/device` [paired] → `DeviceStatusResponse` for the device the gate verified (a request
  *   the gate attributed to no device, such as a local one with a stray cookie → 409 `not_configured`).
  * - `DELETE /api/device` [paired] → 204: the presenting device disconnects itself (cookie cleared).
@@ -49,7 +51,7 @@ import {
 import type { AppContext, AppEnv } from '../../context.ts';
 import { msToIso, msToIsoStrict } from '../../db/helpers.ts';
 import { HttpError } from '../../lib/errors.ts';
-import { enrollment, paired } from '../../lib/routes.ts';
+import { enrollment, paired, samePc } from '../../lib/routes.ts';
 import { userAgentSummary } from '../../lib/user-agent.ts';
 import { parseBody } from '../../lib/validate.ts';
 import { clearCookieHeader, cookieHeader, readCookie } from '../../security/cookies.ts';
@@ -176,7 +178,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     return c.body(null, 204);
   });
 
-  app.delete('/api/devices/:id', paired(), (c) => {
+  app.delete('/api/devices/:id', samePc(), (c) => {
     const id = c.req.param('id');
     if (!devices.revoke(id, 'revoked')) throw new HttpError(404, 'not_found', 'Device not found');
     log.info('device removed', { deviceId: id, by: 'revoked' });

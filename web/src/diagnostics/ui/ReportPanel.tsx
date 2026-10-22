@@ -102,9 +102,11 @@ export function ReportPanel({ summary, summaryProblem = null, accounts }: Report
         onCheckedChange={setRedact}
       />
       <div className={styles.inlineRow}>
-        <Button variant="primary" icon={Download} loading={downloading} onClick={() => void download()}>
-          Download diagnostic report
-        </Button>
+        {getCapabilities().remoteClient ? null : (
+          <Button variant="primary" icon={Download} loading={downloading} onClick={() => void download()}>
+            Download diagnostic report
+          </Button>
+        )}
         <Button icon={Copy} loading={copying} onClick={() => void copy()}>
           Copy summary
         </Button>

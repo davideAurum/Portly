@@ -8,7 +8,10 @@
  *   lives (this browser's storage) instead;
  * - the Pages build on its `server` backend (Portly on this PC): this site's and the server's
  *   versions and the vault (the server does not tell this site's origin its paths), then the
- *   paired browsers.
+ *   paired browsers;
+ * - another PC's page load (`remoteClient`): the server's version, where the data lives (on the
+ *   main PC; the paths stay there) and the vault; no paired-browsers card, since pairing the
+ *   Pages site is set up and approved on the main PC.
  *
  * The Pages build also gets the local server panel as a card (`LocalServerPanel`).
  */
@@ -93,6 +96,11 @@ function remoteServerFacts(about: AboutResponse, caps: Capabilities): Fact[] {
   ];
 }
 
+/** Another PC using Portly on the main PC: the server's version and where the data lives (its paths stay there). */
+function remoteClientFacts(about: AboutResponse, caps: Capabilities): Fact[] {
+  return [versionFact(about), { label: 'Storage', value: <span>Portly on the main PC, in its data folder.</span> }, vaultFact(about, caps)];
+}
+
 /** Where the browser-only build keeps its data (the backend's storage kind once it is known). */
 function storageDescription(kind: StaticStorageKind | null, fallback: string): string {
   if (kind === 'indexeddb') return 'This browser (IndexedDB). Your data stays on this device.';
@@ -106,11 +114,13 @@ function staticFacts(about: AboutResponse, storageKind: StaticStorageKind | null
 
 function facts(about: AboutResponse, caps: Capabilities, storageKind: StaticStorageKind | null): Fact[] {
   if (caps.backend === 'browser') return staticFacts(about, storageKind);
+  if (caps.remoteClient) return remoteClientFacts(about, caps);
   return caps.remoteServer ? remoteServerFacts(about, caps) : serverFacts(about, caps);
 }
 
 function description(caps: Capabilities): string {
   if (caps.backend === 'browser') return 'Your personal start page, stored in this browser.';
+  if (caps.remoteClient) return 'Your personal start page, with its data from Portly on the main PC.';
   return caps.remoteServer ? 'Your personal start page, with its data from Portly on this PC.' : 'Your personal start page, served from this PC.';
 }
 
@@ -132,7 +142,7 @@ export default function AboutSettings() {
         )}
       </SettingsCard>
       {caps.pagesBuild ? <LocalServerPanel variant="card" /> : null}
-      {caps.backend === 'server' ? <PairedBrowsersCard /> : null}
+      {caps.backend === 'server' && !caps.remoteClient ? <PairedBrowsersCard /> : null}
       <SettingsCard title="Keyboard shortcuts">
         <ShortcutList />
       </SettingsCard>

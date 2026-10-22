@@ -131,6 +131,13 @@ Portly, and new tabs then open that site (the extension follows Portly on this P
 new tabs open Portly itself at `http://localhost:5757`. `-PagesUrl off` turns the Pages site off
 again.
 
+To use this Portly from your other PCs ([Using Portly from your other PCs](setup/other-pcs.md)),
+first run `tailscale serve --bg 5758` on this PC (it prints the address, like
+`https://<pc>.<tailnet>.ts.net`), then add `-RemoteOrigin <that address>`: setup saves it as
+`PORTLY_REMOTE_ORIGIN` before it starts Portly, which then also listens for the proxy on the port
+after its own (`5758`). Approve each PC once in **Settings → Devices**. `-RemoteOrigin off` turns
+it off again (and removes `PORTLY_REMOTE_PORT`).
+
 Accounts are not copied: the vault is encrypted for this PC's Windows user, so connect them again;
 move layout and settings with **Settings → Import & export**.
 
@@ -229,6 +236,8 @@ environment variables so autostart sees them too):
 | `PORTLY_BIND` | `127.0.0.1,::1` | Listen addresses (loopback only). |
 | `PORTLY_ORIGIN` | `http://localhost:<port>` | The URL you open Portly at. |
 | `PORTLY_PAGES_URL` | *(unset: off)* | Your Portly Pages site's address, e.g. `https://<user>.github.io/`. Browsers paired with Portly may then use it from that site ([Pages site with Portly on this PC](setup/pages-local-server.md)). |
+| `PORTLY_REMOTE_ORIGIN` | *(unset: off)* | The HTTPS address your other PCs use, given by a reverse proxy on this PC such as Tailscale Serve, e.g. `https://<pc>.<tailnet>.ts.net`. Each PC is approved once in **Settings → Devices** ([Using Portly from your other PCs](setup/other-pcs.md)). Portly still listens only on this PC. |
+| `PORTLY_REMOTE_PORT` | `<port> + 1` | The loopback port that proxy forwards to (only with `PORTLY_REMOTE_ORIGIN`). |
 | `PORTLY_LOG_LEVEL` | `info` | How much the log keeps normally: `debug`, `info` or `warn`. For a while, **Settings → Diagnostics** can switch to Verbose instead ([Diagnostics page and logs](setup/troubleshooting.md#diagnostics-page-and-logs)). |
 | `PORTLY_PAGES_REPO` | *(unset)* | Your local clone of the public Pages repository. In a checkout, `portly --rebuild` (and `portly --update`) publishes the Pages site there. `install-cli.ps1 -PublicRepoPath` sets it. |
 
@@ -309,7 +318,8 @@ for up to 10 minutes after a publish, so hard-refresh (Ctrl+F5) before judging i
    delete the Google Cloud project / Entra app registration if you no longer need them.
 4. Delete `%LOCALAPPDATA%\Portly` and the Portly folder (in a release install,
    `%LOCALAPPDATA%\Programs\Portly`). Remove any `PORTLY_*` user environment variables you set,
-   such as `PORTLY_PAGES_URL`.
+   such as `PORTLY_PAGES_URL` or `PORTLY_REMOTE_ORIGIN` (and stop the reverse proxy you ran for
+   your other PCs).
 
 ## More
 

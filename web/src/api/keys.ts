@@ -63,6 +63,8 @@ export const qk = {
   },
   /** The configured Pages address and the browsers paired with it (server's own page only). */
   pairings: () => ['pairings'] as const,
+  /** The other PCs connected through the remote origin and the requests waiting (never persisted). */
+  devices: () => ['devices'] as const,
   /** Settings → Diagnostics (never persisted: the whole family is in NON_PERSISTED_ROOTS, app/providers.tsx). */
   diagnostics: {
     all: () => ['diagnostics'] as const,

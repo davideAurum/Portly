@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
+import { setLoginReloadForTests } from './client.ts';
 import { getClientEvents } from '../diagnostics/clientLog.ts';
 import { qk, ACCOUNT_DEPENDENT_KEYS } from './keys.ts';
 import { ServerModeEndedError } from '../localServer/controller.ts';
@@ -280,5 +281,30 @@ describe('query keys', () => {
     expect(qk.geocode('Berlin').slice(0, 1)).toEqual(['weather']);
     expect(qk.todoist.tasks('today').slice(0, 1)).toEqual(qk.todoist.all());
     expect(qk.search.suggest('google', 'x')).toEqual(['search', 'suggest', 'google', 'x']);
+  });
+});
+
+describe('login_required on another PC’s page load', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setLoginReloadForTests(null);
+  });
+
+  it('reloads once into the connect screen, and only on another PC', async () => {
+    const reload = vi.fn();
+    setLoginReloadForTests(reload);
+    const refused = () => new Response('{"error":{"code":"login_required","message":"not connected"}}', { status: 401, headers: { 'Content-Type': 'application/json' } });
+    setCapabilitiesForTests(capabilitiesFor(false, 'server'));
+    stubFetch(refused());
+    await expect(apiGet('/api/settings')).rejects.toMatchObject({ code: 'login_required' });
+    expect(reload).not.toHaveBeenCalled();
+
+    setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
+    stubFetch(refused());
+    await expect(apiGet('/api/settings')).rejects.toMatchObject({ code: 'login_required', status: 401 });
+    expect(reload).toHaveBeenCalledTimes(1);
+    stubFetch(refused());
+    await expect(apiGet('/api/profiles')).rejects.toMatchObject({ code: 'login_required' });
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

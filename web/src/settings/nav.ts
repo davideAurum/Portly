@@ -5,6 +5,8 @@
  * which every backend shows (the in-browser one: the hybrid state and this browser's events).
  * Every backend shows every section: the in-browser one has Accounts and Calendars too
  * (Outlook.com signs in and syncs from the browser); a section adapts to what its page load can do.
+ * Devices (other PCs using this Portly through the reverse proxy on the main PC) is approved from
+ * Portly's own page on the main PC and read-only elsewhere.
  *
  * Todoist is a connection in Accounts; the old `#/settings/todoist` address opens it there
  * ({@link MOVED_SETTINGS_SECTIONS}).
@@ -16,6 +18,7 @@ import {
   Bookmark,
   CalendarDays,
   Info,
+  Laptop,
   Layers,
   Palette,
   Search,
@@ -32,6 +35,7 @@ export const SETTINGS_SECTION_IDS = [
   'accounts',
   'calendars',
   'profiles',
+  'devices',
   'import-export',
   'diagnostics',
   'about',
@@ -70,6 +74,7 @@ export const ALL_SETTINGS_SECTIONS: readonly SettingsSection[] = Object.freeze([
   { id: 'accounts', label: 'Accounts', icon: UserRound, Component: lazy(() => import('./sections/Accounts.tsx')) },
   { id: 'calendars', label: 'Calendars', icon: CalendarDays, Component: lazy(() => import('./sections/Calendars.tsx')) },
   { id: 'profiles', label: 'Profiles', icon: Layers, Component: lazy(() => import('./sections/Profiles.tsx')) },
+  { id: 'devices', label: 'Devices', icon: Laptop, Component: lazy(() => import('./sections/Devices.tsx')) },
   {
     id: 'import-export',
     label: 'Import & export',

@@ -16,6 +16,13 @@
  * too: the browser signs in to Microsoft and reads the calendars from Graph itself
  * (`src/static/handlers/accounts.ts`, `calendar.ts`), so the Calendar widget is there as well.
  *
+ * A third thing decides a little more: whether the server build was opened from **another PC**,
+ * through the HTTPS reverse proxy on the main PC (ARCHITECTURE §4.2 remote branch; decided before
+ * the first render by `app/remoteClient.ts`, `setRemoteClient`). Such a page load has every
+ * server feature except what stays on the main PC: signing in with Google or Microsoft (the OAuth
+ * redirect lands on the main PC), the vault reset, importing the main PC's browser bookmarks,
+ * approving devices and pairings, and the diagnostics report.
+ *
  * UI code reads {@link getCapabilities} at render or call time, never at module top level, and
  * "the data lives in this browser" means `backend === 'browser'`, not `STATIC_BUILD`. Tests drive
  * it with {@link setCapabilitiesForTests} (reset after every test by the vitest setup files).
@@ -34,6 +41,8 @@ export interface Capabilities {
   backend: Backend;
   /** The Pages build talking to the Portly server on this PC (`pagesBuild && backend === 'server'`). */
   remoteServer: boolean;
+  /** The server build opened from another PC through the reverse proxy on the main PC: what only the main PC can do is off. */
+  remoteClient: boolean;
   /** The Accounts section: every kind on the server, Outlook.com alone on the `browser` backend. */
   accounts: boolean;
   /** Google accounts and their sign-in (the server keeps the client secret). */
@@ -64,26 +73,32 @@ export interface Capabilities {
 
 const cache = new Map<string, Capabilities>();
 
-/** The capabilities of a build/backend combination (frozen; the same object for the same combination). */
-export function capabilitiesFor(pagesBuild: boolean, backend: Backend): Capabilities {
-  const key = `${pagesBuild ? 'pages' : 'server'}:${backend}`;
+/**
+ * The capabilities of a build/backend combination (frozen; the same object for the same
+ * combination), `remoteClient` for the server build opened from another PC.
+ */
+export function capabilitiesFor(pagesBuild: boolean, backend: Backend, remoteClient = false): Capabilities {
+  const key = `${pagesBuild ? 'pages' : 'server'}:${backend}:${remoteClient ? 'remote' : 'here'}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
   const server = backend === 'server';
   const remoteServer = pagesBuild && server;
+  // What needs the server *and* this PC (another PC's page load leaves it to the main PC).
+  const mainPc = server && !remoteClient;
   const caps: Capabilities = Object.freeze({
     pagesBuild,
     backend,
     remoteServer,
+    remoteClient,
     accounts: true,
-    googleAccounts: server,
+    googleAccounts: mainPc,
     appPasswordAccounts: server,
     calendar: true,
     icsSubscriptions: server,
     mail: server,
     feeds: server,
     vault: server,
-    browserBookmarkImport: server,
+    browserBookmarkImport: mainPc,
     siteMetaFetch: server,
     serverSearchSuggestions: server,
     browserBackups: !server,
@@ -95,18 +110,26 @@ export function capabilitiesFor(pagesBuild: boolean, backend: Backend): Capabili
 
 /** The Pages build's backend for this page load; `browser` until `main.tsx` decides. */
 let pageBackend: Backend = 'browser';
+/** The server build opened from another PC; false until `main.tsx` decides. */
+let remoteClient = false;
 let testOverride: Capabilities | null = null;
 
 /** The capabilities of this page load. Read it at render or call time, never at module top level. */
 export function getCapabilities(): Capabilities {
   if (testOverride !== null) return testOverride;
-  return STATIC_BUILD ? capabilitiesFor(true, pageBackend) : capabilitiesFor(false, 'server');
+  return STATIC_BUILD ? capabilitiesFor(true, pageBackend) : capabilitiesFor(false, 'server', remoteClient);
 }
 
 /** Sets the Pages build's backend for this page load (`main.tsx`, before the first render). No-op in the server build. */
 export function setPageBackend(backend: Backend): void {
   if (!STATIC_BUILD) return;
   pageBackend = backend;
+}
+
+/** Marks this page load as another PC's (`main.tsx`, before the first render). No-op in the Pages build. */
+export function setRemoteClient(remote: boolean): void {
+  if (STATIC_BUILD) return;
+  remoteClient = remote;
 }
 
 /**
@@ -116,7 +139,10 @@ export function setPageBackend(backend: Backend): void {
  */
 export function setCapabilitiesForTests(caps: Capabilities | null): void {
   testOverride = caps;
-  if (caps === null) pageBackend = 'browser';
+  if (caps === null) {
+    pageBackend = 'browser';
+    remoteClient = false;
+  }
 }
 
 /** Widget types that may need the server; each one needs the capability of the same name. */
