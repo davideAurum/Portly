@@ -148,8 +148,9 @@ Items:
   In the main checkout: `git pull` to cd547e3 or later, `git status` clean,
   `git -C $env:PORTLY_PAGES_REPO fetch` and confirm the Pages repository has not diverged, then
   `portly --update` (`update.ps1` refuses worktrees and deploys the checkout as-is, warning about
-  uncommitted changes rather than refusing them). This is the first real `update.ps1` run under
-  `portly-supervisor.exe` and `portly-server.exe` (the update.ps1 row in the checks table).
+  uncommitted changes rather than refusing them; refused since 1.8). This is the first real
+  `update.ps1` run under `portly-supervisor.exe` and `portly-server.exe` (the update.ps1 row in the
+  checks table).
   GitHub Pages serves the old page for up to 10 minutes after a publish; hard-refresh before
   judging.
 
@@ -278,6 +279,16 @@ Items:
   *Done when:* `check-scripts.ps1` passes with new fake cases (diverged repository, dirty tree) in
   both PowerShell versions; the next real `portly --update` shows the new messages.
 
+  *Status:* done 2026-10-21, except the real run. `publish-static.ps1` fetches the clone's upstream
+  first, fast-forwards a clone that is only behind, refuses a diverged one with the merge command
+  (also in `-DryRun`, which now fetches), writes and stages a `.gitattributes` so `install.ps1` and
+  `setup.ps1` are committed byte for byte, and prints the 10-minute cache note after a push;
+  `update.ps1` refuses a dirty tree unless `-AllowDirty` (`portly --update --allow-dirty`), before
+  `npm ci` or the build. check-scripts.ps1 gained the fake cases (behind, ahead, diverged, dirty,
+  `-AllowDirty`, `.gitattributes` written and staged) and passes in both PowerShell versions. The
+  next real `portly --update` (5.4 or earlier) shows the new messages and fixes the live
+  `install.ps1` size: see the checks table.
+
 - **1.9 Attribute and fix the TimeoutOverflowWarning** (S; after 1.1).
   Every vitest run prints, part-way through, "TimeoutOverflowWarning: ~2.25e9 does not fit into a
   32-bit signed integer. Timeout duration was set to 1"; the value tracks wall-clock time, so
@@ -287,6 +298,13 @@ Items:
 
   *Done when:* `npx vitest run` prints no TimeoutOverflowWarning; a unit test pins the clamp if app
   code was at fault.
+
+  *Status:* done 2026-10-21. Traced with `NODE_OPTIONS=--trace-warnings` (the flag has to reach the
+  worker processes) to a test fixture, not app code: the mail widget test seeded the accounts
+  query on the real clock and then faked Date to 2026-09-25, so TanStack Query armed its stale
+  timer for "real timestamp + 60 s minus the fake now", about 26 days. The seed now carries the
+  test's clock, and the web test setup turns any TimeoutOverflowWarning into a failure that names
+  the arming site (checked: the old seeding now fails the run).
 
 - **1.10 Contract and docs drift, review tags, shortcut help** (S; after 1.1).
   ARCHITECTURE: section 13's "100k-VEVENT" becomes the 5,000-VEVENT feed cap and the 100,000-row
@@ -305,6 +323,16 @@ Items:
   `grep -rn 'UX-[0-9]' web/src` resolves to the documented list or returns nothing; the shortcuts
   dialog test lists the new entry.
 
+  *Status:* done 2026-10-21. Each changed sentence was read against the code it cites and
+  reviewed once more by a second reader (three corrections: a calendar sizing claim, the order of
+  the connect dialog's steps, a broken link). ARCHITECTURE 4.2, 10.4, 10.6, 10.8 and 13 match the
+  code; README names every script and both README and static-build.md state the alpha's browsers;
+  launchpad-sync.md describes the shipped Accounts page; the 16 review tags resolve in
+  docs/design/review-2026-10.md; the `?` dialog lists Shift+F10 and the context-menu key for a
+  launch pad tile (ViewTile handles both), with a test. ci.yml's header comment now also names
+  workflow_dispatch. Checked: typecheck and the two scoped test files; the dialog was not looked
+  at in a real browser.
+
 - **1.11 setup.ps1 installs Node.js 24, not whatever LTS winget has** (S; after 1.7).
   With the Node major pinned (1.7), a fresh PC must get Node 24: `setup.ps1` installs winget's
   `OpenJS.NodeJS.LTS`, which moves to Node 26 when that becomes the LTS, and `Resolve-HbNode` in
@@ -314,6 +342,15 @@ Items:
 
   *Done when:* `setup.ps1 -DryRun` on a PC without Node names the 24 package; `check-scripts.ps1`
   passes in both PowerShell versions with a fake for the refused major; CI green on main.
+
+  *Status:* done 2026-10-21, with one fact the item got wrong: winget has no `OpenJS.NodeJS.24` id
+  yet (a major gets its own id only once it stops being the LTS; today `OpenJS.NodeJS.LTS` is
+  24.20.0). So `setup.ps1` asks winget for whichever of the two installs Node 24 at run time and
+  names both in its messages; `Resolve-HbNode` and setup's own check refuse any other major with
+  the install hint; `check-scripts.ps1` compares `$PortlyNodeMajor` (Common.ps1) and
+  `$SetupNodeMajor` (setup.ps1) with the three places 1.7 pinned, and fakes a v26 and a v22
+  `node.exe` (refused) and v24.x (accepted) in both shells. The dry run was checked with `node.exe`
+  hidden from PATH on this PC, not on a fresh PC: see the checks table.
 
 ## Phase 2: Prove what is built, on this PC
 
@@ -969,7 +1006,8 @@ date and the outcome once a row has been run for real.
 | The animated lighthouse logo in Firefox and as the extension's New Tab page; frames were checked by eye in Chromium only | 7657e96, 2026-10-13 | 2.4 | not yet |
 | A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | not yet |
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
-| `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: winget's LTS id installs Node 26 once that is the LTS, which `engine-strict` refuses | 2d7b20e, 2026-10-21 | 1.11 | not yet |
+| The next real `portly --update`: the dirty-tree refusal and the fetch/fast-forward messages for real, and a publish that writes `.gitattributes` to the live Pages clone (which makes the live `install.ps1` byte-equal to the built one) | 1.8, 2026-10-21 | 5.4, or the next republish of the Pages site | not yet |
+| `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: it must install Node 24 (today winget's `OpenJS.NodeJS.LTS`, later `OpenJS.NodeJS.24`) and stop on another major; checked only with `node.exe` hidden from PATH on this PC | 1.11, 2026-10-21 | 3.3 (the first other PC), 4.3 (the clean account) | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
 | The device cookies over real https on an address that is not loopback (a Tailscale Serve address): the B.4 check ran on `http://localhost`, which Chromium treats as secure, so the `Secure` and `__Host-` attributes were never exercised against a certificate | B.2 commit, 2026-10-21 | B.5 | not yet |
 | `setup.ps1 -RemoteOrigin` for real (the variable saved and the task restarted with it); only `-DryRun` and the `check-scripts.ps1` dry runs | B.3 commit, 2026-10-21 | B.5 (on this PC, before the second device connects) | not yet |

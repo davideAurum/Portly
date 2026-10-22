@@ -12,3 +12,13 @@ describe('shortcut help (UX-12)', () => {
     expect(screen.getByLabelText('Anywhere')).toHaveTextContent('Focus the search box');
   });
 });
+
+describe('shortcut help: launch pad tile menu (roadmap 1.10)', () => {
+  it('lists the launch pad tile menu key (Shift+F10, the context-menu key too)', () => {
+    render(<ShortcutList />);
+    const tile = screen.getByLabelText('On a launch pad tile');
+    expect(within(tile).getByText('Shift')).toBeInTheDocument();
+    expect(within(tile).getByText('F10')).toBeInTheDocument();
+    expect(within(tile).getByText(/Open its menu: Edit, Move to, Delete/)).toHaveTextContent('context-menu key');
+  });
+});

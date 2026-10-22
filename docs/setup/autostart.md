@@ -71,10 +71,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.
 
 The script:
 
-1. checks Node.js 24+, the installed dependencies and the repository layout, reads the extension
-   ID from `extension\manifest.json`, and checks your `PORTLY_*` environment variables (if any)
-   with the server's own configuration loader — the background server has no console to show such
-   errors, so they are reported here instead;
+1. checks Node.js 24 (the major Portly pins: another major, older or newer, is refused with
+   *Portly needs Node.js 24, found v...* and what to install, as `setup.ps1` does), the installed
+   dependencies and the repository layout, reads the extension ID from `extension\manifest.json`,
+   and checks your `PORTLY_*` environment variables (if any) with the server's own configuration
+   loader — the background server has no console to show such errors, so they are reported here
+   instead;
 2. builds the web app (`npm run build`) if `web\dist` is missing;
 3. registers the task (replacing an older registration, if any);
 4. registers the launcher for Chrome and Edge (files and registry keys, see below);

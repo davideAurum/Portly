@@ -10,7 +10,16 @@ Set-StrictMode -Version 3.0
 $PortlyTaskName = 'Portly Server'
 $PortlyTaskPath = '\'
 $PortlyDefaultPort = 5757
-$PortlyMinNodeMajor = 24
+# The Node.js major Portly runs on: the one package.json pins in engines.node (">=24 <25"), which
+# npm's engine-strict enforces, so Resolve-HbNode refuses any other major too (older or newer).
+# check-scripts.ps1 keeps it equal to package.json, scripts\release\node-runtime.json, ci.yml and
+# $SetupNodeMajor in setup.ps1 (which cannot dot-source this file). A new major changes them all.
+$PortlyNodeMajor = 24
+# winget's package for that major. winget keeps its current LTS under OpenJS.NodeJS.LTS and gives
+# a major its own id (OpenJS.NodeJS.22, ...) once it is no longer the LTS, so setup.ps1 picks
+# whichever of the two installs $PortlyNodeMajor at run time; messages name both.
+$PortlyNodeWingetId = "OpenJS.NodeJS.$PortlyNodeMajor"
+$PortlyNodeInstallHint = "install Node.js $PortlyNodeMajor from https://nodejs.org/ or with winget install $PortlyNodeWingetId (OpenJS.NodeJS.LTS while winget's LTS is still $PortlyNodeMajor)"
 $PortlyTaskDescriptions = @{
     Browser = 'Starts the Portly server (server\src\supervisor.ts) when Chrome or Edge asks for it through the Portly extension (native host com.portly.launcher). No logon trigger. Installed by scripts\install-autostart.ps1.'
     Logon   = 'Starts the Portly server (server\src\supervisor.ts) at logon. Installed by scripts\install-autostart.ps1.'
@@ -499,7 +508,8 @@ function Get-HbNodeVersion {
 }
 
 # Resolves node.exe (explicit path, else the release's own runtime\node.exe under $RepoRoot, else
-# PATH) and checks it is Node.js 24 or newer.
+# PATH) and checks it is Node.js $PortlyNodeMajor: any other major, older or newer, is refused
+# with the same message setup.ps1 gives, because npm ci (engine-strict) refuses it as well.
 function Resolve-HbNode {
     param([string]$NodePath, [string]$RepoRoot)
     if ([string]::IsNullOrWhiteSpace($NodePath) -and -not [string]::IsNullOrWhiteSpace($RepoRoot)) {
@@ -509,7 +519,7 @@ function Resolve-HbNode {
     if ([string]::IsNullOrWhiteSpace($NodePath)) {
         $command = Get-Command -Name 'node.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -eq $command) {
-            throw "node.exe was not found on PATH. Install Node.js $PortlyMinNodeMajor or newer from https://nodejs.org/ (or pass -NodePath)."
+            throw "node.exe was not found on PATH; $PortlyNodeInstallHint, or pass -NodePath."
         }
         $NodePath = $command.Source
     }
@@ -519,8 +529,8 @@ function Resolve-HbNode {
     $full = (Resolve-Path -LiteralPath $NodePath).ProviderPath
     $version = Get-HbNodeVersion -NodeExe $full
     $major = [int]($version.Split('.')[0])
-    if ($major -lt $PortlyMinNodeMajor) {
-        throw "Portly needs Node.js $PortlyMinNodeMajor or newer, but $full is v$version."
+    if ($major -ne $PortlyNodeMajor) {
+        throw "Portly needs Node.js $PortlyNodeMajor, found v$version ($full); $PortlyNodeInstallHint."
     }
     $temporary = $full -match '\\fnm_multishells\\' -or
         $full.StartsWith([System.IO.Path]::GetTempPath(), [System.StringComparison]::OrdinalIgnoreCase)

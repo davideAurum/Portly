@@ -59,7 +59,10 @@ and Edge. There is no cloud service: the only outside traffic is to the provider
   modules in a registry.
 - **shared/** — the API contract: TypeScript types and zod schemas used by both sides.
 - **extension/** — Manifest V3 new-tab extension, plain JavaScript, no build step.
-- **scripts/** — PowerShell helpers: foreground start, autostart install/remove, status.
+- **scripts/** — PowerShell helpers: setting up a new PC, foreground start, autostart
+  install/remove, status, the `portly` command, update, try-branch, release package
+  install/build/check/publish, publishing the browser-only site, and the self-checks
+  (`check-scripts.ps1`, the extension and native host tests).
 
 The full design, including the security model, is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -121,6 +124,11 @@ export/import, and Outlook.com calendars (the browser signs in to Microsoft and 
 Mail, feeds, Google and app-password accounts, and ICS links need the server and are left out. Your
 data lives in that browser's storage (IndexedDB), moved between computers with export/import.
 
+Supported browsers for the alpha: Chromium ones, that is **Chrome** and **Edge**. Firefox is
+checked by hand at most (a smoke run: the page loads and its widgets work), never with the full
+test pass, and even that run is still to come; Safari drops a site's storage after seven days
+without a visit. So neither is supported yet ([details](docs/setup/static-build.md#browsers)).
+
 ```powershell
 npm run build:static     # web\dist-static; set PORTLY_STATIC_BASE=/<repo>/ for a project site
 npm run preview:static   # http://localhost:5173 (localhost only)
@@ -155,7 +163,7 @@ importing browser bookmarks, approving PCs and paired browsers, the OAuth client
 | `web/` | `@portly/web` | React 19 + Vite 8 single-page app; `web/src/static/` is the browser-only build's in-browser backend |
 | `extension/` | — | Manifest V3 new-tab extension (plain JS) |
 | `native-host/` | — | Native messaging host the extension uses to start Portly |
-| `scripts/` | — | PowerShell setup, start, status, release and publish scripts, and their checks |
+| `scripts/` | — | PowerShell scripts: setup, start, autostart install/remove, status, the `portly` command, update, try-branch, release package install/build/check/publish, publishing the browser-only site, and their checks |
 | `site/` | — | Static home, privacy and terms pages for the Google and Microsoft consent screens |
 | `docs/` | — | Architecture, setup guides, roadmap and brand assets |
 

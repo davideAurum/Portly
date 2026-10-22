@@ -20,6 +20,17 @@ configure({ asyncUtilTimeout: 4000 });
 // the next test's page, so give the whole test room; each wait above keeps its 4 s.
 vi.setConfig({ testTimeout: 60_000 });
 
+// A timer armed for more than 2^31 ms fires at once instead (Node prints a TimeoutOverflowWarning
+// and the browser behaves the same). In a test it means two clocks were mixed: data stamped with
+// the real clock, then Date faked to a date weeks away, so a stale timer is armed for weeks. Make
+// it a failure that names the arming site instead of a warning that scrolls past.
+// (The web tsconfig has no Node types, so the process object is reached through globalThis.)
+const nodeProcess = (globalThis as { process?: { on(event: 'warning', listener: (warning: Error) => void): unknown } }).process;
+nodeProcess?.on('warning', (warning) => {
+  if (warning.name !== 'TimeoutOverflowWarning') return;
+  throw new Error(`${warning.message} (a test mixed the real clock with a faked Date?)\n${warning.stack ?? ''}`);
+});
+
 if (typeof window.matchMedia !== 'function') {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
