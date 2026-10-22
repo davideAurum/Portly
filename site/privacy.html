@@ -94,7 +94,10 @@
       Portly's address. The snapshot is dropped after 24 hours or when Portly is updated.</li>
     <li>If you let your other PCs use Portly on this PC (through a reverse proxy you run, after
       approving each PC here), Portly keeps on this PC, for each PC that asks to connect, the name
-      you gave it, a short description of its browser and system (such as "Chrome on Windows"),
+      you gave it (filled in from that PC's computer name when Tailscale on this PC can tell who is
+      asking; that name is held in memory for a few minutes and never written down, and nothing is
+      stored until you ask to connect), a short description of its browser and system (such as
+      "Chrome on Windows"),
       when it asked, connected and last used Portly, and a hash of its login cookie, never the
       cookie itself; a removed PC's record is kept for 30 days so a stale cookie is recognised.
       Each approved PC's browser keeps the login cookie for Portly's address, which lasts 30 days

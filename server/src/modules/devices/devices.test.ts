@@ -1,16 +1,18 @@
 import type { Hono } from 'hono';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DEVICE_CODE_REGEX,
   DEVICE_COOKIE,
   DEVICE_IDLE_TTL_MS,
   DEVICE_REQUEST_TTL_MS,
+  DeviceNameSuggestionResponseSchema,
   DeviceRequestCreateResponseSchema,
   DeviceRequestStatusResponseSchema,
   DeviceStatusResponseSchema,
   DevicesResponseSchema,
   ENROLL_COOKIE,
   MAX_PENDING_DEVICE_REQUESTS,
+  type DeviceNameSuggestionResponse,
   type DeviceRequestCreateResponse,
   type DeviceRequestStatusResponse,
   type DeviceStatusResponse,
@@ -45,9 +47,9 @@ describe('devices routes', () => {
   let app: Hono<AppEnv>;
   let now: number;
 
-  function setup(env: Record<string, string> = { ...TEST_REMOTE_ENV }): void {
+  function setup(env: Record<string, string> = { ...TEST_REMOTE_ENV }, peerNames?: TestContext['peerNames']): void {
     now = Date.parse('2026-10-21T10:00:00Z');
-    ctx = createTestContext({ env, now: () => now });
+    ctx = createTestContext({ env, now: () => now, peerNames });
     app = createApp(ctx, { modules: [{ name: 'devices', prefixes, register }], webDist: null }).app;
   }
 
@@ -195,6 +197,47 @@ describe('devices routes', () => {
       expect(expired.body).toMatchObject({ status: 'expired', id: body.id, device: null });
       expect(setCookieFor(expired.res, ENROLL_COOKIE)).toContain('Max-Age=0');
       expect((await json<ErrorBody>('POST', `/api/devices/requests/${body.id}/approve`)).status).toBe(404);
+    });
+  });
+
+  describe('the name to suggest', () => {
+    const lookup = vi.fn(async (address: string) => (address === '100.101.102.103' ? 'STUDY-LAPTOP' : null));
+    beforeEach(() => {
+      lookup.mockClear();
+      setup({ ...TEST_REMOTE_ENV }, { lookup });
+    });
+
+    it("asks Tailscale about the address the proxy itself added (the last one) for a request from the other PC", async () => {
+      const res = await json<DeviceNameSuggestionResponse>('GET', '/api/devices/requests/suggestion', {
+        headers: remoteHeaders(null, { 'X-Forwarded-For': '100.64.0.9, 10.0.0.2 , 100.101.102.103 ' }),
+      });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ label: 'STUDY-LAPTOP' });
+      expect(DeviceNameSuggestionResponseSchema.parse(res.body)).toEqual(res.body);
+      expect(lookup).toHaveBeenCalledWith('100.101.102.103');
+      expect(lookup).toHaveBeenCalledTimes(1);
+    });
+
+    it('answers no name when Tailscale has none, or when no address was forwarded', async () => {
+      const unknown = await json<DeviceNameSuggestionResponse>('GET', '/api/devices/requests/suggestion', {
+        headers: remoteHeaders(null, { 'X-Forwarded-For': '100.64.0.9' }),
+      });
+      expect(unknown.body).toEqual({ label: null });
+      const bare = await json<DeviceNameSuggestionResponse>('GET', '/api/devices/requests/suggestion', { headers: remoteHeaders(null) });
+      expect(bare.body).toEqual({ label: null });
+      expect(lookup).toHaveBeenCalledTimes(1);
+    });
+
+    it("never looks anything up for this PC's own page, and is not for the Pages site", async () => {
+      const own = await json<DeviceNameSuggestionResponse>('GET', '/api/devices/requests/suggestion');
+      expect(own.status).toBe(200);
+      expect(own.body).toEqual({ label: null });
+      expect(lookup).not.toHaveBeenCalled();
+      ctx.close();
+      setup({ ...TEST_REMOTE_ENV, ...TEST_PAGES_ENV }, { lookup });
+      const { token } = ctx.pairing.create({ label: 'Chrome on Windows', origin: TEST_PAGES_ORIGIN });
+      const pages = await json<ErrorBody>('GET', '/api/devices/requests/suggestion', { headers: pagesHeaders(token) });
+      expect(pages.status).toBe(403);
     });
   });
 

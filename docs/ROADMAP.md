@@ -981,7 +981,12 @@ Items:
   PC's Portly; OAuth sign-in from other PCs (https redirect URIs for the remote origin); a passkey
   as a second factor; an optional `PORTLY_REMOTE_LOGIN` check of the `Tailscale-User-Login` header
   as defence in depth (B.5 showed Serve replaces a forged one from inside the tailnet; it would
-  stay optional, since any other proxy may pass the header through).
+  stay optional, since any other proxy may pass the header through). *Built 2026-10-21, on the
+  owner's ask after the real install:* the connect screen fills the PC's name in, from
+  `tailscale whois` on the main PC for the address Serve forwards (`lib/peer-names.ts`,
+  `GET /api/devices/requests/suggestion`; design/multi-pc.md, "The name the connect screen fills
+  in"); checked against the real Tailscale from a scratch server, the second PC's own connect is
+  the row below.
 
 ## Checks never run for real
 
@@ -1022,6 +1027,9 @@ date and the outcome once a row has been run for real.
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
 | The "Other PCs: not set" lines of `status.ps1` on a PC without `PORTLY_REMOTE_ORIGIN`, in a checkout and in a release install: only their strings; the checks ran with the variable set on this PC | B.5 commit, 2026-10-21 | the next PC without the variable (3.3, 4.3) | not yet |
 | The second PC connecting to the installed Portly (not the scratch server) through the Serve address: approve in Settings > Devices, the app loading with the owner's real data | B.5 commit, 2026-10-21 | the owner, from the second PC, right after B.5 | not yet |
+| The connect screen's name filled in on the second PC through Serve (its computer name): only `curl` with a forwarded address against a scratch server on this PC, which asked the real Tailscale, and the web tests with a mocked answer | B.6 name commit, 2026-10-21 | the owner's next connect from the second PC (the row above) | not yet |
+| The name suggestion on a main PC without Tailscale installed (every lookup null, nothing spawned, one log line at start): only the executable rule with a fake environment and the test stub; this PC has Tailscale | B.6 name commit, 2026-10-21 | 4.3 (the clean account) | not yet |
+| The name lookup's in-flight cap (four processes at most) against real `tailscale.exe` processes: six addresses at once finished too fast to hit it on this PC; the unit test pins it | B.6 name commit, 2026-10-21 | a later check with a slow or stalled Tailscale | not yet |
 
 ### Closed
 

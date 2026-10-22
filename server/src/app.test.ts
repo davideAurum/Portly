@@ -235,6 +235,7 @@ describe('app: modules', () => {
       ['POST', '/api/devices/requests/sample-id/deny'],
       ['POST', '/api/devices/requests'],
       ['GET', '/api/devices/requests/current'],
+      ['GET', '/api/devices/requests/suggestion'],
       ['GET', '/api/oauth/google/callback'],
       ['GET', '/api/nope'],
     ];
@@ -284,7 +285,8 @@ describe('app: modules', () => {
 /**
  * Every API route and who may call it: `paired` = Portly's own page, the paired Pages site and
  * connected devices (other PCs); `same-pc` = Portly's own page and the paired Pages site (both on
- * this PC), never another PC; `enrollment` = anyone on the remote origin (asking to connect) and
+ * this PC), never another PC; `enrollment` = anyone on the remote origin (asking to connect, polling the
+ * answer and the name suggestion need no cookie) and
  * Portly's own page, never the Pages site; `local` = Portly's own page on this PC only. Health and
  * the OAuth callback are exempt routes (no token, no pairing, no cookie); they are listed as local
  * because they are not declared with an access tag.
@@ -385,6 +387,7 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   // page and removing on this PC (own page or the Pages site); a device may only disconnect itself
   'POST /api/devices/requests': 'enrollment',
   'GET /api/devices/requests/current': 'enrollment',
+  'GET /api/devices/requests/suggestion': 'enrollment',
   'GET /api/devices': 'paired',
   'POST /api/devices/requests/:id/approve': 'local',
   'POST /api/devices/requests/:id/deny': 'local',

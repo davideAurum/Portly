@@ -48,7 +48,7 @@ export const DeviceLabelSchema = z
   .trim()
   .min(1)
   .max(DEVICE_LABEL_MAX)
-  .regex(/^[^\p{Cc}\u2028\u2029\u202A-\u202E\u2066-\u2069]+$/u, 'One line without control or bidi characters');
+  .regex(/^[^\p{Cc}\p{Cs}\u2028\u2029\u202A-\u202E\u2066-\u2069]+$/u, 'One line without control, bidi or half-surrogate characters');
 
 /** `POST /api/devices/requests {label}`. */
 export const DeviceRequestCreateSchema = z.object({ label: DeviceLabelSchema }).strict();
@@ -137,3 +137,10 @@ export type DevicesResponse = z.output<typeof DevicesResponseSchema>;
 /** `POST /api/devices/requests/:id/approve` → the device record is made when the other PC next polls. */
 export const DeviceApproveResponseSchema = z.object({ approved: z.literal(true) }).strict();
 export type DeviceApproveResponse = z.output<typeof DeviceApproveResponseSchema>;
+
+/**
+ * `GET /api/devices/requests/suggestion`: the name the connect screen fills in for the asking PC
+ * (its computer name, when the main PC's Tailscale can tell who is asking), or null.
+ */
+export const DeviceNameSuggestionResponseSchema = z.object({ label: DeviceLabelSchema.nullable() }).strict();
+export type DeviceNameSuggestionResponse = z.output<typeof DeviceNameSuggestionResponseSchema>;

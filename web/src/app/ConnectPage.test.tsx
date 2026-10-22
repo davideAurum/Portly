@@ -46,6 +46,66 @@ describe('ConnectPage', () => {
     expect(t.requestsTo('POST /api/devices/requests')[0]?.headers.get('X-Portly')).toBe('1');
   });
 
+  it('fills the name in with what the main PC suggests', async () => {
+    renderWithProviders(<ConnectPage reload={vi.fn()} pollMs={20} />, {
+      apiMocks: {
+        'GET /api/devices/requests/current': mockError(404, 'not_found'),
+        'GET /api/devices/requests/suggestion': { label: 'STUDY-LAPTOP' },
+      },
+    });
+    expect(await screen.findByDisplayValue('STUDY-LAPTOP')).toHaveAccessibleName('Name of this PC');
+  });
+
+  it('still gets the suggestion when the first try could not reach Portly and Retry did', async () => {
+    const user = userEvent.setup();
+    let down = true;
+    renderWithProviders(<ConnectPage reload={vi.fn()} pollMs={20} />, {
+      apiMocks: {
+        'GET /api/devices/requests/current': () => {
+          if (down) throw new TypeError('Failed to fetch');
+          return mockError(404, 'not_found');
+        },
+        'GET /api/devices/requests/suggestion': { label: 'STUDY-LAPTOP' },
+      },
+    });
+    expect(await screen.findByRole('heading', { name: 'Portly can’t be reached' })).toBeInTheDocument();
+    down = false;
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByDisplayValue('STUDY-LAPTOP')).toBeInTheDocument();
+  });
+
+  it('drops a suggestion that arrives after the user started typing', async () => {
+    const user = userEvent.setup();
+    let answer: (value: { label: string | null }) => void = () => {};
+    renderWithProviders(<ConnectPage reload={vi.fn()} pollMs={20} />, {
+      apiMocks: {
+        'GET /api/devices/requests/current': mockError(404, 'not_found'),
+        'GET /api/devices/requests/suggestion': () => new Promise((resolve) => (answer = resolve)),
+      },
+    });
+    const name = await screen.findByLabelText('Name of this PC');
+    await user.clear(name);
+    await user.type(name, 'Mine');
+    answer({ label: 'STUDY-LAPTOP' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(name).toHaveValue('Mine');
+  });
+
+  it.each([
+    ['has none', { label: null }],
+    ['cannot be asked', mockError(500, 'internal', '')],
+  ] as const)('keeps the default name when the main PC %s', async (_case, answer) => {
+    renderWithProviders(<ConnectPage reload={vi.fn()} pollMs={20} />, {
+      apiMocks: {
+        'GET /api/devices/requests/current': mockError(404, 'not_found'),
+        'GET /api/devices/requests/suggestion': answer,
+      },
+    });
+    const name = await screen.findByLabelText('Name of this PC');
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(name).toHaveValue('This PC');
+  });
+
   it('picks up a request made earlier in this browser and reloads once it is approved', async () => {
     const reload = vi.fn();
     renderWithProviders(<ConnectPage reload={reload} pollMs={20} />, {

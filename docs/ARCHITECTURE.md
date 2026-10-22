@@ -225,7 +225,7 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   - **Log context:** one `AsyncLocalStorage` carries the unit of work — `rid` (request), `job`/`run` (6-character run
     id), `area`, `accountId`, `calendarId`, `feed`, `pairingId`, `op` — merged into every record (call fields >
     child bindings > context). `area` = the module that wrote the line, or the unit of work's area for shared
-    infrastructure (`component: fetch|health|scheduler|console|vault|settings|pairing`); `tags` = every area the
+    infrastructure (`component: fetch|health|scheduler|console|vault|settings|pairing|devices|peer-names`); `tags` = every area the
     record belongs to. Timers that re-arm or outlive the unit of work are created in `outsideLogContext` (scheduler,
     watchdogs, sweeps); shared single-flight bodies set their own context; per-call workers are spawned inside the
     caller's context.
@@ -329,7 +329,8 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
    and connected devices (other PCs, §20) may call; `samePc()` one the paired Pages site may call but never another
    PC (the vault reset, the browser bookmark import, the OAuth start, the OAuth client settings, every pairing route
    but `POST /api/pairings`, removing a device, the diagnostics report); `enrollment()` one anyone on the remote port may call without a device
-   cookie (asking for and polling a device request; the Pages site may not). Default deny — untagged routes are
+   cookie (asking for and polling a device request, and the name the connect screen fills in; the Pages site may
+   not). Default deny — untagged routes are
    local-only: `POST /api/pairings`, approving and denying device requests, the OAuth callback and unknown routes.
    `RouteTable.match` **fails closed**: each registration a request matches lets in the callers its tags name, the
    route lets in only the callers every registration agrees on, and that set must be exactly one level's (so a
@@ -649,7 +650,8 @@ server/src/
        005_oauth_state_capabilities,006_devices}.sql
   security/{gate,headers,vault,safe-fetch,private-address,dpapi,pairing,foreign-origins,devices,cookies}.ts
   lib/{logger,log-context,health,inflight,provider-errors,exit-codes,startup,ids,errors,cache,scheduler,validate,
-       settings,routes,backups,html-scan,image-sniff,ipc,legacy-homebase,merge-patch,multipart,safe-json,user-agent}.ts
+       settings,routes,backups,html-scan,image-sniff,ipc,legacy-homebase,merge-patch,multipart,safe-json,user-agent,
+       peer-names}.ts
   testing/{test-context,test-request,test-devices,fake-fetch,fake-accounts}.ts
   modules/index.ts       static list of all modules (`MODULES`); each register() wrapped in try/catch — a failing
                          module is logged and its route prefix returns 503 `module_unavailable`
@@ -681,6 +683,7 @@ interface AppContext {
   accounts: AccountService;
   pairing: PairingStore; // hybrid mode, §16
   devices: DeviceStore;  // other PCs, §20
+  peerNames: PeerNames; // the name to suggest for a PC that asks to connect (lib/peer-names.ts, §20)
   logs: LogHub;         // the logger's rings, level switch and queries (§3, §17; in production the same object as `log`)
   health: HealthRecorder; // §17
   runtime: RuntimeInfo; // boot id, start time, supervised + restart, in-flight requests, module status (§17)
@@ -808,7 +811,9 @@ origin, 409 `conflict` from this PC's own page; 429 `rate_limited` with `Retry-A
 `GET /api/devices/requests/current` [enrollment] → `{status: pending|approved|denied|expired, id, code, expiresAt,
 device|null}` for the enrollment cookie (`approved` sets the device cookie and clears the enrollment one; asked again
 before the device's first use, the same device gets a fresh cookie; 404 without a cookie or for one the server does
-not know) · `GET /api/devices` [paired] → `{remoteOrigin|null, devices: {id, label, browser, createdAt, lastUsedAt|null,
+not know) · `GET /api/devices/requests/suggestion` [enrollment] → `{label|null}`: the name the connect screen fills
+in, from the last `X-Forwarded-For` entry through Tailscale on this PC (§20; null from this PC's own page, without
+the header, or when Tailscale cannot say) · `GET /api/devices` [paired] → `{remoteOrigin|null, devices: {id, label, browser, createdAt, lastUsedAt|null,
 current}[], requests: {id, code, label, browser, createdAt, expiresAt}[]}` · `POST /api/devices/requests/:id/approve`
 [local] → `{approved: true}` / 404 · `POST /api/devices/requests/:id/deny` [local] → 204 / 404 ·
 `DELETE /api/devices/:id` [same-pc] → 204 / 404 · `GET /api/device` [paired] → `{device: {id, label, createdAt}}` for
@@ -1766,7 +1771,9 @@ last line that run logged). `idle(ms)` waits for every run in flight (shutdown);
   {deviceRequestId}`, `device connected {deviceId, deviceRequestId}`, `device connected again` (a lost answer
   retried), `device removed {deviceId, by: revoked|disconnected}`, `device expired {deviceId}`, `idle devices expired
   {count, deviceIds}`, `least recently used devices removed to make room {count, deviceIds}` — ids only, never the
-  name the PC gave itself, the code or a cookie. The log filters accept `deviceId` like `pairingId`.
+  name the PC gave itself, the code or a cookie. The log filters accept `deviceId` like `pairingId`. The name
+  suggestion (`lib/peer-names.ts`) logs `peer name lookup failed {reason}` and `peer name lookup skipped {reason}` at
+  debug and, at start, that Tailscale is not installed; never the address asked about or the name found.
 - **Foreign origins** (`security/foreign-origins.ts`): an `/api` request (health included) whose `Origin` is an
   http(s) origin that is neither allowed nor the configured Pages origin. *Named* — a `*.github.io` site, a loopback
   origin, or one under the registrable domain of `PORTLY_PAGES_URL` — it is kept (≤ 5, least recently seen dropped)
@@ -2050,8 +2057,27 @@ tokens; app-password accounts and Todoist can be connected from any PC), the OAu
 route, removing other devices, approving and denying requests, and the diagnostics report (the logs, level and jobs
 stay open, as for the Pages site: scrubbed and home-directory-masked). `/api/about` and the diagnostics summary blank
 the paths. The later items (design phase 4): the extension's server address, OAuth sign-in from other PCs, a passkey
-second factor, the `Tailscale-User-Login` identity check (once the real check with a second device has shown what
-Serve adds or strips).
+second factor, an optional `Tailscale-User-Login` identity check as defence in depth (the real check with a second
+device showed Serve replaces a forged one from inside the tailnet; any other proxy may pass it through).
+
+**The name the connect screen fills in** (`lib/peer-names.ts`, `GET /api/devices/requests/suggestion`). A browser
+cannot tell a page the computer's name, but Tailscale on this PC can tell who is asking: a Serve proxy sets
+`X-Forwarded-For` to the sender's tailnet address (and replaces a forged one, as the real check showed; the route
+takes the last entry, the one the proxy itself added, so a proxy that appends leaves forged entries unused), and
+`tailscale whois --json <address>` answers with that node's computer name (`Hostinfo.Hostname`), its tailnet machine
+name (`ComputedName`) and its MagicDNS name. The first that is a usable label (`DeviceLabelSchema`, cut to its
+length, never leaving half of a surrogate pair; the schema itself refuses lone surrogates) is the suggestion; the
+connect screen asks once the form first shows (so a Retry after an unreachable start still gets it), fills it in once
+and never over something the user has typed. It is a convenience, never trust: the other PC may change it, the
+approval on the main PC stays the login, and through a proxy that passes `X-Forwarded-For` on, a forged address can
+only change the suggested text and cost at most a few processes: only tailnet addresses (100.64.0.0/10,
+fd7a:115c:a1e0::/48) are looked up, never anything else; at most 4 lookups run at once (a further address gets null
+until one settles); `tailscale.exe` is spawned by its absolute path in `%ProgramFiles%\Tailscale` with an argument
+array (no shell), hidden, with a 3 s timeout and a bounded output, like DPAPI's PowerShell; answers (a name or none)
+are cached five minutes per address, at most 64 addresses, and callers asking about one address at once share one
+process. Without the program there (Tailscale not installed, another proxy) and without a remote origin, every lookup
+answers null and nothing is spawned. The lookup runs only for a request on the remote port; this PC's own page gets
+null without one.
 
 **The web side** (`web/src/app/remoteClient.ts`, `ConnectPage.tsx`, `settings/sections/Devices.tsx`,
 `api/devices.ts`, `capabilities.ts` `remoteClient`). Before the first render the server build asks `GET /api/health`

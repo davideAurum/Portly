@@ -28,6 +28,7 @@ import { newRunId } from '../lib/log-context.ts';
 import { createTestLogger, type LogHub, type Logger } from '../lib/logger.ts';
 import { createManualScheduler, type ManualScheduler } from '../lib/scheduler.ts';
 import { createSettingsService } from '../lib/settings.ts';
+import type { PeerNames } from '../lib/peer-names.ts';
 import { createDeviceStore } from '../security/devices.ts';
 import { createPairingStore } from '../security/pairing.ts';
 import { createSafeFetch, type SafeFetch } from '../security/safe-fetch.ts';
@@ -54,6 +55,8 @@ export interface TestContextOverrides {
   logs?: Logger & LogHub;
   /** Clock of the pairing and device stores. */
   now?: () => number;
+  /** The name lookup for PCs that ask to connect (default: never a name, nothing spawned). */
+  peerNames?: PeerNames;
 }
 
 export interface TestContext extends AppContext {
@@ -107,6 +110,7 @@ export function createTestContext(overrides: TestContextOverrides = {}): TestCon
     accounts,
     pairing: createPairingStore({ db, log, now: overrides.now }),
     devices: createDeviceStore({ db, log, now: overrides.now }),
+    peerNames: overrides.peerNames ?? { lookup: async () => null },
     logs,
     health,
     runtime: {

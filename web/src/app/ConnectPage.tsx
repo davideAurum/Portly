@@ -19,7 +19,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Ban, Clock, Laptop, RefreshCw, Send, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { DEVICE_LABEL_MAX, type DeviceRequestStatusResponse } from '@portly/shared';
-import { createDeviceRequest, fetchDeviceRequestStatus } from '../api/devices.ts';
+import { createDeviceRequest, fetchDeviceNameSuggestion, fetchDeviceRequestStatus } from '../api/devices.ts';
 import { isApiError } from '../api/client.ts';
 import { Banner } from '../ui/Banner.tsx';
 import { Button } from '../ui/Button.tsx';
@@ -90,6 +90,8 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
   const [sending, setSending] = useState(false);
   const mounted = useRef(true);
   const reloadOnce = useRef(false);
+  const labelTouched = useRef(false);
+  const suggestionAsked = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
@@ -121,6 +123,19 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount
   }, []);
+
+  // The name the main PC suggests (this PC's computer name, when its Tailscale can tell): asked
+  // once the form first shows (so a Retry after an unreachable start still gets it), filled in once,
+  // and never over something the user has typed meanwhile.
+  useEffect(() => {
+    if (state.kind !== 'ask' || suggestionAsked.current) return;
+    suggestionAsked.current = true;
+    const controller = new AbortController();
+    void fetchDeviceNameSuggestion(controller.signal).then((suggested) => {
+      if (suggested !== null && mounted.current && !labelTouched.current) setLabel(suggested);
+    });
+    return () => controller.abort();
+  }, [state.kind]);
 
   // Keep asking while waiting: one poll at a time, slower while the tab is hidden, at once when
   // it is visible again, and nothing more once this state is left.
@@ -250,7 +265,10 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
                 maxLength={DEVICE_LABEL_MAX}
                 autoComplete="off"
                 autoFocus
-                onChange={(event) => setLabel(event.currentTarget.value)}
+                onChange={(event) => {
+                  labelTouched.current = true;
+                  setLabel(event.currentTarget.value);
+                }}
                 required
               />
             </Field>

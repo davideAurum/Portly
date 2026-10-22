@@ -10,6 +10,11 @@
  *   request is retained, so the last poll can still say expired). Only from the remote origin (409
  *   `not_configured` without one, 409 `conflict` from this PC's own page); 429 `rate_limited`
  *   while 3 requests wait.
+ * - `GET /api/devices/requests/suggestion` [enrollment] → `DeviceNameSuggestionResponse`: the name
+ *   the connect screen fills in, from the last `X-Forwarded-For` entry (the sender's tailnet address as
+ *   the proxy itself added it; Tailscale Serve replaces a forged header) through `ctx.peerNames` (lib/peer-names.ts:
+ *   `tailscale whois` on this PC); `{label: null}` from this PC's own page, without the header, or
+ *   when Tailscale cannot say. A convenience only: the other PC may change it, the approval stays the login.
  * - `GET /api/devices/requests/current` [enrollment] → `DeviceRequestStatusResponse` for the
  *   enrollment cookie: `pending` (keep polling), `approved` (the device cookie
  *   `__Host-portly_device`, 30 days, is set and the enrollment cookie cleared; asked again before
@@ -40,6 +45,7 @@ import {
   DeviceRequestCreateSchema,
   ENROLL_COOKIE,
   type DeviceApproveResponse,
+  type DeviceNameSuggestionResponse,
   type DeviceRequestCreateResponse,
   type DeviceRequestStatusResponse,
   type DeviceRequestSummary,
@@ -59,12 +65,22 @@ import { REQUEST_RETENTION_MS, type DeviceRecord, type DeviceRequestRecord } fro
 
 export const prefixes = ['/api/device', '/api/devices'] as const;
 
+/**
+ * The sender's address as the proxy reported it: the last entry of `X-Forwarded-For` (the one the
+ * proxy itself added; a proxy that appends to a header the sender forged leaves the forged entries
+ * before it), or null.
+ */
+export function forwardedFor(c: Context<AppEnv>): string | null {
+  const last = c.req.header('x-forwarded-for')?.split(',').at(-1)?.trim() ?? '';
+  return last === '' ? null : last;
+}
+
 /** Seconds the other PC should wait before asking again while too many requests wait. */
 const RETRY_AFTER_SECONDS = 60;
 
 export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   const log = ctx.log.child({ module: 'devices' });
-  const { config, devices } = ctx;
+  const { config, devices, peerNames } = ctx;
 
   const self = (record: DeviceRecord): DeviceSelf => ({ id: record.id, label: record.label, createdAt: msToIsoStrict(record.createdAt) });
 
@@ -124,6 +140,12 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
       expiresAt: msToIsoStrict(created.record.expiresAt),
     };
     return c.json(body, 201);
+  });
+
+  app.get('/api/devices/requests/suggestion', enrollment(), async (c) => {
+    const address = c.get('remoteClient') === true ? forwardedFor(c) : null;
+    const body: DeviceNameSuggestionResponse = { label: address === null ? null : await peerNames.lookup(address) };
+    return c.json(body);
   });
 
   app.get('/api/devices/requests/current', enrollment(), (c) => {

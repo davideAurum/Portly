@@ -51,8 +51,11 @@ request once, at step 2:
   `X-Forwarded-*`, `Via`, `X-Real-IP`, `Tailscale-User-*` and the like) is refused with 403
   `proxied_local_host`: it means the proxy points at the main port instead of the remote one, and
   it must never count as this PC's own request. The Vite dev proxy adds no such header.
-- `X-Forwarded-For` and similar proxy headers are otherwise ignored. `GET /api/health` says
-  `remote: true` on the remote port, so a page can tell how the server took it.
+- `X-Forwarded-For` and similar proxy headers are otherwise ignored, except that on the remote
+  port the name suggestion reads the last `X-Forwarded-For` address to ask Tailscale for a name
+  ("The name the connect screen fills in", below); it never affects classification or access.
+  `GET /api/health` says `remote: true` on the remote port, so a page can tell how the server
+  took it.
 - Optional extra check: require Tailscale's `Tailscale-User-Login` header to equal a configured
   login. That would also block Funnel traffic. Before relying on it, confirm that Tailscale strips
   that header from incoming requests.
@@ -253,3 +256,24 @@ and the app page loads; a forwarding header on the main port is refused (`proxie
 `status.ps1` showed nothing about it, so its Settings section gained an "Other PCs" line.
 
 **Still open:** the later items of phase 4.
+
+## The name the connect screen fills in (2026-10-21)
+
+The first of the later items, asked for by the owner after the real install: the connect screen's
+name field should start as the PC's computer name. A browser cannot read it, but the main PC's
+Tailscale can tell who is asking: Serve sets `X-Forwarded-For` to the sender's tailnet address
+(B.5 showed it replaces a forged one), and `tailscale whois --json <address>` on the main PC
+answers with the node's `Hostinfo.Hostname` (the Windows computer name), `ComputedName` (the
+tailnet machine name) and `Name` (MagicDNS). `GET /api/devices/requests/suggestion` [enrollment]
+runs that for a request on the remote port (the last `X-Forwarded-For` entry, the one the proxy
+itself added) and answers `{label}` (the first usable label, or null); the connect screen asks
+once the form shows, fills it in once and never over something the user typed. Only tailnet
+addresses are looked up, `tailscale.exe` is spawned by absolute path with an argument array and a
+timeout, at most four lookups run at once (further addresses get null), answers are cached per
+address, logs carry neither address nor name, and without the program or a remote origin nothing
+is spawned (ARCHITECTURE section 20).
+
+Checked for real on 2026-10-21 against a scratch server on this PC with the real Tailscale: the
+suggestion for the second PC's tailnet address was its computer name; a non-tailnet address, no
+header, and this PC's own page all answered null; no name reached the log. The flow from the
+second PC's browser through Serve (the field already filled in) is the owner's next connect.

@@ -3,6 +3,7 @@ import {
   ACCOUNT_CONFIG_SCHEMAS,
   ApiErrorBodySchema,
   CaldavAccountCreateSchema,
+  DeviceLabelSchema,
   ERROR_CODES,
   ERROR_STATUS,
   EventInputSchema,
@@ -118,6 +119,21 @@ describe('general settings bounds', () => {
     expect(GeneralSettingsSchema.safeParse({ locale: 'en_US; drop' }).success).toBe(false);
     expect(GeneralSettingsSchema.safeParse({ userName: 'x'.repeat(65) }).success).toBe(false);
     expect(GeneralSettingsSchema.safeParse({ locale: 'zh-Hant-TW' }).success).toBe(true);
+  });
+});
+
+describe('DeviceLabelSchema', () => {
+  it('takes one trimmed line of up to 60 characters, surrogate pairs included', () => {
+    expect(DeviceLabelSchema.parse('  Study laptop \u{1F4BB} ')).toBe('Study laptop \u{1F4BB}');
+    expect(DeviceLabelSchema.safeParse('x'.repeat(60)).success).toBe(true);
+    expect(DeviceLabelSchema.safeParse('x'.repeat(61)).success).toBe(false);
+    expect(DeviceLabelSchema.safeParse('   ').success).toBe(false);
+  });
+
+  it('rejects control, bidi and lone surrogate characters', () => {
+    for (const bad of ['a\u0000b', 'a\nb', 'a\u202Eb', 'a\u2066b', 'ab\uD83D', '\uDC00ab']) {
+      expect(DeviceLabelSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
   });
 });
 

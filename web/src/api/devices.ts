@@ -9,6 +9,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import {
+  DeviceNameSuggestionResponseSchema,
   DeviceRequestCreateResponseSchema,
   DeviceRequestStatusResponseSchema,
   DeviceRequestSummarySchema,
@@ -34,6 +35,7 @@ const DevicesReader = z.object({
 const RequestCreateReader = z.object(DeviceRequestCreateResponseSchema.shape);
 const RequestStatusReader = z.object({ ...DeviceRequestStatusResponseSchema.shape, device: z.object(DeviceSelfSchema.shape).nullable() });
 const StatusReader = z.object({ ...DeviceStatusResponseSchema.shape, device: z.object(DeviceSelfSchema.shape) });
+const SuggestionReader = z.object(DeviceNameSuggestionResponseSchema.shape);
 
 /** How often Settings > Devices asks again while it is open (a request from another PC appears by itself). */
 export const DEVICES_POLL_MS = 5_000;
@@ -114,6 +116,19 @@ export function useRevokeDevice() {
 /** `POST /api/devices/requests`: asks to be connected; the server sets the enrollment cookie. */
 export async function createDeviceRequest(label: string, signal?: AbortSignal): Promise<DeviceRequestCreateResponse> {
   return RequestCreateReader.parse(await apiPost<unknown>('/api/devices/requests', { label }, { signal }));
+}
+
+/**
+ * `GET /api/devices/requests/suggestion`: the name to fill in for this PC (its computer name, when
+ * the main PC's Tailscale can tell who is asking), or null: when the server has none, and on any
+ * error, since the suggestion is a convenience and the form works without it.
+ */
+export async function fetchDeviceNameSuggestion(signal?: AbortSignal): Promise<string | null> {
+  try {
+    return SuggestionReader.parse(await apiGet<unknown>('/api/devices/requests/suggestion', { signal })).label;
+  } catch {
+    return null;
+  }
 }
 
 /**
