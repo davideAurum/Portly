@@ -7,13 +7,17 @@
  *   that pin °C/°F convert client-side from `report.units`). Cached 10 min in the SQLite cache,
  *   keyed by lat/lon rounded to 2 decimals + units.
  * - `GET /api/weather/geocode?q=` (2–100 chars) → `GeoPlace[]` (≤ 8), cached 1 day.
+ * - `GET /api/weather/place?lat=&lon=` → `GeoPlace | null`: the place at those coordinates
+ *   (OpenStreetMap Nominatim reverse geocoding, `nominatim.ts`), so the widget can name the
+ *   device location. Cached 7 days by rounded lat/lon; `null` (also cached) when nothing is there.
  *
  * Validation failures → 422 `validation_failed`; Open-Meteo 429 → `rate_limited`; other
  * non-2xx / malformed bodies → 502 `provider_error`; timeouts → 504 `upstream_timeout`.
  *
  * Diagnostics (§17): every Open-Meteo call (a cache miss) records health key `weather` (on
- * demand, never stale) with detail `{op: forecast|geocode}` — never coordinates or place names —
- * and runs in `withLogContext({area: 'weather', op})`; outbound purpose `weather.<op>`. Failures
+ * demand, never stale) with detail `{op: forecast|geocode}`, and every Nominatim call key
+ * `weather-place` with `{op: reverse}` — never coordinates or place names — and runs in
+ * `withLogContext({area: 'weather', op})`; outbound purpose `weather.<op>`. Failures
  * carry an HTTP code with Open-Meteo's status, `parse_error` for an unreadable answer, or a
  * transport code.
  */
@@ -41,6 +45,7 @@ import {
   unitsFromSettings,
   upstreamError,
 } from './open-meteo.ts';
+import { REVERSE_TTL_MS, mapReverse, parseReverseBody, reverseCacheKey, reverseUpstreamError, reverseUrl } from './nominatim.ts';
 
 export const prefixes = ['/api/weather'] as const;
 
@@ -77,7 +82,12 @@ export const GeocodeRouteQuerySchema = z.object({
 /** Open-Meteo, as one subject (key `weather`): checked on demand, so never stale. */
 export const WEATHER_HEALTH: HealthSubject = { key: 'weather', area: 'weather', label: 'Open-Meteo', expectEveryMs: null };
 
-export type WeatherOp = 'forecast' | 'geocode';
+/** OpenStreetMap Nominatim (the device location's place name), on demand like `weather`. */
+export const PLACE_HEALTH: HealthSubject = { key: 'weather-place', area: 'weather', label: 'Nominatim', expectEveryMs: null };
+
+export type WeatherOp = 'forecast' | 'geocode' | 'reverse';
+
+const SUBJECTS: Record<WeatherOp, HealthSubject> = { forecast: WEATHER_HEALTH, geocode: WEATHER_HEALTH, reverse: PLACE_HEALTH };
 
 /** How far one call got: Open-Meteo's status, and whether its 2xx answer was being read. */
 interface Attempt {
@@ -89,18 +99,19 @@ interface Attempt {
  * The API error for an Open-Meteo status, carrying that status as `httpStatus` (logged as
  * `upstreamStatus`; `outcomeFromError` maps it to `http_4xx`/`http_5xx`/`not_found`).
  */
-function statusError(status: number): HttpError & { httpStatus: number } {
-  return Object.assign(upstreamError(status), { httpStatus: status });
+function statusError(op: WeatherOp, status: number): HttpError & { httpStatus: number } {
+  return Object.assign(op === 'reverse' ? reverseUpstreamError(status) : upstreamError(status), { httpStatus: status });
 }
 
-/** One Open-Meteo call, logged under `op`, its outcome recorded on `weather`. */
+/** One provider call, logged under `op`, its outcome recorded on the op's health subject. */
 function tracked<T>(ctx: AppContext, op: WeatherOp, fn: (attempt: Attempt) => Promise<T>): Promise<T> {
+  const subject = SUBJECTS[op];
   return withLogContext({ area: 'weather', op }, async () => {
     const attempt: Attempt = { status: null, reading: false };
     const started = Date.now();
     try {
       const value = await fn(attempt);
-      ctx.health.record(WEATHER_HEALTH, { ok: true, ms: Date.now() - started, detail: { op } });
+      ctx.health.record(subject, { ok: true, ms: Date.now() - started, detail: { op } });
       return value;
     } catch (err) {
       const extra: Partial<Outcome> = { ms: Date.now() - started, detail: { op } };
@@ -108,7 +119,7 @@ function tracked<T>(ctx: AppContext, op: WeatherOp, fn: (attempt: Attempt) => Pr
         extra.code = 'parse_error';
         if (attempt.status !== null) extra.status = attempt.status;
       }
-      ctx.health.record(WEATHER_HEALTH, outcomeFromError(err, extra));
+      ctx.health.record(subject, outcomeFromError(err, extra));
       throw err;
     }
   });
@@ -124,7 +135,7 @@ async function fetchText(ctx: AppContext, url: string, op: WeatherOp, attempt: A
     purpose: `weather.${op}`,
   });
   attempt.status = res.status;
-  if (res.status < 200 || res.status >= 300) throw statusError(res.status);
+  if (res.status < 200 || res.status >= 300) throw statusError(op, res.status);
   attempt.reading = true;
   return res.data;
 }
@@ -140,6 +151,14 @@ export async function fetchGeocode(ctx: AppContext, q: string): Promise<GeoPlace
   return tracked(ctx, 'geocode', async (attempt) => {
     const text = await fetchText(ctx, geocodeUrl(q), 'geocode', attempt);
     return mapGeocode(parseJsonBody(text, 'geocoding'));
+  });
+}
+
+/** The place at (`lat`, `lon`) from Nominatim, or null when nothing is there. */
+export async function fetchPlace(ctx: AppContext, lat: number, lon: number): Promise<GeoPlace | null> {
+  return tracked(ctx, 'reverse', async (attempt) => {
+    const text = await fetchText(ctx, reverseUrl(lat, lon), 'reverse', attempt);
+    return mapReverse(parseReverseBody(text), lat, lon);
   });
 }
 
@@ -159,5 +178,13 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     const { q } = parseQuery(c, GeocodeRouteQuerySchema);
     const places = await ctx.cache.getOrSet(geocodeCacheKey(q), GEOCODE_TTL_MS, () => fetchGeocode(ctx, q));
     return c.json(places);
+  });
+
+  app.get('/api/weather/place', paired(), async (c) => {
+    const query = parseQuery(c, WeatherRouteQuerySchema);
+    const lat = roundCoord(query.lat);
+    const lon = roundCoord(query.lon);
+    const place = await ctx.cache.getOrSet(reverseCacheKey(lat, lon), REVERSE_TTL_MS, () => fetchPlace(ctx, lat, lon));
+    return c.json(place);
   });
 }

@@ -378,7 +378,8 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
 - **Static build** (`staticCsp()` in `web/vite.config.ts`): a `<meta http-equiv>` CSP added at build time, because
   static hosts send no headers. It matches the HTML CSP except: `img-src` also allows `https://icons.duckduckgo.com`
   (favicons as `<img>`); `connect-src` is `'self'` plus the hosts the in-browser backend calls directly,
-  `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://api.todoist.com`,
+  `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://nominatim.openstreetmap.org`,
+  `https://api.todoist.com`,
   `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://login.microsoftonline.com` and
   `https://graph.microsoft.com` (Outlook.com sign-in and calendar), and in hybrid mode the local server origin
   (`PORTLY_STATIC_SERVER`, §16); there is no `frame-ancestors` (a meta tag cannot set it). The `script-src` invariant
@@ -753,7 +754,9 @@ path, `fs.realpath`, checks it is under those roots, caps 20 MB, validates JSON)
 
 **Search** — `GET /api/search/suggest?provider=&q=` → `string[]` (≤ 8).
 
-**Weather** — `GET /api/weather?lat=&lon=` → `WeatherReport` (units from settings) · `GET /api/weather/geocode?q=` → `GeoPlace[]`.
+**Weather** — `GET /api/weather?lat=&lon=` → `WeatherReport` (units from settings) · `GET /api/weather/geocode?q=` → `GeoPlace[]` ·
+`GET /api/weather/place?lat=&lon=` → `GeoPlace | null` (the name of the place there, at those rounded coordinates; `null` when
+nothing is there).
 
 **Todoist** — `GET /api/todoist/token` → `{configured}` · `PUT /api/todoist/token {token}` (validated upstream first) ·
 `DELETE /api/todoist/token` · `GET /api/todoist/tasks?filter=` · `POST /api/todoist/tasks {text}` (quick add) ·
@@ -1034,7 +1037,12 @@ REST v2 is shut down (410). Token validated with a cheap call before storing.
 
 **Weather** — Open-Meteo `https://api.open-meteo.com/v1/forecast?latitude&longitude&current=...&hourly=...&daily=...&timezone=auto&temperature_unit&wind_speed_unit&precipitation_unit&forecast_days=7`;
 geocoding `https://geocoding-api.open-meteo.com/v1/search?name=&count=8&language=en&format=json`. Cache 10 min
-(key rounds lat/lon to 2 decimals). No key.
+(key rounds lat/lon to 2 decimals). No key. Reverse geocoding (the device location's name) uses OpenStreetMap Nominatim
+`https://nominatim.openstreetmap.org/reverse?lat=&lon=&format=jsonv2&zoom=10&addressdetails=1&accept-language=en`
+(city level; name = `address.city|town|village|hamlet|municipality|suburb|county`, else `name`; `admin1` = `state|region`;
+`{"error": ...}` → `null`). Cached 7 days by lat/lon rounded to 2 decimals, `null` included, which keeps a single user far
+below the usage policy's 1 request/second; the server sends its `Portly/<version>` User-Agent. No key. Data © OpenStreetMap
+contributors (ODbL): the widget credits it while it shows such a name.
 
 **Favicons** — resolver (policy `public`): page HTML (≤ 2 MB) → `<link rel~=icon|apple-touch-icon>` + web manifest
 icons, hrefs resolved against the final response URL, prefer largest ≥ 32 px raster or SVG → `/favicon.ico` →
@@ -1236,7 +1244,9 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   showDue, sort: 'todoist'|'due'|'priority'}`; quick-add input; complete checkbox with Undo (reopen); project color chips;
   overdue styling.
 - **Weather** — config `{location: GeoPlace|null, useDeviceLocation, show: {hourly, daily}, units: 'inherit'|'C'|'F'}`;
-  location search via `/api/weather/geocode`; device location via `navigator.geolocation` (localhost is a secure context).
+  location search via `/api/weather/geocode`; device location via `navigator.geolocation` (localhost is a secure context),
+  named by `/api/weather/place` ("Boise", with "Idaho, United States" below it in the large tier) and shown as
+  "Current location" until that answers or when it finds nothing; the forecast stays at the device coordinates.
   A page load asks the browser only when `permissions.query({name: 'geolocation'})` says `granted`; otherwise it shows
   the position remembered for 6 hours, or "Show weather for your location" with a **Use my location** button. Only that
   button, turning the option on, or Retry may make the browser prompt, so a one-time "Allow this time" does not bring
@@ -1681,6 +1691,7 @@ only source of failure, recovery and reminder lines for them (modules record out
 | `todoist` | the Todoist token and API | never |
 | `feed:<sha1(url), 10 hex>` | one RSS/Atom feed (a settings check only when it succeeds); label = host; detail `{status, bytes, items, finalHost, contentType}` | never |
 | `weather` | Open-Meteo; detail `{op: geocode\|forecast}` | never |
+| `weather-place` | Nominatim (the device location's name); detail `{op: reverse}` | never |
 | `suggest:<provider>` | a search suggestion provider | never |
 | `sports:<league>` | ESPN for one league; detail `{op: teams\|schedule\|scoreboard, status}` | never |
 | `job:<name>` | every scheduler job (the scheduler itself) | 3 × job interval |

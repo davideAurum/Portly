@@ -348,7 +348,7 @@ const GeocodeResponseSchema = z.object({
  */
 const UNSAFE_TEXT = /[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁩﻿]/g;
 
-function cleanText(value: string | null | undefined): string | undefined {
+export function cleanText(value: string | null | undefined): string | undefined {
   if (typeof value !== 'string') return undefined;
   // Strip unsafe characters; cap to the contract's 200 chars.
   const text = value.replace(UNSAFE_TEXT, '').trim().slice(0, 200).trim();

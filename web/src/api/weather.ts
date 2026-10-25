@@ -1,6 +1,7 @@
 /**
  * Weather API (§7 Weather): `GET /api/weather?lat=&lon=` → WeatherReport (units from settings)
- * and `GET /api/weather/geocode?q=` → GeoPlace[]. Coordinates are rounded to 2 decimals exactly
+ * , `GET /api/weather/geocode?q=` → GeoPlace[] and `GET /api/weather/place?lat=&lon=` →
+ * GeoPlace | null (the name of the place at those coordinates). Coordinates are rounded to 2 decimals exactly
  * like the query key (qk.weather) and the server cache, so a cached report always matches.
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -38,6 +39,29 @@ export function normalizeGeocodeQuery(q: string): string {
 export function fetchGeocode(q: string, signal?: AbortSignal): Promise<GeoPlace[]> {
   const params = new URLSearchParams({ q: normalizeGeocodeQuery(q) });
   return apiGet<GeoPlace[]>(`/api/weather/geocode?${params.toString()}`, { signal });
+}
+
+export function fetchPlace(lat: number, lon: number, signal?: AbortSignal): Promise<GeoPlace | null> {
+  const params = new URLSearchParams({ lat: roundCoord(lat).toFixed(2), lon: roundCoord(lon).toFixed(2) });
+  return apiGet<GeoPlace | null>(`/api/weather/place?${params.toString()}`, { signal });
+}
+
+/**
+ * The name of the place at `coords` (the device location), disabled while null. The server
+ * caches it for a week; here it is fresh for a day and never retried in a loop, since a missing
+ * name only means the widget keeps saying "Current location".
+ */
+export function usePlaceName(coords: { lat: number; lon: number } | null) {
+  const lat = coords ? roundCoord(coords.lat) : 0;
+  const lon = coords ? roundCoord(coords.lon) : 0;
+  return useQuery({
+    queryKey: qk.place(lat, lon),
+    queryFn: ({ signal }) => fetchPlace(lat, lon, signal),
+    enabled: coords !== null,
+    staleTime: 24 * 60 * 60 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 }
 
 /** Forecast for a location (disabled while `coords` is null). */

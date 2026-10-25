@@ -40,7 +40,7 @@ export const STATIC_MODE = 'static';
 /**
  * Content-Security-Policy of the static build, injected as a `<meta>` because static hosts send
  * no headers. Mirrors the server's CSP (§4.3) plus the third-party origins the browser now calls
- * directly: Open-Meteo (weather, geocoding), Todoist, Wikipedia (suggestions), ESPN (sports),
+ * directly: Open-Meteo (weather, geocoding), Nominatim (the device location's place name), Todoist, Wikipedia (suggestions), ESPN (sports),
  * Microsoft's token endpoint and Graph (Outlook.com sign-in and calendar on the in-browser
  * backend), and DuckDuckGo's favicon service used as `<img src>`. In hybrid mode `connect-src` also
  * allows the Portly server on this PC (`localServer`); its images reach the page as
@@ -52,6 +52,7 @@ export function staticCsp(localServer: string): string {
     "'self'",
     'https://api.open-meteo.com',
     'https://geocoding-api.open-meteo.com',
+    'https://nominatim.openstreetmap.org',
     'https://api.todoist.com',
     'https://en.wikipedia.org',
     'https://site.api.espn.com',

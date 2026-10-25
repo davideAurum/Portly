@@ -5,7 +5,9 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GeoPlace, WeatherReport } from '@portly/shared';
+import { boiseReverse, unableToGeocode } from '../providers/__fixtures__/nominatim.ts';
 import { berlinForecast, springfieldGeocode } from '../providers/__fixtures__/openMeteo.ts';
+import { mapReverse, reverseCacheKey } from '../providers/nominatim.ts';
 import { createFakeFetch, failingFetch, hangingFetch, type FakeFetchRoute, type FakeResponseSpec } from '../providers/__fixtures__/fakeFetch.ts';
 import {
   FORECAST_TTL_MS,
@@ -502,5 +504,55 @@ describe('weather: one caller cancelling a shared upstream call (server parity)'
     expect((await retry).status).toBe(200);
     expect((await abandoned).status).toBe(200);
     expect(fake.calls).toHaveLength(1);
+  });
+});
+
+describe('GET /api/weather/place (Nominatim)', () => {
+  let t: TestBackend;
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    t?.close();
+  });
+
+  const setup = async (routes: FakeFetchRoute[]) => {
+    const fake = createFakeFetch(routes);
+    vi.stubGlobal('fetch', fake.fetch);
+    t = await createTestBackend([weather]);
+    return fake;
+  };
+
+  it('names the place at rounded coordinates and caches it, also a null answer', async () => {
+    const fake = await setup([
+      { match: 'https://nominatim.openstreetmap.org/reverse?lat=43.61', respond: { json: boiseReverse() } },
+      { match: 'https://nominatim.openstreetmap.org/reverse?lat=0.00', respond: { json: unableToGeocode() } },
+    ]);
+    const res = await t.json<GeoPlace | null>('GET', '/api/weather/place?lat=43.6106&lon=-116.2025');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ name: 'Boise', admin1: 'Idaho', country: 'United States', lat: 43.61, lon: -116.2 });
+    const p = paramsOf(fake.calls[0]!.url);
+    expect([p.get('lat'), p.get('lon'), p.get('format'), p.get('zoom')]).toEqual(['43.61', '-116.20', 'jsonv2', '10']);
+    expect((await t.json('GET', '/api/weather/place?lat=43.6149&lon=-116.1951')).status).toBe(200);
+    expect(fake.calls).toHaveLength(1);
+    expect(weather.weatherCache(t.ctx).get(reverseCacheKey(43.61, -116.2))).toMatchObject({ name: 'Boise' });
+
+    expect((await t.json<GeoPlace | null>('GET', '/api/weather/place?lat=0&lon=0')).body).toBeNull();
+    expect((await t.json<GeoPlace | null>('GET', '/api/weather/place?lat=0&lon=0')).body).toBeNull();
+    expect(fake.calls).toHaveLength(2);
+  });
+
+  it('validates coordinates and maps upstream failures', async () => {
+    await setup([{ match: 'nominatim.openstreetmap.org', respond: { status: 503, text: 'busy' } }]);
+    expect((await t.json('GET', '/api/weather/place?lat=91&lon=0')).status).toBe(422);
+    const res = await t.json<ErrorBody>('GET', '/api/weather/place?lat=1&lon=2');
+    expect(res.status).toBe(502);
+    expect(res.body.error.code).toBe('provider_error');
+    expect(res.body.error.message).toBe('The place-name service returned an error (HTTP 503).');
+  });
+
+  it('maps the response like the server', () => {
+    expect(mapReverse(boiseReverse(), 43.61064, -116.20249)).toEqual({ name: 'Boise', admin1: 'Idaho', country: 'United States', lat: 43.61, lon: -116.2 });
+    expect(mapReverse({ address: { village: 'Smallton', region: 'North' } }, 1, 2)).toEqual({ name: 'Smallton', admin1: 'North', lat: 1, lon: 2 });
+    expect(mapReverse(unableToGeocode(), 0, 0)).toBeNull();
+    expect(() => mapReverse({ address: 'x' }, 0, 0)).toThrow(expect.objectContaining({ code: 'provider_error' }));
   });
 });

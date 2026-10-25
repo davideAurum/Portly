@@ -298,6 +298,10 @@ location for good: click the icon at the left of the address bar, then **Site se
 default for every Weather widget), never asks at all. Each address counts as its own site, so
 `localhost:5757` and your Pages site are allowed separately.
 
+With your location, the widget shows the name of the town you are in (looked up on OpenStreetMap
+Nominatim). It says *Current location* while that lookup runs, when Nominatim cannot be reached
+(**Settings → Diagnostics** shows it as `weather-place`), or when there is no town at that spot.
+
 ## Restoring a backup or starting over
 
 - **Restore a backup:** stop Portly (`uninstall-autostart.ps1` or Ctrl+C), copy a file from
@@ -434,7 +438,7 @@ To open the log folder: `explorer "$env:LOCALAPPDATA\Portly\logs"`.
 **Settings → Diagnostics → Connections & sync** shows a code for every subject that fails or works
 only partly, with a one-line fix; each code has a section here. The subject says where it happened:
 `account:` (the account itself: its sign-in, credentials and status), `calendar-list:`, `calendar:`,
-`ics:`, `mail:`, `todoist`, `feed:`, `weather`, `suggest:`, `sports:` or `job:` (a scheduled job).
+`ics:`, `mail:`, `todoist`, `feed:`, `weather`, `weather-place`, `suggest:`, `sports:` or `job:` (a scheduled job).
 **Show related log lines** opens the Server log around the last failure. A code not listed here
 comes from a newer Portly or straight from a provider; the message next to it says more.
 

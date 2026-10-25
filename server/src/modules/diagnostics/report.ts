@@ -60,6 +60,7 @@ export const WELL_KNOWN_HOSTS: readonly string[] = [
   'api.todoist.com',
   'api.open-meteo.com',
   'geocoding-api.open-meteo.com',
+  'nominatim.openstreetmap.org',
   'site.api.espn.com',
   'a.espncdn.com',
   'duckduckgo.com',

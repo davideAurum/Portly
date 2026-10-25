@@ -36,6 +36,7 @@ export const qk = {
   },
   weather: (lat: number, lon: number) => ['weather', 'report', coord(lat), coord(lon)] as const,
   geocode: (q: string) => ['weather', 'geocode', q] as const,
+  place: (lat: number, lon: number) => ['weather', 'place', coord(lat), coord(lon)] as const,
   todoist: {
     all: () => ['todoist'] as const,
     token: () => ['todoist', 'token'] as const,

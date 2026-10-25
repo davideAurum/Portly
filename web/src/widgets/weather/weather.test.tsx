@@ -335,6 +335,36 @@ describe('weather widget', () => {
     expect(screen.getByText(DEVICE_PLACE_NAME)).toBeInTheDocument();
   });
 
+  it('names the device location once the place lookup answers', async () => {
+    mockGeolocation((success) => success({ coords: { latitude: 43.61064, longitude: -116.20249 } } as GeolocationPosition));
+    const { requestsTo } = renderWeather({
+      config: { useDeviceLocation: true },
+      size: { w: 6, h: 6 },
+      mocks: { 'GET /api/weather/place': { name: 'Boise', admin1: 'Idaho', country: 'United States', lat: 43.61, lon: -116.2 } },
+    });
+    await screen.findByText('Boise');
+    expect(screen.queryByText(DEVICE_PLACE_NAME)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /OpenStreetMap/ })).toHaveAttribute('href', 'https://www.openstreetmap.org/copyright');
+    expect(requestsTo('GET /api/weather/place')[0]!.search).toBe('?lat=43.61&lon=-116.20');
+    // The forecast stays at the device position, not the town's own point.
+    expect(requestsTo('GET /api/weather')[0]!.search).toBe('?lat=43.61&lon=-116.20');
+  });
+
+  it('keeps "Current location" when nothing is found there', async () => {
+    mockGeolocation((success) => success({ coords: { latitude: 0, longitude: 0 } } as GeolocationPosition));
+    const { requestsTo } = renderWeather({ config: { useDeviceLocation: true }, mocks: { 'GET /api/weather/place': null } });
+    await screen.findByTestId('weather-view');
+    await vi.waitFor(() => expect(requestsTo('GET /api/weather/place')).toHaveLength(1));
+    expect(screen.getByText(DEVICE_PLACE_NAME)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /OpenStreetMap/ })).not.toBeInTheDocument();
+  });
+
+  it('never looks up a name for a chosen place', async () => {
+    const { requestsTo } = renderWeather({ config: { location: PARIS } });
+    await screen.findByTestId('weather-view');
+    expect(requestsTo('GET /api/weather/place')).toEqual([]);
+  });
+
   it('never asks for the device location when a default exists', async () => {
     const geo = mockGeolocation(() => {});
     renderWeather({ config: { useDeviceLocation: true }, settings: settingsWith({ defaultLocation: BERLIN }) });

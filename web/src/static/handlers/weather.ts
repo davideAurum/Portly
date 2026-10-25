@@ -7,6 +7,8 @@
  *   that pin °C/°F convert client-side from `report.units`). Cached 10 min in memory, keyed by
  *   lat/lon rounded to 2 decimals + units.
  * - `GET /api/weather/geocode?q=` (2–100 chars) → `GeoPlace[]` (≤ 8), cached 1 day.
+ * - `GET /api/weather/place?lat=&lon=` → `GeoPlace | null` (Nominatim reverse geocoding, the
+ *   device location's name), cached 7 days by rounded lat/lon.
  *
  * Validation failures → 422 `validation_failed`; Open-Meteo 429 → `rate_limited`; other
  * non-2xx / malformed bodies → 502 `provider_error`; timeouts → 504 `upstream_timeout`. Failures
@@ -31,6 +33,7 @@ import {
   roundCoord,
   unitsFromSettings,
 } from '../providers/openMeteo.ts';
+import { REVERSE_TTL_MS, fetchPlace, reverseCacheKey } from '../providers/nominatim.ts';
 import { json } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';
 import { getSettings } from '../slices.ts';
@@ -63,5 +66,13 @@ export function register(router: StaticRouter): void {
     const { q } = parseQuery(url, GeocodeRouteQuerySchema);
     const places = await weatherCache(ctx).getOrSet(geocodeCacheKey(q), GEOCODE_TTL_MS, () => fetchGeocode(q));
     return json(places);
+  });
+
+  router.get('/api/weather/place', async (ctx, { url }) => {
+    const query = parseQuery(url, WeatherRouteQuerySchema);
+    const lat = roundCoord(query.lat);
+    const lon = roundCoord(query.lon);
+    const place = await weatherCache(ctx).getOrSet(reverseCacheKey(lat, lon), REVERSE_TTL_MS, () => fetchPlace(lat, lon));
+    return json(place);
   });
 }

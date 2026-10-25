@@ -996,6 +996,8 @@ date and the outcome once a row has been run for real.
 
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
+| The Weather widget's place name from a real browser location (the browser pane blocks location, so the check faked the position; the server's real Nominatim lookup did answer with the expected city) | this commit, 2026-10-25 | owner's next use with *Use this device's location* | not yet |
+| The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | not yet |
 | A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | not yet |
 | The settings dialog's focus change (it keeps looking for the requested field for 10 s and stops once focus has moved inside the dialog), by hand in a browser; only the new tests cover it | 29347b8, 2026-10-19 | 2.4 | not yet |
 | The browser-only build's Outlook.com sign-in on the published Pages address itself: the same sign-in and sync check, the automatic 24-hour renewal and writing an event (the localhost copy passed) | 3b3edd7, 2026-10-19 | 2.1 | not yet |

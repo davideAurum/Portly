@@ -2,13 +2,14 @@
  * Weather widget (§10.8 Weather): current conditions, an hourly strip and a 7-day list from
  * Open-Meteo via `GET /api/weather`. Location: widget → default → device (see location.ts).
  * Sections depend on the size tier (layout.ts); container queries refine each tier. Every tier
- * shows the attribution link Open-Meteo's terms (CC BY 4.0) ask for next to its data.
+ * shows the attribution link Open-Meteo's terms (CC BY 4.0) ask for next to its data, and the
+ * OpenStreetMap credit (ODbL) while the device location carries a name from Nominatim.
  */
 import type { CSSProperties } from 'react';
 import { Droplets, LocateFixed, MapPin, MapPinOff, Navigation2, RefreshCw, Sunrise, Sunset, Umbrella, Wind } from 'lucide-react';
 import { weatherCodeInfo, type GeneralSettings, type WeatherDay, type WeatherHour, type WeatherReport } from '@portly/shared';
 import { useSettings } from '../../api/settings.ts';
-import { useWeather } from '../../api/weather.ts';
+import { usePlaceName, useWeather } from '../../api/weather.ts';
 import { WidgetActions, useWidgetFrame } from '../../grid/WidgetContext.tsx';
 import { hourCycleFor, resolveLocale } from '../../lib/format.ts';
 import { useNow } from '../../lib/useNow.ts';
@@ -20,7 +21,7 @@ import { Skeleton } from '../../ui/Skeleton.tsx';
 import type { WidgetProps } from '../types.ts';
 import type { WeatherConfig } from './index.ts';
 import { HOURLY_STRIP_HOURS, PRECIP_LABEL_MIN, weatherTier, type WeatherTier, isWideCompact } from './layout.ts';
-import { allowLocationPrompt, needsDeviceLocation, placeSubtitle, resolveLocation, useDeviceLocation, type LocationSource } from './location.ts';
+import { allowLocationPrompt, nameDevicePlace, needsDeviceLocation, placeSubtitle, resolveLocation, useDeviceLocation, type LocationSource } from './location.ts';
 import { clockLabel, dayLabel, dayLongLabel, hourLabel, isDaylight, placeNow, upcomingDays, upcomingHours, type HourCycle, type LabelZone } from './time.ts';
 import {
   compassPoint,
@@ -43,6 +44,8 @@ const OLD_DATA_MS = 30 * 60 * 1000;
 
 /** Open-Meteo's terms ask for a link to it next to wherever its data is shown. */
 const OPEN_METEO_URL = 'https://open-meteo.com/';
+/** OpenStreetMap's licence page, the credit its data (the device location's name) asks for. */
+const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 
 export default function WeatherWidget({ config, setConfig, size }: WidgetProps<WeatherConfig>) {
   const frame = useWidgetFrame();
@@ -58,6 +61,7 @@ export default function WeatherWidget({ config, setConfig, size }: WidgetProps<W
   const oneAction = size.w <= 2;
   const place = resolved.status === 'ready' ? resolved.place : null;
   const query = useWeather(place);
+  const placeName = usePlaceName(resolved.status === 'ready' && resolved.source === 'device' ? resolved.place : null);
 
   const setLocationAction = frame.canOpenSettings ? (
     <Button size="sm" variant="primary" icon={MapPin} onClick={() => frame.openSettings({ focus: 'location' })}>
@@ -165,16 +169,18 @@ export default function WeatherWidget({ config, setConfig, size }: WidgetProps<W
           }
         />
       );
-    case 'ready':
+    case 'ready': {
+      const shown = nameDevicePlace(resolved.place, resolved.source, placeName.data);
       return (
         <QueryView query={query} skeleton={<WeatherSkeleton tier={tier} />} compact={compact}>
           {(report, meta) => (
             <WeatherView
               report={report}
               meta={meta}
-              placeName={resolved.place.name}
-              placeDetail={placeSubtitle(resolved.place)}
+              placeName={shown.name}
+              placeDetail={placeSubtitle(shown)}
               source={resolved.source}
+              namedByOsm={shown !== resolved.place}
               config={config}
               general={settings.data?.general}
               tier={tier}
@@ -183,6 +189,7 @@ export default function WeatherWidget({ config, setConfig, size }: WidgetProps<W
           )}
         </QueryView>
       );
+    }
   }
 }
 
@@ -194,6 +201,8 @@ interface ViewProps {
   placeName: string;
   placeDetail: string;
   source: LocationSource;
+  /** The place name came from OpenStreetMap (Nominatim): show its credit. */
+  namedByOsm?: boolean;
   config: WeatherConfig;
   general: GeneralSettings | undefined;
   tier: WeatherTier;
@@ -210,7 +219,7 @@ interface Display {
   tempValue(value: number): number;
 }
 
-function WeatherView({ report, meta, placeName, placeDetail, source, config, general, tier, wide = false }: ViewProps) {
+function WeatherView({ report, meta, placeName, placeDetail, source, namedByOsm = false, config, general, tier, wide = false }: ViewProps) {
   const now = useNow(60_000);
   const locale = resolveLocale(general?.locale ?? 'system');
   const hourCycle = hourCycleFor(general?.timeFormat ?? 'system');
@@ -337,6 +346,14 @@ function WeatherView({ report, meta, placeName, placeDetail, source, config, gen
         <ExternalLink href={OPEN_METEO_URL} className={styles.attributionLink}>
           <span className={styles.attributionPrefix}>Weather data by</span> Open-Meteo.com
         </ExternalLink>
+        {namedByOsm ? (
+          <>
+            {' · '}
+            <ExternalLink href={OSM_COPYRIGHT_URL} className={styles.attributionLink}>
+              <span className={styles.attributionPrefix}>Place name</span> © OpenStreetMap
+            </ExternalLink>
+          </>
+        ) : null}
       </p>
     </div>
   );

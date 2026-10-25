@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { GeoPlace, WeatherReport } from '@portly/shared';
 import { SafeFetchError } from '../../security/safe-fetch.ts';
 import type { FakeFetchRoute } from '../../testing/fake-fetch.ts';
+import { boiseReverse, unableToGeocode } from './__fixtures__/nominatim.ts';
 import { berlinForecast, springfieldGeocode, weatherTestbed, type WeatherTestbed } from './__fixtures__/open-meteo.ts';
+import { REVERSE_TTL_MS, mapReverse, reverseCacheKey, reverseUrl } from './nominatim.ts';
 import {
   FORECAST_TTL_MS,
   forecastCacheKey,
@@ -385,6 +387,95 @@ describe('GET /api/weather/geocode', () => {
     const broken = await t.json<{ error: { code: string } }>('/api/weather/geocode?q=broken');
     expect(broken.status).toBe(502);
     expect(broken.body.error.code).toBe('provider_error');
+  });
+});
+
+describe('nominatim: reverse geocoding', () => {
+  it('builds a city-level jsonv2 URL with rounded coordinates and a rounded cache key', () => {
+    const url = reverseUrl(43.61064, -116.20249);
+    expect(url.startsWith('https://nominatim.openstreetmap.org/reverse?')).toBe(true);
+    const p = paramsOf(url);
+    expect([p.get('lat'), p.get('lon'), p.get('format'), p.get('zoom'), p.get('addressdetails'), p.get('accept-language')]).toEqual([
+      '43.61',
+      '-116.20',
+      'jsonv2',
+      '10',
+      '1',
+      'en',
+    ]);
+    expect(reverseCacheKey(43.61064, -116.20249)).toBe('weather:reverse:en:43.61,-116.20');
+    expect(REVERSE_TTL_MS).toBe(7 * 24 * 3_600_000);
+  });
+
+  it('names the place by its settlement, state and country, at the requested coordinates', () => {
+    expect(mapReverse(boiseReverse(), 43.61064, -116.20249)).toEqual({ name: 'Boise', admin1: 'Idaho', country: 'United States', lat: 43.61, lon: -116.2 });
+  });
+
+  it('falls back from city to town, village, ... county, then the name', () => {
+    expect(mapReverse({ address: { town: 'Smallton', county: 'Big County', country: 'Testland' } }, 1, 2)?.name).toBe('Smallton');
+    expect(mapReverse({ address: { county: 'Big County', region: 'North' } }, 1, 2)).toEqual({ name: 'Big County', admin1: 'North', lat: 1, lon: 2 });
+    expect(mapReverse({ name: 'Somewhere', address: {} }, 1, 2)?.name).toBe('Somewhere');
+    expect(mapReverse({ name: '', address: {} }, 1, 2)).toBeNull();
+  });
+
+  it('returns null for "Unable to geocode" and strips characters that could disguise a name', () => {
+    expect(mapReverse(unableToGeocode(), 0, 0)).toBeNull();
+    expect(mapReverse({ address: { city: 'Bo‮ise\u0000' } }, 1, 2)?.name).toBe('Boise');
+  });
+
+  it('rejects a body that is not the documented shape', () => {
+    expect(() => mapReverse([1, 2], 0, 0)).toThrow(expect.objectContaining({ status: 502, code: 'provider_error' }));
+    expect(() => mapReverse({ address: 'x' }, 0, 0)).toThrow(expect.objectContaining({ code: 'provider_error' }));
+  });
+});
+
+describe('GET /api/weather/place', () => {
+  let t: WeatherTestbed;
+  afterEach(() => t.close());
+
+  it('returns the named place and caches it (also a null answer) by rounded coordinates', async () => {
+    t = weatherTestbed({
+      fetchRoutes: [
+        { match: 'https://nominatim.openstreetmap.org/reverse?lat=43.61', respond: { json: boiseReverse() } },
+        { match: 'https://nominatim.openstreetmap.org/reverse?lat=0.00', respond: { json: unableToGeocode() } },
+      ],
+    });
+    const res = await t.json<GeoPlace | null>('/api/weather/place?lat=43.6106&lon=-116.2025');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ name: 'Boise', admin1: 'Idaho', country: 'United States', lat: 43.61, lon: -116.2 });
+    const calls = t.ctx.fakeFetch!.calls;
+    expect(calls[0]!.headers.get('user-agent')).toMatch(/^Portly\//);
+    expect((await t.json('/api/weather/place?lat=43.6149&lon=-116.1951')).status).toBe(200);
+    expect(calls).toHaveLength(1);
+
+    expect((await t.json<GeoPlace | null>('/api/weather/place?lat=0&lon=0')).body).toBeNull();
+    expect((await t.json<GeoPlace | null>('/api/weather/place?lat=0.001&lon=0')).body).toBeNull();
+    expect(calls).toHaveLength(2);
+  });
+
+  it('validates coordinates and maps upstream failures', async () => {
+    t = weatherTestbed({ fetchRoutes: [{ match: 'nominatim.openstreetmap.org', respond: { status: 429, text: 'slow' } }] });
+    expect((await t.json('/api/weather/place?lat=91&lon=0')).status).toBe(422);
+    expect((await t.json('/api/weather/place?lat=1')).status).toBe(422);
+    const res = await t.json<{ error: { code: string; message: string } }>('/api/weather/place?lat=1&lon=2');
+    expect(res.status).toBe(429);
+    expect(res.body.error).toMatchObject({ code: 'rate_limited', message: 'The place-name service is rate limiting requests. Try again in a minute.' });
+  });
+
+  it('records health on weather-place, never the coordinates or the name', async () => {
+    t = weatherTestbed({ fetchRoutes: [{ match: 'nominatim.openstreetmap.org', respond: { json: boiseReverse() } }] });
+    const purposes: (string | undefined)[] = [];
+    const real = t.ctx.fetch;
+    t.ctx.fetch = async (url, options) => {
+      purposes.push(options.purpose);
+      return real(url, options);
+    };
+    await t.json('/api/weather/place?lat=43.61&lon=-116.20');
+    expect(purposes).toEqual(['weather.reverse']);
+    expect(t.ctx.health.get('weather-place')).toMatchObject({ area: 'weather', label: 'Nominatim', status: 'ok', expectEveryMs: null, detail: { op: 'reverse' } });
+    expect(t.ctx.health.get('weather')).toBeNull();
+    const everything = JSON.stringify([t.ctx.logs.query({}).records, t.ctx.health.list(), t.ctx.health.history('weather-place')]);
+    for (const secret of ['43.61', '116.2', 'Boise', 'Idaho']) expect(everything).not.toContain(secret);
   });
 });
 

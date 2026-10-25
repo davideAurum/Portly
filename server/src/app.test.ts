@@ -346,6 +346,7 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   // weather
   'GET /api/weather': 'paired',
   'GET /api/weather/geocode': 'paired',
+  'GET /api/weather/place': 'paired',
   // todoist
   'GET /api/todoist/token': 'paired',
   'PUT /api/todoist/token': 'paired',

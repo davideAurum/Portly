@@ -5,6 +5,9 @@
  *   3. this device's location (`navigator.geolocation`) when `config.useDeviceLocation` is on; a
  *      page load only asks the browser when it already allows it (see `useDeviceLocation`).
  * Otherwise the widget shows its not-configured state ("Set location").
+ *
+ * A device location is named by `GET /api/weather/place` (Nominatim reverse geocoding) through
+ * {@link nameDevicePlace}; until that answers, or when it cannot, it is "Current location".
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GeoPlace } from '@portly/shared';
@@ -61,6 +64,19 @@ export function resolveLocation({ configLocation, useDeviceLocation, defaultLoca
     default:
       return { status: 'locating' };
   }
+}
+
+/**
+ * The device place with its looked-up name ("Boise", admin1 "Idaho", ...), keeping the
+ * device coordinates the forecast uses. Other places, and a missing or failed lookup, are
+ * returned unchanged (still "Current location"), so `result !== place` means it was named.
+ */
+export function nameDevicePlace(place: GeoPlace, source: LocationSource, named: GeoPlace | null | undefined): GeoPlace {
+  if (source !== 'device' || !named) return place;
+  const result: GeoPlace = { name: named.name, lat: place.lat, lon: place.lon };
+  if (named.admin1) result.admin1 = named.admin1;
+  if (named.country) result.country = named.country;
+  return result;
 }
 
 /** Whether the device location is needed (so the browser is only asked when it matters). */
