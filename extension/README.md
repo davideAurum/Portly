@@ -27,6 +27,23 @@ running the installer again can't help. The extension spots this (`chrome.runtim
 the pinned ID, `PINNED_EXTENSION_ID` in `lib/launcher.js`): the New Tab fallback and the options
 page then show the Remove + Load unpacked steps, and the service worker's log says so.
 
+## Stores: not for the alpha
+
+The extension is only distributed as this folder, loaded unpacked; there is no Chrome Web Store
+or Edge Add-ons listing. A store copy would run under another ID: keeping the pinned one needs
+the private key, which is gone, and Edge Add-ons assigns its own ID anyway. The launcher allows
+exactly one origin (`install-autostart.ps1` writes one), so it would refuse a store copy, and
+`test/manifest.test.mjs` requires the `key` and forbids an `update_url`. Never change the `key`.
+
+Before any store listing: a launcher that allows several origins, the installers and `status.ps1`
+writing and checking them (and `PINNED_EXTENSION_ID` accepting them), an ID per browser, and the
+listing assets and developer accounts. The details are in
+[Releases](../docs/setup/releases.md#the-new-tab-extension-load-unpacked-no-store-listings).
+
+The extension's privacy statement is the "The new-tab extension" section of
+[`site/privacy.html`](../site/privacy.html), published at the kept homebase-site address
+`https://davideaurum.github.io/homebase-site/privacy.html`.
+
 ## How it works
 
 1. **Browser start.** The service worker (`background.js`) listens for `runtime.onStartup` (and

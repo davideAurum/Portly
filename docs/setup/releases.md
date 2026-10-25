@@ -148,12 +148,46 @@ CI (`ci.yml`) also builds and checks a test package on every push to `main` and 
 and change both together; `build-release.ps1` refuses a download whose hash differs. Stay on an LTS
 line that `npm test` runs on (CI uses Node 24).
 
+## The new-tab extension: Load unpacked, no store listings
+
+The alpha releases ship the extension only as the `extension\` folder of the package, loaded with
+**Load unpacked** (Developer mode on). There is no Chrome Web Store or Edge Add-ons listing, and
+none is planned for the alpha (decided on 2026-10-20). Why a store copy would not work today:
+
+- **It would get another ID.** The `key` in `extension/manifest.json` gives the unpacked
+  extension the fixed ID `nbaolbakegefnefgojdokagajincnfjj`. A store could only keep that ID with
+  the matching private key, and that key was discarded when the ID was made. Edge Add-ons assigns
+  its own ID in any case. The `key` stays as it is: changing it would change the ID of every
+  extension already loaded.
+- **The launcher answers one ID.** `install-autostart.ps1` writes exactly one
+  `chrome-extension://<id>/` origin into the launcher's `allowed_origins` and its `config.json`
+  (the pinned ID, or the one given with `-ExtensionId`), and the launcher refuses any other caller.
+  `status.ps1` checks the launcher against the pinned ID only.
+- **Store updates are not expected.** The extension's tests (`extension/test/manifest.test.mjs`)
+  require the `key` and forbid an `update_url`, because the extension is loaded unpacked and
+  updated with the package.
+
+What a store listing would need first (parked in [ROADMAP](../ROADMAP.md#parked-with-reasons)):
+
+- a launcher that allows several origins: the unpacked ID and one per store;
+- `install-autostart.ps1`, `install.ps1` and `status.ps1` writing and checking those origins, and
+  the extension's own ID check (`PINNED_EXTENSION_ID` in `extension/lib/launcher.js`) accepting
+  them;
+- an ID per browser, once each store has assigned one (Chrome Web Store and Edge Add-ons each give
+  their own);
+- the listing itself: developer accounts, store icons and screenshots, a description and the
+  privacy answers.
+
+**The extension's privacy statement** is the "The new-tab extension" section of
+`site/privacy.html`, published at the kept homebase-site address,
+`https://davideaurum.github.io/homebase-site/privacy.html`. A store listing would link there.
+
 ## Limits of the alpha packages
 
 - The packages are not code-signed, and the SHA-256 only proves the download matches what was
   published in the repository: whoever can publish releases there is trusted.
 - The new-tab extension is still loaded unpacked (Developer mode on), and Reloaded by hand after an
-  update that changes it.
+  update that changes it ([why](#the-new-tab-extension-load-unpacked-no-store-listings)).
 - Google and Outlook.com accounts still need your own OAuth client registrations
   ([google.md](google.md), [microsoft.md](microsoft.md)).
 - Windows x64 only.

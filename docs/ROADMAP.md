@@ -691,6 +691,14 @@ Items:
   *Done when:* both docs state the policy and the privacy-statement location; the parked list
   below carries the prerequisites.
 
+  *Status:* done 2026-10-25. [Releases](setup/releases.md#the-new-tab-extension-load-unpacked-no-store-listings)
+  has a section on the policy, the prerequisites and the privacy statement's address, and
+  `extension/README.md` a short "Stores: not for the alpha" section; the parked item below lists
+  the prerequisites. Each claim was checked against `extension/manifest.json`,
+  `extension/test/manifest.test.mjs` (`key` required, no `update_url`), `native-host/launcher.mjs`
+  (it reads a list of origins, but `New-HbNativeHostPlan` in `scripts/lib/Common.ps1` writes
+  exactly one) and `status.ps1` (checks the pinned ID only). The manifest `key` is unchanged.
+
 - **4.7 Scan the full history before anything is public** (S).
   Flipping visibility publishes every commit reachable from any branch or tag. Grep
   `git log -p --all` with plain regexes (no new dependency) such as `-----BEGIN`, `client_secret`,
@@ -1141,8 +1149,16 @@ date and the outcome once a row has been run for real.
   calendar-only default app is the likely first step.
 - **Extension in the Chrome Web Store (unlisted) and Edge Add-ons.** Store copies get new IDs the
   native host refuses and the pinned ID's private key is gone; listings need assets and developer
-  accounts. The alpha stays Load unpacked; 4.6 writes down the prerequisites and the
-  privacy-statement location.
+  accounts. The alpha stays Load unpacked ([Releases](setup/releases.md#the-new-tab-extension-load-unpacked-no-store-listings),
+  4.6). Prerequisites before any listing:
+  - a launcher that allows several origins (today `install-autostart.ps1` writes exactly one into
+    `allowed_origins` and `config.json`);
+  - `install-autostart.ps1`, `install.ps1` and `status.ps1` writing and checking those origins,
+    and the extension's `PINNED_EXTENSION_ID` check accepting them;
+  - an ID per browser, recorded once the Chrome Web Store and Edge Add-ons have assigned them;
+  - listing assets (store icons, screenshots, description, privacy answers) and developer
+    accounts. The privacy statement is the extension section of `site/privacy.html` at the kept
+    homebase-site URL.
 - **CalDAV writes** (ARCHITECTURE v1.1) and the "read-only in this version" wording: gated by
   section 1 on the Yahoo read test that 2.6 finally records; the `WriteProvider` split keeps the
   path open and the wording stays honest. Reopen if 2.6 passed and you edit Yahoo events from
