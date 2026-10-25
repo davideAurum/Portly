@@ -3,7 +3,8 @@
 # checks it end to end (scripts/check-release.ps1: install, start, update in a temporary folder)
 # and keeps it as a workflow artifact. With "publish" ticked, a second job publishes it as a release
 # of this repository (scripts/publish-release.ps1), where install.ps1 and `portly --update` find
-# it.
+# it. Its release notes are the version's CHANGELOG.md section at the built commit (the default of
+# publish-release.ps1 -Notes; the publish job checks out that commit, so git can read it).
 #
 # Manual only: Actions -> "Release" -> Run workflow, on the commit to release (bump the version in
 # package.json first; a version can be published once, and the release tags that commit). Only the

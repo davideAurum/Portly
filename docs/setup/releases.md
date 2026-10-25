@@ -66,7 +66,9 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    server reports it, the web build shows it, the package and its tag are named after it). The
    `server`, `shared` and `web` packages are internal and keep their own version. For alpha
    releases use a pre-release version. Add the release's entry to
-   [CHANGELOG.md](../../CHANGELOG.md), naming the new-tab extension version it ships with.
+   [CHANGELOG.md](../../CHANGELOG.md), naming the new-tab extension version it ships with. Its
+   heading is `## <version>` followed by anything (a date, or "(not released yet)" until release
+   day): the text under it becomes the release notes in step 4.
 
    The extension keeps its own version in `extension/manifest.json`. Raise it only when the
    extension's code changes. Chrome accepts only plain numbers there (no `-alpha.1`), and the
@@ -107,12 +109,19 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    marked **latest** (GitHub never marks a pre-release as latest, so alpha versions go out as normal
    releases with a pre-release version number).
 
+   The release notes are the version's section of `CHANGELOG.md` as committed in the package's
+   commit (not your working copy), with links to files of the repository pointed at that commit on
+   github.com, and a last line naming the commit and the Node.js version. Both the dry run and the
+   real run print them first. It refuses when the CHANGELOG has no section for the version, or an
+   empty one, and warns while the heading still says "not released yet". `-Notes "<Markdown>"`
+   replaces them.
+
 5. **Publish the Pages site** as usual (`scripts\publish-static.ps1`) so its `install.ps1` is the
    current one.
 
 Or let GitHub Actions do 2–4: **Actions → Release → Run workflow** builds, checks and keeps the
 package as an artifact; tick **publish** and a second job publishes it with the workflow's own token
-(the only step that can write to the repository).
+(the only step that can write to the repository), with the same notes from the CHANGELOG.
 CI (`ci.yml`) also builds and checks a test package on every push to `main` and every pull request.
 
 ### One-time setup
