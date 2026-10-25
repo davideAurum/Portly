@@ -1473,7 +1473,9 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   (`MAX_STORED_EVENTS` 100,000 rows / `MAX_STORED_EVENT_CHARS` 64 × 1024 × 1024 characters of text in
   `calendar/store.ts`, recorded as `STORAGE_LIMIT_ERROR`), provider response mappers (fixtures), IMAP id/UIDVALIDITY
   handling, Todoist mapping.
-- The production build runs without CSP violations.
+- The production build runs without CSP violations. No automated step covers this: it is checked by hand before
+  every release, for both `web/dist` and `web/dist-static` ([Releases](setup/releases.md#cutting-a-release), step 3).
+  Last checked 2026-10-25 at 5d1a4df, in Chromium: zero violations in both builds.
 
 ---
 

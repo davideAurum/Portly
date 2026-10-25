@@ -95,6 +95,14 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release.ps1 -ZipPath .\dist-release\portly-0.2.0-alpha.1-win-x64.zip
    ```
 
+   Then check both production builds for CSP violations by hand, because no automated step does.
+   Build them (`npm run build`, `npm run build:static`). Serve `web/dist` from a scratch server: set
+   `PORTLY_PORT` and `PORTLY_DATA_DIR` to scratch values and clear `PORTLY_PAGES_URL`. Serve
+   `web/dist-static` with `npm run preview:static`. With DevTools open, visit every widget and
+   every settings section, download the diagnostic report (server build only), upload a
+   background, and export then import. The console must show no "Content Security Policy"
+   errors. Write the date in [ARCHITECTURE](../ARCHITECTURE.md) section 13.
+
 4. **Publish** (public: anyone can download it). Push the release commit first — the release tags
    exactly the commit the package was built from:
 

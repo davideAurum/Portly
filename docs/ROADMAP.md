@@ -453,6 +453,21 @@ Items:
   *Done when:* zero `securitypolicyviolation` entries in both builds; a dated line next to the rule
   in ARCHITECTURE section 13; releases.md carries the step.
 
+  *Status:* done 2026-10-25 at 5d1a4df (after 1.7 and 4.5), in the desktop app's Chromium-based
+  browser pane, with a `securitypolicyviolation` listener on the page and the console read after
+  each step and after a full reload. `web/dist` on a scratch server (scratch `PORTLY_PORT` and
+  `PORTLY_DATA_DIR`, `PORTLY_PAGES_URL` cleared): all eleven settings sections, all six
+  Diagnostics tabs, the report download, export then import, a background upload with blur 24,
+  all nine widgets added and each widget's settings dialog opened. `web/dist-static` with
+  `vite preview --mode static`: the same sections, both of its Diagnostics tabs, export then
+  import, a background upload with blur 20, its seven widgets with their settings dialogs, a
+  weather search (Open-Meteo geocoding and forecast), ESPN scores and logos, DuckDuckGo icons, and
+  *Use my location* with a faked position, which named the place through Nominatim. Zero
+  violations in both builds. Only expected console errors: 409 "not set up" answers on the empty
+  scratch server, and the refused probe of 127.0.0.1:5757 while no Portly ran. Not covered: a
+  search-suggestion request (suggestions were off) and a feed with a real URL, plus Edge and
+  Firefox.
+
 - **2.6 Yahoo: CalDAV reads and IMAP with an app password** (S; after 1.1).
   Add the Yahoo preset with an app password (no Yahoo account is connected on the installed Portly
   today). Confirm the calendar list and event sync inside the sync window, the capability probes,
@@ -1043,7 +1058,7 @@ date and the outcome once a row has been run for real.
 | --- | --- | --- | --- |
 | `publish-release.ps1` handing the CHANGELOG notes to a real `gh release create --notes-file`, and how they render on github.com (links, the arrow character); the dry run printed the 0.2.0-alpha.1 section in both PowerShell versions but stops at the private-repository refusal before the `gh` command line | this commit, 2026-10-25 | 5.3 | not yet |
 | The Weather widget's place name from a real browser location (the browser pane blocks location, so the check faked the position; the server's real Nominatim lookup did answer with the expected city) | this commit, 2026-10-25 | owner's next use with *Use this device's location* | not yet |
-| The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | not yet |
+| The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | 2026-10-25 (2.5): on `preview:static`, *Use my location* with a faked position called nominatim.openstreetmap.org (200) with no CSP violation and named the place; a real browser location prompt is still the row above |
 | A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | not yet |
 | The settings dialog's focus change (it keeps looking for the requested field for 10 s and stops once focus has moved inside the dialog), by hand in a browser; only the new tests cover it | 29347b8, 2026-10-19 | 2.4 | not yet |
 | The browser-only build's Outlook.com sign-in on the published Pages address itself: the same sign-in and sync check, the automatic 24-hour renewal and writing an event (the localhost copy passed) | 3b3edd7, 2026-10-19 | 2.1 | not yet |
@@ -1072,7 +1087,8 @@ date and the outcome once a row has been run for real.
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
 | The next real `portly --update`: the dirty-tree refusal and the fetch/fast-forward messages for real, and a publish that writes `.gitattributes` to the live Pages clone (which makes the live `install.ps1` byte-equal to the built one) | 1.8, 2026-10-21 | 5.4, or the next republish of the Pages site | not yet |
 | `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: it must install Node 24 (today winget's `OpenJS.NodeJS.LTS`, later `OpenJS.NodeJS.24`) and stop on another major; checked only with `node.exe` hidden from PATH on this PC | 1.11, 2026-10-21 | 3.3 (the first other PC), 4.3 (the clean account) | not yet |
-| Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | not yet |
+| Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | 2026-10-25 (2.5, at 5d1a4df): zero violations in both builds in Chromium; repeat before every release (releases.md step 3) |
+| The CSP check with a search-suggestion request, a feed with a real URL, and in Edge and Firefox; the 2026-10-25 run had suggestions off, no feed, and only the desktop app's Chromium-based browser pane | 2.5, 2026-10-25 | the pre-release CSP check before 5.3 | not yet |
 | The "Other PCs: not set" lines of `status.ps1` on a PC without `PORTLY_REMOTE_ORIGIN`, in a checkout and in a release install: only their strings; the checks ran with the variable set on this PC | B.5 commit, 2026-10-21 | the next PC without the variable (3.3, 4.3) | not yet |
 | Approving another PC from Portly's own page on a main PC that has a Pages site (`#/settings/devices` now stays there, and the Pages site links to it): only the forward's and the page's unit tests; the first real approve went through the local API | B.5 approve commit, 2026-10-21 | the owner's next approve from this PC | not yet |
 | The connect screen's name filled in on the second PC through Serve (its computer name): only `curl` with a forwarded address against a scratch server on this PC, which asked the real Tailscale, and the web tests with a mocked answer | B.6 name commit, 2026-10-21 | the owner's next connect from the second PC (the row above) | not yet |
