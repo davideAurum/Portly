@@ -76,6 +76,36 @@ If the other PC's page shows **This address reaches Portly the wrong way**, the 
 Portly's main port instead of its port for other PCs: run the `tailscale serve` command above
 with the right port.
 
+## Using Portly on a phone or tablet
+
+An Android phone or tablet (or any other device with a current browser) connects the same way as
+another PC: nothing in the connect screen, the code or the login cookie is specific to Windows.
+This has not been tried on a phone yet; the real check used a second Windows PC.
+
+1. Set up the main PC as above.
+2. Install the Tailscale app on the phone and sign in to the same tailnet.
+3. In Chrome on the phone, open `https://<pc>.<tailnet>.ts.net`, give the phone a name and tap
+   **Ask to connect**. The name Tailscale fills in may be the phone's model or something generic;
+   change it to one you will recognise.
+4. Approve it on the main PC in Settings → Devices, as for a PC.
+
+What is different on a phone:
+
+- **Layout.** On a screen narrower than 768 px the widgets stack in one full-width column and
+  layout editing is off. Arrange the board on a PC; the phone shows the same board, stacked.
+- **No New Tab page.** Chrome on Android has no extensions, so Portly cannot be the New Tab page
+  there. Bookmark the address, or use Chrome's **Add to Home screen**.
+- **The same main-PC-only actions** as for any other PC (listed under "How it works"). Accounts
+  connected on the main PC work on the phone too.
+- **The screens say "PC".** "Connect this PC to Portly" and "This PC" mean the phone.
+- **The Pages site is not a way in.** A Pages site pairs only with a Portly server on the same
+  device ([Pages site with Portly on this PC](pages-local-server.md)), and a phone runs none. On a
+  phone the Pages site works only on its own, with data kept in that phone's browser, not your
+  main PC's. Use the Tailscale address instead.
+
+Never use Tailscale Funnel to reach Portly from a phone away from home: Tailscale on the phone
+already reaches the main PC from anywhere, through your tailnet.
+
 ## Removing a PC
 
 - On the main PC: Settings → Devices → **Remove** next to the PC. Its next request is refused and

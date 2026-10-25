@@ -222,6 +222,7 @@ is listed in [SETUP: Configuration](docs/SETUP.md#configuration).
 - [Browser-only build on GitHub Pages](docs/setup/static-build.md) ·
   [Pages site with Portly on this PC](docs/setup/pages-local-server.md) ·
   [Using Portly from your other PCs](docs/setup/other-pcs.md)
+  ([on a phone or tablet](docs/setup/other-pcs.md#using-portly-on-a-phone-or-tablet))
 - [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md)
 
 ## License

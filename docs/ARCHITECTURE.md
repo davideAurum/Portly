@@ -2019,6 +2019,8 @@ reverse proxy the user runs on the main PC (documented: Tailscale Serve, reachab
 with a real certificate and no firewall change; never Funnel), after each of them is approved once from Portly's own
 page. The design, its decisions and what each phase built are in docs/design/multi-pc.md; the user guide is
 docs/setup/other-pcs.md. With `PORTLY_REMOTE_ORIGIN` unset nothing below exists and the server behaves as before.
+A "PC" here is any device with a current browser in the tailnet, phones and tablets included: nothing in
+the flow is specific to Windows (an untried case, see the guide's phone section and ROADMAP's checks table).
 
 **Two listeners, one door.** `PORTLY_REMOTE_ORIGIN` (`https://<pc>.<tailnet>.ts.net`, the address other PCs use;
 `http://localhost:<port>` is accepted with a warning for trying the flow on one PC) makes the server also listen on
