@@ -610,6 +610,16 @@ Items:
   *Done when:* the build exits 0 with the download taken; `check-release.ps1` passes against that
   zip; the SHA-256 in `portly-release.json` matches.
 
+  *Status:* done 2026-10-25 on a clean tree at b3a1b5f (Node 24.21.0, npm 11.19.0), output in a
+  scratch folder. The build exited 0 and took the download: `node-v24.21.0-win-x64.zip` from
+  nodejs.org matched the pinned SHA-256 (158f7685...e541), and `runtime\node.exe` reports
+  v24.21.0 with a valid OpenJS Foundation signature. `release.json`: version 0.2.0-alpha.1,
+  nodeSource nodejs.org, extensionVersion 0.5.3, commit b3a1b5f, dirty false, releaseRepo
+  davideAurum/Portly. `check-release.ps1 -ZipPath` passed all 25 checks, the leak check included
+  (no tests, fixtures, web sources, dev packages or dev scripts). The zip (40.8 MB) hashes to
+  ff7b9d10...3a87, the same as `portly-release.json`. No code change was needed. The scratch copy
+  may be gone by 4.3; a rebuild from the same commit differs only in `builtAt` and the hash.
+
 - **4.2 Run release.yml's build job with publish off** (S; go-ahead; after 4.1).
   `workflow_dispatch` on the private repository: runtime download, `check-release.ps1`, artifact
   upload. The publish job stays off; `publish-release.ps1` would refuse the private repository
@@ -1057,6 +1067,7 @@ date and the outcome once a row has been run for real.
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
 | `publish-release.ps1` handing the CHANGELOG notes to a real `gh release create --notes-file`, and how they render on github.com (links, the arrow character); the dry run printed the 0.2.0-alpha.1 section in both PowerShell versions but stops at the private-repository refusal before the `gh` command line | this commit, 2026-10-25 | 5.3 | not yet |
+| The package built with the nodejs.org runtime installed for real: the scheduled task, native host and extension on a real account; `check-release.ps1` only installs into a temporary folder without autostart or the CLI | this commit, 2026-10-25 | 4.3 | not yet |
 | The Weather widget's place name from a real browser location (the browser pane blocks location, so the check faked the position; the server's real Nominatim lookup did answer with the expected city) | this commit, 2026-10-25 | owner's next use with *Use this device's location* | not yet |
 | The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | 2026-10-25 (2.5): on `preview:static`, *Use my location* with a faked position called nominatim.openstreetmap.org (200) with no CSP violation and named the place; a real browser location prompt is still the row above |
 | A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | not yet |
