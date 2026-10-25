@@ -665,6 +665,40 @@ Items:
   *Done when:* the scan is empty or every hit is reviewed and recorded as acceptable; the patterns
   used and the date go here so the scan is reproducible.
 
+  *Status:* done 2026-10-25; every hit reviewed and acceptable, no history rewrite needed. Input:
+  `git log -p --all --format='COMMIT %H %s%n%b'` (104 commits: every local branch, no tags or
+  stashes; the remote has only `main`), so commit messages are covered too, scanned line by line
+  with Node regexes. Patterns: `-----BEGIN`; `client_secret` (any case); `AIza`; `ya29\.`;
+  `eyJ[A-Za-z0-9_-]{20,}`; `gh[pousr]_[A-Za-z0-9]{30,}|github_pat_|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-`;
+  `C:(\\\\|\\|/)+Users(\\\\|\\|/)+(?!you\b)` (any case, all three slash styles);
+  `@(gmail|googlemail|outlook|hotmail|live|msn|yahoo|icloud|me|mac|proton|protonmail|aol|gmx)\.`;
+  the owner's first name and surname (any case; not written here so this file does not carry
+  them), with the first name allowed only inside `davideAurum/Portly` and `davideaurum.github.io`.
+  Also checked: author and committer lines (only the GitHub noreply address and
+  `noreply@anthropic.com`), file names ever committed (`server/dev.env` holds only a dev flag),
+  LICENSE, the README and CHANGELOG headers and every `site/` link. Findings, all acceptable:
+  - `-----BEGIN`: PUBLIC KEY wrappers in `extension/test/extension-id.test.mjs` and
+    `scripts/check-scripts.ps1` (the manifest key is public by design), and this item.
+  - `client_secret`: field names, redaction rules and docs in the accounts, diagnostics and
+    logger code and tests, and the fixture constant in `accounts/__fixtures__/oauth.ts` (a
+    `test...` value); no Google `GOCSPX-` value other than the short fake in a redaction test.
+  - `AIza`: this item only. `ya29.` and `eyJ`: short fakes (27 and 57 characters) in the
+    redaction tests of `shared/src/diagnostics.test.ts`, `server/src/lib/logger.test.ts`,
+    `health.test.ts` and `log-files.test.ts`.
+  - `C:\Users\`: fictional users in tests (riley, Riley Hollis, alice, dana, someone, x, O'Brien,
+    D'Angelo, José, Émile Zola, plantedperson, `~`, `<name>`, Public, Shared), plus `dg`/`dgx` in
+    `server/src/lib/logger.test.ts` (two letters, not identifying); no real profile path.
+  - E-mail: fictional test addresses (`me@`, `alice@gmail.com`, `bob@outlook.com`,
+    `alex@`, `eve@`, `b@live.com`) and Apple's own `johnappleseed@icloud.com` example in
+    `docs/setup/caldav-imap.md`; `pw@me.github.io` and `pass@me.github.io` are URL tests.
+  - Owner name: only the GitHub handle `davideAurum`, in LICENSE ("Copyright (c) 2026
+    davideAurum"), `site/*.html` (developer credit and the `https://github.com/davideAurum`
+    contact link), `web/src/app/Footer.tsx` (same link), the kept `davideAurum/homebase-site`
+    repository in this file, and removed lines naming the old `davideAurum/Homebase` defaults
+    and a `homebase-pages` example. The handle is public as the repository owner; the surname
+    appears nowhere. The README and CHANGELOG headers name no person; `site/` links go only to
+    its own pages, the GitHub profile and Google and Microsoft account and policy pages.
+
 ## Phase 5: Go public and publish 0.2.0-alpha.1
 
 Make the repository public and publish the first release, installable by anyone with the one-line
