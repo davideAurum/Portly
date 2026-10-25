@@ -17,7 +17,9 @@
        files of web\dist-static against the names publish-static.ps1 recognises as a Portly publish
        (when built), publish-static.ps1's helpers against throwaway repositories (the fetch and
        fast-forward of a clone behind its origin, a fetch that fails; the .gitattributes that
-       keeps install.ps1 and setup.ps1 byte for byte under core.autocrlf=true), the native host
+       keeps install.ps1 and setup.ps1 byte for byte under core.autocrlf=true), the release notes
+       publish-release.ps1 takes from CHANGELOG.md (a fixture, and the committed CHANGELOG.md for
+       the version in package.json), the native host
        files and their registration - written to a temporary folder with a fake registry - the
        health check against a loopback fixture server).
     3. Runs the generated launcher.cmd exactly as Chrome starts a native host
@@ -1076,6 +1078,63 @@ if ($null -eq $unitGit) {
     Assert-That -Name 'Get-HbPublishSyncState -AllowFetchFailure (the dry run) puts the failed fetch into FetchError and counts nothing; a fetch that works leaves it empty' -Condition (
         $syncOffline.Upstream -ceq 'origin/main' -and "$($syncOffline.FetchError)".StartsWith('git fetch failed (exit code ') -and
         $syncOffline.Ahead -eq 0 -and $syncOffline.Behind -eq 0 -and $null -eq $syncLevel.FetchError) -Detail "FetchError: $($syncOffline.FetchError)"
+}
+
+# ---------------------------------------------------------------------------------------------
+Write-Host ''
+Write-Host 'publish-release.ps1 notes from CHANGELOG.md' -ForegroundColor White
+$releaseFunctionNames = @('Get-PublishChangelog', 'Get-PublishChangelogNotes')
+$releaseTokens = $null
+$releaseErrors = $null
+$releaseAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'publish-release.ps1'), [ref]$releaseTokens, [ref]$releaseErrors)
+$releaseNodes = @($releaseAst.FindAll({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $releaseFunctionNames -contains $node.Name
+        }, $true))
+Assert-That -Name "publish-release.ps1 defines $($releaseFunctionNames -join ', ')" -Condition ($releaseNodes.Count -eq $releaseFunctionNames.Count) -Detail "$($releaseNodes.Count) found"
+foreach ($node in $releaseNodes) { . ([scriptblock]::Create($node.Extent.Text)) }
+$notesCommit = 'abcdef0123456789abcdef0123456789abcdef01'
+$notesFixture = (@(
+        '# Changelog', '', 'Intro.', '',
+        '## 0.3.0 (2026-11-02)', '', 'Later.', '',
+        '## 0.2.0-alpha.1 (not released yet)', '', 'First alpha.', '',
+        '### Known limits', '- See [SETUP](docs/SETUP.md#coming-from-homebase), [here](./README.md), [the site](https://example.com/a), [top](#changelog) and [mail](mailto:someone@example.invalid).', '',
+        '## 0.1.0', '', 'Old.', '',
+        '## 0.2.0', ''
+    ) -join "`r`n")
+$notesAlpha = Get-PublishChangelogNotes -Changelog $notesFixture -Version '0.2.0-alpha.1' -ReleaseRepo 'owner/repo' -Commit $notesCommit
+$notesBase = "https://github.com/owner/repo/blob/$notesCommit/"
+Assert-That -Name 'Get-PublishChangelogNotes takes the lines under "## <version>" up to the next "## " heading, keeping "###" headings' -Condition (
+    $notesAlpha.Heading -ceq '## 0.2.0-alpha.1 (not released yet)' -and $notesAlpha.Text.StartsWith('First alpha.') -and
+    $notesAlpha.Text.Contains("`n### Known limits`n") -and -not $notesAlpha.Text.Contains('Old.') -and -not $notesAlpha.Text.Contains('Later.') -and
+    -not $notesAlpha.Text.Contains("`r")) -Detail $notesAlpha.Text
+Assert-That -Name 'Get-PublishChangelogNotes points relative links at the commit on github.com and keeps absolute links and anchors' -Condition (
+    $notesAlpha.Text.Contains("[SETUP]($($notesBase)docs/SETUP.md#coming-from-homebase)") -and
+    $notesAlpha.Text.Contains("[here]($($notesBase)README.md)") -and $notesAlpha.Text.Contains('[the site](https://example.com/a)') -and
+    $notesAlpha.Text.Contains('[top](#changelog)') -and $notesAlpha.Text.Contains('[mail](mailto:someone@example.invalid)')) -Detail $notesAlpha.Text
+Assert-That -Name 'Get-PublishChangelogNotes stops at the next "## " heading of a later section' -Condition (
+    (Get-PublishChangelogNotes -Changelog $notesFixture -Version '0.1.0' -ReleaseRepo 'owner/repo' -Commit $notesCommit).Text -ceq 'Old.')
+Assert-Throws -Name 'Get-PublishChangelogNotes refuses a version without a section' -Action {
+    Get-PublishChangelogNotes -Changelog $notesFixture -Version '0.4.0' -ReleaseRepo 'owner/repo' -Commit $notesCommit } -Pattern 'no section for 0\.4\.0'
+Assert-Throws -Name 'Get-PublishChangelogNotes refuses an empty section ("## 0.2.0", not the "## 0.2.0-alpha.1" above it)' -Action {
+    Get-PublishChangelogNotes -Changelog $notesFixture -Version '0.2.0' -ReleaseRepo 'owner/repo' -Commit $notesCommit } -Pattern 'is empty'
+if ($null -eq $unitGit) {
+    Write-Host '  skip  git.exe is not on PATH; the committed CHANGELOG.md is not checked' -ForegroundColor DarkYellow
+} else {
+    Assert-Throws -Name 'Get-PublishChangelog refuses a commit this checkout does not have' -Action {
+        Get-PublishChangelog -RepoRoot $repoRoot -Commit ('0' * 40) } -Pattern 'Cannot read CHANGELOG\.md at commit 000000000000'
+    $headCommit = (@(& $unitGit.Source -C $repoRoot rev-parse HEAD) -join '').Trim()
+    $packageVersion = "$(([System.IO.File]::ReadAllText((Join-Path $repoRoot 'package.json')) | ConvertFrom-Json).version)"
+    $headNotes = $null
+    $headError = ''
+    try {
+        $headNotes = Get-PublishChangelogNotes -Changelog (Get-PublishChangelog -RepoRoot $repoRoot -Commit $headCommit) -Version $packageVersion -ReleaseRepo 'davideAurum/Portly' -Commit $headCommit
+    } catch {
+        $headError = $_.Exception.Message
+    }
+    Assert-That -Name "the committed CHANGELOG.md has release notes for $packageVersion (package.json), read as UTF-8, with no relative links left" -Condition (
+        $null -ne $headNotes -and $headNotes.Text.Length -gt 0 -and -not $headNotes.Text.Contains([char]0xFFFD) -and
+        $headNotes.Text -notmatch '\]\((?![A-Za-z][A-Za-z0-9+.-]*:|#)') -Detail $(if ($headError) { $headError } else { "$($headNotes.Text)" })
 }
 
 # ---------------------------------------------------------------------------------------------

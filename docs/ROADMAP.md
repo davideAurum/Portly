@@ -643,6 +643,17 @@ Items:
   *Done when:* a dry run prints the 0.2.0-alpha.1 section as the notes; `check-release.ps1` and
   `check-scripts.ps1` green.
 
+  *Status:* done 2026-10-25 on branch claude/heuristic-goodall-81bd6b (not merged or pushed).
+  `publish-release.ps1` reads `CHANGELOG.md` at the package's commit (`git cat-file`, as UTF-8),
+  takes the `## <version>` section, points relative links at that commit on github.com, prints
+  the notes before the `gh` checks and hands them to `gh` with `--notes-file`; it refuses a missing
+  or empty section and warns on "not released yet". `release.yml`'s publish job uses that default.
+  `check-scripts.ps1` covers the parser with a fixture and the committed CHANGELOG. Checked: a
+  dry run on a clean package (`build-release.ps1`, nodejs.org runtime) printed the 0.2.0-alpha.1
+  section in Windows PowerShell 5.1 and PowerShell 7, then stopped at "davideAurum/Portly is
+  private" as it should; `check-scripts.ps1` (379) and `check-release.ps1` (27, in both versions)
+  green. The real `gh` call is in the checks table (5.3).
+
 - **4.6 Write the extension-store and ID policy** (S).
   Store copies cannot keep the pinned ID (the manifest key's private key was discarded; Edge
   assigns its own), the native host allows exactly one origin and `manifest.test` forbids
@@ -996,6 +1007,7 @@ date and the outcome once a row has been run for real.
 
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
+| `publish-release.ps1` handing the CHANGELOG notes to a real `gh release create --notes-file`, and how they render on github.com (links, the arrow character); the dry run printed the 0.2.0-alpha.1 section in both PowerShell versions but stops at the private-repository refusal before the `gh` command line | this commit, 2026-10-25 | 5.3 | not yet |
 | The Weather widget's place name from a real browser location (the browser pane blocks location, so the check faked the position; the server's real Nominatim lookup did answer with the expected city) | this commit, 2026-10-25 | owner's next use with *Use this device's location* | not yet |
 | The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | not yet |
 | A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | not yet |
