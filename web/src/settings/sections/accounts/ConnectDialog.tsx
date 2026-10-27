@@ -25,7 +25,7 @@ import { FormFooter } from '../../../ui/Section.tsx';
 import { SkeletonList } from '../../../ui/Skeleton.tsx';
 import { Checkbox, SegmentedControl } from '../../../ui/Toggles.tsx';
 import { AppRegistrationForm, PROVIDER_INFO, isClientConfigured } from './AppRegistration.tsx';
-import { connectionInfo, connectionServices, type ConnectionId, type ServiceInfo } from './connections.ts';
+import { connectionInfo, connectionServices, defaultPicked, type ConnectionId, type ServiceInfo } from './connections.ts';
 import { CaldavForm, CreatedResult, ImapForm, YahooForm } from './CredentialForms.tsx';
 import { TodoistTokenForm } from './Todoist.tsx';
 import { useVaultLocked } from './vault.ts';
@@ -158,7 +158,7 @@ function OAuthSteps({ provider, client }: { provider: OAuthProvider; client: OAu
   const [needsRegistration] = useState(() => !isClientConfigured(provider, client));
   const steps = [...(needsRegistration ? ['App registration'] : []), 'Services', 'Sign in'];
   const [step, setStep] = useState(0);
-  const [picked, setPicked] = useState<Capability[]>(() => services.map((s) => s.capability));
+  const [picked, setPicked] = useState<Capability[]>(() => defaultPicked(services));
   const current = steps[step];
 
   return (

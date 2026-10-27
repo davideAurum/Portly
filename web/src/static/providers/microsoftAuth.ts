@@ -5,8 +5,9 @@
  * id_token rules, scope → capability mapping), token-endpoint.ts (request + failure
  * classification) and id-token.ts (claim decoding), with the browser differences:
  *
- * - the only service is the calendar (mail is not part of the static build), so the scopes leave
- *   out `Mail.ReadWrite`; like the server, a sign-in asks for the scopes of the services picked
+ * - the services are the calendar and launch pad sync (`Files.ReadWrite.AppFolder`); mail is not
+ *   part of the static build, so the scopes leave out `Mail.ReadWrite`; like the server, a sign-in
+ *   asks for the scopes of the services picked
  *   ({@link scopesFor}) and a refresh only for services the account's last sign-in asked for
  *   (Microsoft's reported grants list more, see {@link capabilitiesOf});
  * - Microsoft only redeems a code or refresh token from a browser origin for a redirect URI
@@ -33,15 +34,25 @@ export const MICROSOFT_ISSUER = `https://login.microsoftonline.com/${MICROSOFT_C
 /** Identity, offline access and the profile: asked for on every sign-in (the server's base scopes). */
 export const MICROSOFT_STATIC_BASE_SCOPES = ['openid', 'profile', 'email', 'offline_access', 'User.Read'] as const;
 
-/** The Graph scopes of each service the static build offers (the server's, without mail). */
+/**
+ * The Graph scopes of each service the static build offers: the server's calendar (no mail), and
+ * launch pad sync, which reaches the app's own folder in OneDrive and nothing else.
+ */
 export const MICROSOFT_STATIC_CAPABILITY_SCOPES: Readonly<Partial<Record<Capability, readonly string[]>>> = Object.freeze({
   calendar: ['Calendars.ReadWrite'],
+  launchpadSync: ['Files.ReadWrite.AppFolder'],
 });
 
 /** The services a static-build sign-in can ask for. */
 export const MICROSOFT_STATIC_CAPABILITIES: readonly Capability[] = Object.freeze(
   CAPABILITIES.filter((c) => MICROSOFT_STATIC_CAPABILITY_SCOPES[c] !== undefined),
 );
+
+/**
+ * What a sign-in that names no services asks for: the calendar. Launch pad sync is only ever asked
+ * for when it was picked, so a connection without it never asks for the OneDrive permission.
+ */
+export const MICROSOFT_STATIC_DEFAULT_CAPABILITIES: readonly Capability[] = Object.freeze(['calendar']);
 
 /** The scopes for these services: the base scopes, then each offered service's, in capability order. */
 export function scopesFor(capabilities: readonly Capability[]): string[] {
@@ -53,7 +64,7 @@ export function scopesFor(capabilities: readonly Capability[]): string[] {
   return scopes;
 }
 
-/** Every scope the static build may ask for: the server's minus `Mail.ReadWrite`. */
+/** Every scope the static build may ask for: the server's minus `Mail.ReadWrite`, plus the app folder. */
 export const MICROSOFT_STATIC_SCOPES: readonly string[] = Object.freeze(scopesFor(MICROSOFT_STATIC_CAPABILITIES));
 
 export const MICROSOFT_DISPLAY_NAME = 'Microsoft';

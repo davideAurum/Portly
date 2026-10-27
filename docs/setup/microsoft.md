@@ -134,8 +134,11 @@ part of it. The steps above apply, with these differences:
   shows it, for example `https://<user>.github.io/portly-pages/`. A registration can hold both:
   the localhost callback under *Mobile and desktop applications* for the server, the site's
   address under *Single-page application* for the site.
-- **Permissions.** The site offers the calendar only: the **Microsoft** tile has no Mail service,
-  and the site asks for **Calendars.ReadWrite** (plus the sign-in ones), not **Mail.ReadWrite**.
+- **Permissions.** The site offers the calendar, and launch pad sync only when you tick it: the
+  **Microsoft** tile has no Mail service. The site asks for **Calendars.ReadWrite** (plus the
+  sign-in ones), never **Mail.ReadWrite**, and **Files.ReadWrite.AppFolder** (your OneDrive's
+  folder for this app, nothing else) only for **Launch pad sync**. Launch pad sync is still being
+  built: ticking it does not sync anything yet.
 - **The sign-in lasts 24 hours.** Microsoft limits sign-ins made from a web page to a day. The
   site renews it by itself when you open it while you are still signed in to Microsoft in that
   browser; otherwise the account shows **Reconnect**. Checked with a real Outlook.com account on

@@ -43,11 +43,12 @@ describe('capabilitiesFor', () => {
       siteMetaFetch: true,
       serverSearchSuggestions: true,
       browserBackups: false,
+      launchpadSync: false,
       iconPolling: true,
     });
   });
 
-  it('Pages build on the browser backend: no server feature, in-browser backups, Outlook.com accounts and calendars here', () => {
+  it('Pages build on the browser backend: no server feature, in-browser backups, Outlook.com accounts, calendars and launch pad sync here', () => {
     expect(capabilitiesFor(true, 'browser')).toEqual({
       pagesBuild: true,
       backend: 'browser',
@@ -65,13 +66,14 @@ describe('capabilitiesFor', () => {
       siteMetaFetch: false,
       serverSearchSuggestions: false,
       browserBackups: true,
+      launchpadSync: true,
       iconPolling: false,
     });
   });
 
   it('Pages build on the server backend: every server feature, account setup included, as in the server build', () => {
     const caps = capabilitiesFor(true, 'server');
-    expect(caps).toMatchObject({ pagesBuild: true, backend: 'server', remoteServer: true, browserBackups: false, iconPolling: true });
+    expect(caps).toMatchObject({ pagesBuild: true, backend: 'server', remoteServer: true, browserBackups: false, launchpadSync: false, iconPolling: true });
     expect(featureFlags(caps)).toEqual(featureFlags(capabilitiesFor(false, 'server')));
     expect({ ...caps, pagesBuild: false, remoteServer: false }).toEqual(capabilitiesFor(false, 'server'));
     expect(caps).not.toHaveProperty('accountSetupHere');

@@ -21,11 +21,11 @@ export const MICROSOFT_ISSUER = `https://login.microsoftonline.com/${MICROSOFT_C
 /** Identity, offline access (a refresh token) and the profile: asked for on every sign-in. */
 export const MICROSOFT_BASE_SCOPES = ['openid', 'profile', 'email', 'offline_access', 'User.Read'] as const;
 
-/** The Graph scopes of each service. */
+/** The Graph scopes of each service the server offers (launch pad sync is the browser-only build's). */
 export const MICROSOFT_CAPABILITY_SCOPES = Object.freeze({
   calendar: ['Calendars.ReadWrite'],
   mail: ['Mail.ReadWrite'],
-} as const satisfies Record<Capability, readonly string[]>);
+} as const satisfies Partial<Record<Capability, readonly string[]>>);
 
 /** Every scope (all services): what a sign-in asks for when it names no services. */
 export const MICROSOFT_SCOPES = [...MICROSOFT_BASE_SCOPES, ...MICROSOFT_CAPABILITY_SCOPES.calendar, ...MICROSOFT_CAPABILITY_SCOPES.mail] as const;

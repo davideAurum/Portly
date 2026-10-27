@@ -528,6 +528,75 @@ describe('accounts: the scopes each sign-in asked for', () => {
   });
 });
 
+describe('accounts: launch pad sync', () => {
+  const BASE = 'openid profile email offline_access User.Read';
+  const BOTH = `${BASE} Calendars.ReadWrite Files.ReadWrite.AppFolder`;
+
+  it('asks for the app folder only when the service is picked', async () => {
+    await setup();
+    expect((await start({ capabilities: ['calendar', 'launchpadSync'] })).searchParams.get('scope')).toBe(BOTH);
+    expect((await start({ capabilities: ['launchpadSync'] })).searchParams.get('scope')).toBe(`${BASE} Files.ReadWrite.AppFolder`);
+    // Naming nothing asks for the calendar alone, never the OneDrive permission.
+    expect((await start({})).searchParams.get('scope')).toBe(`${BASE} Calendars.ReadWrite`);
+  });
+
+  it('connects with sync, keeps it through a reload, and refreshes with the app folder scope', async () => {
+    await setup();
+    expect(await signIn(grant({ scope: BOTH }), { capabilities: ['calendar', 'launchpadSync'] })).toContain('oauth=connected');
+    expect((await list())[0]).toMatchObject({ capabilities: ['calendar', 'launchpadSync'], enabledCapabilities: ['calendar', 'launchpadSync'] });
+    // The stored row passes the shape check when it is read again (another tab's change).
+    await t.ctx.state.reload([SLICE.accounts]);
+    expect(getAccounts(t.ctx)[0]!.capabilities).toEqual(['calendar', 'launchpadSync']);
+
+    const id = (await list())[0]!.id;
+    fake.add(tokenRoute(tokenOk({ access_token: 'AT2' }), 1));
+    await getAccessToken(t.ctx, id, { force: true });
+    expect(formOf(fake.calls[1]!).scope).toBe(BOTH);
+  });
+
+  it('never gives a calendar-only connection sync, even when the account granted it elsewhere', async () => {
+    await setup();
+    expect(await signIn(grant({ scope: BOTH }), { capabilities: ['calendar'] })).toContain('oauth=connected');
+    const [account] = await list();
+    expect(account).toMatchObject({ capabilities: ['calendar'], enabledCapabilities: ['calendar'] });
+    const res = await t.json<ErrorBody>('PATCH', `/api/accounts/${account!.id}`, { enabledCapabilities: ['calendar', 'launchpadSync'] });
+    expect(res.status).toBe(422);
+    expect(res.body.error.details?.[0]?.message).toBe('Launch pad sync is not available for this account');
+  });
+
+  it('adds sync to a calendar-only connection by a reconnect that names it (incremental consent)', async () => {
+    await setup();
+    await signIn(grant(), { capabilities: ['calendar'] });
+    const id = (await list())[0]!.id;
+    fake.add(tokenRoute(grant({ scope: BOTH, refresh_token: 'RT2' }), 1));
+    const url = await start({ accountId: id, capabilities: ['launchpadSync'], returnTo: '#/settings/accounts' });
+    expect(url.searchParams.get('scope')).toBe(BOTH);
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toContain('oauth=reconnected');
+    expect((await list())[0]).toMatchObject({ id, capabilities: ['calendar', 'launchpadSync'], enabledCapabilities: ['calendar', 'launchpadSync'] });
+    expect(getAccounts(t.ctx)[0]!.requestedScopes).toContain('files.readwrite.appfolder');
+
+    // Microsoft declined the new permission (the grant lacks it): the service is not added.
+    fake.add(tokenRoute(grant({ refresh_token: 'RT3' }), 1));
+    const again = await start({ accountId: id, returnTo: '#/settings/accounts' });
+    expect(again.searchParams.get('scope')).toBe(BOTH);
+    await finishSignIn(t.ctx, callback(again.searchParams.get('state')!));
+    expect((await list())[0]).toMatchObject({ capabilities: ['calendar'], enabledCapabilities: ['calendar'] });
+    fake.add(tokenRoute(tokenOk({ access_token: 'AT4' }), 1));
+    await getAccessToken(t.ctx, id, { force: true });
+    expect(formOf(fake.calls.at(-1)!).scope).toBe(`${BASE} Calendars.ReadWrite`);
+  });
+
+  it('treats a pending sign-in from before the services were recorded as a calendar sign-in', async () => {
+    await setup();
+    fake.add(tokenRoute(grant({ scope: BOTH }), 1));
+    const url = await start({ capabilities: ['calendar'] });
+    delete getOAuthStates(t.ctx)[0]!.capabilities;
+    await t.ctx.state.commit(SLICE.oauthStates);
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toContain('oauth=connected');
+    expect((await list())[0]).toMatchObject({ capabilities: ['calendar'] });
+  });
+});
+
 describe('accounts: list, update, delete', () => {
   it('renames, recolors, toggles and reorders; refuses capabilities the account does not have', async () => {
     await setup();

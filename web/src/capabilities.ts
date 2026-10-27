@@ -67,6 +67,11 @@ export interface Capabilities {
   serverSearchSuggestions: boolean;
   /** The in-browser pre-import backups (browser backend only). */
   browserBackups: boolean;
+  /**
+   * Launch pad sync through the OneDrive app folder (a service of a Microsoft connection): only
+   * where the launch pad lives in this browser. The server's launch pad is never synced.
+   */
+  launchpadSync: boolean;
   /** The server resolves bookmark icons in the background, so the UI polls for them. */
   iconPolling: boolean;
 }
@@ -102,6 +107,7 @@ export function capabilitiesFor(pagesBuild: boolean, backend: Backend, remoteCli
     siteMetaFetch: server,
     serverSearchSuggestions: server,
     browserBackups: !server,
+    launchpadSync: !server,
     iconPolling: server,
   });
   cache.set(key, caps);

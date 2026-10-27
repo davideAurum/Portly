@@ -1,10 +1,11 @@
 # Design: syncing the launch pad of the browser-only site through OneDrive
 
-**Status:** proposal, not built. The phase 0 spike with a real Outlook.com account is done, and
-its answer is **go** (section 13). Today the browser-only (GitHub Pages) build keeps everything in
-that browser's IndexedDB (`portly-static:<base>`), and the only way to move data between browsers
-is export and import. Hybrid mode gives a paired browser the local server's data, but that needs
-a server.
+**Status:** accepted, being built (ROADMAP phase 6). The phase 0 spike with a real Outlook.com
+account is done, and its answer is **go** (section 13). The decisions of 2026-10-20 are in
+section 0 and settle most of the open questions at the end. Today the browser-only (GitHub
+Pages) build keeps everything in that browser's IndexedDB (`portly-static:<base>`), and the only
+way to move data between browsers is export and import. Hybrid mode gives a paired browser the
+local server's data, but that needs a server.
 
 **Main idea:** the site writes the launch pad to one file in the user's own OneDrive, in the
 folder Microsoft gives each app (`/me/drive/special/approot`). Every browser that turns sync on
@@ -23,6 +24,33 @@ What it reuses from the Outlook.com calendar support:
 
 Sync depends on the Outlook.com browser flow. The phase 0 spike also tested that flow with a real
 account on a localhost copy (ROADMAP item 2.1 repeats it on the published address).
+
+## 0. Decisions (2026-10-20)
+
+Taken with the owner on 2026-10-20 (ROADMAP decisions D7 to D9). The sections below are written to
+match them.
+
+- **D7: sync in the contract.** `launchpadSync` enters the API contract as a new value of the
+  shared `Capability` enum (`shared/src/accounts.ts`), in one deliberate contract change. The
+  server leaves it out of `OAUTH_PROVIDER_CAPABILITIES` for both providers, so its sign-in refuses
+  it (`422`, "not available"), and the Accounts page shows it only where the page's data lives in
+  the browser (the `launchpadSync` per-load capability, section 9).
+- **D8: the defaults, all as proposed.** (Whether OneDrive stays the only sync is recorded in
+  ROADMAP decision D8.)
+  - OneDrive through an Outlook.com account is the sync this design describes;
+  - no passphrase encryption of the file;
+  - layouts, the launch pad's display settings and the theme stay per PC;
+  - the first sync defaults to **Use the synced launch pad**, and there is no **Combine both**
+    option (section 6.6);
+  - tombstones are kept 90 days (section 6.3);
+  - one Microsoft connection per browser has the service (section 3);
+  - sync's safety backup has a slot of its own, apart from the import backups (section 6.7);
+  - Chrome and Edge are in scope; Firefox gets a smoke run, Safari is not supported.
+- **D9: the custom domain.** The shared `<user>.github.io` origin (ARCHITECTURE section 4.1) means
+  any script on any Pages site of the account can read the access token and so the app folder.
+  This is accepted and documented for now. It is decided again before the sync engine (ROADMAP
+  6.5) ships: either a custom domain used only for the site, or the risk stays accepted with the
+  docs saying so.
 
 ## 1. What the user gets
 
@@ -108,7 +136,7 @@ in OneDrive. `Files.ReadWrite` (the whole drive) is not needed and is not reques
   The shipped page lists a provider's services as capabilities (`OAUTH_PROVIDER_CAPABILITIES` in
   `shared/src/accounts.ts`, today `calendar` and `mail`) and keeps the ones in use in the
   account's `enabledCapabilities`, so the natural place for `launchpadSync` is a new shared
-  `Capability` value. Sync's own state stays in its slice (section 2).
+  `Capability` value, which D7 chose. Sync's own state stays in its slice (section 2).
 - **Offered only where it can run.** The service is offered when this page's data lives in the
   browser (the `launchpadSync` capability, section 9). On a server-backend page and in the
   server build it shows as unavailable, with a one-line reason.
@@ -180,7 +208,7 @@ every other widget, and screens differ from PC to PC (columns, icon size, list o
 gives every row a new id. So a launch pad set to show chosen groups keeps working on every PC.
 A group deleted elsewhere just disappears from it (`visibleGroups()` skips unknown ids), and a
 new group shows on a launch pad set to "all", which is the default. Syncing layouts would need
-per-PC overrides and is an open question.
+per-PC overrides; D8 keeps layouts per PC.
 
 ## 6. Merging
 
@@ -301,17 +329,18 @@ that is more than 30 days old.
 
 - **Nothing to choose** when either side is empty. An empty browser takes the file, and a
   browser with no file uploads its own launch pad.
-- **Both have data:** a dialog with three choices. This matters because two browsers filled by
+- **Both have data:** a dialog with two choices. This matters because two browsers filled by
   export/import hold the same bookmarks under different ids, so a plain merge would double
   everything.
-  1. **Use the synced launch pad** (recommended): this browser's groups and bookmarks are
+  1. **Use the synced launch pad** (the default, D8): this browser's groups and bookmarks are
      replaced, after a backup.
-  2. **Combine both:** groups with the same name become one, and bookmarks with the same URL in
-     the same group become one (the synced ids win). Everything else is added.
-  3. **Replace the synced launch pad with this browser's:** the file is rewritten with a new
+  2. **Replace the synced launch pad with this browser's:** the file is rewritten with a new
      `epoch`. Other browsers see the new epoch, take a backup, and handle it like a browser past
      the horizon (6.3). Rows they changed since their last sync stay; everything else follows
      the new file.
+
+  A **Combine both** choice (groups matched by name, bookmarks by URL) was considered and left
+  out (D8).
 - **The file disappeared** (the user deleted the folder) after this browser had synced: it is
   treated as empty, never as "everything was deleted". The browser uploads its launch pad again
   and the service's status line says so.
@@ -324,8 +353,9 @@ that is more than 30 days old.
   this browser's launch pad on first sync takes a backup first.** It uses the existing backup
   store: the `backups` slice and `backup:<id>` documents, listed in Settings → Import & export
   and imported like any export file. `BackupEntry` gains an optional `reason`
-  (`import` | `sync`), so the list can say "Before sync". There are 3 backups in all
-  (`MAX_BACKUPS`); whether sync gets its own slot is an open question.
+  (`import` | `sync`), so the list can say "Before sync". Sync keeps one backup slot of its own
+  (D8): a new sync backup replaces the previous sync backup, never an import's, and the import
+  backups keep their 3 slots (`MAX_BACKUPS`).
 
 ## 7. When it runs
 
@@ -570,17 +600,9 @@ What this means for the design:
 
 ## Open questions
 
-- **Is OneDrive through an Outlook.com account acceptable as the only sync for now?** Browsers
-  without one keep export and import.
-- **Should layouts and the launch pad's display settings sync later,** or stay per PC as
-  proposed?
-- **Encrypt the file with a passphrase?** As proposed, bookmark titles and URLs sit unencrypted
-  in OneDrive, where Microsoft can read them. Encryption in the browser (Web Crypto) is possible,
-  but every browser then needs the passphrase, and a lost passphrase means starting again.
+Answered on 2026-10-20 (section 0): OneDrive through an Outlook.com account, layouts per PC, no
+passphrase encryption, *Use the synced launch pad* with no *Combine both*, tombstones kept 90 days,
+one connection per browser, and a backup slot of its own. Still open:
+
 - **Should Portly on a PC join the sync later** (section 9), or is the browser-only site enough?
-- **The first-sync default:** "Use the synced launch pad", and is "Combine both" with matching
-  by group name and URL worth having?
-- **Tombstones kept 90 days:** long enough for a PC that is rarely used?
-- **One connection per browser for sync** (section 3), or should a browser be able to sync with
-  two Microsoft accounts? Two would mean two launch pads to merge into one.
-- **Safety backups:** share the 3 backup slots with imports, or keep one slot for sync?
+- **The custom domain** (D9): decided again before the sync engine ships.

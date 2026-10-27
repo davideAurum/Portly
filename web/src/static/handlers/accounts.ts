@@ -9,8 +9,9 @@
  *   URI is this site's own address; register it as a *Single-page application*)
  * - `PUT  /api/oauth-clients/microsoft {clientId}` (a secret is refused: public client)
  * - `POST /api/oauth/microsoft/start {accountId?, returnTo?, capabilities?}` → `{authorizeUrl}`; the
- *   services are checked against what the static build offers (the calendar) and mapped to their
- *   scopes as on the server (a reconnect asks for the granted services plus the ones named)
+ *   services are checked against what the static build offers (the calendar and launch pad sync)
+ *   and mapped to their scopes as on the server (a reconnect asks for the account's services plus
+ *   the ones named, which is how a service is added: incremental consent)
  * - `GET /api/accounts`, `PATCH /api/accounts/:id`, `DELETE /api/accounts/:id` (its calendars and
  *   their events go with it), `POST /api/accounts/:id/test` (forces a token refresh)
  * Google answers `409 not_configured`; app-password accounts stay in handlers/unavailable.ts. The
@@ -67,6 +68,7 @@ import {
   MICROSOFT_DEFAULT_LABEL,
   MICROSOFT_DISPLAY_NAME,
   MICROSOFT_STATIC_CAPABILITIES,
+  MICROSOFT_STATIC_DEFAULT_CAPABILITIES,
   MICROSOFT_TOKEN_ENDPOINT,
   SPA_SESSION_MS,
   authorizeUrl,
@@ -118,7 +120,7 @@ export const MESSAGES = Object.freeze({
 
 const NOT_IN_STATIC = 'Google accounts are not available in the browser-only build.';
 
-const CAPABILITY_NAMES: Readonly<Record<Capability, string>> = { calendar: 'Calendar', mail: 'Mail' };
+const CAPABILITY_NAMES: Readonly<Record<Capability, string>> = { calendar: 'Calendar', mail: 'Mail', launchpadSync: 'Launch pad sync' };
 
 // ---------------------------------------------------------------------------
 // Rows
@@ -258,13 +260,14 @@ function checkCapabilities(named: readonly Capability[] | undefined): void {
 }
 
 /**
- * The services a sign-in asks for (the server's rule): a reconnect the account's granted ones plus
- * `named`; a new connection `named`, or everything offered when nothing is named. Never empty.
+ * The services a sign-in asks for (the server's rule): a reconnect the account's own ones
+ * ({@link signInCapabilities}) plus `named`; a new connection `named`. When that is nothing, the
+ * calendar: launch pad sync is asked for only when it was picked. Never empty.
  */
 function requestedCapabilities(named: readonly Capability[] | undefined, granted: readonly Capability[] | null): Capability[] {
   const wanted = [...(granted ?? []), ...(named ?? [])];
   const requested = MICROSOFT_STATIC_CAPABILITIES.filter((c) => wanted.includes(c));
-  return requested.length > 0 ? requested : [...MICROSOFT_STATIC_CAPABILITIES];
+  return requested.length > 0 ? requested : [...MICROSOFT_STATIC_DEFAULT_CAPABILITIES];
 }
 
 /** Stores a pending authorization (PKCE verifier, account, route, services) and returns Microsoft's sign-in URL. */
@@ -375,8 +378,8 @@ export async function completeAuthorization(ctx: StaticContext, query: CallbackQ
   if (typeof query.code !== 'string' || query.code.length === 0 || query.code.length > MAX_CODE_LENGTH) return quiet('error');
 
   try {
-    // A sign-in started before the services were recorded asked for everything offered.
-    const requested = consumed.capabilities ?? [...MICROSOFT_STATIC_CAPABILITIES];
+    // A sign-in started before the services were recorded asked for the calendar's scopes.
+    const requested = consumed.capabilities ?? [...LEGACY_SIGN_IN_CAPABILITIES];
     const result = await connect(ctx, { code: query.code, codeVerifier: consumed.codeVerifier, reconnectId: consumed.accountId, requested });
     // A quiet renewal of the same account needs no message; anything else is worth one.
     return consumed.silent && result === 'reconnected' ? { result: null, returnTo } : { result, returnTo };
@@ -760,7 +763,7 @@ export function register(router: StaticRouter): void {
       if (unsupported.length > 0) {
         const issues: ValidationIssue[] = unsupported.map((c) => ({
           path: 'enabledCapabilities',
-          message: `${c === 'calendar' ? 'Calendar' : 'Mail'} is not available for this account`,
+          message: `${CAPABILITY_NAMES[c]} is not available for this account`,
           code: 'custom',
         }));
         throw new StaticApiError('validation_failed', 'Capabilities not available for this account', issues);

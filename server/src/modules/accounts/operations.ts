@@ -258,8 +258,8 @@ function failureOf(err: unknown): ProbeResult {
   return { ok: false, code: 'internal', message: 'The connection test failed' };
 }
 
-/** Status reason of a probe whose server refused the app password, per capability. */
-const PASSWORD_REJECTED: Readonly<Record<Capability, string>> = Object.freeze({
+/** Status reason of a probe whose server refused the app password, per capability (app-password accounts have no others). */
+const PASSWORD_REJECTED: Readonly<Partial<Record<Capability, string>>> = Object.freeze({
   calendar: 'caldav_password_rejected',
   mail: 'imap_password_rejected',
 });
@@ -270,7 +270,7 @@ const REJECTED_CODES: ReadonlySet<string> = new Set(['auth_failed', 'reauth_requ
 /** Status reason of a failed probe, from its diagnosis (the original error, not the API code). */
 function probeFailureReason(capability: Capability, diagnosis: ProbeDiagnosis | undefined): { reason: string; rejected: boolean } {
   const code = diagnosis?.code ?? 'internal';
-  return REJECTED_CODES.has(code) ? { reason: PASSWORD_REJECTED[capability], rejected: true } : { reason: code, rejected: false };
+  return REJECTED_CODES.has(code) ? { reason: PASSWORD_REJECTED[capability] ?? code, rejected: true } : { reason: code, rejected: false };
 }
 
 interface TestVerdict {

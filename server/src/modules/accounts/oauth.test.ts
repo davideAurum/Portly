@@ -240,6 +240,20 @@ describe('POST /api/oauth/:provider/start', () => {
     expect(stateCount()).toBe(0);
   });
 
+  it('refuses launch pad sync, a service of the browser-only build, for both providers', async () => {
+    configureClients(h);
+    for (const provider of ['google', 'microsoft'] as const) {
+      const res = await testRequest(h.app, 'POST', `/api/oauth/${provider}/start`, { body: { capabilities: ['calendar', 'launchpadSync'] } });
+      expect(res.status, provider).toBe(422);
+      const body = (await res.json()) as { error: { code: string; details?: { path: string; message: string }[] } };
+      expect(body.error.code).toBe('validation_failed');
+      expect(body.error.details).toEqual([
+        { path: 'capabilities', message: `Launch pad sync is not available for ${provider === 'google' ? 'Google' : 'Microsoft'} accounts`, code: 'custom' },
+      ]);
+    }
+    expect(stateCount()).toBe(0);
+  });
+
   it('keeps at most 20 pending states (oldest deleted)', async () => {
     configureClients(h);
     const first = (await start('google')).searchParams.get('state');

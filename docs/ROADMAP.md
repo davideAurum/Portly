@@ -19,7 +19,7 @@ checks).
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
 | 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4's fixes landed, its second run-through is due with 5.2 |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 built |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 and 6.2 built |
 
 ## How this roadmap is used
 
@@ -1055,6 +1055,16 @@ Items:
   capability; `isCapabilityList` keeps rows carrying it; the Microsoft tile offers it only on the
   browser backend.
 
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged. The design doc has a new
+  section 0 with D7 to D9 (D8's "only sync" line points at this roadmap's D8), the first-sync
+  dialog down to two choices and sync's own backup slot; the Accounts lines were already marked
+  shipped. `launchpadSync` is a shared `Capability` (`Files.ReadWrite.AppFolder` in the browser
+  build); the server refuses it with 422 for both providers; the per-load `launchpadSync` flag is
+  true on the browser backend only; the Microsoft tile offers it there, unticked. A sign-in that
+  names no service asks for the calendar only, and `OAuthStartSchema` now refuses a service named
+  twice (it relied on the list's length before). Typecheck and the shared, server oauth, static
+  and settings tests pass.
+
 - **6.3 Bookmarks slice groundwork (design phase 1)** (M; after 6.2).
   A hybrid logical clock in sync state, `placedAt` for sort and `groupId` so `renumber()` and
   moves stop bumping `updatedAt`, lasting tombstones `{kind, id, at}` written in the same commit by
@@ -1294,6 +1304,7 @@ date and the outcome once a row has been run for real.
 | [Adding a PC](setup/add-a-pc.md) followed verbatim on a real PC, from the install to green Diagnostics; written from the scripts and guides only | 4.4 commit, 2026-10-27 | 3.3 | not yet |
 | A fresh browser profile on a PC that ran Homebase: the browser-side copy with `-NoHomebaseCopy`, and deleting the site's data after the first visit leaving it empty, as SETUP and Adding a PC now say | 4.4 commit, 2026-10-27 | 3.3 (3.5's check) | not yet |
 | Browser-only accounts remembering the scopes their last sign-in asked for, against a real Outlook.com account whose grant lists more (refresh, renewal and Reconnect with no `invalid_grant` loop); only static tests with a faked token endpoint | 6.1 commit, 2026-10-27 | 6.6 | not yet |
+| The Microsoft tile's **Launch pad sync** checkbox in a real browser on the browser backend, and its absence on a paired (server-backend) page; only the settings tests with mocked answers | 6.2 commit, 2026-10-27 | 6.6 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | not yet |
 
 ### Closed
