@@ -12,6 +12,8 @@ export interface FakeRequest {
   url: string;
   headers: Headers;
   body: string | null;
+  /** The body's bytes (uploads of files and images). */
+  bytes: Uint8Array | null;
   init: RequestInit;
 }
 
@@ -20,6 +22,8 @@ export interface FakeResponseSpec {
   headers?: Record<string, string>;
   json?: unknown;
   text?: string;
+  /** A binary body (a downloaded file). */
+  bytes?: Uint8Array;
 }
 
 export interface FakeFetchRoute {
@@ -47,7 +51,14 @@ function buildResponse(spec: FakeResponseSpec): Response {
     body = spec.text;
   }
   const status = spec.status ?? 200;
+  if (spec.bytes !== undefined) return new Response(new Uint8Array(spec.bytes), { status, headers });
   return new Response(status === 204 || status === 205 || status === 304 ? null : body, { status, headers });
+}
+
+async function bodyBytes(init: RequestInit): Promise<Uint8Array | null> {
+  const body = init.body;
+  if (body === undefined || body === null) return null;
+  return new Uint8Array(await new Response(body).arrayBuffer());
 }
 
 async function bodyText(init: RequestInit): Promise<string | null> {
@@ -64,7 +75,7 @@ export function createFakeFetch(routes: FakeFetchRoute[] = []): FakeFetch {
   const fetch: FetchLike = async (input, init = {}) => {
     const url = typeof input === 'string' ? input : input.toString();
     const method = (init.method ?? 'GET').toUpperCase();
-    const req: FakeRequest = { method, url, headers: new Headers(init.headers ?? {}), body: await bodyText(init), init };
+    const req: FakeRequest = { method, url, headers: new Headers(init.headers ?? {}), body: await bodyText(init), bytes: await bodyBytes(init), init };
     calls.push(req);
     if (init.signal?.aborted) throw init.signal.reason ?? new DOMException('aborted', 'AbortError');
     for (const route of table) {

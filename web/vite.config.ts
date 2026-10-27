@@ -58,6 +58,8 @@ export function staticCsp(localServer: string): string {
     'https://site.api.espn.com',
     'https://login.microsoftonline.com',
     'https://graph.microsoft.com',
+    // OneDrive download URLs of launch pad sync (the only host seen for a personal account; design section 4).
+    'https://my.microsoftpersonalcontent.com',
   ];
   if (localServer !== '') connect.push(localServer);
   return [

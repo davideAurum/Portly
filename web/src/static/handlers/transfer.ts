@@ -81,6 +81,7 @@ import {
   getUploads,
   setSettings,
   type BackupEntry,
+  type BackupReason,
   type BookmarksSlice,
   type StoredIconMeta,
   type StoredProfile,
@@ -545,19 +546,39 @@ export function previewsFor(ctx: StaticContext): PreviewStore {
  * untouched and `commitWith` has put the slices back in memory, so nothing changed. Object URLs
  * are swapped only after it succeeded.
  */
+/** A backup to commit: the backups index after it, and the documents to write (the new one) and delete (evicted ones). */
+export interface PreparedBackup {
+  entries: BackupEntry[];
+  documents: Map<string, unknown>;
+}
+
+/**
+ * Takes the current export JSON as a backup before an import (`reason: 'import'`) or a sync
+ * (`'sync'`) replaces data, and works out which older backups go (`keepBackups`: three import
+ * backups and one sync backup). Nothing is written: commit `SLICE.backups` with `entries` set and
+ * `documents` as extra JSON, in the same transaction as the change. Throws when the export fails.
+ */
+export async function prepareBackup(ctx: StaticContext, reason: BackupReason): Promise<PreparedBackup> {
+  const snapshot = JSON.stringify(await buildExport(ctx));
+  const backup: BackupEntry = { id: newToken(16), at: ctx.now(), bytes: snapshot.length, reason };
+  const { kept: entries, evicted } = keepBackups([backup, ...getBackups(ctx).entries]);
+  const documents = new Map<string, unknown>([[backupKey(backup.id), snapshot], ...evicted.map((e): [string, undefined] => [backupKey(e.id), undefined])]);
+  return { entries, documents };
+}
+
 export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promise<void> {
   const ts = ctx.now();
+
+  let backup: PreparedBackup;
+  try {
+    backup = await prepareBackup(ctx, 'import');
+  } catch {
+    throw new StaticApiError('internal', 'Could not back up the current data; nothing was imported');
+  }
   // The launch pad's rows are stamped by its clock; every old row gets a tombstone, so with sync on
   // the import replaces the launch pad in every synced browser (design section 6.7).
   const stamp = nextStamp(ctx);
   const old = getBookmarks(ctx);
-
-  let snapshot: string;
-  try {
-    snapshot = JSON.stringify(await buildExport(ctx));
-  } catch {
-    throw new StaticApiError('internal', 'Could not back up the current data; nothing was imported');
-  }
 
   // Everything new is computed before anything is touched.
   const refs = new Set(plan.engineIconRefs);
@@ -602,20 +623,16 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
     ...plan.customIcons.map((i): StoredBlob => ({ id: i.id, kind: 'icon', type: i.contentType, bytes: i.bytes, width: i.width, createdAt: ts })),
   ];
 
-  // The backup: its document outside the slices (never loaded at startup), an entry in the index.
-  const backup: BackupEntry = { id: newToken(16), at: ts, bytes: snapshot.length, reason: 'import' };
-  const { kept: entries, evicted } = keepBackups([backup, ...getBackups(ctx).entries]);
-  const documents = new Map<string, unknown>([[backupKey(backup.id), snapshot], ...evicted.map((e): [string, undefined] => [backupKey(e.id), undefined])]);
-
   // No await between replacing the slices in memory and the commit, which snapshots them.
-  ctx.state.set(SLICE.backups, { entries });
+  // The backup: its document outside the slices (never loaded at startup), an entry in the index.
+  ctx.state.set(SLICE.backups, { entries: backup.entries });
   ctx.state.set(SLICE.profiles, profiles);
   ctx.state.set(SLICE.bookmarks, bookmarks);
   ctx.state.set(SLICE.uploads, uploads);
   ctx.state.set(SLICE.icons, icons);
   setSettings(ctx, settings);
   await ctx.state.commitWith([SLICE.backups, SLICE.profiles, ...LAUNCHPAD_SLICES, SLICE.uploads, SLICE.icons, SLICE.settings], {
-    json: documents,
+    json: backup.documents,
     deleteBlobs: previous,
     putBlobs,
   });

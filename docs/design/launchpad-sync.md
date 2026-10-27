@@ -396,6 +396,27 @@ that is more than 30 days old.
   group"; a custom icon that is not listed or failed its checks shows as automatic; a pointer to
   a missing group reads as none (6.5 builds it).
 
+### 6.9 As built (6.5)
+
+- **The store interface.** The engine talks to storage only through `SyncStore`
+  (`web/src/static/sync/store.ts`: read and write the main file with a version, read, write and
+  delete icons). OneDrive (`providers/graphDrive.ts`) is one implementation, where the version is
+  the item's `eTag`; a GitHub gist store is being built alongside (ROADMAP D8). The merge, the
+  format and the engine know nothing of OneDrive.
+- **The quick check uses the `eTag`, not the `cTag`.** The store keeps the text it last read or
+  wrote per page and account, and when the metadata shows the same `eTag` it does not download
+  again. An `eTag` also changes when only metadata changes (a rename in OneDrive), which costs one
+  download and a merge that changes nothing.
+- **Download hosts.** Only `my.microsoftpersonalcontent.com`, the host the spike saw, is allowed
+  (store and CSP). `*.files.1drv.com` stays out until a real second sign-in shows it (ROADMAP
+  6.5). Whether the download's own `ETag`/`cTag` headers equal Graph's is still unchecked; the
+  engine does not rely on them.
+- **The "changes waiting" flag** is set by a commit hook in `StaticState`, which also stamps the
+  two synced settings when they change. A local change that comes in during a round makes the
+  round start again before it applies anything, so the change is never overwritten.
+- **Old icon files** are deleted 30 days after the file stopped naming them, by the browser that
+  noticed (the store has no listing, so a file nobody noticed stays).
+
 ## 7. When it runs
 
 - **Page load:** once the browser backend is up, the account is usable, and any automatic

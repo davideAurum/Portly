@@ -20,12 +20,16 @@ import {
   CAPABILITIES,
   SETTINGS_NAMESPACES,
   SettingsSchema,
+  SyncIconSchema,
+  SyncPointersSchema,
   defaultSettings,
   settingsNamespaceSchema,
   type AccountStatus,
   type Capability,
   type Profile,
   type Settings,
+  type SyncIcon,
+  type SyncPointers,
 } from '@portly/shared';
 import type { StaticContext } from './context.ts';
 import type { CalendarRow, EventRow } from './lib/calendarRecords.ts';
@@ -672,21 +676,160 @@ export function getCalendarSync(ctx: StaticContext): CalendarSyncSlice {
 // Launch pad sync state (this browser only; never exported)
 // ---------------------------------------------------------------------------
 
+/** Where launch pad sync stands in this browser, for the Accounts page (6.6) and Diagnostics. */
+export const LAUNCHPAD_SYNC_STATUSES = [
+  /** Never synced, or the service is off. */
+  'off',
+  'up_to_date',
+  /** Both this browser and the synced file have a launch pad: the user picks (design 6.6). */
+  'needs_choice',
+  /** The account needs reconnecting. */
+  'paused_reauth',
+  /** The synced file was written by a newer Portly. */
+  'stopped_newer',
+  /** The synced file could not be read (`problem` says why). */
+  'refused',
+  /** Other browsers kept writing: three rounds in a row lost the race. */
+  'busy',
+  'error',
+] as const;
+export type LaunchpadSyncStatus = (typeof LAUNCHPAD_SYNC_STATUSES)[number];
+
+export interface RehomedBookmark {
+  groupId: string;
+  placedAt: number;
+}
+
+/** The values of the synced settings this browser last applied or recorded. */
+export interface AppliedPointers {
+  defaultGroupId: string | null;
+  ungroupedGroupId: string | null;
+}
+
 /**
- * Launch pad sync's own state (docs/design/launchpad-sync.md section 2). For now the launch pad
- * clock: the highest stamp this browser has given out or seen (sync/clock.ts).
+ * Launch pad sync's own state (docs/design/launchpad-sync.md section 2), this browser only.
+ * Never holds a token, a URL or file content beyond the icon list.
  */
 export interface LaunchpadSyncSlice {
+  /** The launch pad clock: the highest stamp this browser has given out or seen (sync/clock.ts). */
   clock: number;
+  /** Local changes not uploaded yet (set by the commit hook, cleared by a successful upload). */
+  waiting: boolean;
+  /** Counts local changes (the commit hook): a sync clears `waiting` only if none came in meanwhile. */
+  changes: number;
+  /** The synced settings that name a group, each with the stamp of its last change. */
+  pointers: SyncPointers;
+  /** Their values as this browser last applied or recorded them: a different value in settings is a local change. */
+  applied: AppliedPointers;
+  /** The Microsoft connection synced with (another one means a first sync). */
+  accountId: string | null;
+  /** The file generation last merged (null: never synced with this account). */
+  epoch: string | null;
+  /** The store's version of the file last merged or written (OneDrive: its eTag). */
+  version: string | null;
+  /** The highest stamp of the file last merged (0: never): rows changed after it were made here since. */
+  lastSynced: number;
+  /** Wall-clock times: last successful sync, last check (any tab; checks are throttled on it). */
+  syncedAt: number | null;
+  checkedAt: number | null;
+  /** When a change last came in from the file, and last went out to it. */
+  receivedAt: number | null;
+  sentAt: number | null;
+  /** The icon entries of the file last merged (their checksums). */
+  icons: SyncIcon[];
+  /**
+   * Bookmarks this browser shows under "No group" because their group is gone: id → their synced
+   * group and the placement stamp they had then (placed again here since: no longer a repair).
+   */
+  rehomed: Record<string, RehomedBookmark>;
+  /** The version of the file last refused (a newer or unreadable one): not read again until it changes. */
+  refused: string | null;
+  /** Icon files the file stopped naming, deleted from the store 30 days after. */
+  droppedIcons: { id: string; at: number }[];
+  /** Backoff after failures (0: none). */
+  retryAt: number;
+  failures: number;
+  status: LaunchpadSyncStatus;
+  /** A problem code for `refused` or `error` (never content). */
+  problem: string | null;
+}
+
+function emptyPointers(): SyncPointers {
+  return { defaultGroupId: { value: null, at: 0 }, ungroupedGroupId: { value: null, at: 0 } };
+}
+
+export function defaultLaunchpadSync(): LaunchpadSyncSlice {
+  return {
+    clock: 0,
+    waiting: false,
+    changes: 0,
+    pointers: emptyPointers(),
+    applied: { defaultGroupId: null, ungroupedGroupId: null },
+    accountId: null,
+    epoch: null,
+    version: null,
+    lastSynced: 0,
+    syncedAt: null,
+    checkedAt: null,
+    receivedAt: null,
+    sentAt: null,
+    icons: [],
+    rehomed: {},
+    refused: null,
+    droppedIcons: [],
+    retryAt: 0,
+    failures: 0,
+    status: 'off',
+    problem: null,
+  };
+}
+
+/** Each field checked on its own: a bad one falls back to its default (a lost clock restarts from the stored rows). */
+function repairLaunchpadSync(value: unknown): LaunchpadSyncSlice {
+  const raw = isRow(value) ? value : {};
+  const base = defaultLaunchpadSync();
+  const finite = (v: unknown, fallback: number): number => (Number.isFinite(v) ? Number(v) : fallback);
+  const nullableFinite = (v: unknown): number | null => (Number.isFinite(v) ? Number(v) : null);
+  const nullableString = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+  const applied = isRow(raw.applied) ? raw.applied : {};
+  const pointers = SyncPointersSchema.safeParse(raw.pointers);
+  return {
+    clock: finite(raw.clock, base.clock),
+    waiting: raw.waiting === true,
+    changes: finite(raw.changes, 0),
+    pointers: pointers.success ? pointers.data : base.pointers,
+    applied: { defaultGroupId: nullableString(applied.defaultGroupId), ungroupedGroupId: nullableString(applied.ungroupedGroupId) },
+    accountId: nullableString(raw.accountId),
+    epoch: nullableString(raw.epoch),
+    version: nullableString(raw.version),
+    lastSynced: finite(raw.lastSynced, 0),
+    syncedAt: nullableFinite(raw.syncedAt),
+    checkedAt: nullableFinite(raw.checkedAt),
+    receivedAt: nullableFinite(raw.receivedAt),
+    sentAt: nullableFinite(raw.sentAt),
+    icons: Array.isArray(raw.icons) ? raw.icons.flatMap((icon) => SyncIconSchema.safeParse(icon).data ?? []) : [],
+    rehomed: isRow(raw.rehomed)
+      ? Object.fromEntries(
+          Object.entries(raw.rehomed).flatMap(([id, r]) =>
+            isRow(r) && typeof r.groupId === 'string' && Number.isFinite(r.placedAt) ? [[id, { groupId: r.groupId, placedAt: Number(r.placedAt) }]] : [],
+          ),
+        )
+      : {},
+    refused: nullableString(raw.refused),
+    droppedIcons: Array.isArray(raw.droppedIcons)
+      ? raw.droppedIcons.filter((d): d is { id: string; at: number } => isRow(d) && typeof d.id === 'string' && Number.isFinite(d.at))
+      : [],
+    retryAt: finite(raw.retryAt, 0),
+    failures: finite(raw.failures, 0),
+    status: (LAUNCHPAD_SYNC_STATUSES as readonly unknown[]).includes(raw.status) ? (raw.status as LaunchpadSyncStatus) : 'off',
+    problem: nullableString(raw.problem),
+  };
+}
+
+function isLaunchpadSyncState(value: unknown): boolean {
+  return isRow(value) && JSON.stringify(repairLaunchpadSync(value)) === JSON.stringify(value);
 }
 
 export function getLaunchpadSync(ctx: StaticContext): LaunchpadSyncSlice {
-  return checkedSlice<LaunchpadSyncSlice>(
-    ctx,
-    SLICE.launchpadSync,
-    () => ({ clock: 0 }),
-    (value) => isRow(value) && Number.isFinite(value.clock),
-    // A lost clock restarts from the wall clock, which only ever moves it forward from there.
-    () => ({ clock: 0 }),
-  );
+  return checkedSlice<LaunchpadSyncSlice>(ctx, SLICE.launchpadSync, defaultLaunchpadSync, isLaunchpadSyncState, repairLaunchpadSync);
 }

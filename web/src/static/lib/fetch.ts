@@ -103,16 +103,20 @@ export function fetchWithTimeout(url: string | URL, init: RequestInit = {}, opti
  * signal's reason, as `fetch` itself would.
  */
 export async function readTextCapped(res: Response, maxBytes: number): Promise<string> {
+  return new TextDecoder('utf-8').decode(await readBytesCapped(res, maxBytes));
+}
+
+/** Like {@link readTextCapped}, for bytes (images, files whose text is checked later). */
+export async function readBytesCapped(res: Response, maxBytes: number): Promise<Uint8Array<ArrayBuffer>> {
   const declared = res.headers.get('content-length');
   if (declared !== null && Number(declared) > maxBytes) {
     await res.body?.cancel().catch(() => undefined);
     throw new UpstreamPayloadTooLargeError(maxBytes);
   }
   const body = res.body;
-  if (!body) return '';
+  if (!body) return new Uint8Array(0);
   const reader = body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let text = '';
+  const chunks: Uint8Array[] = [];
   let received = 0;
   for (;;) {
     const { done, value } = await reader.read();
@@ -122,9 +126,15 @@ export async function readTextCapped(res: Response, maxBytes: number): Promise<s
       await reader.cancel().catch(() => undefined);
       throw new UpstreamPayloadTooLargeError(maxBytes);
     }
-    text += decoder.decode(value, { stream: true });
+    chunks.push(value);
   }
-  return text + decoder.decode();
+  const bytes = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 /** Fetches and reads a text body under one deadline; non-2xx statuses are returned, not thrown. */

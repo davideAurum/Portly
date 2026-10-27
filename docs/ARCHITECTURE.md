@@ -381,7 +381,9 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
   `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://nominatim.openstreetmap.org`,
   `https://api.todoist.com`,
   `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://login.microsoftonline.com` and
-  `https://graph.microsoft.com` (Outlook.com sign-in and calendar), and in hybrid mode the local server origin
+  `https://graph.microsoft.com` (Outlook.com sign-in and calendar, and launch pad sync's OneDrive metadata and
+  uploads), `https://my.microsoftpersonalcontent.com` (launch pad sync's OneDrive downloads: the only download host
+  seen for a personal account; [design](design/launchpad-sync.md) section 4), and in hybrid mode the local server origin
   (`PORTLY_STATIC_SERVER`, §16); there is no `frame-ancestors` (a meta tag cannot set it). The `script-src` invariant
   applies here too.
 - **`/api` JSON:** `Cache-Control: no-store`.

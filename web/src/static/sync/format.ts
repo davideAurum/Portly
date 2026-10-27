@@ -52,10 +52,20 @@ const UTF8 = new TextDecoder('utf-8', { fatal: true });
 /** Parses and checks the main file's bytes; `now` is this PC's clock. Never throws. */
 export function readSyncFile(bytes: Uint8Array, now: number): SyncFileRead {
   if (bytes.byteLength > MAX_SYNC_FILE_BYTES) return { ok: false, problem: 'too_large' };
+  let text: string;
+  try {
+    text = UTF8.decode(bytes);
+  } catch {
+    return { ok: false, problem: 'not_json' };
+  }
+  return readSyncText(text, now);
+}
+
+/** {@link readSyncFile} for text a store already decoded (and capped). Never throws. */
+export function readSyncText(input: string, now: number): SyncFileRead {
   let raw: unknown;
   try {
-    let text = UTF8.decode(bytes);
-    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+    const text = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
     raw = JSON.parse(text);
   } catch {
     return { ok: false, problem: 'not_json' };

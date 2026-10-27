@@ -30,6 +30,7 @@ import { StaticState, type ChangeChannel, type ExternalChangeListener } from './
 import { IndexedDbStorage } from './storage/idb.ts';
 import { MemoryStorage } from './storage/memory.ts';
 import { blobOf, isQuotaExceeded, type StaticStorage } from './storage/types.ts';
+import { startLaunchpadSync } from './sync/scheduler.ts';
 
 /** Placeholder origin: the static backend only looks at the path and query. */
 const PLACEHOLDER_ORIGIN = 'http://portly.static';
@@ -273,7 +274,15 @@ async function startPageBackend(): Promise<StaticBackend> {
   const storage = await config.openStorage();
   try {
     const backend = await createStaticBackend({ storage, activate: true });
+    // Launch pad sync runs on the page's own backend only (never in tests' backends).
+    const sync = startLaunchpadSync(backend.ctx);
+    const close = backend.close;
+    backend.close = () => {
+      sync.stop();
+      close();
+    };
     storage.onClosed?.(() => {
+      sync.stop();
       recordClientEvent('warn', 'backend', 'in-browser database closed (another tab upgraded or deleted it)', { op: 'closed' });
       setStatus({ state: 'closed', storage: storage.kind });
     });

@@ -19,7 +19,7 @@ checks).
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
 | 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4's fixes landed, its second run-through is due with 5.2 |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 to 6.4 built |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 to 6.5 built; 6.5's real checks and D9 wait for you |
 
 ## How this roadmap is used
 
@@ -1127,6 +1127,22 @@ Items:
   and missing files; no dependency added; the download-host and ETag/cTag findings recorded; the
   CSP check (2.5) repeated on `preview:static`.
 
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged; the parts that need you are
+  open. Built: the `SyncStore` interface (shared with the gist store), `providers/graphDrive.ts`,
+  `sync/engine.ts`, `sync/local.ts`, `sync/hook.ts` (a new `StaticState` commit hook),
+  `sync/scheduler.ts` started by the page's backend, and `my.microsoftpersonalcontent.com` in the
+  static CSP. Tests with `createFakeFetch()` and a fake OneDrive (no network): the 412 race, busy
+  after three, the first upload's 404 and create-only write, hostile, newer, oversized and missing
+  files, the first-sync choice both ways, a new epoch, deletes, custom icons (and a bad one), a
+  bookmark whose group is gone, a local change during a round, a config import; the store's
+  requests, download host check, 401 retry and failure codes; the hook and the scheduler. No
+  dependency added. Waiting for you: (1) a real second sign-in (a second Outlook.com account, or
+  the same one from Edge) to see which download host it gets, and once the download's
+  `ETag`/`cTag` compared with Graph's; `*.files.1drv.com` stays out of the allowlist until then;
+  (2) the CSP check on `preview:static`, which needs a connected account with sync on to make the
+  new requests (6.6 adds the switch; for now `enabledCapabilities` would have to be set by hand);
+  (3) the D9 custom-domain decision before this ships.
+
 - **6.6 Accounts and UI for sync (design phase 4)** (M; after 6.5).
   The service checkbox and status line on the Microsoft connection card, the incremental-consent
   step (explain, reconnect with the larger set, back to `#/settings/accounts`), the first-sync
@@ -1329,6 +1345,9 @@ date and the outcome once a row has been run for real.
 | The Microsoft tile's **Launch pad sync** checkbox in a real browser on the browser backend, and its absence on a paired (server-backend) page; only the settings tests with mocked answers | 6.2 commit, 2026-10-27 | 6.6 | not yet |
 | The `bookmarks-sync-fields` upgrade on a real browser's existing launch pad (IndexedDB data from before 6.3) and the stamps after real edits across two tabs; only static tests over memory storage | 6.3 commit, 2026-10-27 | 6.7 | not yet |
 | The merge and the file format against real use: two browsers' real launch pads, real clock skew and a file written by one build and read by another; only seeded simulations and fixtures | 6.4 commit, 2026-10-27 | 6.7 | not yet |
+| Launch pad sync against real OneDrive: the path-addressed `DELETE` of an icon file, `If-Match` and `conflictBehavior=fail` from the store as built, a second sign-in's download host, the download's `ETag`/`cTag` against Graph's; only `createFakeFetch()` with a fake app folder modelled on the spike | 6.5 commit, 2026-10-27 | 6.6 (first real sync), 6.7 | not yet |
+| The static CSP with launch pad sync running (`my.microsoftpersonalcontent.com` in `connect-src`) on `preview:static`, no violations; only the built `index.html` was read | 6.5 commit, 2026-10-27 | 6.6 | not yet |
+| The scheduler in a real browser: the Web Lock between two tabs, focus and visibility, the 5 s change delay, online, backoff after a real failure; only fake timers, events and locks | 6.5 commit, 2026-10-27 | 6.7 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | not yet |
 
 ### Closed

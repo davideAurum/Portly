@@ -35,7 +35,7 @@ const HOUR = 60 * 60 * 1000;
 const SOURCES: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(
     import.meta.glob<string>(['../**/*.ts', '!../**/*.test.ts', '!../test/**', '!../**/__fixtures__/**'], { query: '?raw', import: 'default', eager: true }),
-  ).map(([path, text]) => [path.replace(/^\.\.\//, ''), text]),
+  ).map(([path, text]) => [path.replace(/^\.\.\//, '').replace(/^\.\//, 'sync/'), text]),
 );
 
 let t: TestBackend;
@@ -84,6 +84,9 @@ describe('the paths that remove launch pad rows', () => {
       'handlers/bookmarks.ts: slice.bookmarks = slice.bookmarks.filter((b) => b.id !== id);',
       // A config import or backup restore: tombstones for every old row.
       'handlers/transfer.ts: ctx.state.set(SLICE.bookmarks, bookmarks);',
+      // Applying a merged sync file: the rows it removed come with the file's own tombstones, written too.
+      'sync/local.ts: fresh.groups = groups;',
+      'sync/local.ts: fresh.bookmarks = bookmarks;',
     ]);
   });
 
@@ -104,7 +107,7 @@ describe('the paths that remove launch pad rows', () => {
     ];
     expect(rows().deleted).toEqual(expected);
     expect((await stored()).deleted).toEqual(expected);
-    expect(await t.storage.getJson(`slice:${SLICE.launchpadSync}`)).toEqual({ clock: at });
+    expect(await t.storage.getJson(`slice:${SLICE.launchpadSync}`)).toMatchObject({ clock: at });
   });
 
   it('deleting a bookmark tombstones it', async () => {
