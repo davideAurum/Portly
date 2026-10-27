@@ -19,7 +19,7 @@ checks).
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
 | 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4's fixes landed, its second run-through is due with 5.2 |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 to 6.3 built |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 to 6.4 built |
 
 ## How this roadmap is used
 
@@ -1094,6 +1094,18 @@ Items:
   *Done when:* tests prove the merge commutative, idempotent and convergent across three simulated
   PCs; hostile and oversized fixtures are rejected.
 
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged. `shared/src/launchpadSync.ts`
+  has the `portly-sync` v1 schema and a pure merge; `web/src/static/sync/format.ts` reads the file
+  and icons as hostile input. `merge.test.ts` runs 120 seeded random cases each for commutativity
+  and idempotence, all six merge orders of three PCs, and three PCs syncing through one file in
+  random order (a mutation of the tie rule or the tombstone join makes them fail);
+  `format.test.ts` refuses oversized, non-JSON, prototype-key, deeply nested, foreign, newer,
+  schema-breaking and far-future files and bad icons. Two refinements of the design, written into
+  it (sections 6.3, 6.4, 6.8): the file keeps a removed row's content until its tombstone expires
+  (so every sync order gives the same file), and two "No group" groups are not folded together
+  (a limit; the first sync replaces one side, D8). Missing groups and icons are repaired by the
+  browser applying the file, in 6.5.
+
 - **6.5 Drive client and sync engine (design phase 3)** (L; after 6.1, 6.4).
   The engine as the design describes it, with its download hosts verified before the allowlist is
   final:
@@ -1316,6 +1328,7 @@ date and the outcome once a row has been run for real.
 | Browser-only accounts remembering the scopes their last sign-in asked for, against a real Outlook.com account whose grant lists more (refresh, renewal and Reconnect with no `invalid_grant` loop); only static tests with a faked token endpoint | 6.1 commit, 2026-10-27 | 6.6 | not yet |
 | The Microsoft tile's **Launch pad sync** checkbox in a real browser on the browser backend, and its absence on a paired (server-backend) page; only the settings tests with mocked answers | 6.2 commit, 2026-10-27 | 6.6 | not yet |
 | The `bookmarks-sync-fields` upgrade on a real browser's existing launch pad (IndexedDB data from before 6.3) and the stamps after real edits across two tabs; only static tests over memory storage | 6.3 commit, 2026-10-27 | 6.7 | not yet |
+| The merge and the file format against real use: two browsers' real launch pads, real clock skew and a file written by one build and read by another; only seeded simulations and fixtures | 6.4 commit, 2026-10-27 | 6.7 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | not yet |
 
 ### Closed

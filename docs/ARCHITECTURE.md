@@ -938,6 +938,12 @@ disconnects itself; its cookie cleared). Every other route except those listed `
   `'homebase-export'`, §19); the strict `ExportSchema` of §7 Core (uploads and custom icons embedded as base64, each
   ≤ 10 MB decoded; ≤ 100 uploads); `MAX_IMPORT_BYTES` (25 MB); `ImportSummary`, `ImportPreviewResponse`,
   `ImportCommitSchema {previewId}`.
+- **launchpadSync.ts** (launch pad sync, [design](design/launchpad-sync.md)) — the synced file's strict schema
+  (`SYNC_FILE_FORMAT = 'portly-sync'`, `SYNC_FILE_VERSION = 1`: groups and bookmarks from the export schemas plus
+  `updatedAt`/`placedAt` stamps, tombstones, custom icons by UUIDv4 and SHA-256, the two group pointers, `epoch`,
+  `horizon`) and the pure merge: `mergeLaunchpads` (a join of last-writer-wins parts: commutative, associative,
+  idempotent), `liveLaunchpad`, `pruneLaunchpad` (90-day tombstones, caps, horizon), `forgetUnsynced`,
+  `serializeSyncFile` (canonical JSON).
 - **pairing.ts** (hybrid mode) — `PORTLY_API_VERSION` (core.ts; bumped on any change the other side cannot
   ignore), `PAIRING_TOKEN_HEADER = 'X-Portly-Token'`, `MAX_PAIRINGS`, token/nonce schemas (43-char base64url),
   `InstanceIdSchema`, the request/response schemas of §7 Pairing, and the URL helpers `buildPairingRequestUrl` /

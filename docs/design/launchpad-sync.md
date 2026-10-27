@@ -259,9 +259,14 @@ minutes. Sync needs the lasting version:
   - a config import or a backup restore, which replace every group and bookmark.
 
   A test lists these paths, so a new one can't be added without tombstones.
-- **A tombstone beats a row whose two timestamps are both older.** A bookmark edited on another
-  PC *after* the delete survives. If its group was deleted, it moves to the "No group" group,
-  which is created if needed.
+- **A tombstone beats a row whose two timestamps are both older** (or equal). A bookmark edited on
+  another PC *after* the delete survives. If its group was deleted, the browser that applies the
+  file shows it under the "No group" group, creating that group if needed (section 6.8).
+- **The file keeps a removed row's last content next to its tombstone** until the tombstone
+  expires. Without it, a removed row's newer placement could be lost in one merge order and kept
+  in another; with it, the merge is a join of last-writer-wins parts and every order of syncing
+  gives the same file (built in 6.4: `shared/src/launchpadSync.ts`). A browser's own data keeps
+  only the tombstone.
 - **Tombstones are kept for 90 days**, then dropped. The file records the time of the newest
   dropped one as its `horizon`.
 - **A browser that hasn't synced since before the horizon** can't rely on tombstones. It keeps
@@ -277,9 +282,14 @@ minutes. Sync needs the lasting version:
 - **Limit:** reordering the same group on two PCs between syncs gives a mix of both orders, the
   same on every PC. One more drag fixes it. Fractional sort keys would avoid the mix, but they
   change `sort` from an integer in the shared and export schemas. Not for v1.
-- **Two "No group" groups** (two browsers each made one before they first synced): the one whose
-  id sorts first stays, and the other's bookmarks move into it. The same applies to the default
-  group.
+- **The two settings that name a group** (`defaultGroupId`, `ungroupedGroupId`) each sync as one
+  last-writer-wins value with its own stamp.
+- **Limit: two "No group" groups.** Since the first sync replaces one side (D8), two only happen
+  when two browsers each create one between syncs. The later pointer wins and the other stays as
+  an ordinary group named "No group"; deleting it or moving its bookmarks fixes it. The proposal
+  here was to fold the two together automatically, but a fold the merge makes on its own (moving
+  rows without a stamp) can come out differently depending on the order browsers sync in, so the
+  merge does not do it (6.4).
 
 ### 6.5 Writing the file: eTag and If-Match
 
@@ -356,6 +366,35 @@ that is more than 30 days old.
   (`import` | `sync`), so the list can say "Before sync". Sync keeps one backup slot of its own
   (D8): a new sync backup replaces the previous sync backup, never an import's, and the import
   backups keep their 3 slots (`MAX_BACKUPS`).
+
+### 6.8 The file format and applying it
+
+`launchpad.json` (built in 6.4, `shared/src/launchpadSync.ts`):
+
+```
+{ "format": "portly-sync", "version": 1, "epoch": "<id>", "horizon": <stamp or 0>,
+  "groups":    [{id, name, sort, color, collapsed, updatedAt, placedAt}],
+  "bookmarks": [{id, groupId, title, url, sort, iconMode, iconId, letterColor, updatedAt, placedAt}],
+  "deleted":   [{kind: "group" | "bookmark", id, at}],
+  "icons":     [{id: <UUIDv4>, contentType, sha256, width}],
+  "pointers":  {"defaultGroupId": {value, at}, "ungroupedGroupId": {value, at}} }
+```
+
+- Rows, tombstones and icons are sorted by id and keys by name (canonical JSON), so the same
+  launch pad always gives the same text, and "the merged result differs from the file" (6.5) is
+  a text comparison.
+- `iconId` is set only for a `custom` icon. Automatic icons are not synced (section 5).
+- Caps: groups `MAX_BOOKMARK_GROUPS × 4` and bookmarks `MAX_BOOKMARKS × 4` (removed rows
+  included), tombstones the two together, icons `MAX_BOOKMARKS`. Before writing, the writer drops
+  tombstones older than 90 days with the rows they removed (raising the horizon), and more of
+  the oldest when the file would pass a cap.
+- **The merge is pure** (no clock, storage or network): per row the later content and the later
+  placement, the newest tombstone, every icon, the later pointer, the higher horizon. It never
+  renumbers, creates rows or repairs references.
+- **Applying the merged file** to a browser repairs references for that browser only, without
+  stamping, so a repair never goes back up: a bookmark whose group is gone shows under "No
+  group"; a custom icon that is not listed or failed its checks shows as automatic; a pointer to
+  a missing group reads as none (6.5 builds it).
 
 ## 7. When it runs
 
