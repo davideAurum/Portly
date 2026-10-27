@@ -31,7 +31,8 @@ import type { StaticContext } from '../context.ts';
 import { createGraphDriveStore } from '../providers/graphDrive.ts';
 import { parseRepository } from '../providers/githubRepo.ts';
 import { hasGitHubSync, openGitHubStore } from '../providers/githubSync.ts';
-import { SLICE, getAccounts, getGitHubSync, getLaunchpadSync, type StoredAccount } from '../slices.ts';
+import { SLICE, getGitHubSync, getLaunchpadSync, type StoredAccount } from '../slices.ts';
+import { syncConnections } from './connections.ts';
 import { runSyncRound, type FirstSyncChoice, type SyncRoundResult } from './engine.ts';
 import { sha256Hex } from './format.ts';
 import { SYNC_ORIGIN, launchpadCommitHook } from './hook.ts';
@@ -58,11 +59,9 @@ export type SyncSource =
   | { kind: 'onedrive'; id: string; account: StoredAccount }
   | { kind: 'github'; id: string; generation: number };
 
-/** The sync connections set up in this browser: Microsoft ones with the service on, then GitHub. */
+/** The sync connections as sources: Microsoft ones with the service on, then GitHub. */
 export async function syncSources(ctx: StaticContext): Promise<SyncSource[]> {
-  const sources: SyncSource[] = getAccounts(ctx)
-    .filter((a) => a.capabilities.includes('launchpadSync') && a.enabledCapabilities.includes('launchpadSync'))
-    .map((account) => ({ kind: 'onedrive', id: `microsoft:${account.id}`, account }));
+  const sources: SyncSource[] = syncConnections(ctx).accounts.map((account) => ({ kind: 'onedrive', id: `microsoft:${account.id}`, account }));
   const github = getGitHubSync(ctx);
   const repository = hasGitHubSync(ctx) ? parseRepository(github.repository ?? '') : null;
   if (repository) {
@@ -104,6 +103,8 @@ export interface LaunchpadSyncController {
   localChange(): void;
   /** One scheduled run, as a trigger would start it (tests). */
   run(trigger: SyncTrigger): Promise<SyncRoundResult | null>;
+  /** A round is running on this page now. */
+  running(): boolean;
   stop(): void;
 }
 
@@ -126,6 +127,9 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
   let changeTimer: unknown = null;
   let firstChangeAt: number | null = null;
   let current: { key: string; store: SyncStore | null } | null = null;
+  let running = false;
+  /** The Accounts page follows the sync state of this tab (other tabs hear about it from the commit). */
+  const tell = (): void => ctx.notify?.([SLICE.launchpadSync]);
 
   const visible = (): boolean => !page || page.document.visibilityState === 'visible';
 
@@ -146,7 +150,25 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
     state.status = status;
     state.problem = null;
     await ctx.state.commitWith([SLICE.launchpadSync], { origin: SYNC_ORIGIN });
+    tell();
     return null;
+  }
+
+  /** One `sync` event per round: what started it, how it ended, how much moved (never names or addresses). */
+  function report(trigger: SyncTrigger, source: SyncSource, startedAt: number, result: SyncRoundResult | null, code: string | null): void {
+    const outcome = result?.status ?? 'error';
+    const moved = result !== null && (result.received || result.sent);
+    const level = outcome === 'up_to_date' ? (moved ? 'info' : 'debug') : outcome === 'needs_choice' ? 'info' : 'warn';
+    recordClientEvent(level, 'sync', moved ? 'launch pad synced' : outcome === 'up_to_date' ? 'launch pad checked' : 'launch pad sync stopped', {
+      trigger,
+      outcome,
+      source: source.kind,
+      code: code ?? result?.problem ?? null,
+      ms: Math.max(0, ctx.now() - startedAt),
+      received: result?.received ?? false,
+      sent: result?.sent ?? false,
+      ...(result?.counts ?? {}),
+    });
   }
 
   async function failed(source: SyncSource, err: unknown): Promise<null> {
@@ -200,6 +222,9 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
       state.pausedFor = null;
       await ctx.state.commitWith([SLICE.launchpadSync], { origin: SYNC_ORIGIN });
     }
+    const startedAt = ctx.now();
+    running = true;
+    tell();
     try {
       const result = await runSyncRound(ctx, store, { sourceId: source.id, signal: abort.signal, ...(choice ? { choice } : {}) });
       if (result.status === 'busy') {
@@ -208,10 +233,15 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
         busy.retryAt = ctx.now() + syncBackoffMs(busy.failures);
         await ctx.state.commitWith([SLICE.launchpadSync], { origin: SYNC_ORIGIN });
       }
+      report(trigger, source, startedAt, result, null);
       return result;
     } catch (err) {
       if (abort.signal.aborted) return null;
+      report(trigger, source, startedAt, null, err instanceof SyncStoreError ? err.code : 'internal');
       return failed(source, err);
+    } finally {
+      running = false;
+      tell();
     }
   }
 
@@ -265,6 +295,7 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
     syncNow: (choice) => run('manual', choice),
     localChange,
     run: (trigger) => run(trigger),
+    running: () => running,
     stop() {
       stopped = true;
       abort.abort();

@@ -488,6 +488,47 @@
   }
 }
 
+/* Launch pad sync's status line on the connection that syncs. */
+.syncStatus {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.syncStatusLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--hb-space-2);
+}
+
+.syncDetails {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px var(--hb-space-3);
+  margin: 0;
+  padding: var(--hb-space-3);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-surface-2);
+  font-size: var(--hb-text-sm);
+}
+
+.syncDetails dt {
+  color: var(--hb-text-muted);
+}
+
+.syncDetails dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 599px) {
+  .syncDetails {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* The services in use, as chips. */
 .serviceChips {
   display: flex;

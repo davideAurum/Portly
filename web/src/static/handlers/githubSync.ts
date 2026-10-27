@@ -8,14 +8,16 @@
  *   saved;
  * - `DELETE /api/sync/github` → removes both. The repository stays on GitHub.
  *
- * Launch pad sync (`sync/scheduler.ts`) picks them up at its next check, when they are this
- * browser's only sync connection.
+ * Launch pad sync (`sync/scheduler.ts`) syncs with them a few seconds after they are saved. A
+ * browser has one sync connection: saving is refused (`409 conflict`) while a Microsoft connection
+ * has the Launch pad sync service on.
  */
 import { z } from 'zod';
 import { parseJsonBody } from '../lib/validate.ts';
 import { clearGitHubSync, hasGitHubSync, normalizeGitHubToken, normalizeRepository, storeGitHubSync, validateGitHubSync } from '../providers/githubSync.ts';
 import { json } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';
+import { otherSyncConnection, secondSyncConnection } from '../sync/connections.ts';
 
 export interface GitHubSyncStatus {
   configured: boolean;
@@ -36,6 +38,9 @@ export function register(router: StaticRouter): void {
     const raw = await parseJsonBody(req, GitHubSyncUpdateSchema);
     const repository = normalizeRepository(raw.repository);
     const token = normalizeGitHubToken(raw.token);
+    // One sync connection per browser.
+    const other = otherSyncConnection(ctx, { github: true });
+    if (other !== null) throw secondSyncConnection(other);
     await validateGitHubSync(token, repository, { signal: req.signal });
     await storeGitHubSync(ctx, token, repository);
     const body: GitHubSyncStatus = { configured: true };

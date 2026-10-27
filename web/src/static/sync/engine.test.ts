@@ -103,7 +103,7 @@ describe('a first sync', () => {
     await bookmark(a, work, 'Mail');
     expect(getLaunchpadSync(a.ctx).waiting).toBe(true);
 
-    expect(await sync(a)).toEqual({ status: 'up_to_date', problem: null, received: false, sent: true });
+    expect(await sync(a)).toEqual({ status: 'up_to_date', problem: null, received: false, sent: true, counts: { groups: 1, bookmarks: 1, icons: 0, removed: 0, bytesUp: expect.any(Number) } });
     const put = fake.calls.find((c) => c.method === 'PUT')!;
     expect(put.url).toBe(`${APPROOT}${MAIN}:/content?@microsoft.graph.conflictBehavior=fail`);
     expect(put.headers.has('if-match')).toBe(false);

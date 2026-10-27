@@ -75,6 +75,9 @@ Leave **Allow public client flows** (on the **Settings** tab of the same page in
 2. Tick:
    - **Calendars.ReadWrite**
    - **Mail.ReadWrite**
+   - **Files.ReadWrite.AppFolder**, only for launch pad sync on the browser-only site (Portly's own
+     folder in your OneDrive, nothing else). Optional: Microsoft also asks for it when you first
+     turn the service on.
    - **offline_access** (under *OpenId permissions*; also tick **openid**, **profile** and **email**)
    - **User.Read** is already listed — keep it.
 3. Click **Add permissions**.
@@ -137,11 +140,19 @@ part of it. The steps above apply, with these differences:
 - **Permissions.** The site offers the calendar, and launch pad sync only when you tick it: the
   **Microsoft** tile has no Mail service. The site asks for **Calendars.ReadWrite** (plus the
   sign-in ones), never **Mail.ReadWrite**, and **Files.ReadWrite.AppFolder** (your OneDrive's
-  folder for this app, nothing else) only for **Launch pad sync**. Launch pad sync is still being
-  built: ticking it syncs the launch pad, but the page doesn't show how it went yet, and a browser
-  whose launch pad differs from the synced one waits for a question a later version asks. Use one
-  sync connection per browser: a second one (another Microsoft connection with the service, or
-  GitHub) stops sync until only one is left.
+  folder for this app, nothing else) only for **Launch pad sync**.
+- **Launch pad sync.** Tick **Launch pad sync** when you connect, or **Add** it later under the
+  account's **Manage** (Microsoft then asks for the one new permission, or for nothing if you
+  allowed it in another browser). Your groups, bookmarks and custom icons are kept in your
+  OneDrive under **Apps**, in a folder named after your app registration: use the same
+  Application (client) ID in every browser that should share a launch pad. The account's card
+  shows the status, **Sync now** and **Details**. The first time a browser that already has a
+  launch pad syncs with a file that has a different one, Portly asks which to keep (*Use the
+  synced launch pad*, the default, keeps a backup of this browser's first). A browser syncs
+  through one connection: Portly offers to move the service from another Microsoft connection,
+  and refuses while GitHub syncs. Switching it off stops sync in this browser and keeps both the
+  launch pad here and the files in OneDrive; to withdraw the permission itself, remove Portly at
+  <https://account.live.com/consent/Manage>.
 - **The sign-in lasts 24 hours.** Microsoft limits sign-ins made from a web page to a day. The
   site renews it by itself when you open it while you are still signed in to Microsoft in that
   browser; otherwise the account shows **Reconnect**. Checked with a real Outlook.com account on

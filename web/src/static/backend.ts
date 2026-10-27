@@ -276,6 +276,7 @@ async function startPageBackend(): Promise<StaticBackend> {
     const backend = await createStaticBackend({ storage, activate: true });
     // Launch pad sync runs on the page's own backend only (never in tests' backends).
     const sync = startLaunchpadSync(backend.ctx);
+    backend.ctx.launchpadSync = sync;
     const close = backend.close;
     backend.close = () => {
       sync.stop();

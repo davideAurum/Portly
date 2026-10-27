@@ -925,7 +925,7 @@ export type DiagnosticsSummary = z.output<typeof DiagnosticsSummarySchema>;
 // Browser events (`POST /api/diagnostics/client-events`)
 // ---------------------------------------------------------------------------
 
-export const CLIENT_EVENT_CATEGORIES = ['api', 'hybrid', 'backend', 'provider', 'widget', 'app'] as const;
+export const CLIENT_EVENT_CATEGORIES = ['api', 'hybrid', 'backend', 'provider', 'widget', 'app', 'sync'] as const;
 export const ClientEventCategorySchema = z.enum(CLIENT_EVENT_CATEGORIES);
 export type ClientEventCategory = z.output<typeof ClientEventCategorySchema>;
 

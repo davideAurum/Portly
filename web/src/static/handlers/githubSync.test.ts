@@ -8,7 +8,7 @@ import { CLASSIC_TOKEN, GITHUB_TOKEN, OWNER, REPO, REPO_URL, createFakeGitHub } 
 import { createFakeFetch, failingFetch, type FakeFetchRoute } from '../providers/__fixtures__/fakeFetch.ts';
 import { MAIN_PATH } from '../providers/githubRepo.ts';
 import { openGitHubStore } from '../providers/githubSync.ts';
-import { SLICE, getGitHubSync } from '../slices.ts';
+import { SLICE, getAccounts, getGitHubSync } from '../slices.ts';
 import { createTestBackend, type TestBackend } from '../test/harness.ts';
 import * as githubSync from './githubSync.ts';
 import * as transfer from './transfer.ts';
@@ -110,6 +110,33 @@ describe('GitHub sync: repository and token', () => {
     expect((await call<ErrorBody>('PUT', '/api/sync/github', { repository: REPOSITORY, token: GITHUB_TOKEN })).body.error.code).toBe('rate_limited');
     vi.stubGlobal('fetch', failingFetch);
     expect((await call<ErrorBody>('PUT', '/api/sync/github', { repository: REPOSITORY, token: GITHUB_TOKEN })).body.error.code).toBe('provider_error');
+  });
+
+  it('refuses to be set up while a Microsoft connection syncs the launch pad, before asking GitHub', async () => {
+    const fake = await setup([repoOk]);
+    getAccounts(t.ctx).push({
+      id: 'ms-1',
+      kind: 'microsoft',
+      label: 'someone@outlook.example',
+      email: 'someone@outlook.example',
+      externalId: 'subject-1',
+      color: null,
+      capabilities: ['calendar', 'launchpadSync'],
+      enabledCapabilities: ['calendar', 'launchpadSync'],
+      grantedScopes: [],
+      requestedScopes: [],
+      status: 'ok',
+      statusMessage: null,
+      sort: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    });
+    await t.ctx.state.commit(SLICE.accounts);
+    const res = await call<ErrorBody>('PUT', '/api/sync/github', { repository: REPOSITORY, token: GITHUB_TOKEN });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({ code: 'conflict', message: expect.stringContaining('someone@outlook.example') });
+    expect(fake.calls).toHaveLength(0);
+    expect(getGitHubSync(t.ctx).token).toBeNull();
   });
 
   it('DELETE removes both, leaving the repository on GitHub', async () => {

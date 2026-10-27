@@ -3,7 +3,8 @@
  * delete); the `bookmarks` settings namespace (default group for new bookmarks, automatic website
  * icons); and one import & export card (import from the Chrome/Edge profiles found on this PC or
  * from an exported HTML bookmark file, with a report of what was imported and skipped; export every
- * group as a bookmark HTML file).
+ * group as a bookmark HTML file). On the browser backend the Groups card says whether launch pad
+ * sync keeps them in step with other browsers (`SyncPointer`).
  */
 import { useId, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, FileUp, FolderPlus, Globe, Pencil, RefreshCw, Trash } from 'lucide-react';
@@ -31,6 +32,7 @@ import {
 } from '../../ui/index.ts';
 import { DeleteGroupDialog, GroupDialog } from '../../widgets/launchpad/GroupDialog.tsx';
 import styles from '../../styles/settings.module.css';
+import { SyncPointer } from './SyncPointer.tsx';
 import own from '../../widgets/search/SearchSettingsPage.module.css';
 
 type Strategy = BrowserImport['targetGroupStrategy'];
@@ -289,6 +291,7 @@ function GroupsCard() {
         </Button>
       }
     >
+      <SyncPointer />
       {bookmarks.data === undefined ? (
         bookmarks.isError ? (
           <ErrorState error={bookmarks.error} onRetry={() => void bookmarks.refetch()} compact />

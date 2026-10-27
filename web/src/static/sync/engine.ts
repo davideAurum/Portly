@@ -67,6 +67,8 @@ export interface SyncRoundResult {
   received: boolean;
   /** The file was written. */
   sent: boolean;
+  /** After a completed merge: the synced launch pad's size, rows this browser lost, bytes written (diagnostics only). */
+  counts?: { groups: number; bookmarks: number; icons: number; removed: number; bytesUp: number };
 }
 
 /** A new file generation id. */
@@ -281,7 +283,9 @@ export async function runSyncRound(ctx: StaticContext, store: SyncStore, options
     state.retryAt = 0;
     await retireIcons(ctx, store, file, plan.doc, signal);
     await ctx.state.commitWith([SLICE.launchpadSync], { origin: SYNC_ORIGIN });
-    return { status: 'up_to_date', problem: null, received: plan.changed, sent };
+    const live = liveLaunchpad(plan.doc);
+    const counts = { groups: live.groups.length, bookmarks: live.bookmarks.length, icons: plan.doc.icons.length, removed: plan.removed, bytesUp: sent ? new TextEncoder().encode(text).byteLength : 0 };
+    return { status: 'up_to_date', problem: null, received: plan.changed, sent, counts };
   }
   return settle(ctx, 'busy', null);
 }

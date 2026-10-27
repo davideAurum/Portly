@@ -75,8 +75,8 @@ export const qk = {
   },
 } as const;
 
-/** Prefixes invalidated whenever an account is created, deleted or reconnected. */
-export const ACCOUNT_DEPENDENT_KEYS = [qk.accounts(), qk.calendar.all(), qk.mail.all()] as const;
+/** Prefixes invalidated whenever an account is created, deleted or reconnected (its services decide calendars, mail and which connection syncs the launch pad). */
+export const ACCOUNT_DEPENDENT_KEYS = [qk.accounts(), qk.calendar.all(), qk.mail.all(), ['sync', 'launchpad']] as const;
 
 export async function invalidateAccountData(client: QueryClient): Promise<void> {
   await Promise.all(ACCOUNT_DEPENDENT_KEYS.map((queryKey) => client.invalidateQueries({ queryKey })));

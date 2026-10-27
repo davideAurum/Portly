@@ -1560,7 +1560,8 @@ in the page, `web/src/static/handlers/accounts.ts`, `calendar.ts`), `appPassword
 vault|siteMetaFetch|serverSearchSuggestions` (server backend), `googleAccounts` and `browserBookmarkImport` (server
 backend on the main PC only: off when `remoteClient` is on), `browserBackups` and `launchpadSync` (browser backend: the
 launch pad sync service is offered on Microsoft connections only where the launch pad lives in this browser,
-[design/launchpad-sync.md](design/launchpad-sync.md)), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
+[design/launchpad-sync.md](design/launchpad-sync.md); its state and **Sync now** are `GET`/`POST /api/sync/launchpad[/now]` of the
+in-browser backend, one sync connection per browser, design 6.10), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
 `backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
 feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
 browser / Switch now / Check again). Without `serverSearchSuggestions` an engine whose suggestions only the server can
@@ -1864,6 +1865,7 @@ through `scrub`/`scrubFields`:
 | `provider` | the in-browser backend's upstream failures (never URLs or queries) | `provider, host, status, code, errName, ms` |
 | `widget` | the mail widget when an account's error changes | `accountId, code, status, widget` |
 | `app` | `window` `error`/`unhandledrejection`, the error boundary | `errName, errMessage, source, stack (≤ 5 frames, file names only)` |
+| `sync` | launch pad sync (`web/src/static/sync/scheduler.ts`), one event per round on the browser backend: debug for a check that changed nothing, info when something moved or a first-sync choice is needed, warn when it stopped or failed; never names, titles or addresses | `trigger, outcome, source (onedrive \| github), code, ms, received, sent, groups, bookmarks, icons, removed, bytesUp` |
 
 - **Kept:** a ring of the last 300 events mirrored to localStorage (`portly:diagnostics:events`, Pages build
   `…:<base>`; merged across tabs, ≤ 256 KB, entries older than 7 days dropped; when another tab rewrites it, only

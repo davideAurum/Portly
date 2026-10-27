@@ -3,6 +3,7 @@
  */
 import type { AssetRegistry } from './assets.ts';
 import type { StaticState } from './state.ts';
+import type { LaunchpadSyncController } from './sync/scheduler.ts';
 
 export interface StaticContext {
   /** Persisted application state (settings, profiles, bookmarks, …) and the blob store. */
@@ -25,6 +26,8 @@ export interface StaticContext {
    * outlived the requests waiting for it), the way another tab's change is told. Absent in tests.
    */
   notify?: (keys: readonly string[]) => void;
+  /** Launch pad sync on this page (`sync/scheduler.ts`); absent in tests and other backends. */
+  launchpadSync?: LaunchpadSyncController;
 }
 
 /** The running page's app address (origin + Vite base path), or a localhost placeholder outside a page. */

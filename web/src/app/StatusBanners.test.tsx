@@ -235,7 +235,9 @@ describe('cross-tab refetch mapping', () => {
     expect(queryKeysForSlices(['bookmarks', 'icons'])).toEqual([['bookmarks'], ['icons']]);
     expect(queryKeysForSlices(['todoist-token'])).toEqual([['todoist']]);
     expect(queryKeysForSlices(['uploads', 'settings'])).toEqual([['settings'], ['search'], ['weather']]);
-    expect(queryKeysForSlices(['accounts'])).toEqual([['accounts'], ['calendar'], ['mail']]);
+    expect(queryKeysForSlices(['accounts'])).toEqual([['accounts'], ['calendar'], ['mail'], ['sync', 'launchpad']]);
+    // Launch pad sync's state and connections refresh its status line.
+    expect(queryKeysForSlices(['launchpad-sync', 'github-sync'])).toEqual([['sync', 'launchpad'], ['sync', 'github']]);
     // A token refresh in another tab refetches nothing.
     expect(queryKeysForSlices(['account-tokens', 'oauth-states'])).toEqual([]);
     // Anything unknown refetches everything.

@@ -66,10 +66,10 @@ const SLICE_QUERY_KEYS: Readonly<Record<string, readonly (readonly string[])[]>>
   // An upload changes nothing a query returns; the settings that reference it do.
   uploads: [['settings']],
   'todoist-token': [['todoist']],
-  'github-sync': [['sync', 'github']],
+  'github-sync': [['sync', 'github'], ['sync', 'launchpad']],
   backups: [['backups']],
-  // Accounts decide which calendars and mail exist.
-  accounts: [['accounts'], ['calendar'], ['mail']],
+  // Accounts decide which calendars and mail exist, and which connection syncs the launch pad.
+  accounts: [['accounts'], ['calendar'], ['mail'], ['sync', 'launchpad']],
   // Token refreshes change nothing a query returns (statuses live in the accounts slice).
   'account-tokens': [],
   'oauth-clients': [['oauth-clients']],
@@ -80,8 +80,8 @@ const SLICE_QUERY_KEYS: Readonly<Record<string, readonly (readonly string[])[]>>
   'calendar-sync': [],
   // Which one-time upgrades ran: nothing a query returns (an upgrade's own changes come with their slices).
   upgrades: [],
-  // The launch pad clock (sync/clock.ts): nothing a query returns (the stamped rows come with `bookmarks`).
-  'launchpad-sync': [],
+  // Launch pad sync's state (the clock's stamped rows come with `bookmarks`): its status line.
+  'launchpad-sync': [['sync', 'launchpad']],
 });
 
 /** The query-key prefixes for changed slices, or null when everything should be refetched. */

@@ -56,8 +56,6 @@ describe('Accounts: GitHub sync', () => {
     expect(within(await screen.findByRole('button', { name: 'Connect GitHub' })).getByText('Launch pad sync (private repository)')).toBeInTheDocument();
     const dialog = await openConnect(user);
     expect(within(dialog).getByText(/Every change is a commit/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/still being built/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/one sync connection per browser/)).toBeInTheDocument();
     const steps = within(dialog).getByRole('list', { name: 'What to create on GitHub' });
     expect(within(steps).getByText('Contents')).toBeInTheDocument();
     expect(within(steps).getByText('Only select repositories')).toBeInTheDocument();

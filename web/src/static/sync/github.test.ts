@@ -117,7 +117,7 @@ describe('launch pad sync through GitHub', () => {
     await bookmark(a.t, await group(a.t, 'Work'), 'Mail');
     await storeGitHubSync(a.t.ctx, GITHUB_TOKEN, REPOSITORY);
 
-    expect(await a.controller.syncNow()).toEqual({ status: 'up_to_date', problem: null, received: false, sent: true });
+    expect(await a.controller.syncNow()).toMatchObject({ status: 'up_to_date', problem: null, received: false, sent: true });
     const put = github.calls('PUT', /contents\/launchpad\.json$/);
     expect(put).toHaveLength(1);
     expect(JSON.parse(put[0]!.body!)).not.toHaveProperty('sha');

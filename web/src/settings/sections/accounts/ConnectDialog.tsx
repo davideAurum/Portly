@@ -29,6 +29,7 @@ import { AppRegistrationForm, PROVIDER_INFO, isClientConfigured } from './AppReg
 import { connectionInfo, connectionServices, defaultPicked, type ConnectionId, type ServiceInfo } from './connections.ts';
 import { CaldavForm, CreatedResult, ImapForm, YahooForm } from './CredentialForms.tsx';
 import { GitHubSyncForm } from './GitHubSync.tsx';
+import { otherSyncConnection, useSyncConnections } from './LaunchpadSync.tsx';
 import { TodoistTokenForm } from './Todoist.tsx';
 import { useVaultLocked } from './vault.ts';
 import styles from '../../../styles/settings.module.css';
@@ -93,8 +94,22 @@ function Steps({ steps, current }: { steps: readonly string[]; current: number }
   );
 }
 
-/** Checkboxes for the services to use, each with its one-line description. */
-function ServicePicker({ services, picked, onChange }: { services: readonly ServiceInfo[]; picked: readonly Capability[]; onChange(next: Capability[]): void }) {
+/** What launch pad sync's permission reaches, said before the sign-in asks for it (design section 3). */
+export const LAUNCHPAD_SYNC_PERMISSION_NOTE =
+  "For launch pad sync, Microsoft asks you to allow Portly's own folder in your OneDrive (under Apps, named after your app registration). Portly can't see anything else in your OneDrive.";
+
+/** Checkboxes for the services to use, each with its one-line description; `blocked` ones can't be ticked, with the reason. */
+function ServicePicker({
+  services,
+  picked,
+  onChange,
+  blocked = {},
+}: {
+  services: readonly ServiceInfo[];
+  picked: readonly Capability[];
+  onChange(next: Capability[]): void;
+  blocked?: Partial<Record<Capability, string>>;
+}) {
   return (
     <FieldGroup legend="What should Portly use this account for?" description="You can switch services on and off later under Manage.">
       <div className={styles.serviceList}>
@@ -102,7 +117,8 @@ function ServicePicker({ services, picked, onChange }: { services: readonly Serv
           <Checkbox
             key={service.capability}
             label={service.label}
-            description={service.description}
+            description={blocked[service.capability] ? `${service.description} ${blocked[service.capability]}` : service.description}
+            disabled={blocked[service.capability] !== undefined}
             checked={picked.includes(service.capability)}
             onCheckedChange={(on) => {
               const next = on ? [...picked, service.capability] : picked.filter((c) => c !== service.capability);
@@ -164,6 +180,11 @@ function OAuthSteps({ provider, client }: { provider: OAuthProvider; client: OAu
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<Capability[]>(() => defaultPicked(services));
   const current = steps[step];
+  // One sync connection per browser (launch pad sync, design 6.10).
+  const syncElsewhere = otherSyncConnection(useSyncConnections(), {});
+  const blocked: Partial<Record<Capability, string>> =
+    syncElsewhere !== null ? { launchpadSync: `It already uses ${syncElsewhere} in this browser: a browser syncs through one connection.` } : {};
+  const chosen = picked.filter((c) => blocked[c] === undefined);
 
   return (
     <div className={styles.dialogStack}>
@@ -173,15 +194,15 @@ function OAuthSteps({ provider, client }: { provider: OAuthProvider; client: OAu
       ) : null}
       {current === 'Services' ? (
         <>
-          <ServicePicker services={services} picked={picked} onChange={setPicked} />
+          <ServicePicker services={services} picked={chosen} onChange={setPicked} blocked={blocked} />
           <Footer onBack={step > 0 ? () => setStep(step - 1) : undefined}>
-            <Button variant="primary" disabled={picked.length === 0} onClick={() => setStep(step + 1)}>
+            <Button variant="primary" disabled={chosen.length === 0} onClick={() => setStep(step + 1)}>
               Continue
             </Button>
           </Footer>
         </>
       ) : null}
-      {current === 'Sign in' ? <SignInStep provider={provider} client={client} picked={picked} onBack={() => setStep(step - 1)} /> : null}
+      {current === 'Sign in' ? <SignInStep provider={provider} client={client} picked={chosen} onBack={() => setStep(step - 1)} /> : null}
     </div>
   );
 }
@@ -202,6 +223,7 @@ function SignInStep({ provider, client, picked, onBack }: { provider: OAuthProvi
         <p className={styles.intro}>Keep every box ticked on Google's consent screen: a service you untick there stays off.</p>
       ) : null}
       {provider === 'microsoft' && inBrowser ? <p className={styles.intro}>{STATIC_MICROSOFT_SESSION_NOTE}</p> : null}
+      {picked.includes('launchpadSync') ? <p className={styles.intro}>{LAUNCHPAD_SYNC_PERMISSION_NOTE}</p> : null}
       {locked ? (
         <Banner tone="warning" title="Saved credentials are locked">
           Portly could not store the sign-in. Reset credentials with the banner on this page first.

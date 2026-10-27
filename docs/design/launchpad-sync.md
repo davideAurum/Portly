@@ -429,8 +429,11 @@ on or the GitHub repository and token (`syncSources()` in `sync/scheduler.ts`).
 - **More than one** (two Microsoft connections with the service, or one and GitHub): nothing
   syncs, the status is `several_sources`, and no store is opened, until only one is left. Sync
   never guesses which file the user meant: merging a launch pad into the wrong file would spread
-  it to every browser on that file. 6.6 keeps the second one from being set up (the service switch
-  and the GitHub tile say which connection syncs today) and shows the status line.
+  it to every browser on that file. Since 6.6 a second one can't be set up: the account route
+  refuses to switch the service on (`409 conflict`) and a sign-in that grants it leaves it off,
+  the GitHub route refuses to save, and the page says which connection syncs today (the Manage
+  switch offers to move the service between Microsoft connections). Two can still meet when two
+  tabs race, or from data set up before 6.6; then the Accounts page says so.
 - **The source id** in the sync state is `microsoft:<account id>` or `github:<SHA-256 of
   owner/name, lowercased>`; the repository name itself stays in the GitHub settings slice. Another
   id means a first sync (section 6.6): switching source asks again when both sides have a
@@ -576,6 +579,31 @@ adds these pieces to it:
   - section 10.5: the Launch pad sync service on Microsoft connections;
   - section 17: the `sync` events.
 - README: one line under the browser-only build.
+
+### 10.1 As built (6.6)
+
+- **The page's view of sync** is `GET /api/sync/launchpad` of the in-browser backend
+  (`handlers/launchpadSync.ts`): the one connection in use (a Microsoft account's id and name, or
+  GitHub without its repository), how many are set up, the status, whether a round is running on
+  this page, the changes waiting, and when the last sync, change in and change out happened.
+  `POST /api/sync/launchpad/now {choice?}` is **Sync now**, and answers the first-sync question.
+  The query refreshes when the `launchpad-sync` slice changes, in this tab (the scheduler tells
+  the page when a round starts and ends) and in others.
+- **Accounts:** the status line and **Details** on the card of the connection that syncs
+  (Microsoft or GitHub), the first-sync dialog (opened by itself, again from **Choose…**), a
+  warning when sync is set up twice, the move offer, and the permission note before a sign-in that
+  asks for the app folder (the connect dialog's last step, and **Add** under Manage). The
+  statuses read: *Up to date*, *Syncing…*, *Changes waiting to upload*, *Not synced yet*,
+  *Waiting for your choice*, *Paused* (reconnect, or GitHub refused the token or repository),
+  *Set up twice*, *Stopped* (newer Portly, or a file that can't be read), *Trying again later*
+  and *Error*. **Open Diagnostics** is under Details when it stopped or failed.
+- **Elsewhere:** Settings → Bookmarks says "Synced through …" or "Not synced" with a link to
+  Accounts; the import preview warns when sync is on; Import & export offers the newest backup of
+  each kind, *Backup before the last import* and *Backup before sync*.
+- **Diagnostics:** the `sync` category, one event per round (ARCHITECTURE section 17). Debug
+  events are not stored, so a check that changed nothing leaves no trace after the page closes.
+  Store failures carry their `SyncStoreError` code; Graph's own error code and the HTTP status
+  are not added (the store keeps them as `provider` events).
 
 ## 11. Alternatives
 

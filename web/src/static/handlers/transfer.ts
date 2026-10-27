@@ -652,10 +652,12 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
 /** What `GET /api/backups` lists (newest first). */
 export interface BackupInfo {
   id: string;
-  /** ISO timestamp of the import that replaced the data. */
+  /** ISO timestamp of the import or sync that replaced the data. */
   at: string;
   /** Size of the export document (characters). */
   bytes: number;
+  /** What it was taken before: an import, or a launch pad sync that replaced or removed a lot. */
+  reason: 'import' | 'sync';
 }
 
 /** The stored export document of a backup, or null. */
@@ -714,7 +716,7 @@ export function register(router: StaticRouter): void {
   });
 
   router.get('/api/backups', (ctx) => {
-    const list: BackupInfo[] = getBackups(ctx).entries.map((e) => ({ id: e.id, at: new Date(e.at).toISOString(), bytes: e.bytes }));
+    const list: BackupInfo[] = getBackups(ctx).entries.map((e) => ({ id: e.id, at: new Date(e.at).toISOString(), bytes: e.bytes, reason: e.reason ?? 'import' }));
     return json(list);
   });
 

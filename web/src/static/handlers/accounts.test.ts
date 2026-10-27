@@ -10,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Account, OAuthClientInfo } from '@portly/shared';
 import { finishSignIn, planAutomaticSignIn } from '../oauthRedirect.ts';
 import { createFakeFetch, type FakeFetch, type FakeFetchRoute } from '../providers/__fixtures__/fakeFetch.ts';
+import { GITHUB_TOKEN, REPOSITORY } from '../providers/__fixtures__/github.ts';
+import { storeGitHubSync } from '../providers/githubSync.ts';
 import { MICROSOFT_CLIENT_ID, OTHER_SUBJECT, formOf, microsoftIdToken, tokenError, tokenOk } from '../providers/__fixtures__/microsoft.ts';
 import { MICROSOFT_TOKEN_ENDPOINT, SPA_SESSION_MS, pkceChallenge } from '../providers/microsoftAuth.ts';
 import { SLICE, getAccountTokens, getAccounts, getCalendarSync, getOAuthStates, getUpgrades } from '../slices.ts';
@@ -584,6 +586,37 @@ describe('accounts: launch pad sync', () => {
     fake.add(tokenRoute(tokenOk({ access_token: 'AT4' }), 1));
     await getAccessToken(t.ctx, id, { force: true });
     expect(formOf(fake.calls.at(-1)!).scope).toBe(`${BASE} Calendars.ReadWrite`);
+  });
+
+  it('keeps sync off on a new connection while GitHub syncs, and refuses to switch it on', async () => {
+    await setup();
+    await storeGitHubSync(t.ctx, GITHUB_TOKEN, REPOSITORY);
+    expect(await signIn(grant({ scope: BOTH }), { capabilities: ['calendar', 'launchpadSync'] })).toContain('oauth=connected');
+    const [account] = await list();
+    // Granted, listed, switched off: one sync connection per browser.
+    expect(account).toMatchObject({ capabilities: ['calendar', 'launchpadSync'], enabledCapabilities: ['calendar'] });
+    const res = await t.json<ErrorBody>('PATCH', `/api/accounts/${account!.id}`, { enabledCapabilities: ['calendar', 'launchpadSync'] });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({ code: 'conflict', message: expect.stringContaining('already uses GitHub') });
+    expect(getAccounts(t.ctx)[0]!.enabledCapabilities).toEqual(['calendar']);
+  });
+
+  it('lets one Microsoft connection sync at a time: another one is refused until the first is switched off', async () => {
+    await setup();
+    await signIn(grant({ scope: BOTH }), { capabilities: ['calendar', 'launchpadSync'] });
+    await signIn(grant({ scope: BOTH, refresh_token: 'RT-other' }, { oid: OTHER_SUBJECT, preferred_username: 'eve@outlook.com' }), {
+      capabilities: ['calendar', 'launchpadSync'],
+    });
+    const [first, second] = await list();
+    expect(first!.enabledCapabilities).toEqual(['calendar', 'launchpadSync']);
+    expect(second!.enabledCapabilities).toEqual(['calendar']);
+    const refused = await t.json<ErrorBody>('PATCH', `/api/accounts/${second!.id}`, { enabledCapabilities: ['calendar', 'launchpadSync'] });
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.message).toContain('bob@outlook.com');
+    // Moving it: off on the first, then on here. Keeping it on where it is stays allowed.
+    expect((await t.json('PATCH', `/api/accounts/${first!.id}`, { enabledCapabilities: ['launchpadSync'] })).status).toBe(200);
+    expect((await t.json('PATCH', `/api/accounts/${first!.id}`, { enabledCapabilities: ['calendar'] })).status).toBe(200);
+    expect((await t.json('PATCH', `/api/accounts/${second!.id}`, { enabledCapabilities: ['calendar', 'launchpadSync'] })).status).toBe(200);
   });
 
   it('treats a pending sign-in from before the services were recorded as a calendar sign-in', async () => {

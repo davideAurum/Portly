@@ -12,6 +12,7 @@ import { createTestBackend, type TestBackend } from '../test/harness.ts';
 import { SYNC_ORIGIN, launchpadCommitHook } from './hook.ts';
 import { CHANGE_DELAY_MS, CHANGE_MAX_DELAY_MS, CHECK_INTERVAL_MS, FOCUS_THROTTLE_MS, SYNC_BACKOFF_BASE_MS, startLaunchpadSync, type LaunchpadSyncController } from './scheduler.ts';
 import { SyncStoreError, type SyncFileVersion, type SyncStore } from './store.ts';
+import { getClientEvents, resetClientLogForTests } from '../../diagnostics/clientLog.ts';
 
 const T0 = 1_700_000_000_000;
 
@@ -140,6 +141,18 @@ describe('the commit hook', () => {
     expect(heard).toHaveBeenCalledTimes(2);
   });
 
+  it('hears a change of the sync connections (accounts, the GitHub settings) without marking changes waiting', async () => {
+    t = await createTestBackend([settings, bookmarks], { startAt: T0 });
+    const heard = vi.fn();
+    t.ctx.state.setCommitHook(launchpadCommitHook(t.ctx, heard));
+    await t.ctx.state.commit(SLICE.accounts);
+    await t.ctx.state.commit(SLICE.githubSync);
+    expect(heard).toHaveBeenCalledTimes(2);
+    expect(getLaunchpadSync(t.ctx).waiting).toBe(false);
+    await t.ctx.state.commit(SLICE.calendars);
+    expect(heard).toHaveBeenCalledTimes(2);
+  });
+
   it('leaves sync own commits alone', async () => {
     t = await createTestBackend([settings, bookmarks], { startAt: T0 });
     const heard = vi.fn();
@@ -207,6 +220,34 @@ describe('the scheduler', () => {
     failing = false;
     expect(await controller!.syncNow()).toMatchObject({ status: 'up_to_date' });
     expect(getLaunchpadSync(t.ctx)).toMatchObject({ status: 'up_to_date', failures: 0, retryAt: 0 });
+  });
+
+  it('records one sync event per round (counts, never names) and tells the page when a round starts and ends', async () => {
+    resetClientLogForTests();
+    const store = memoryStore();
+    t = await createTestBackend([settings, bookmarks], { startAt: T0 });
+    getAccounts(t.ctx).push(account());
+    await t.ctx.state.commit(SLICE.accounts);
+    const notify = vi.fn();
+    t.ctx.notify = notify;
+    const group = await t.json<{ id: string }>('POST', '/api/bookmark-groups', { name: 'Private group name' });
+    await t.json('POST', '/api/bookmarks', { groupId: group.body.id, title: 'Secret title', url: 'https://secret.example/path' });
+    let runningDuring: boolean | null = null;
+    const watched: SyncStore = { ...store, readMain: async (signal) => ((runningDuring = controller!.running()), store.readMain(signal)) };
+    controller = startLaunchpadSync(t.ctx, { storeFor: () => watched, timers: manualTimers(), locks: null, page: null });
+    await controller.syncNow();
+    expect(runningDuring).toBe(true);
+    expect(controller.running()).toBe(false);
+    expect(notify).toHaveBeenCalledWith([SLICE.launchpadSync]);
+
+    const events = getClientEvents().filter((e) => e.event.cat === 'sync');
+    expect(events.length).toBeGreaterThan(0);
+    const sent = events.find((e) => e.event.fields.sent === true)!;
+    expect(sent.event).toMatchObject({ level: 'info', msg: 'launch pad synced', fields: { trigger: 'load', outcome: 'up_to_date', source: 'onedrive', groups: 1, bookmarks: 1 } });
+    const text = JSON.stringify(events);
+    expect(text).not.toContain('Secret title');
+    expect(text).not.toContain('Private group name');
+    expect(text).not.toContain('secret.example');
   });
 
   it('pauses while the account needs reconnecting', async () => {

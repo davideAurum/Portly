@@ -86,6 +86,7 @@ import {
 import { errorName, hostOf, recordProviderFailure } from '../providers/diagnostics.ts';
 import { StaticApiError, json, noContent } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';
+import { otherSyncConnection, secondSyncConnection } from '../sync/connections.ts';
 import {
   SLICE,
   getAccountTokens,
@@ -438,7 +439,7 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
   if (tokens.refreshToken === null) return 'error';
 
   // Another tab may have changed accounts since this page loaded.
-  await ctx.state.reload([SLICE.accounts, SLICE.accountTokens]);
+  await ctx.state.reload([SLICE.accounts, SLICE.accountTokens, SLICE.githubSync]);
   const accounts = getAccounts(ctx);
   const { identity } = verdict;
   const target = reconnectId === null ? undefined : accounts.find((a) => a.id === reconnectId);
@@ -451,7 +452,12 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
     existing.email = identity.email ?? existing.email;
     // Services granted for the first time start switched on when the sign-in asked for them.
     const offered = capabilities.filter((c) => existing.capabilities.includes(c) || requested.includes(c));
+    const wasSyncing = existing.enabledCapabilities.includes('launchpadSync');
     existing.enabledCapabilities = mergeEnabledCapabilities(existing.capabilities, existing.enabledCapabilities, offered);
+    // One sync connection per browser: newly granted sync stays off while another connection syncs.
+    if (!wasSyncing && otherSyncConnection(ctx, { accountId: existing.id }) !== null) {
+      existing.enabledCapabilities = existing.enabledCapabilities.filter((c) => c !== 'launchpadSync');
+    }
     existing.capabilities = capabilities;
     existing.grantedScopes = granted;
     existing.requestedScopes = asked;
@@ -462,8 +468,10 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
     result = !reconnecting || existing.id === target.id ? 'reconnected' : 'different_account';
   } else {
     // Services granted to Portly earlier but not asked for now are listed, switched off.
-    const enabled = capabilities.filter((c) => requested.includes(c));
-    if (enabled.length === 0) return 'denied';
+    // One sync connection per browser: sync stays off while another connection syncs.
+    const syncTaken = otherSyncConnection(ctx, {}) !== null;
+    const enabled = capabilities.filter((c) => requested.includes(c) && !(c === 'launchpadSync' && syncTaken));
+    if (enabled.length === 0 && !capabilities.some((c) => requested.includes(c))) return 'denied';
     accountId = ctx.newId();
     accounts.push({
       id: accountId,
@@ -777,6 +785,10 @@ export function register(router: StaticRouter): void {
     if (patch.color !== undefined) {
       row.color = patch.color === null ? null : normalizeHexColor(patch.color);
       changed = true;
+    }
+    if (patch.enabledCapabilities?.includes('launchpadSync') && !row.enabledCapabilities.includes('launchpadSync')) {
+      const other = otherSyncConnection(ctx, { accountId: row.id });
+      if (other !== null) throw secondSyncConnection(other);
     }
     let syncChanged = false;
     if (patch.enabledCapabilities !== undefined) {

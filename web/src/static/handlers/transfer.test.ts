@@ -291,8 +291,8 @@ describe('static core: import', () => {
     expect(typeof stored).toBe('string');
     const snapshot = ExportSchema.parse(JSON.parse(stored as string));
     expect(snapshot.data.profiles.map((p) => p.id)).toEqual([seeded.profile.id]);
-    const listed = await t.json<{ id: string; at: string; bytes: number }[]>('GET', '/api/backups');
-    expect(listed.body).toEqual([{ id: backups[0]!.id, at: new Date(t.ctx.now()).toISOString(), bytes: exported.length }]);
+    const listed = await t.json<{ id: string; at: string; bytes: number; reason: string }[]>('GET', '/api/backups');
+    expect(listed.body).toEqual([{ id: backups[0]!.id, at: new Date(t.ctx.now()).toISOString(), bytes: exported.length, reason: 'import' }]);
     const download = await t.call('GET', `/api/backups/${backups[0]!.id}`);
     expect(download.status).toBe(200);
     expect(download.headers.get('content-type')).toContain('application/json');

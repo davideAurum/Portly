@@ -4,9 +4,9 @@
  * the same transaction, and a change to one of the two settings that name a group
  * (`settings.bookmarks.defaultGroupId`, `ungroupedGroupId`) gets its stamp from the launch pad
  * clock there too. After the commit, the scheduler hears about it (a sync 5 s after the last such
- * commit). Commits made by sync itself (`origin: 'sync'`) are left alone. Saving or removing the
- * GitHub sync settings is heard too, so a newly set up repository syncs without waiting for the
- * next check.
+ * commit). Commits made by sync itself (`origin: 'sync'`) are left alone. A change to the sync
+ * connections (the GitHub settings, or accounts, where Launch pad sync is switched on and off) is
+ * heard too, so a new connection syncs without waiting for the next check.
  */
 import { SYNC_POINTERS } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
@@ -49,14 +49,14 @@ export function recordPointerChanges(ctx: StaticContext): boolean {
 
 /**
  * The hook for {@link StaticState.setCommitHook}; `onLocalChange` runs after a commit that left
- * changes waiting, or one that changed the GitHub sync settings.
+ * changes waiting, or one that changed the sync connections.
  */
 export function launchpadCommitHook(ctx: StaticContext, onLocalChange: () => void): CommitHook {
   return (names, origin) => {
     if (origin === SYNC_ORIGIN) return { extra: [] };
     const rows = names.includes(SLICE.bookmarks);
     const pointers = names.includes(SLICE.settings) && recordPointerChanges(ctx);
-    if (!rows && !pointers) return names.includes(SLICE.githubSync) ? { extra: [], committed: onLocalChange } : { extra: [] };
+    if (!rows && !pointers) return names.includes(SLICE.githubSync) || names.includes(SLICE.accounts) ? { extra: [], committed: onLocalChange } : { extra: [] };
     const state = getLaunchpadSync(ctx);
     state.waiting = true;
     state.changes += 1;

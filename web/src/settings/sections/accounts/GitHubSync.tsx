@@ -4,14 +4,16 @@
  * (`owner/name`) and a fine-grained personal access token, both write-only and checked with GitHub
  * before they are saved, and a row under "Connected accounts" with Manage (replace both) and Remove.
  *
- * Launch pad sync uses them as soon as they are saved (when no Microsoft connection has the service
- * on: one sync connection per browser). Its status line and first-sync question come in ROADMAP
- * 6.6, so the form and the row say it is still being built.
+ * Launch pad sync uses them a few seconds after they are saved; the row shows its status line and
+ * Sync now (`LaunchpadSync.tsx`). A browser syncs through one connection: while a Microsoft
+ * connection has the Launch pad sync service on, the form says so and does not save.
  */
 import { useState, type FormEvent } from 'react';
 import { RefreshCw, Save, Settings2, Trash } from 'lucide-react';
 import { isApiError } from '../../../api/client.ts';
 import { useRemoveGitHubSync, useSaveGitHubSync } from '../../../api/githubSync.ts';
+import type { LaunchpadSyncInfo } from '../../../api/launchpadSync.ts';
+import { Banner } from '../../../ui/Banner.tsx';
 import { Badge, LetterTile } from '../../../ui/Badge.tsx';
 import { Button, IconButton } from '../../../ui/Button.tsx';
 import { ConfirmDialog, Dialog } from '../../../ui/Dialog.tsx';
@@ -21,6 +23,7 @@ import { Input, PasswordInput } from '../../../ui/Input.tsx';
 import { FormFooter } from '../../../ui/Section.tsx';
 import { errorMessage, toast, toastError } from '../../../ui/toast.ts';
 import { connectionInfo } from './connections.ts';
+import { SyncStatusLine, otherSyncConnection, useSyncConnections } from './LaunchpadSync.tsx';
 import styles from '../../../styles/settings.module.css';
 
 /** GitHub's page for a new private repository. */
@@ -37,7 +40,6 @@ export function cleanGitHubToken(raw: string): string {
   return raw.trim().replace(/^(?:bearer|token)\s+/i, '');
 }
 
-const PREVIEW_NOTE = "Launch pad sync is still being built: Portly syncs with this repository but doesn't show how it went yet. Use one sync connection per browser: this, or a Microsoft connection's Launch pad sync.";
 
 type Errors = { repository?: string; token?: string };
 
@@ -53,9 +55,12 @@ export function GitHubSyncForm({ onSaved, replacing = false }: { onSaved?(): voi
   const [repository, setRepository] = useState('');
   const [token, setToken] = useState('');
   const [errors, setErrors] = useState<Errors>({});
+  // One sync connection per browser: a Microsoft connection with launch pad sync blocks this one.
+  const syncElsewhere = otherSyncConnection(useSyncConnections(), { github: true });
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (syncElsewhere !== null) return;
     const repo = repository.trim();
     const cleaned = cleanGitHubToken(token);
     const found: Errors = {};
@@ -85,7 +90,12 @@ export function GitHubSyncForm({ onSaved, replacing = false }: { onSaved?(): voi
         commit, so the repository's history keeps old launch pads until you delete the repository. The repository name and token are
         stored only in this browser, not encrypted, are sent only to api.github.com and are not included in exports.
       </p>
-      <p className={styles.intro}>{PREVIEW_NOTE}</p>
+      {syncElsewhere !== null ? (
+        <Banner tone="warning" title={`Launch pad sync already uses ${syncElsewhere}`}>
+          A browser syncs through one connection. To sync through GitHub instead, turn Launch pad sync off for {syncElsewhere} under
+          Manage first.
+        </Banner>
+      ) : null}
       <ol className={styles.steps} aria-label="What to create on GitHub">
         <li>
           Create an empty <strong>private</strong> repository (
@@ -132,7 +142,13 @@ export function GitHubSyncForm({ onSaved, replacing = false }: { onSaved?(): voi
           />
         </Field>
         <FormFooter status={save.isPending ? 'Checking with GitHub…' : undefined}>
-          <Button type="submit" variant="primary" icon={Save} loading={save.isPending} disabled={repository.trim() === '' || token.trim() === ''}>
+          <Button
+            type="submit"
+            variant="primary"
+            icon={Save}
+            loading={save.isPending}
+            disabled={repository.trim() === '' || token.trim() === '' || syncElsewhere !== null}
+          >
             {replacing ? 'Replace' : 'Save'}
           </Button>
         </FormFooter>
@@ -144,7 +160,7 @@ export function GitHubSyncForm({ onSaved, replacing = false }: { onSaved?(): voi
 const GITHUB = connectionInfo('github');
 
 /** GitHub under "Connected accounts" (the list shows it only while a repository and token are saved). */
-export function GitHubSyncRow() {
+export function GitHubSyncRow({ sync = null }: { sync?: LaunchpadSyncInfo | null }) {
   const remove = useRemoveGitHubSync();
   const [managing, setManaging] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -157,13 +173,13 @@ export function GitHubSyncRow() {
           <Badge tone="neutral">Token saved</Badge>
         </div>
         <span className={styles.itemMeta}>GitHub · fine-grained token · private repository</span>
-        <span className={styles.itemMeta}>{PREVIEW_NOTE}</span>
         <ul className={styles.serviceChips} aria-label="GitHub services in use">
           <li className={styles.serviceChip}>
             <RefreshCw aria-hidden="true" />
             Launch pad sync
           </li>
         </ul>
+        {sync ? <SyncStatusLine info={sync} /> : null}
       </div>
       <div className={styles.itemActions}>
         <Button size="sm" variant="secondary" icon={Settings2} onClick={() => setManaging(true)} aria-label="Manage GitHub">
@@ -182,7 +198,7 @@ export function GitHubSyncRow() {
         open={confirmRemove}
         onOpenChange={setConfirmRemove}
         title="Remove GitHub?"
-        description="Portly deletes the saved repository name and token from this browser. The repository stays in your GitHub account with its history: delete it there if you no longer want it, and revoke the token in GitHub's settings."
+        description="Portly deletes the saved repository name and token from this browser, and launch pad sync stops here; your launch pad stays in this browser. The repository stays in your GitHub account with its history: delete it there if you no longer want it, and revoke the token in GitHub's settings."
         confirmLabel="Remove GitHub"
         destructive
         onConfirm={async () => {
