@@ -5,7 +5,7 @@ the next one starts. Anything that makes something public (pushing, releases, th
 consent pages) or touches another PC waits for an explicit go-ahead, asked at the moment it is
 reached.
 
-Status as of 2026-10-21.
+Status as of 2026-10-26.
 
 This plan comes from a full review of the code, the docs, the git history and the work sessions on
 2026-10-20, with everything CI runs green at cd547e3 (3,691 tests, 317 script checks, 27 release
@@ -14,10 +14,10 @@ checks).
 | Phase | What | Status |
 | --- | --- | --- |
 | 0 | Make the move from Homebase safe | Done ([details](#done-before-this-plan)) |
-| 1 | Baseline and a truthful public surface | In progress |
-| 2 | Prove what is built, on this PC | Not started |
+| 1 | Baseline and a truthful public surface | Nearly done: 1.4's check runs with 2.1's first connect |
+| 2 | Prove what is built, on this PC | In progress: 2.5 done |
 | 3 | Every PC on Portly, Homebase retired | Not started |
-| 4 | Release rehearsal in private | Not started |
+| 4 | Release rehearsal in private | In progress: 4.1, 4.5, 4.6 and 4.7 done; 4.2 to 4.4 open |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
 | 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Not started |
 
@@ -124,10 +124,13 @@ Items:
   worktree; `git branch --merged main` lists nothing else; the memory note matches. No push
   involved.
 
-  *Status:* partly done on 2026-10-21: the roadmap branch was fast-forwarded to main (cd547e3),
-  the main checkout is already at origin/main, and the memory note already records 0.2.0-alpha.1
-  as prepared but unreleased. Still to do, in the next git closeout: remove the leftover worktree
-  and the two merged branches.
+  *Status:* done 2026-10-26. On 2026-10-21 the roadmap branch was fast-forwarded to main
+  (cd547e3), the main checkout was already at origin/main, and the memory note already recorded
+  0.2.0-alpha.1 as prepared but unreleased. The two named branches were gone by 2026-10-26, when a
+  git closeout of the main checkout (clean, level with origin/main at 942580c) removed the three
+  leftover detached worktrees and deleted the seven merged `claude/*` branches; every item since
+  1.2 ran in its own short-lived worktree, so there is no roadmap worktree left to keep.
+  `git worktree list` now shows only the main checkout and `git branch` only `main`.
 
 - **1.2 Land this plan in ROADMAP, CLAUDE.md and SETUP** (S; after 1.1).
   Replace `docs/ROADMAP.md` with these six phases and the checks table (one row per open
@@ -142,7 +145,8 @@ Items:
   (checked 2026-10-21: multi-pc.md and launchpad-sync.md updated); CI green on main after the
   push.
 
-  *Status:* landed 2026-10-21; push pending.
+  *Status:* done: landed 2026-10-21 (ffea286) and pushed to main; CI on main is green at the
+  latest push (run 40243167583 at 942580c, 2026-10-25).
 
 - **1.3 Republish the Pages site (your new tab)** (S; go-ahead; after 1.1).
   In the main checkout: `git pull` to cd547e3 or later, `git status` clean,
@@ -668,7 +672,7 @@ Items:
   *Done when:* a dry run prints the 0.2.0-alpha.1 section as the notes; `check-release.ps1` and
   `check-scripts.ps1` green.
 
-  *Status:* done 2026-10-25 on branch claude/heuristic-goodall-81bd6b (not merged or pushed).
+  *Status:* done 2026-10-25; merged to main (258464e) and pushed the same day.
   `publish-release.ps1` reads `CHANGELOG.md` at the package's commit (`git cat-file`, as UTF-8),
   takes the `## <version>` section, points relative links at that commit on github.com, prints
   the notes before the `gh` checks and hands them to `gh` with `--notes-file`; it refuses a missing
