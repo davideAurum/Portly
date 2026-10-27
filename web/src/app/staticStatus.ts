@@ -79,6 +79,8 @@ const SLICE_QUERY_KEYS: Readonly<Record<string, readonly (readonly string[])[]>>
   'calendar-sync': [],
   // Which one-time upgrades ran: nothing a query returns (an upgrade's own changes come with their slices).
   upgrades: [],
+  // The launch pad clock (sync/clock.ts): nothing a query returns (the stamped rows come with `bookmarks`).
+  'launchpad-sync': [],
 });
 
 /** The query-key prefixes for changed slices, or null when everything should be refetched. */

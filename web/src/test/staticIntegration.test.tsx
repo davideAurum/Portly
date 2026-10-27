@@ -206,10 +206,10 @@ describe('static build: launch pad', () => {
         seed: async (c) => {
           const ts = c.now();
           const store = getBookmarks(c);
-          store.groups.push({ id: 'g1', name: 'Work', sort: 0, color: null, collapsed: false, createdAt: ts, updatedAt: ts });
+          store.groups.push({ id: 'g1', name: 'Work', sort: 0, color: null, collapsed: false, createdAt: ts, updatedAt: ts, placedAt: ts });
           store.bookmarks.push(
-            { id: 'b1', groupId: 'g1', title: 'Github', url: 'https://github.com/', sort: 0, iconMode: 'auto', iconId: 'fav:github.com', letterColor: null, createdAt: ts, updatedAt: ts },
-            { id: 'b2', groupId: 'g1', title: 'Nas', url: 'http://nas/', sort: 1, iconMode: 'auto', iconId: null, letterColor: null, createdAt: ts, updatedAt: ts },
+            { id: 'b1', groupId: 'g1', title: 'Github', url: 'https://github.com/', sort: 0, iconMode: 'auto', iconId: 'fav:github.com', letterColor: null, createdAt: ts, updatedAt: ts, placedAt: ts },
+            { id: 'b2', groupId: 'g1', title: 'Nas', url: 'http://nas/', sort: 1, iconMode: 'auto', iconId: null, letterColor: null, createdAt: ts, updatedAt: ts, placedAt: ts },
           );
           await c.state.commit(SLICE.bookmarks);
         },

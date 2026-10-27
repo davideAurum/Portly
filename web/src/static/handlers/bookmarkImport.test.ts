@@ -160,7 +160,7 @@ describe('static bookmarks imports', () => {
     it('counts links past the group cap and the bookmark cap as skipped', async () => {
       const slice = getBookmarks(t.ctx);
       for (let i = 0; i < MAX_BOOKMARK_GROUPS; i++) {
-        slice.groups.push({ id: `g${i}`, name: `G${i}`, sort: i, color: null, collapsed: false, createdAt: T0, updatedAt: T0 });
+        slice.groups.push({ id: `g${i}`, name: `G${i}`, sort: i, color: null, collapsed: false, createdAt: T0, updatedAt: T0, placedAt: T0 });
       }
       // No new group can be created: every valid link of every planned group is skipped.
       expect((await importHtml(bookmarkFile(NETSCAPE_HTML))).body).toEqual({ groups: 0, bookmarks: 0, skipped: 7 });
@@ -169,7 +169,7 @@ describe('static bookmarks imports', () => {
       const after = getBookmarks(t.ctx);
       after.groups[0]!.name = 'Dev';
       for (let i = 0; i < MAX_BOOKMARKS - 1; i++) {
-        after.bookmarks.push({ id: `b${i}`, groupId: 'g1', title: 'x', url: `https://x.example/${i}`, sort: i, iconMode: 'auto', iconId: null, letterColor: null, createdAt: T0, updatedAt: T0 });
+        after.bookmarks.push({ id: `b${i}`, groupId: 'g1', title: 'x', url: `https://x.example/${i}`, sort: i, iconMode: 'auto', iconId: null, letterColor: null, createdAt: T0, updatedAt: T0, placedAt: T0 });
       }
       expect((await importHtml(bookmarkFile(NETSCAPE_HTML))).body).toEqual({ groups: 0, bookmarks: 1, skipped: 6 });
       expect(getBookmarks(t.ctx).bookmarks.filter((b) => b.groupId === 'g0').map((b) => b.title)).toEqual(['GitHub']);

@@ -18,7 +18,7 @@
  * embedded images are re-sniffed, dangling references are cleared, and a summary with the
  * server's exact note strings is returned (plans live 10 minutes, at most 3). Commit snapshots the
  * current export JSON as a pre-import backup (its document under a `backup:<id>` key outside the
- * slices, a small entry in the `backups` index slice; newest {@link MAX_BACKUPS} kept), then
+ * slices, a small entry in the `backups` index slice; the newest kept, see `keepBackups`), then
  * REPLACES profiles, bookmark groups, bookmarks, uploads, custom icons and every settings
  * namespace — all of it, old images deleted and new ones written included, in ONE storage
  * transaction, so a failure changes nothing. There is no favicon store: automatic bookmarks get
@@ -72,7 +72,7 @@ import { json, readFormData, StaticApiError, validationIssues } from '../respond
 import type { StaticRouter } from '../router.ts';
 import {
   BACKUP_KEY_PREFIX,
-  MAX_BACKUPS,
+  keepBackups,
   SLICE,
   backupKey,
   getBackups,
@@ -87,6 +87,8 @@ import {
   type StoredUploadMeta,
 } from '../slices.ts';
 import { blobOf, type StoredBlob } from '../storage/types.ts';
+import { LAUNCHPAD_SLICES, nextStamp } from '../sync/clock.ts';
+import { withTombstones } from '../sync/tombstones.ts';
 import { MAX_WIDGET_CONFIG_BYTES, listProfiles } from './profiles.ts';
 
 /** Room kept free for everything but embedded images when budgeting an export. */
@@ -545,6 +547,10 @@ export function previewsFor(ctx: StaticContext): PreviewStore {
  */
 export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promise<void> {
   const ts = ctx.now();
+  // The launch pad's rows are stamped by its clock; every old row gets a tombstone, so with sync on
+  // the import replaces the launch pad in every synced browser (design section 6.7).
+  const stamp = nextStamp(ctx);
+  const old = getBookmarks(ctx);
 
   let snapshot: string;
   try {
@@ -560,7 +566,16 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
   const autoIcons = settings.bookmarks.autoFetchIcons;
   const profiles: StoredProfile[] = plan.profiles.map((p) => ({ id: p.id, name: p.name, sort: p.sort, layout: p.layout, createdAt: ts, updatedAt: ts }));
   const bookmarks: BookmarksSlice = {
-    groups: plan.groups.map((g) => ({ id: g.id, name: g.name, sort: g.sort, color: g.color, collapsed: g.collapsed, createdAt: ts, updatedAt: ts })),
+    groups: plan.groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      sort: g.sort,
+      color: g.color,
+      collapsed: g.collapsed,
+      createdAt: ts,
+      updatedAt: stamp,
+      placedAt: stamp,
+    })),
     bookmarks: plan.bookmarks.map((b) => ({
       id: b.id,
       groupId: b.groupId,
@@ -571,8 +586,10 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
       iconId: b.iconMode === 'auto' ? (autoIcons ? faviconIdFor(b.url) : null) : b.iconId,
       letterColor: b.letterColor,
       createdAt: ts,
-      updatedAt: ts,
+      updatedAt: stamp,
+      placedAt: stamp,
     })),
+    deleted: withTombstones(old.deleted, { groups: old.groups, bookmarks: old.bookmarks }, stamp, ts),
   };
   const uploads: StoredUploadMeta[] = plan.uploads.map((u) => ({ id: u.id, type: u.contentType, createdAt: ts }));
   const icons: StoredIconMeta[] = plan.customIcons.map((i) => ({ id: i.id, type: i.contentType, width: i.width, createdAt: ts, orphanedAt: null }));
@@ -586,9 +603,8 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
   ];
 
   // The backup: its document outside the slices (never loaded at startup), an entry in the index.
-  const backup: BackupEntry = { id: newToken(16), at: ts, bytes: snapshot.length };
-  const entries = [backup, ...getBackups(ctx).entries];
-  const evicted = entries.splice(MAX_BACKUPS);
+  const backup: BackupEntry = { id: newToken(16), at: ts, bytes: snapshot.length, reason: 'import' };
+  const { kept: entries, evicted } = keepBackups([backup, ...getBackups(ctx).entries]);
   const documents = new Map<string, unknown>([[backupKey(backup.id), snapshot], ...evicted.map((e): [string, undefined] => [backupKey(e.id), undefined])]);
 
   // No await between replacing the slices in memory and the commit, which snapshots them.
@@ -598,7 +614,7 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
   ctx.state.set(SLICE.uploads, uploads);
   ctx.state.set(SLICE.icons, icons);
   setSettings(ctx, settings);
-  await ctx.state.commitWith([SLICE.backups, SLICE.profiles, SLICE.bookmarks, SLICE.uploads, SLICE.icons, SLICE.settings], {
+  await ctx.state.commitWith([SLICE.backups, SLICE.profiles, ...LAUNCHPAD_SLICES, SLICE.uploads, SLICE.icons, SLICE.settings], {
     json: documents,
     deleteBlobs: previous,
     putBlobs,
@@ -642,7 +658,7 @@ export async function ready(ctx: StaticContext): Promise<void> {
   const keys = new Set(await ctx.state.storage.listJsonKeys());
   const stored = ctx.state.has(SLICE.backups) ? ctx.state.get<unknown>(SLICE.backups, () => undefined) : undefined;
   const index = getBackups(ctx);
-  const entries = index.entries.filter((e) => keys.has(backupKey(e.id))).slice(0, MAX_BACKUPS);
+  const entries = keepBackups(index.entries.filter((e) => keys.has(backupKey(e.id)))).kept;
   const live = new Set(entries.map((e) => backupKey(e.id)));
   const stray = [...keys].filter((key) => key.startsWith(BACKUP_KEY_PREFIX) && !live.has(key));
   const rewrite = stored !== undefined && (stored !== index || entries.length !== index.entries.length);

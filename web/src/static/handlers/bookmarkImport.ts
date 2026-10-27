@@ -12,7 +12,8 @@
  * - new bookmarks are `auto` with the host's synthetic favicon id when automatic icons are on
  *   (the server stores the host's newest favicon or resolves one in the background).
  * The slice is replaced in one step, so a failure half-way leaves the state untouched (the
- * server's transaction).
+ * server's transaction). It only adds rows (stamped by the launch pad clock, sync/clock.ts), so it
+ * writes no tombstones.
  */
 import { MAX_BOOKMARKS, MAX_BOOKMARK_GROUPS, toSafeHttpUrl, urlHost, type BookmarkImportReport } from '@portly/shared';
 import type { StaticContext } from '../context.ts';
@@ -20,6 +21,7 @@ import { faviconIdFor } from '../favicon.ts';
 import { cleanTitle } from '../lib/cleanTitle.ts';
 import { groupName, planGroups, type ImportCounter, type ImportFolder, type ImportStrategy } from '../lib/importPlan.ts';
 import { getBookmarks, getSettings, SLICE, type BookmarksSlice, type StoredBookmark, type StoredBookmarkGroup } from '../slices.ts';
+import { LAUNCHPAD_SLICES, nextStamp } from '../sync/clock.ts';
 
 /** The server's `ORDER BY sort, id` for groups and bookmarks (ties broken by id for stable output). */
 export function compareOrder(a: { sort: number; id: string }, b: { sort: number; id: string }): number {
@@ -38,6 +40,7 @@ export async function writeImport(ctx: StaticContext, root: ImportFolder, option
   const planned = planGroups(root, options.strategy, groupName(options.fallbackName, 'Imported bookmarks'), counter);
   const autoFetch = getSettings(ctx).bookmarks.autoFetchIcons;
   const now = ctx.now();
+  const stamp = nextStamp(ctx);
   const next: BookmarksSlice = structuredClone(getBookmarks(ctx));
   const report: BookmarkImportReport = { groups: 0, bookmarks: 0, skipped: 0 };
 
@@ -67,7 +70,16 @@ export async function writeImport(ctx: StaticContext, root: ImportFolder, option
         continue;
       }
       groupId = ctx.newId();
-      const created: StoredBookmarkGroup = { id: groupId, name: group.name, sort: groupSort++, color: null, collapsed: false, createdAt: now, updatedAt: now };
+      const created: StoredBookmarkGroup = {
+        id: groupId,
+        name: group.name,
+        sort: groupSort++,
+        color: null,
+        collapsed: false,
+        createdAt: now,
+        updatedAt: stamp,
+        placedAt: stamp,
+      };
       next.groups.push(created);
       byName.set(group.name.toLowerCase(), groupId);
       groupCount++;
@@ -92,7 +104,8 @@ export async function writeImport(ctx: StaticContext, root: ImportFolder, option
         iconId: autoFetch ? faviconIdFor(link.url) : null,
         letterColor: null,
         createdAt: now,
-        updatedAt: now,
+        updatedAt: stamp,
+        placedAt: stamp,
       };
       next.bookmarks.push(bookmark);
       present.add(link.url);
@@ -103,6 +116,6 @@ export async function writeImport(ctx: StaticContext, root: ImportFolder, option
 
   report.skipped = counter.skipped;
   ctx.state.set(SLICE.bookmarks, next);
-  await ctx.state.commit(SLICE.bookmarks);
+  await ctx.state.commit(...LAUNCHPAD_SLICES);
   return report;
 }

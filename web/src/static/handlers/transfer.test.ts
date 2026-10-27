@@ -62,14 +62,14 @@ async function seed(t: TestBackend): Promise<Seeded> {
   const groups = { work: newId(), fun: newId() };
   const store = getBookmarks(t.ctx);
   store.groups.push(
-    { id: groups.work, name: 'Work', sort: 0, color: '#112233', collapsed: false, createdAt: 1, updatedAt: 1 },
-    { id: groups.fun, name: 'Fun', sort: 1, color: 'rgb(1,2,3)', collapsed: true, createdAt: 1, updatedAt: 1 },
+    { id: groups.work, name: 'Work', sort: 0, color: '#112233', collapsed: false, createdAt: 1, updatedAt: 1, placedAt: 1 },
+    { id: groups.fun, name: 'Fun', sort: 1, color: 'rgb(1,2,3)', collapsed: true, createdAt: 1, updatedAt: 1, placedAt: 1 },
   );
   const bookmarks = { custom: newId(), auto: newId(), letter: newId() };
   store.bookmarks.push(
-    { id: bookmarks.custom, groupId: groups.work, title: 'Intranet', url: 'https://intranet.example/', sort: 0, iconMode: 'custom', iconId: icons.custom, letterColor: null, createdAt: 1, updatedAt: 1 },
-    { id: bookmarks.auto, groupId: groups.fun, title: 'Fun', url: 'https://fun.example/', sort: 0, iconMode: 'auto', iconId: 'fav:fun.example', letterColor: null, createdAt: 1, updatedAt: 1 },
-    { id: bookmarks.letter, groupId: groups.fun, title: 'Letters', url: 'https://letters.example/', sort: 1, iconMode: 'letter', iconId: null, letterColor: '#abcdef', createdAt: 1, updatedAt: 1 },
+    { id: bookmarks.custom, groupId: groups.work, title: 'Intranet', url: 'https://intranet.example/', sort: 0, iconMode: 'custom', iconId: icons.custom, letterColor: null, createdAt: 1, updatedAt: 1, placedAt: 1 },
+    { id: bookmarks.auto, groupId: groups.fun, title: 'Fun', url: 'https://fun.example/', sort: 0, iconMode: 'auto', iconId: 'fav:fun.example', letterColor: null, createdAt: 1, updatedAt: 1, placedAt: 1 },
+    { id: bookmarks.letter, groupId: groups.fun, title: 'Letters', url: 'https://letters.example/', sort: 1, iconMode: 'letter', iconId: null, letterColor: '#abcdef', createdAt: 1, updatedAt: 1, placedAt: 1 },
   );
   // Never exported.
   getTodoistToken(t.ctx).token = 'todoist-TOPSECRET';
@@ -172,6 +172,7 @@ describe('static core: export', () => {
       letterColor: null,
       createdAt: 1,
       updatedAt: 1,
+      placedAt: 1,
     });
     await t.ctx.state.commit(SLICE.bookmarks);
 
