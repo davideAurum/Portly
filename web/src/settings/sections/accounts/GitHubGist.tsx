@@ -10,7 +10,7 @@
 import { useState, type FormEvent } from 'react';
 import { RefreshCw, Save, Settings2, Trash } from 'lucide-react';
 import { isApiError } from '../../../api/client.ts';
-import { useGistToken, useRemoveGistToken, useSaveGistToken } from '../../../api/gistSync.ts';
+import { useRemoveGistToken, useSaveGistToken } from '../../../api/gistSync.ts';
 import { Badge, LetterTile } from '../../../ui/Badge.tsx';
 import { Button, IconButton } from '../../../ui/Button.tsx';
 import { ConfirmDialog, Dialog } from '../../../ui/Dialog.tsx';
@@ -117,14 +117,11 @@ export function GitHubGistTokenForm({ onSaved, replacing = false }: { onSaved?()
 
 const GITHUB = connectionInfo('github');
 
-/** GitHub under "Connected accounts" (only while a token is saved). */
+/** GitHub under "Connected accounts" (the list shows it only while a token is saved). */
 export function GitHubGistRow() {
-  const token = useGistToken();
   const remove = useRemoveGistToken();
   const [managing, setManaging] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
-  if (token.data?.configured !== true) return null;
-
   return (
     <div className={styles.accountRow}>
       <LetterTile label={GITHUB.title} color={GITHUB.mark?.color} size={36} />

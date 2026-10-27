@@ -84,6 +84,11 @@ describe('gist sync: token', () => {
     expect(getGistSync(t.ctx).token).toBeNull();
   });
 
+  it('reads a secondary rate limit from the message, as the store does', async () => {
+    await setup([{ match: LIST, respond: { status: 403, json: { message: 'You have exceeded a secondary rate limit.' } } }]);
+    expect((await call<ErrorBody>('PUT', '/api/sync/gist/token', { token: GITHUB_TOKEN })).body.error.code).toBe('rate_limited');
+  });
+
   it('reports rate limits and an unreachable GitHub as such', async () => {
     const fake = await setup([{ match: LIST, times: 1, respond: { status: 403, headers: { 'x-ratelimit-remaining': '0' }, json: {} } }]);
     expect((await call<ErrorBody>('PUT', '/api/sync/gist/token', { token: GITHUB_TOKEN })).body.error.code).toBe('rate_limited');
@@ -102,8 +107,9 @@ describe('gist sync: token', () => {
   it('forgets the gists when another token is saved, and keeps them for the same token', async () => {
     await setup([{ match: LIST, respond: { json: [] } }]);
     await withToken(GITHUB_TOKEN, { main: 'abc', icons: 'def' });
+    const generation = getGistSync(t.ctx).generation;
     await call('PUT', '/api/sync/gist/token', { token: GITHUB_TOKEN });
-    expect(getGistSync(t.ctx)).toMatchObject({ mainGistId: 'abc', iconsGistId: 'def' });
+    expect(getGistSync(t.ctx)).toMatchObject({ mainGistId: 'abc', iconsGistId: 'def', generation });
     const other = `${GITHUB_TOKEN.slice(0, -1)}9`;
     await call('PUT', '/api/sync/gist/token', { token: other });
     expect(getGistSync(t.ctx)).toMatchObject({ token: other, mainGistId: null, iconsGistId: null });
@@ -132,6 +138,21 @@ describe('gist sync: token', () => {
 });
 
 describe('gist sync: opening the store', () => {
+  it('keeps syncing when the gist ids cannot be saved', async () => {
+    await setup();
+    await withToken();
+    const github = createFakeGitHub();
+    github.seed({ [MAIN_FILE]: 'v1' });
+    const store = openGistStore(t.ctx, { fetch: github.fake.fetch })!;
+    const setJson = t.storage.setJson.bind(t.storage);
+    vi.spyOn(t.storage, 'setJson').mockImplementation(async (key, value) => {
+      if (key === `slice:${SLICE.gistSync}`) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+      return setJson(key, value);
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect((await store.readMain(new AbortController().signal))?.text).toBe('v1');
+  });
+
   it('is null without a token, and saves the gist ids it finds for the token in use', async () => {
     await setup();
     expect(openGistStore(t.ctx)).toBeNull();

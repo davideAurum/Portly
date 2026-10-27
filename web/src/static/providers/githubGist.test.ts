@@ -251,14 +251,20 @@ describe('gist store: icons', () => {
     expect(await store.readIcon('11111111-2222-4333-8444-555555555555', signal())).toBeNull();
   });
 
-  it('reuses the icons gist it read, and reads it again on a miss', async () => {
-    const { github, store } = setup();
+  it('reuses the icons gist it read, and reads it again on a miss once the copy is 30 s old', async () => {
+    let now = 1_800_000_000_000;
+    const { github, store } = setup({ now: () => now });
     const icons = github.seed({ [ICONS_MARKER_FILE]: 'x', [iconFileName(ICON_ID)]: 'AQID' });
+    const reads = () => github.calls('GET', new RegExp(`/gists/${icons.id}$`)).length;
     await store.readIcon(ICON_ID, signal());
-    const gets = github.calls('GET', new RegExp(`/gists/${icons.id}$`)).length;
+    const gets = reads();
     await store.readIcon(ICON_ID, signal());
-    expect(github.calls('GET', new RegExp(`/gists/${icons.id}$`))).toHaveLength(gets);
     github.write(icons.id, { [iconFileName(OTHER_ICON)]: 'BAUG' });
+    // Missing icons right after a read don't each read the whole gist again.
+    expect(await store.readIcon(OTHER_ICON, signal())).toBeNull();
+    expect(await store.readIcon('11111111-2222-4333-8444-555555555555', signal())).toBeNull();
+    expect(reads()).toBe(gets);
+    now += 30_000;
     expect(new Uint8Array(await (await store.readIcon(OTHER_ICON, signal()))!.arrayBuffer())).toEqual(new Uint8Array([4, 5, 6]));
   });
 

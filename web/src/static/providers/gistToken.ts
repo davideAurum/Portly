@@ -13,7 +13,7 @@ import type { StaticContext } from '../context.ts';
 import { fetchTextCapped, upstreamFailure, type FetchLike } from '../lib/fetch.ts';
 import { StaticApiError } from '../respond.ts';
 import { SLICE, getGistSync } from '../slices.ts';
-import { GITHUB_API, createGistStore, githubHeaders, type GistIds, type GistStore } from './githubGist.ts';
+import { GITHUB_API, createGistStore, githubHeaders, statusError, type GistIds, type GistStore } from './githubGist.ts';
 
 /** Fine-grained (`github_pat_`), classic (`ghp_`) and pre-2021 classic (40 hex) personal access tokens. */
 export const GIST_TOKEN_PATTERN = /^(?:github_pat_[A-Za-z0-9_]{20,255}|ghp_[A-Za-z0-9]{30,255}|[0-9a-f]{40})$/;
@@ -66,7 +66,14 @@ export async function validateGistToken(token: string, options: { signal?: Abort
   }
   if (res.status === 401) throw rejected('GitHub rejected this token. Check that you copied all of it and that it has not expired.');
   if (res.status === 403 || res.status === 429) {
-    if (res.headers.get('x-ratelimit-remaining') === '0' || res.headers.has('retry-after') || res.status === 429) {
+    let body: unknown = null;
+    try {
+      body = JSON.parse(res.text) as unknown;
+    } catch {
+      // Not JSON: classified from the headers alone.
+    }
+    // The same rate-limit rules as the store (headers, or GitHub's wording of a secondary limit).
+    if (statusError(res.status, res.headers, body, Date.now()).code === 'rate_limited') {
       throw new StaticApiError('rate_limited', 'GitHub is limiting requests. Try again in a few minutes.');
     }
     throw rejected('GitHub refused this token for gists. Give it the Gists permission (fine-grained) or the gist scope (classic).');
@@ -97,8 +104,9 @@ export function hasGistToken(ctx: StaticContext): boolean {
  */
 async function writeToken(ctx: StaticContext, token: string | null): Promise<void> {
   const previous = { ...getGistSync(ctx) };
-  const generation = previous.generation + 1;
   const sameToken = token !== null && token === previous.token;
+  // The same token again keeps its generation, so a store already open keeps saving gist ids.
+  const generation = sameToken ? previous.generation : previous.generation + 1;
   ctx.state.set(SLICE.gistSync, {
     token,
     generation,
@@ -136,11 +144,16 @@ export function openGistStore(ctx: StaticContext, options: { fetch?: FetchLike }
     ids: { main: slice.mainGistId, icons: slice.iconsGistId },
     fetch: options.fetch,
     now: ctx.now,
+    // The ids only save a search of the account's gists, so a failed save never fails sync.
     onIdsChange: async (ids: GistIds) => {
       const current = getGistSync(ctx);
       if (current.generation !== generation) return;
       ctx.state.set(SLICE.gistSync, { ...current, mainGistId: ids.main, iconsGistId: ids.icons });
-      await ctx.state.commit(SLICE.gistSync);
+      try {
+        await ctx.state.commit(SLICE.gistSync);
+      } catch (err) {
+        console.warn('[Portly] The sync gist ids could not be saved; they are looked up again next time', err instanceof Error ? err.name : 'Error');
+      }
     },
   });
 }

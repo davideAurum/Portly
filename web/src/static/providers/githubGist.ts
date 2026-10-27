@@ -68,6 +68,8 @@ const ERROR_RESPONSE_MAX_BYTES = 64 * 1024;
 /** `GET /gists` pages of 100 looked through when searching for the sync gists. */
 const LIST_PAGE_SIZE = 100;
 const LIST_MAX_PAGES = 10;
+/** A missing icon reads the icons gist again only when the copy at hand is older than this. */
+export const ICONS_REFRESH_MS = 30_000;
 
 export const REQUEST_TIMEOUT_MS = 30_000;
 export const DEFAULT_RETRY_AFTER_MS = 60_000;
@@ -212,7 +214,9 @@ function checkIconId(id: string): void {
 
 /** The oldest gist first, so every browser that finds two picks the same one. */
 function compareAge(a: ListedGist, b: ListedGist): number {
-  return a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
+  // Code-point order, not localeCompare: the choice must not depend on the browser's locale.
+  const byTime = a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
+  return byTime || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 
 /** The headers of every REST call: JSON, the token, a pinned API version. */
@@ -233,6 +237,7 @@ export class GistStore implements SyncStore {
   private ids: GistIds;
   /** The icons gist as last read: icons never change, so reads reuse it until a miss. */
   private iconsCache: Gist | null = null;
+  private iconsReadAt = Number.NEGATIVE_INFINITY;
 
   constructor(options: GistStoreOptions) {
     this.token = options.token;
@@ -312,7 +317,8 @@ export class GistStore implements SyncStore {
     const name = iconFileName(id);
     let gist = this.iconsCache;
     let file = gist?.files[name];
-    if (gist === null || file == null) {
+    // Several missing icons in one round cost one read of the icons gist, not one each.
+    if (gist === null || (file == null && this.now() - this.iconsReadAt >= ICONS_REFRESH_MS)) {
       gist = await this.loadIcons(signal);
       file = gist?.files[name];
     }
@@ -352,7 +358,7 @@ export class GistStore implements SyncStore {
       }
       const patched = await this.patchGist('icons', gist.id, { [name]: { content } }, ICONS_GIST_RESPONSE_MAX_BYTES, signal);
       if (patched !== null) {
-        this.iconsCache = patched;
+        this.cacheIcons(patched);
         return;
       }
     }
@@ -365,13 +371,18 @@ export class GistStore implements SyncStore {
     const gist = await this.loadIcons(signal);
     if (gist === null || gist.files[name] == null) return;
     const patched = await this.patchGist('icons', gist.id, { [name]: null }, ICONS_GIST_RESPONSE_MAX_BYTES, signal);
-    if (patched !== null) this.iconsCache = patched;
+    if (patched !== null) this.cacheIcons(patched);
   }
 
   private async loadIcons(signal: AbortSignal): Promise<Gist | null> {
     const gist = await this.findGist('icons', signal);
-    this.iconsCache = gist;
+    this.cacheIcons(gist);
     return gist;
+  }
+
+  private cacheIcons(gist: Gist | null): void {
+    this.iconsCache = gist;
+    this.iconsReadAt = this.now();
   }
 
   // ---- finding and creating the gists ----------------------------------------
@@ -438,7 +449,7 @@ export class GistStore implements SyncStore {
       return null;
     }
     await this.setId(kind, created.id);
-    if (kind === 'icons') this.iconsCache = created;
+    if (kind === 'icons') this.cacheIcons(created);
     return created;
   }
 
