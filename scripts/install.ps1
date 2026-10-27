@@ -669,13 +669,14 @@ function Invoke-InstMain {
             Write-InstStep 'The portly command: scripts\install-cli.ps1'
             if ((Invoke-InstScript -AppDir $app -Script 'install-cli.ps1') -ne 0) { Write-Warning 'install-cli.ps1 failed (see above).' }
         }
+        Write-InstOk "Updated Portly $installedVersion -> $newVersion. The previous version is kept in $previous."
+        # Last, so it is still on screen when the output ends (the scripts above print a lot).
         $oldExtension = "$(Get-InstProperty $installed 'extensionVersion')"
         $newExtension = "$(Get-InstProperty $new 'extensionVersion')"
         if ($oldExtension -ne $newExtension) {
-            Write-InstStep "The new-tab extension changed ($oldExtension -> $newExtension)"
-            Write-InstInfo 'Click Reload on Portly New Tab in chrome://extensions (or edge://extensions).'
+            Write-Warning ("The new-tab extension changed ($oldExtension -> $newExtension): click Reload on " +
+                'Portly New Tab in chrome://extensions (or edge://extensions).')
         }
-        Write-InstOk "Updated Portly $installedVersion -> $newVersion. The previous version is kept in $previous."
         return 0
     } finally {
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue

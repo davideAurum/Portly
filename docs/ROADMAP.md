@@ -5,7 +5,7 @@ the next one starts. Anything that makes something public (pushing, releases, th
 consent pages) or touches another PC waits for an explicit go-ahead, asked at the moment it is
 reached.
 
-Status as of 2026-10-26.
+Status as of 2026-10-27.
 
 This plan comes from a full review of the code, the docs, the git history and the work sessions on
 2026-10-20, with everything CI runs green at cd547e3 (3,691 tests, 317 script checks, 27 release
@@ -16,8 +16,8 @@ checks).
 | 0 | Make the move from Homebase safe | Done ([details](#done-before-this-plan)) |
 | 1 | Baseline and a truthful public surface | Done (1.8's real run waits for the next `portly --update`, see the checks table) |
 | 2 | Prove what is built, on this PC | In progress: 2.1, 2.3 and 2.5 done |
-| 3 | Every PC on Portly, Homebase retired | Not started |
-| 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4 open |
+| 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
+| 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4's fixes landed, its second run-through is due with 5.2 |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
 | 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Not started |
 
@@ -596,6 +596,14 @@ Items:
 
   *Done when:* followed verbatim on the first other PC and amended where a step was missing.
 
+  *Status:* drafted 2026-10-27 as [Adding a PC](setup/add-a-pc.md), linked from SETUP (one-command
+  setup and More) and the README. Its steps: before you start (Homebase or not, `-NoHomebaseCopy`,
+  an export from the other PC); install (release or `setup.ps1`); `portly --status` in a new
+  terminal; swap the extension and **Test launcher**; a new tab, the pairing, and the 10-minute
+  cache; About, Accounts (the same app registrations reused), import, Diagnostics; then clean up
+  Homebase. Every step was checked against the scripts and the guides it links, not yet against a
+  PC: that is 3.3.
+
 - **3.3 Switch the first other PC over** (M; go-ahead; after 3.1, 3.2).
   You run the checklist on the PC you use most after this one, with Claude in the session. Confirm
   the vault unlocked with the key copied from Homebase, accounts work without reconnecting, the
@@ -624,6 +632,14 @@ Items:
   instead.
 
   *Done when:* the SETUP line is in; a fresh browser profile on the test PC behaves as documented.
+
+  *Status:* the SETUP line is in (2026-10-27). SETUP's *Browsers* bullet says the copy happens
+  with `-NoHomebaseCopy` too, and how to start a browser empty: delete the site's data after the
+  first visit, which removes Homebase's in-browser data on the same origin as well, or use a new
+  profile. [Adding a PC](setup/add-a-pc.md#browsers-keep-their-homebase-data) explains why
+  (`web/src/legacyStorage.ts` copies once behind the `portly:migrated-from-homebase` marker, and
+  `copyLegacyStaticDatabase` only into a new database, with up to three loads). The fresh-profile
+  check is in the checks table, for 3.3.
 
 - **3.6 Archive the Homebase repository** (S; go-ahead; after 3.4).
   After every PC is switched: delete its leftover branches and archive davideAurum/Homebase (it
@@ -760,6 +776,39 @@ Items:
   *Done when:* a written list of insufficient points, each fixed in a commit, and a second
   run-through following the docs verbatim with an empty list.
 
+  *Status:* the list and the fixes landed 2026-10-27; the second run-through is still to come. The
+  read covered README, SETUP and the extension guide as a newcomer with a release package would
+  meet them, plus what the owner missed in 4.3. What was missing, and what changed:
+  - **The Reload notice scrolled past.** In 4.3 the owner did not notice it on screen. `install.ps1`
+    now ends an update with it, as a yellow warning, and `check-release.ps1` builds a copy of the
+    package with another extension version to check that the output ends with the notice.
+  - **Keeping Developer mode on (Chrome 134+).** It was only in the extension guide, never on the
+    release install's path. SETUP's Install section now says it, along with Chrome's *Keep it*
+    prompt.
+  - **What to do after the install.** The first look (a new tab, the *Home* layout, **E**,
+    **Settings**) was only in the source-code quick start. The release path now has it too, and
+    says that the `portly` command needs a new terminal.
+  - **The release install's extension folder.** The extension guide named only a checkout path; it
+    now names `%LOCALAPPDATA%\Programs\Portly\app\extension` and the clipboard. Its *Let the browser
+    start Portly* section no longer sends a release install to run `install-autostart.ps1` again.
+  - **The app registrations' time.** It was only in the accounts table. SETUP's three-part overview
+    now says that Google and Microsoft each need one (about 15 and 25 minutes) and the others need
+    only a password or token.
+  - **What export and import carry.** SETUP said "settings, layouts and bookmarks (never accounts or
+    credentials)". It now lists, as checked against `shared/src/export.ts` and
+    `server/src/modules/core/transfer.ts`, what the file carries (settings, profiles and layouts
+    with widget settings and feed addresses, bookmark groups and bookmarks, background images,
+    custom icons). It also lists what it never carries (accounts, tokens and sign-ins, calendar
+    subscriptions and ICS links, cached events, fetched icons) and the import summary and backup.
+  - **The Pages cache.** Already in SETUP's Updating section, and now also in
+    [Adding a PC](setup/add-a-pc.md), where a newcomer meets it.
+
+  One question is left for the owner rather than for the docs: whether people other than the
+  owner may point `-PagesUrl` at `https://davideaurum.github.io/`. Hybrid mode trusts that whole
+  origin (D9), so the docs keep saying `https://<user>.github.io/`, a site of their own.
+  The second run-through follows README and SETUP verbatim on the 4.3 account while 5.2 installs
+  the release candidate there; an empty list closes 4.4 and phase 4.
+
 - **4.5 Release notes from the CHANGELOG** (S).
   `publish-release.ps1` defaults `-Notes` to the CHANGELOG section for the version being published
   and `release.yml` passes it through; the `check-release` refusal paths keep passing.
@@ -878,6 +927,10 @@ Items:
 
   *Done when:* `portly --status` healthy; the installed version matches the candidate; dated line.
 
+  The install follows README and SETUP verbatim, as 4.4's second run-through: write down every
+  point where they fall short. An empty list closes 4.4. `install.ps1` changed after 4.3 (the
+  Reload notice moved to the end in 4.4), so watch an update's last lines here too.
+
 - **5.3 Release-day commit, build and publish** (S; go-ahead; after 5.1, 5.2, and the release
   gates 2.1, 2.3, 2.5 and 4.3).
   One commit on main: the CHANGELOG entry gets its date, README and SETUP lose "No release is
@@ -900,8 +953,12 @@ Items:
   0.2.0-alpha.1; the Pages repository's publish commit names the tagged commit.
 
 - **5.5 One-line installer from the internet on the clean account** (S; go-ahead; after 5.4).
-  Remove the 5.2 install, then run `irm https://davideaurum.github.io/install.ps1 | iex` exactly
-  as README says: the first install of Portly from a published release. Afterwards
+  First, before anything is installed, open `https://davideaurum.github.io/` in that account's
+  Chrome as a newcomer would. No item has looked at the published site on an account that never
+  ran Portly. Expect the **Browser only** footer, every widget the browser-only build offers,
+  Outlook.com connecting with your own app registration, and an export and import. Then remove
+  the 5.2 install, and run `irm https://davideaurum.github.io/install.ps1 | iex` exactly as README
+  says: the first install of Portly from a published release. Afterwards
   `portly --update` on that release install must report up to date, which closes the one
   `portly --update`-on-a-release-install check 4.3 could not run; watch again for the parked
   sharing violation.
@@ -917,6 +974,16 @@ Items:
   shows it.
 
   *Done when:* both consent screens show Portly during a real connect (2.2 or a later sign-in).
+
+  *Status:* the docs need no change (checked 2026-10-27). [google.md](setup/google.md) already
+  names the app `Portly` with the kept homebase-site links, and [microsoft.md](setup/microsoft.md)
+  asks for no name or links of its own. The Azure registration has been named Portly since
+  2026-10-20. What is left happens in the portals:
+  - Google Cloud console, **Google Auth platform → Branding**: the app name and the home, privacy
+    and terms links;
+  - Azure, **Branding & properties**: the name.
+
+  2.2's sign-ins then confirm both.
 
 - **5.7 Close the loop** (S; after 5.5).
   Roadmap statuses, an "Unreleased" CHANGELOG section, the memory note, and Known limits still true
@@ -1216,6 +1283,10 @@ date and the outcome once a row has been run for real.
 | The name suggestion on a main PC without Tailscale installed (every lookup null, nothing spawned, one log line at start): only the executable rule with a fake environment and the test stub; this PC has Tailscale | B.6 name commit, 2026-10-21 | none yet: Tailscale is installed for every account on this PC, so 4.3 could not try it; a PC without Tailscale | not yet |
 | The name lookup's in-flight cap (four processes at most) against real `tailscale.exe` processes: six addresses at once finished too fast to hit it on this PC; the unit test pins it | B.6 name commit, 2026-10-21 | a later check with a slow or stalled Tailscale | not yet |
 | Connecting an Android phone through Tailscale Serve (the connect screen, the code, the `__Host-` cookie in Chrome on Android, the stacked layout below 768 px, the name Tailscale suggests for a phone): documented from the code only; every real check used a second Windows PC | phone docs commit, 2026-10-25 | the owner's first connect from a phone | not yet |
+| The Reload notice as the last lines of a real update in a visible PowerShell window (`install.ps1` now prints it after "Updated Portly"); only `check-release.ps1`'s temporary install, whose captured output the console wraps | 4.4 commit, 2026-10-27 | 5.2, or the first release that changes the extension version | not yet |
+| [Adding a PC](setup/add-a-pc.md) followed verbatim on a real PC, from the install to green Diagnostics; written from the scripts and guides only | 4.4 commit, 2026-10-27 | 3.3 | not yet |
+| A fresh browser profile on a PC that ran Homebase: the browser-side copy with `-NoHomebaseCopy`, and deleting the site's data after the first visit leaving it empty, as SETUP and Adding a PC now say | 4.4 commit, 2026-10-27 | 3.3 (3.5's check) | not yet |
+| The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | not yet |
 
 ### Closed
 

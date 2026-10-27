@@ -60,7 +60,7 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
   `backups\portly-failed-<new version>-<time>.db`, the newest three), and the previous version is
   started again. The autostart mode (Browser or Logon) is kept, unless you run
   `install.ps1 -Trigger Browser` or `-Trigger Logon` to change it. When the extension's
-  version changed, it says to click **Reload** on it.
+  version changed, its last line is a warning to click **Reload** on it.
 - **More than one Windows account on the PC?** Only one account can run Portly at a time: all
   accounts share port 5757 and the scheduled task name `\Portly Server`. To use Portly on another
   account, first remove it from the one that has it with `scripts\uninstall-autostart.ps1` there

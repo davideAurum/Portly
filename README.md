@@ -218,7 +218,7 @@ is listed in [SETUP: Configuration](docs/SETUP.md#configuration).
   [Yahoo](docs/setup/yahoo.md) · [CalDAV, IMAP & ICS](docs/setup/caldav-imap.md) ·
   [Todoist](docs/setup/todoist.md)
 - [New-tab extension](docs/setup/extension.md) · [Autostart](docs/setup/autostart.md) ·
-  [Troubleshooting](docs/setup/troubleshooting.md)
+  [Adding a PC](docs/setup/add-a-pc.md) · [Troubleshooting](docs/setup/troubleshooting.md)
 - [Browser-only build on GitHub Pages](docs/setup/static-build.md) ·
   [Pages site with Portly on this PC](docs/setup/pages-local-server.md) ·
   [Using Portly from your other PCs](docs/setup/other-pcs.md)

@@ -12,6 +12,8 @@ Setup takes three parts — the first is enough to try it out:
 2. **Make it your browser's home** — the [new-tab extension](setup/extension.md) and
    [autostart](setup/autostart.md) (when the browser opens, or at sign-in).
 3. **Connect accounts** — whichever you use (see [Connect your accounts](#connect-your-accounts)).
+   Google and Microsoft each need a one-time app registration of your own first (about 15 and
+   25 minutes); Yahoo, CalDAV, IMAP and Todoist need only a password or token.
 
 ## Install
 
@@ -28,9 +30,23 @@ irm https://davideaurum.github.io/install.ps1 | iex
 It downloads the latest release, checks its SHA-256, installs it into
 `%LOCALAPPDATA%\Programs\Portly\app`, turns on autostart, installs the `portly` command and opens
 the browser's extensions page for the one manual step (**Developer mode** → **Load unpacked** →
-`%LOCALAPPDATA%\Programs\Portly\app\extension`). Options, for example a Pages site:
+`%LOCALAPPDATA%\Programs\Portly\app\extension`, which it puts on the clipboard). Options, for
+example a Pages site:
 `& ([scriptblock]::Create((irm https://davideaurum.github.io/install.ps1))) -PagesUrl https://<user>.github.io/`
 (`-DryRun` shows what it would do; all options: `Get-Help` on `scripts\install.ps1`).
+
+After the extension is loaded:
+
+- **Keep Developer mode on.** Since Chrome 134, an extension loaded with **Load unpacked** runs
+  only while Developer mode is on; Edge may offer to turn such extensions off when it starts
+  (close that prompt). Details: [New-tab extension](setup/extension.md).
+- **Open a new tab.** Chrome asks whether to keep the new tab page the extension set: choose
+  **Keep it** (Edge: **Keep changes**). The tab starts Portly if it isn't running and opens it.
+  The first start creates a *Home* layout with every widget; press **E** (or use the edit
+  button) to rearrange it, and open **Settings** to set your name, theme, search engines,
+  weather location and so on.
+- **The `portly` command** works in terminals opened after the install (`portly --status`
+  checks everything).
 
 **Updating:** `portly --update` installs the newest release: it copies your database to
 `backups\` first, keeps the previous version in `app.previous`, and puts both back if the new one
@@ -78,8 +94,11 @@ Homebase's own folders are left as they were, so you can go back until you delet
 - **Browsers:** a browser paired with Homebase stays paired, and the Pages site keeps the data it
   kept in the browser: on its first load Portly copies Homebase's `homebase:` settings and its
   in-browser database to the new names. If copying the database fails part-way, the next two loads
-  try again and replace whatever that browser showed in between. Export files from Homebase import
-  as they are.
+  try again and replace whatever that browser showed in between. This happens with
+  `-NoHomebaseCopy` too, since that is a script option the browser never sees; to start a browser
+  empty, delete the Pages site's data in it after the first visit, or use a new browser profile
+  ([Adding a PC](setup/add-a-pc.md#browsers-keep-their-homebase-data)). Export files from Homebase
+  import as they are.
 - **By hand:** in `chrome://extensions` (or `edge://extensions`) **Remove** *Homebase New Tab* and
   **Load unpacked** Portly's `extension` folder (same extension ID, so nothing else changes).
   Publish the Pages site again from Portly (`publish-static.ps1` accepts the Homebase publish it
@@ -138,8 +157,12 @@ first run `tailscale serve --bg 5758` on this PC (it prints the address, like
 after its own (`5758`). Approve each PC once in **Settings → Devices**. `-RemoteOrigin off` turns
 it off again (and removes `PORTLY_REMOTE_PORT`).
 
+For another of your PCs, [Adding a PC](setup/add-a-pc.md) is the whole checklist, from the
+install to green Diagnostics.
+
 Accounts are not copied: the vault is encrypted for this PC's Windows user, so connect them again;
-move layout and settings with **Settings → Import & export**.
+move layout and settings with **Settings → Import & export** (what it carries:
+[Your data](#your-data)).
 
 ### Quick start
 
@@ -264,8 +287,15 @@ Everything lives in `%LOCALAPPDATA%\Portly`:
 | `node\` | `portly-supervisor.exe` and `portly-server.exe`: copies of your `node.exe` that autostart runs, so Task Manager shows Portly by name ([details](setup/autostart.md#in-task-manager); written by `install-autostart.ps1`, always here) |
 | `backups\` | Daily database backups (last 7) |
 
-Mail is never stored on disk. **Settings → Import & export** exports your settings, layouts and
-bookmarks (never accounts or credentials) to move them to another PC.
+Mail is never stored on disk.
+
+**Settings → Import & export** moves your set-up to another PC or browser. The `.json` file
+carries your settings, profiles and layouts (with each widget's settings, feed addresses
+included), bookmark groups and bookmarks, background images and custom icons. It never carries
+accounts, passwords, tokens or sign-ins (the Todoist token included), calendar subscriptions and
+ICS links, cached events or fetched bookmark icons: set those up again on the other side. Import
+shows a summary before it changes anything, and the server copies its database to `backups\`
+first.
 
 ## Updating
 
@@ -327,4 +357,6 @@ for up to 10 minutes after a publish, so hard-refresh (Ctrl+F5) before judging i
   code means, port in use, vault locked, reconnecting accounts, extension and autostart problems.
 - [Browser-only build](setup/static-build.md) and [Pages site with Portly on this
   PC](setup/pages-local-server.md) — the GitHub Pages site and pairing it with Portly.
+- [Adding a PC](setup/add-a-pc.md) — the checklist for putting Portly on another of your PCs,
+  including one that runs Homebase.
 - [Architecture](ARCHITECTURE.md) — how Portly is built and why.

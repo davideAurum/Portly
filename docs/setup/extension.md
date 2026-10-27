@@ -49,9 +49,10 @@ The launcher only answers that ID.
 
 1. Type `chrome://extensions` in the address bar and press Enter.
 2. Turn on **Developer mode** (top-right).
-3. Click **Load unpacked** and select the `extension` folder inside your Portly folder
-   (for example `C:\Users\you\Coding\Portly\extension` — the folder that contains
-   `manifest.json`).
+3. Click **Load unpacked** and select the `extension` folder inside your Portly folder (the
+   folder that contains `manifest.json`): `%LOCALAPPDATA%\Programs\Portly\app\extension` after a
+   release install (the installer puts that path on the clipboard), or for example
+   `C:\Users\you\Coding\Portly\extension` in a checkout.
 4. **Portly New Tab** appears in the list. Open a new tab (Ctrl+T).
 5. Chrome asks whether you want to keep the new tab page the extension set: choose **Keep it**.
    If you choose to change it back, Chrome turns the extension's new tab override off; re-enable
@@ -66,7 +67,8 @@ extension loaded from a folder.
 
 1. Type `edge://extensions` in the address bar and press Enter.
 2. Turn on **Developer mode** (in the left pane, or at the bottom of the page on narrow windows).
-3. Click **Load unpacked** and select the `extension` folder inside your Portly folder.
+3. Click **Load unpacked** and select the `extension` folder inside your Portly folder (the same
+   folder as for Chrome above).
 4. Open a new tab (Ctrl+T). If Edge asks whether to keep the change to your new tab page, keep it
    (for example **Keep changes**).
 
@@ -76,8 +78,9 @@ instead of turning them off; if you did turn it off, re-enable Portly New Tab on
 
 ## Let the browser start Portly
 
-Install the launcher once (it serves Chrome and Edge alike), from PowerShell in your Portly
-folder:
+A release install (`install.ps1`) and `scripts\setup.ps1` have already done this: skip to the
+**Test launcher** check below. Otherwise install the launcher once (it serves Chrome and Edge
+alike), from PowerShell in your Portly folder:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1

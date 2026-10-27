@@ -14,8 +14,9 @@
        served.
     4. install.ps1 again: "already installed", nothing changes.
     5. install.ps1 -Force (the update path): the database is copied to backups\, the old version is
-       kept in app.previous, app\ is complete and linked again. With a file in app\ in use the
-       update fails and app\ stays whole and linked.
+       kept in app.previous, app\ is complete and linked again. A package with another extension
+       version ends the output with the Reload notice. With a file in app\ in use the update fails
+       and app\ stays whole and linked.
     6. A wrong -Sha256 and a missing package are refused and change nothing.
     7. install.ps1 -DryRun changes nothing.
     Before all of this, install.ps1's Restore-InstDatabase is run on a temporary data folder: after
@@ -260,6 +261,28 @@ try {
     Assert-That -Name 'a second update replaces app.previous and leaves app\shared intact' -Condition (
         $second.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $app 'shared\package.json') -PathType Leaf) -and
         $null -ne (Get-HbReleaseInfo -RepoRoot $previous)) -Detail $second.Text
+
+    # The same package with another extension version: the Reload notice must come last.
+    $extensionDir = Join-Path $workDir 'extension-changed'
+    $null = New-Item -ItemType Directory -Path $extensionDir -Force
+    $extensionZip = Join-Path $extensionDir (Split-Path -Leaf $zip)
+    Copy-Item -LiteralPath $zip -Destination $extensionZip
+    $changedInfo = Get-Content -LiteralPath (Join-Path $app 'release.json') -Raw | ConvertFrom-Json
+    $changedInfo.extensionVersion = "$($changedInfo.extensionVersion)-check"
+    $archive = [System.IO.Compression.ZipFile]::Open($extensionZip, 'Update')
+    try {
+        $archive.GetEntry('release.json').Delete()
+        $writer = New-Object System.IO.StreamWriter(($archive.CreateEntry('release.json')).Open(), (New-Object System.Text.UTF8Encoding($false)))
+        try { $writer.Write(($changedInfo | ConvertTo-Json -Depth 5)) } finally { $writer.Dispose() }
+    } finally {
+        $archive.Dispose()
+    }
+    $changed = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $extensionZip, '-Force') + $common)
+    # The console wraps a long warning, so the output is compared with its line breaks folded.
+    $folded = ($changed.Text -replace '\s+', ' ').Trim()
+    Assert-That -Name 'an update that changes the extension ends with the Reload notice' -Condition (
+        $changed.ExitCode -eq 0 -and $changed.Text.Contains("Updated Portly $version -> $version") -and
+        $folded -match 'new-tab extension changed \([^)]*-check\): click Reload on Portly New Tab in chrome://extensions \(or edge://extensions\)\.$') -Detail $changed.Text
 
     # A file in app\ is in use (in real use: a Portly server a browser tab started again). The
     # rename must fail as a whole: Move-Item in Windows PowerShell 5.1 moved part of the folder.
