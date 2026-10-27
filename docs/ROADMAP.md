@@ -17,7 +17,7 @@ checks).
 | 1 | Baseline and a truthful public surface | Done (1.8's real run waits for the next `portly --update`, see the checks table) |
 | 2 | Prove what is built, on this PC | In progress: 2.1, 2.3 and 2.5 done |
 | 3 | Every PC on Portly, Homebase retired | Not started |
-| 4 | Release rehearsal in private | In progress: 4.1, 4.2, 4.5, 4.6 and 4.7 done; 4.3 found an update bug (fixed) and is run again; 4.4 open |
+| 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4 open |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
 | 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Not started |
 
@@ -727,10 +727,29 @@ Items:
     The server came back from the half-moved folder as version 0.0.0, the rollback never ran, and
     the next update refused the folder as "not a Portly release install". No sharing violation
     was seen.
-  - Fixed in the commit that adds this note: the task is disabled while the folders are swapped
-    and during a rollback, and each folder is renamed with `Directory.Move`, which moves all or
-    nothing. `check-release.ps1` now holds a file in `app` during an update. The failed-update
-    and Reload-notice parts are run again on the same account.
+  - Fixed in f34c15b: the task is disabled while the folders are swapped and during a rollback,
+    and each folder is renamed with `Directory.Move`, which moves all or nothing.
+    `check-release.ps1` now holds a file in `app` during an update.
+
+  Done 2026-10-27 with the rerun on the same account. `run.ps1` first removed what the first
+  run had left, then used f34c15b's `install.ps1` and the same three packages, with a Portly tab
+  open in Chrome during both updates.
+  - The install, a new tab starting the server, and the switch to Logon mode passed again.
+  - The update to the package that exits at start-up stopped Portly and copied the database. The
+    task was enabled again before the new version's `install-autostart.ps1` ran ("Existing task:
+    Ready"). The supervisor gave up after five crashes, the installer reported "did not start"
+    and put the database copy back, keeping `portly-failed-0.2.0-alpha.90-*`. It moved the new
+    version to `app.failed` and started the old one: "The previous version is back".
+    `/api/health` answered 0.2.0-alpha.1 and the open tab kept showing the dashboard.
+  - The update to the package with extension 0.5.4 printed "The new-tab extension changed
+    (0.5.3 -> 0.5.4)" and "Updated Portly 0.2.0-alpha.1 -> 0.2.0-alpha.91", with health 0.2.0-alpha.91.
+    After Reload, a new tab started the stopped server.
+  - Uninstall left no task, no registry keys and no host folder.
+  - No move was blocked, there was no warning, and no sharing violation.
+  - Both installer messages were in the log, but the owner did not notice them on screen; they
+    had scrolled past.
+  - The main account's autostart was removed for both runs and put back after each:
+    `install-autostart.ps1`, health 0.2.0-alpha.1, with the Pages address and the other-PC port.
 
 - **4.4 Newcomer read of README and SETUP** (S; after 4.3).
   Using only the docs on that account, write down every point where README or SETUP were
@@ -1158,7 +1177,7 @@ date and the outcome once a row has been run for real.
 | The package built with the nodejs.org runtime installed for real: the scheduled task, native host and extension on a real account; `check-release.ps1` only installs into a temporary folder without autostart or the CLI | this commit, 2026-10-25 | 4.3 | 2026-10-27 (4.3): installed on a fresh standard account with the real task, native host, CLI and Load unpacked; a new tab started it and About showed the account's data folder. Its update path is the failed-update row below |
 | The Weather widget's place name from a real browser location (the browser pane blocks location, so the check faked the position; the server's real Nominatim lookup did answer with the expected city) | this commit, 2026-10-25 | owner's next use with *Use this device's location* | not yet |
 | The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | 2026-10-25 (2.5): on `preview:static`, *Use my location* with a faked position called nominatim.openstreetmap.org (200) with no CSP violation and named the place; a real browser location prompt is still the row above |
-| A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | 2026-10-27 (4.3): failed before the rollback was reached. A Portly tab restarted the server mid-update and `Move-Item` split `app` in two (4.3's status). Fixed; run again in 4.3 |
+| A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | 2026-10-27 (4.3): failed before the rollback was reached. A Portly tab restarted the server mid-update and `Move-Item` split `app` in two (4.3's status). Fixed in f34c15b. 2026-10-27 (4.3 rerun): passed. A package that exits at start-up was rolled back, the database copy was put back with `portly-failed-*` kept, and the old version served 0.2.0-alpha.1 again |
 | The settings dialog's focus change (it keeps looking for the requested field for 10 s and stops once focus has moved inside the dialog), by hand in a browser; only the new tests cover it | 29347b8, 2026-10-19 | 2.4 | not yet |
 | The browser-only build's Outlook.com sign-in on the published Pages address itself: the same sign-in and sync check, the automatic 24-hour renewal and writing an event (the localhost copy passed) | 3b3edd7, 2026-10-19 | 2.1 | 2026-10-26 (2.1): passed on the published site with a real account, reported by the owner: connect, sync, an event created, edited and deleted and seen in Outlook, the renewal after more than 24 hours |
 | The OneDrive spike (sign-in, app folder reads and writes, cross-origin download URLs) in Firefox and Safari; only the desktop app's Chromium-based browser pane was used | 3b3edd7, 2026-10-19 | 6.7 (Firefox smoke run); Safari stays unsupported | not yet |
@@ -1173,11 +1192,11 @@ date and the outcome once a row has been run for real.
 | The retried copy of Homebase's IndexedDB database in a real browser (a copy that fails part-way, then the next load trying again and giving up after three loads); unit tests only | f0d5331, 2026-10-19 | 3.1 | not yet |
 | The vault key swap during a Homebase copy (Homebase's key moved in, Portly's kept beside its old database) with a real DPAPI-protected key; the tests use plain files | 1860efe, 2026-10-19 | 3.1 | not yet |
 | The 2026-10-19 switch-over fixes on a real Homebase PC: the extension and native host refusing a Homebase health answer (b5f5cc5), `HOMEBASE_DATA_DIR` read as the copy source (d14862a) and the one-time `HOMEBASE_*` variable copy (7eaee9c); fakes and temporary folders only | b5f5cc5, 2026-10-19 | 3.1 (scratch folders), 3.3 (a real Homebase PC) | not yet |
-| The retry when setting a fresh program copy's modification time hits a sharing violation during a real install or update (the holder never reproduced in 110 runs; Defender real-time protection is the likely one) | 8f5fe93, 2026-10-19 | 4.3 and 5.5 (watch for it) | 2026-10-27 (4.3, first run): not seen in the install, the switch to Logon mode or `portly --start`; the updates stopped before they refreshed the copies, so keep watching |
+| The retry when setting a fresh program copy's modification time hits a sharing violation during a real install or update (the holder never reproduced in 110 runs; Defender real-time protection is the likely one) | 8f5fe93, 2026-10-19 | 4.3 and 5.5 (watch for it) | 2026-10-27 (4.3, first run): not seen in the install, the switch to Logon mode or `portly --start`; the updates stopped before they refreshed the copies, so keep watching. 2026-10-27 (4.3 rerun): not seen in two updates and a rollback, but the copies were already up to date each time (same Node.js), so the refresh itself still has not run in an update |
 | Hidden-tab behaviour (stopped clock and upload timers, the once-a-minute local server probe, the throttled cache save) with a real hidden tab instead of simulated visibility events | 3407dfc, 2026-10-18 | 2.4 (2.3 checked only the reload) | not yet |
 | The hybrid pairing check in a real browser: a pairing change reloads each background tab only when you switch to it, after one more probe | 3407dfc, 2026-10-18 | 2.3 | 2026-10-26 (2.3): in Chrome, a background tab across a server stop and restart reloaded only when switched to, and its Diagnostics > This browser showed the switch deferred, then performed (reported by the owner; the server log has the restarts) |
-| Pairing in Edge (Local network access prompt, approval, **Connected**); 2.3 ran in Chrome only, the Edge pairing deferred by the owner | 6966fd5, 2026-10-26 | 4.3 (the fresh account) or the owner's next Edge use | not yet (4.3's first run used Chrome) |
-| An update with a Portly tab open on a real account after the fix: the task disabled during the swap and enabled again, the rollback with the task disabled, and the Reload notice. `check-release.ps1` covers only the all-or-nothing rename, because it has no real task | this commit, 2026-10-27 | 4.3 (the rerun) | not yet |
+| Pairing in Edge (Local network access prompt, approval, **Connected**); 2.3 ran in Chrome only, the Edge pairing deferred by the owner | 6966fd5, 2026-10-26 | the owner's next Edge use (4.3 used Chrome only) | not yet |
+| An update with a Portly tab open on a real account after the fix: the task disabled during the swap and enabled again, the rollback with the task disabled, and the Reload notice. `check-release.ps1` covers only the all-or-nothing rename, because it has no real task | f34c15b, 2026-10-27 | 4.3 (the rerun) | 2026-10-27 (4.3 rerun): with a Portly tab open, both updates moved their folders the first time and the task was enabled again before `install-autostart.ps1` ran; the rollback and the Reload notice worked. Whether the disabled task actually turned away a launcher request was not observed, because nobody watched the tab during the swap |
 | Background upload preparation in Edge or Firefox, with a real camera photo, and with EXIF-rotated files; only Chrome's built-in browser pane was tried | 501e85b, 2026-10-18 | 2.4 | not yet |
 | The frosted glass switch and the baked photo blur in a visible browser window and in browsers other than Chrome; only headless Chrome measurements and screenshots were made | 1169e15, 2026-10-18 | 2.4 | not yet |
 | A real `install-autostart` run that registers the task to run `portly-supervisor.exe`; nothing in the repository records one (the installed task on the developer's PC does name it, dated 2026-10-18 in the memory note, but that is outside the repository) | 89e4325, 2026-10-18 | 4.3 (on a fresh account) | 2026-10-21 (after 1.3, on this PC): `install-autostart.ps1` replaced the running Browser-mode task, found the `node.exe` copies up to date, rewrote the native host files and registry keys, stopped the old processes and started the task; `/api/health` answered 0.2.0-alpha.1 and `portly --status` shows no warning. 2026-10-27 (4.3): on a fresh account the release install copied `runtime\node.exe` to `portly-supervisor.exe` and `portly-server.exe` and registered the task to run it, in Browser and then Logon mode |
@@ -1188,13 +1207,13 @@ date and the outcome once a row has been run for real.
 | A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | not yet |
 | A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
 | The next real `portly --update`: the dirty-tree refusal and the fetch/fast-forward messages for real, and a publish that writes `.gitattributes` to the live Pages clone (which makes the live `install.ps1` byte-equal to the built one) | 1.8, 2026-10-21 | 5.4, or the next republish of the Pages site | not yet |
-| `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: it must install Node 24 (today winget's `OpenJS.NodeJS.LTS`, later `OpenJS.NodeJS.24`) and stop on another major; checked only with `node.exe` hidden from PATH on this PC | 1.11, 2026-10-21 | 3.3 (the first other PC), 4.3 (the clean account) | not yet |
+| `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: it must install Node 24 (today winget's `OpenJS.NodeJS.LTS`, later `OpenJS.NodeJS.24`) and stop on another major; checked only with `node.exe` hidden from PATH on this PC | 1.11, 2026-10-21 | 3.3 (the first other PC); 4.3 installed a release package, which needs no Node.js | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | 2026-10-25 (2.5, at 5d1a4df): zero violations in both builds in Chromium; repeat before every release (releases.md step 3) |
 | The CSP check with a search-suggestion request, a feed with a real URL, and in Edge and Firefox; the 2026-10-25 run had suggestions off, no feed, and only the desktop app's Chromium-based browser pane | 2.5, 2026-10-25 | the pre-release CSP check before 5.3 | not yet |
-| The "Other PCs: not set" lines of `status.ps1` on a PC without `PORTLY_REMOTE_ORIGIN`, in a checkout and in a release install: only their strings; the checks ran with the variable set on this PC | B.5 commit, 2026-10-21 | the next PC without the variable (3.3, 4.3) | not yet |
+| The "Other PCs: not set" lines of `status.ps1` on a PC without `PORTLY_REMOTE_ORIGIN`, in a checkout and in a release install: only their strings; the checks ran with the variable set on this PC | B.5 commit, 2026-10-21 | the next PC without the variable (3.3); 4.3 ran only `portly --status`, whose summary leaves the line out | not yet |
 | Approving another PC from Portly's own page on a main PC that has a Pages site (`#/settings/devices` now stays there, and the Pages site links to it): only the forward's and the page's unit tests; the first real approve went through the local API | B.5 approve commit, 2026-10-21 | the owner's next approve from this PC | not yet |
 | The connect screen's name filled in on the second PC through Serve (its computer name): only `curl` with a forwarded address against a scratch server on this PC, which asked the real Tailscale, and the web tests with a mocked answer | B.6 name commit, 2026-10-21 | the owner's next connect from the second PC (the row above) | not yet |
-| The name suggestion on a main PC without Tailscale installed (every lookup null, nothing spawned, one log line at start): only the executable rule with a fake environment and the test stub; this PC has Tailscale | B.6 name commit, 2026-10-21 | 4.3 (the clean account) | not yet |
+| The name suggestion on a main PC without Tailscale installed (every lookup null, nothing spawned, one log line at start): only the executable rule with a fake environment and the test stub; this PC has Tailscale | B.6 name commit, 2026-10-21 | none yet: Tailscale is installed for every account on this PC, so 4.3 could not try it; a PC without Tailscale | not yet |
 | The name lookup's in-flight cap (four processes at most) against real `tailscale.exe` processes: six addresses at once finished too fast to hit it on this PC; the unit test pins it | B.6 name commit, 2026-10-21 | a later check with a slow or stalled Tailscale | not yet |
 | Connecting an Android phone through Tailscale Serve (the connect screen, the code, the `__Host-` cookie in Chrome on Android, the stacked layout below 768 px, the name Tailscale suggests for a phone): documented from the code only; every real check used a second Windows PC | phone docs commit, 2026-10-25 | the owner's first connect from a phone | not yet |
 
