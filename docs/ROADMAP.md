@@ -15,7 +15,7 @@ checks).
 | --- | --- | --- |
 | 0 | Make the move from Homebase safe | Done ([details](#done-before-this-plan)) |
 | 1 | Baseline and a truthful public surface | Done (1.8's real run waits for the next `portly --update`, see the checks table) |
-| 2 | Prove what is built, on this PC | In progress: 2.1 and 2.5 done |
+| 2 | Prove what is built, on this PC | In progress: 2.1, 2.3 and 2.5 done |
 | 3 | Every PC on Portly, Homebase retired | Not started |
 | 4 | Release rehearsal in private | In progress: 4.1, 4.5, 4.6 and 4.7 done; 4.2 to 4.4 open |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
@@ -443,6 +443,44 @@ Items:
 
   *Done when:* every status seen once with the setup that produced it named; no console errors;
   only the expected refusal reasons in the server log; dated line.
+
+  *Status:* done 2026-10-26 in Chrome, except the Edge pairing, which the owner deferred (checks
+  table). The owner ran the published site against the installed Portly; each server-side step
+  was confirmed in its `server.log` and `supervisor.log`:
+  - **Disconnect** from the site (`pairing removed`, `unpaired-itself`), then **Found, not
+    paired**.
+  - Local network access set back to *Ask*: **Not checked**, **Look for Portly on this PC**,
+    **Waiting for permission** while Chrome's prompt was open, **Allow**, **Found, not paired**.
+  - Portly stopped by hand: **Check again** gave **Browser only** with *Not detected*;
+    `portly --start` (a `starting Portly` line), then **Found, not paired** again.
+  - **Pair this browser**: the approval page, **Approve** armed after a second, back on the site
+    with *This browser is now paired* and **Connected · v0.2.0-alpha.1** (`pairing created`).
+  - Hidden tab: with a second tab in front, Portly stopped and restarted after about a minute
+    (the page uploaded *reconnect grace started* and *ended*, and a second `starting Portly`);
+    switching back to the first tab reloaded it once, and its Diagnostics > This browser showed
+    the switch *deferred*, then *performed*.
+  - **Revoke** of both Chrome pairings from the site's Settings > About (`pairing removed`,
+    `revoked`); the site's next request was refused with `token_revoked` and it showed
+    **Pairing removed**; paired again afterwards.
+  - **Old address**, on a scratch copy instead of the published site, because the published site
+    only looks for port 5757: `build:static` with `PORTLY_STATIC_SERVER` on port 5800,
+    `preview:static`, and a scratch server (scratch port and data folder) with
+    `PORTLY_PAGES_URL=http://localhost:5173/`, all in the desktop app's browser pane. Paired, then
+    the server restarted with `http://localhost:5174/`: its own Settings > About listed the
+    pairing as **Old address**, the site went to **Reconnecting…**, the log had `health check
+    from another site (no CORS answer)`, and **Revoke** removed the pairing. **Approve** did not
+    act while the pane was hidden, as the arming intends.
+
+  Refusals in the installed server's log during the run: only the one `token_revoked`, which the
+  revoke step is meant to produce. `pairing_required` and `local_only` never appeared: the site
+  sends nothing before it is paired, and nothing called the approval route from the Pages
+  origin. The Console showed errors only from other extensions (Adobe Acrobat, Zotero), none
+  from Portly. One finding: the approval page's *It won't be able to* list
+  (`web/src/app/PairPage.tsx`) says a paired site cannot connect accounts, set up OAuth clients,
+  reset the vault or unpair browsers, but those routes are `samePc()`, which the paired site may
+  call (the revoke above used one), as [Pages site with Portly](setup/pages-local-server.md)
+  says. Only approving a pairing stays on Portly's own page. The page needs to tell the truth
+  before the release.
 
 - **2.4 Real-browser UI and appearance sweep** (S; after 1.3).
   Each with a pass criterion: weather shows no geolocation prompt on page load and prompts only
@@ -1105,13 +1143,14 @@ date and the outcome once a row has been run for real.
 | Whether Microsoft's consent screen shows only the requested services' scopes on a sign-in through Portly's own flow (the spike saw the incremental-consent screen list only the added permission, but from a scratch page) | 9cce15e, 2026-10-19 | 2.2 | not yet |
 | The **Wikipedia suggestions instead** switch (Settings > Search in the browser-only build) and the search wording it changes, in a real browser; 8bb97b1's localhost check covered the earlier always-on fallback only | 65dae13, 2026-10-19 | 2.4 | not yet |
 | The reordered Settings > Bookmarks page (Groups, Preferences, then Import & export) in a browser; only the earlier order (0b63e51) was looked at | 0f23788, 2026-10-19 | 2.4 | not yet |
-| The browser-only site on a PC where Portly is running but not paired (the footer label and the Diagnostics link in that case); unit tests only | 8bb97b1, 2026-10-19 | 2.3 | not yet |
+| The browser-only site on a PC where Portly is running but not paired (the footer label and the Diagnostics link in that case); unit tests only | 8bb97b1, 2026-10-19 | 2.3; the Diagnostics link 2.4 | 2026-10-26 (2.3): the footer read **Found, not paired** in Chrome on the published site; the Diagnostics link in that state was not looked at |
 | The retried copy of Homebase's IndexedDB database in a real browser (a copy that fails part-way, then the next load trying again and giving up after three loads); unit tests only | f0d5331, 2026-10-19 | 3.1 | not yet |
 | The vault key swap during a Homebase copy (Homebase's key moved in, Portly's kept beside its old database) with a real DPAPI-protected key; the tests use plain files | 1860efe, 2026-10-19 | 3.1 | not yet |
 | The 2026-10-19 switch-over fixes on a real Homebase PC: the extension and native host refusing a Homebase health answer (b5f5cc5), `HOMEBASE_DATA_DIR` read as the copy source (d14862a) and the one-time `HOMEBASE_*` variable copy (7eaee9c); fakes and temporary folders only | b5f5cc5, 2026-10-19 | 3.1 (scratch folders), 3.3 (a real Homebase PC) | not yet |
 | The retry when setting a fresh program copy's modification time hits a sharing violation during a real install or update (the holder never reproduced in 110 runs; Defender real-time protection is the likely one) | 8f5fe93, 2026-10-19 | 4.3 and 5.5 (watch for it) | not yet |
-| Hidden-tab behaviour (stopped clock and upload timers, the once-a-minute local server probe, the throttled cache save) with a real hidden tab instead of simulated visibility events | 3407dfc, 2026-10-18 | 2.3 | not yet |
-| The hybrid pairing check in a real browser: a pairing change reloads each background tab only when you switch to it, after one more probe | 3407dfc, 2026-10-18 | 2.3 | not yet |
+| Hidden-tab behaviour (stopped clock and upload timers, the once-a-minute local server probe, the throttled cache save) with a real hidden tab instead of simulated visibility events | 3407dfc, 2026-10-18 | 2.4 (2.3 checked only the reload) | not yet |
+| The hybrid pairing check in a real browser: a pairing change reloads each background tab only when you switch to it, after one more probe | 3407dfc, 2026-10-18 | 2.3 | 2026-10-26 (2.3): in Chrome, a background tab across a server stop and restart reloaded only when switched to, and its Diagnostics > This browser showed the switch deferred, then performed (reported by the owner; the server log has the restarts) |
+| Pairing in Edge (Local network access prompt, approval, **Connected**); 2.3 ran in Chrome only, the Edge pairing deferred by the owner | this commit, 2026-10-26 | 4.3 (the fresh account) or the owner's next Edge use | not yet |
 | Background upload preparation in Edge or Firefox, with a real camera photo, and with EXIF-rotated files; only Chrome's built-in browser pane was tried | 501e85b, 2026-10-18 | 2.4 | not yet |
 | The frosted glass switch and the baked photo blur in a visible browser window and in browsers other than Chrome; only headless Chrome measurements and screenshots were made | 1169e15, 2026-10-18 | 2.4 | not yet |
 | A real `install-autostart` run that registers the task to run `portly-supervisor.exe`; nothing in the repository records one (the installed task on the developer's PC does name it, dated 2026-10-18 in the memory note, but that is outside the repository) | 89e4325, 2026-10-18 | 4.3 (on a fresh account) | 2026-10-21 (after 1.3, on this PC): `install-autostart.ps1` replaced the running Browser-mode task, found the `node.exe` copies up to date, rewrote the native host files and registry keys, stopped the old processes and started the task; `/api/health` answered 0.2.0-alpha.1 and `portly --status` shows no warning. The fresh-account run stays with 4.3 |
