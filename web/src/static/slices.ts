@@ -320,9 +320,17 @@ export interface StoredAccount {
   /** Provider subject (`oid`): reconnects match on it. */
   externalId: string;
   color: string | null;
+  /** The services this browser may use: asked for by the last sign-in and in its grant. */
   capabilities: Capability[];
   enabledCapabilities: Capability[];
+  /** What Microsoft reported as granted (normalized): every grant of the account, not only this sign-in's. */
   grantedScopes: string[];
+  /**
+   * The scopes the last sign-in asked for (normalized). Refreshes and automatic re-sign-ins never
+   * ask for more. Absent on rows stored before it was recorded, until the `account-requested-scopes`
+   * upgrade fills it (handlers/accounts.ts).
+   */
+  requestedScopes?: string[];
   status: AccountStatus;
   statusMessage: string | null;
   sort: number;
@@ -334,6 +342,10 @@ function isCapabilityList(value: unknown): boolean {
   return Array.isArray(value) && value.every((c) => (CAPABILITIES as readonly unknown[]).includes(c));
 }
 
+function isStringList(value: unknown): boolean {
+  return Array.isArray(value) && value.every((s) => typeof s === 'string');
+}
+
 function isAccountRow(row: unknown): boolean {
   return (
     hasId(row) &&
@@ -342,6 +354,7 @@ function isAccountRow(row: unknown): boolean {
     typeof row.externalId === 'string' &&
     isCapabilityList(row.capabilities) &&
     isCapabilityList(row.enabledCapabilities) &&
+    (row.requestedScopes === undefined || isStringList(row.requestedScopes)) &&
     (ACCOUNT_STATUSES as readonly unknown[]).includes(row.status) &&
     Number.isFinite(row.sort)
   );

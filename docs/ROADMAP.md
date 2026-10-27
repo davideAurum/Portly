@@ -19,7 +19,7 @@ checks).
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
 | 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4's fixes landed, its second run-through is due with 5.2 |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Not started |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 built |
 
 ## How this roadmap is used
 
@@ -1034,6 +1034,13 @@ Items:
   to 6.6 (connect calendar-only, add sync, withdraw one consent at account.live.com/consent/Manage,
   reload, expect the right Reconnect prompt and no `invalid_grant` loop).
 
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged (waits for 5.3). Account rows
+  keep `requestedScopes`; services are what the sign-in asked for and was granted; the refresh,
+  the reconnect and `planSilentReauth` ask for those only; the `account-requested-scopes` upgrade
+  fills older rows with the calendar's scopes. Static tests cover connect, reconnect, adding a
+  service by a sign-in that names it, renewal and the upgrade, with Microsoft reporting a wider
+  grant (mail and the app folder) than was asked for. The real check stays with 6.6.
+
 - **6.2 Write the decisions into the design doc and add launchpadSync to the contract** (M;
   after 2.1, 6.1).
   Write D7 to D9 into [design/launchpad-sync.md](design/launchpad-sync.md) (the shared enum as
@@ -1286,6 +1293,7 @@ date and the outcome once a row has been run for real.
 | The Reload notice as the last lines of a real update in a visible PowerShell window (`install.ps1` now prints it after "Updated Portly"); only `check-release.ps1`'s temporary install, whose captured output the console wraps | 4.4 commit, 2026-10-27 | 5.2, or the first release that changes the extension version | not yet |
 | [Adding a PC](setup/add-a-pc.md) followed verbatim on a real PC, from the install to green Diagnostics; written from the scripts and guides only | 4.4 commit, 2026-10-27 | 3.3 | not yet |
 | A fresh browser profile on a PC that ran Homebase: the browser-side copy with `-NoHomebaseCopy`, and deleting the site's data after the first visit leaving it empty, as SETUP and Adding a PC now say | 4.4 commit, 2026-10-27 | 3.3 (3.5's check) | not yet |
+| Browser-only accounts remembering the scopes their last sign-in asked for, against a real Outlook.com account whose grant lists more (refresh, renewal and Reconnect with no `invalid_grant` loop); only static tests with a faked token endpoint | 6.1 commit, 2026-10-27 | 6.6 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | not yet |
 
 ### Closed

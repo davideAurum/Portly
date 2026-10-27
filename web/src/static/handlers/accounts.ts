@@ -31,6 +31,12 @@
  * ends 24 hours after it was made; {@link planSilentReauth} renews it at page load with
  * `prompt=none` before (or once) it runs out, and when that cannot work the account shows
  * "Reconnect needed" as on the server.
+ *
+ * Scopes: an account keeps the scopes its last sign-in asked for (`requestedScopes`), and its
+ * services are those asked for and granted. Refreshes and automatic re-sign-ins ask for no more
+ * ({@link signInCapabilities}): Microsoft's `scope` answer lists every permission the account ever
+ * gave the registration, from any browser, and a refresh asking for one its sign-in did not ask
+ * for fails with `invalid_grant`. Adding a service is a new interactive sign-in.
  */
 import {
   AccountUpdateSchema,
@@ -68,6 +74,7 @@ import {
   decodeJwtClaims,
   grantedScopes,
   microsoftIdentity,
+  normalizeScopes,
   pkceChallenge,
   requestToken,
   scopesFor,
@@ -84,6 +91,7 @@ import {
   getCalendarSync,
   getOAuthClients,
   getOAuthStates,
+  getUpgrades,
   type StoredAccount,
   type StoredAccountTokens,
 } from '../slices.ts';
@@ -145,6 +153,27 @@ function orderedAccounts(ctx: StaticContext): StoredAccount[] {
 /** Accounts whose calendars are synced: they offer the capability and the user switched it on (the server's `list({capability: 'calendar'})`). */
 export function calendarAccounts(ctx: StaticContext): StoredAccount[] {
   return orderedAccounts(ctx).filter((a) => a.capabilities.includes('calendar') && a.enabledCapabilities.includes('calendar'));
+}
+
+/** What a sign-in asked for before the requested scopes were recorded: the calendar was the only service. */
+const LEGACY_SIGN_IN_CAPABILITIES: readonly Capability[] = Object.freeze(['calendar']);
+
+/** Marker in the upgrades slice: every account row has its {@link StoredAccount.requestedScopes}. */
+export const REQUESTED_SCOPES_UPGRADE = 'account-requested-scopes';
+
+/** The scopes the account's last sign-in asked for (for an older row: what every sign-in then asked for). */
+function requestedScopesOf(row: StoredAccount): string[] {
+  return row.requestedScopes ?? normalizeScopes(scopesFor(row.capabilities.filter((c) => LEGACY_SIGN_IN_CAPABILITIES.includes(c))));
+}
+
+/**
+ * The services a refresh or a reconnect of this account may ask for: those its last sign-in asked
+ * for that are also in its grant. Never Microsoft's reported grants on their own (they list every
+ * permission the account ever gave the registration, from any browser), because a refresh asking
+ * for a scope its sign-in did not ask for fails with `invalid_grant`.
+ */
+export function signInCapabilities(row: StoredAccount): Capability[] {
+  return capabilitiesOf(requestedScopesOf(row)).filter((c) => row.capabilities.includes(c));
 }
 
 function findAccount(ctx: StaticContext, id: string): StoredAccount | undefined {
@@ -248,7 +277,7 @@ export async function startAuthorization(ctx: StaticContext, input: StartInput):
     const account = findAccount(ctx, input.accountId);
     if (!account) throw accountNotFound();
     accountId = input.accountId;
-    granted = account.capabilities;
+    granted = signInCapabilities(account);
   }
   const capabilities = requestedCapabilities(input.capabilities, granted);
   const codeVerifier = newToken(32);
@@ -399,7 +428,9 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
     return 'error';
   }
   const granted = grantedScopes(tokens.scope, requestedScopes);
-  const capabilities = capabilitiesOf(granted);
+  // Only what this sign-in asked for: the grant also lists permissions given elsewhere.
+  const asked = normalizeScopes(requestedScopes);
+  const capabilities = capabilitiesOf(granted.filter((scope) => asked.includes(scope)));
   if (capabilities.length === 0) return 'denied';
   if (tokens.refreshToken === null) return 'error';
 
@@ -420,6 +451,7 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
     existing.enabledCapabilities = mergeEnabledCapabilities(existing.capabilities, existing.enabledCapabilities, offered);
     existing.capabilities = capabilities;
     existing.grantedScopes = granted;
+    existing.requestedScopes = asked;
     existing.status = 'ok';
     existing.statusMessage = null;
     existing.updatedAt = now;
@@ -440,6 +472,7 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
       capabilities,
       enabledCapabilities: enabled,
       grantedScopes: granted,
+      requestedScopes: asked,
       status: 'ok',
       statusMessage: null,
       sort: accounts.reduce((max, a) => Math.max(max, a.sort + 1), 0),
@@ -585,8 +618,8 @@ async function refresh(ctx: StaticContext, account: StoredAccount, record: Store
     client_id: clientId,
     grant_type: 'refresh_token',
     refresh_token: used,
-    // Only the granted services' scopes: Microsoft refuses a refresh for more than was consented to.
-    scope: scopesFor(account.capabilities).join(' '),
+    // Only what the last sign-in asked for: Microsoft refuses a refresh for more (invalid_grant).
+    scope: scopesFor(signInCapabilities(account)).join(' '),
   });
   // Re-read after the request: a reload (another tab's change) replaces the slice objects.
   const now = ctx.now();
@@ -661,6 +694,20 @@ async function refreshFailure(ctx: StaticContext, account: StoredAccount, record
       return fail(markError(account, message, now), new StaticApiError('provider_error', message, undefined, id));
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// One-time upgrade
+// ---------------------------------------------------------------------------
+
+/** Records, once, the scopes older account rows asked for (the calendar's: the only service then). */
+export async function ready(ctx: StaticContext): Promise<void> {
+  const upgrades = getUpgrades(ctx);
+  if (upgrades.includes(REQUESTED_SCOPES_UPGRADE)) return;
+  const accounts = getAccounts(ctx);
+  for (const row of accounts) row.requestedScopes = requestedScopesOf(row);
+  upgrades.push(REQUESTED_SCOPES_UPGRADE);
+  await ctx.state.commit(...(accounts.length > 0 ? [SLICE.accounts] : []), SLICE.upgrades);
 }
 
 // ---------------------------------------------------------------------------

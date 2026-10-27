@@ -7,7 +7,8 @@
  *
  * - the only service is the calendar (mail is not part of the static build), so the scopes leave
  *   out `Mail.ReadWrite`; like the server, a sign-in asks for the scopes of the services picked
- *   ({@link scopesFor}) and a refresh for those of the account's granted services;
+ *   ({@link scopesFor}) and a refresh only for services the account's last sign-in asked for
+ *   (Microsoft's reported grants list more, see {@link capabilitiesOf});
  * - Microsoft only redeems a code or refresh token from a browser origin for a redirect URI
  *   registered as "Single-page application", and such refresh tokens stop working 24 hours after
  *   the interactive sign-in ({@link SPA_SESSION_MS}; `refresh_token_expires_in` when present);
@@ -318,16 +319,22 @@ export function normalizeMicrosoftScope(scope: string): string {
   return slash === -1 ? lower : lower.slice(slash + 1);
 }
 
-function normalizeAll(scopes: readonly string[]): string[] {
+/** Scopes normalized ({@link normalizeMicrosoftScope}), deduplicated and sorted: how an account stores them. */
+export function normalizeScopes(scopes: readonly string[]): string[] {
   return [...new Set(scopes.map(normalizeMicrosoftScope).filter((s) => s.length > 0))].sort();
 }
 
 /** Granted scopes from the token response; an absent `scope` means the requested ones. */
 export function grantedScopes(scope: string | undefined, requested: readonly string[] = MICROSOFT_STATIC_SCOPES): string[] {
-  return typeof scope === 'string' ? normalizeAll(scope.split(/\s+/)) : normalizeAll(requested);
+  return typeof scope === 'string' ? normalizeScopes(scope.split(/\s+/)) : normalizeScopes(requested);
 }
 
-/** The static build only offers the calendar. */
-export function capabilitiesOf(granted: readonly string[]): Capability[] {
-  return granted.includes('calendars.readwrite') ? ['calendar'] : [];
+/**
+ * The offered services whose scopes are all in `scopes` (normalized). Pass the scopes a sign-in both
+ * asked for and was granted, never the grant alone: Microsoft's `scope` lists every permission the
+ * account ever granted the registration, also ones this sign-in did not ask for, and a refresh that
+ * asks for those fails with `invalid_grant`.
+ */
+export function capabilitiesOf(scopes: readonly string[]): Capability[] {
+  return MICROSOFT_STATIC_CAPABILITIES.filter((c) => (MICROSOFT_STATIC_CAPABILITY_SCOPES[c] ?? []).every((scope) => scopes.includes(normalizeMicrosoftScope(scope))));
 }
