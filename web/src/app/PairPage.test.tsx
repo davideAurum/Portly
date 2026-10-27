@@ -174,12 +174,20 @@ describe('PairPage on Portly’s own page', () => {
     expect(warning).toHaveTextContent('not only your Pages site');
 
     const can = screen.getByRole('heading', { name: 'It will be able to' }).nextElementSibling as HTMLElement;
-    expect(within(can).getAllByRole('listitem').map((li) => li.textContent)).toContain('See and change your dashboards, settings, bookmarks and uploads');
+    // The lists follow the server's route access: `samePc()` routes are open to the paired site.
+    expect(within(can).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'See and change your dashboards, settings, bookmarks and uploads',
+      'Use your calendars, mail, Todoist tasks, weather and feeds',
+      'Connect, rename and remove accounts, and set up OAuth clients',
+      'Reset the credential vault',
+      'See Portly’s diagnostics and log',
+      'Revoke paired browsers and remove your other PCs',
+    ]);
     const cannot = screen.getByRole('heading', { name: 'It won’t be able to' }).nextElementSibling as HTMLElement;
     expect(within(cannot).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Connect accounts or set up OAuth clients',
-      'Reset the credential vault',
-      'Pair or unpair browsers',
+      'Approve a new pairing (only this page can)',
+      'Approve or deny your other PCs',
+      'Read back a saved password or token',
       'See where Portly keeps its files on this PC',
     ]);
     expect(screen.getByRole('link', { name: 'Settings → About' })).toHaveAttribute('href', '#/settings/about');

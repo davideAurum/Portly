@@ -479,8 +479,9 @@ Items:
   (`web/src/app/PairPage.tsx`) says a paired site cannot connect accounts, set up OAuth clients,
   reset the vault or unpair browsers, but those routes are `samePc()`, which the paired site may
   call (the revoke above used one), as [Pages site with Portly](setup/pages-local-server.md)
-  says. Only approving a pairing stays on Portly's own page. The page needs to tell the truth
-  before the release.
+  says. Only approving a pairing stays on Portly's own page. Fixed the same day: both lists now
+  follow the routes' access (`samePc()` and `paired()` open to the site; approving a pairing or
+  another PC, reading back a secret and the file paths not).
 
 - **2.4 Real-browser UI and appearance sweep** (S; after 1.3).
   Each with a pass criterion: weather shows no geolocation prompt on page load and prompts only

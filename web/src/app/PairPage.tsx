@@ -219,13 +219,16 @@ function PairRequest({ nonce }: PairPageProps) {
 const CAN: readonly string[] = [
   'See and change your dashboards, settings, bookmarks and uploads',
   'Use your calendars, mail, Todoist tasks, weather and feeds',
-  'Rename or remove accounts that are already connected',
+  'Connect, rename and remove accounts, and set up OAuth clients',
+  'Reset the credential vault',
+  'See Portly’s diagnostics and log',
+  'Revoke paired browsers and remove your other PCs',
 ];
 
 const CANNOT: readonly string[] = [
-  'Connect accounts or set up OAuth clients',
-  'Reset the credential vault',
-  'Pair or unpair browsers',
+  'Approve a new pairing (only this page can)',
+  'Approve or deny your other PCs',
+  'Read back a saved password or token',
   'See where Portly keeps its files on this PC',
 ];
 
