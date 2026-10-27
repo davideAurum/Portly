@@ -43,11 +43,16 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
   [In Task Manager](autostart.md#in-task-manager)) and `app\scripts\install-cli.ps1`, and open the
   browser's extensions page for **Load unpacked** → `app\extension`.
 - **Update** (`portly --update`, which runs a temporary copy of the installed `install.ps1`; or
-  running `install.ps1` again): the same version is skipped unless `-Force`. Otherwise it stops the
-  scheduled task (when it runs this install), every process whose program lives in `app\` and
+  running `install.ps1` again): the same version is skipped unless `-Force`. Otherwise it disables
+  and stops the scheduled task (when it runs this install) until the folders are swapped, so a
+  Portly tab that notices the server is gone can't start the old version again in the meantime.
+  It also stops every process whose program lives in `app\` and
   every `portly-supervisor.exe` / `portly-server.exe` running a file in `app\`, copies
   `portly.db` to `<data folder>\backups\portly-before-<old version>-<time>.db` (the newest three
-  are kept), moves `app` to `app.previous` (replacing the one before) and `app.new` to `app`, then
+  are kept), moves `app` to `app.previous` (replacing the one before) and `app.new` to `app`. Each
+  move renames the whole folder in one step: if a file in it is still in use after 10 seconds,
+  nothing has moved, the old version starts again and the update stops with "Could not move".
+  Otherwise it
   runs the new `install-autostart.ps1`, which refreshes those copies from the new
   `runtime\node.exe`, starts Portly and waits for it. If it doesn't come up, the new version is
   moved to `app.failed`, the previous one back to `app`, the database copy is put back as
@@ -56,6 +61,10 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
   started again. The autostart mode (Browser or Logon) is kept, unless you run
   `install.ps1 -Trigger Browser` or `-Trigger Logon` to change it. When the extension's
   version changed, it says to click **Reload** on it.
+- **More than one Windows account on the PC?** Only one account can run Portly at a time: all
+  accounts share port 5757 and the scheduled task name `\Portly Server`. To use Portly on another
+  account, first remove it from the one that has it with `scripts\uninstall-autostart.ps1` there
+  (its data stays), and later put it back with `scripts\install-autostart.ps1`.
 - **Already a Git checkout on this PC?** One Portly per Windows user: installing a release
   replaces the scheduled task and launcher of the checkout with the release's. Stop using the
   checkout's `portly` command (the release installs its own).

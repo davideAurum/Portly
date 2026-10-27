@@ -1945,10 +1945,13 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
   `github.com/<releaseRepo>/releases/latest/download/` is validated (name, platform, version syntax, package name
   pattern, 64-hex SHA-256); the package must match that SHA-256 before it is unpacked into `<InstallDir>/app.new`, which
   is checked (release.json, platform, version, required files) before use. An update stops only what runs from `<app>`:
-  the task when its action names `<app>/server/src/supervisor.ts`, every process whose executable lives under `<app>`
-  and every named copy (`%LOCALAPPDATA%\Portly\node\*`) whose command line names a file under `<app>`. It copies
-  `portly.db` (+ `-wal`/`-shm`) to `<data>/backups/` before anything moves, then `app` → `app.previous`, `app.new` →
-  `app`, relinks and runs `install-autostart.ps1 -Trigger <mode> -NodePath <app>/runtime/node.exe`. The mode is
+  the task when its action names `<app>/server/src/supervisor.ts` (also disabled until the folders are swapped, and
+  during a rollback, so the extension's launcher cannot start the old copy again and hold its files), every process
+  whose executable lives under `<app>` and every named copy (`%LOCALAPPDATA%\Portly\node\*`) whose command line names
+  a file under `<app>`. It copies `portly.db` (+ `-wal`/`-shm`) to `<data>/backups/` before anything moves, then
+  `app` → `app.previous`, `app.new` → `app` (each one `Directory.Move`, retried for 10 s: all or nothing, where Windows
+  PowerShell 5.1's `Move-Item` falls back to moving file by file and stops half way at a file in use; on failure the old
+  version is relinked and started again), relinks and runs `install-autostart.ps1 -Trigger <mode> -NodePath <app>/runtime/node.exe`. The mode is
   `install.ps1 -Trigger` when given, otherwise the installed task's (Logon when it has a trigger, else Browser;
   Browser for a new install); `portly --update` never passes `-Trigger`, so it keeps the mode. If that fails, `app` →
   `app.failed`, `app.previous` → `app`, the backup is copied back as `portly.db` (`-wal`/`-shm` with it; the failed
@@ -1960,7 +1963,7 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
   compromised repository; packages are not code-signed (alpha).
 - **Checks:** `scripts/check-release.ps1` (`Restore-InstDatabase` on a temporary data folder, install, the installed CLI and autostart dry run, a server started from the
   package on a free port with a temporary data folder, re-install, `-Force` update with backup and `app.previous`,
-  refusals) — in `ci.yml` with a test package and in `release.yml` with the real one.
+  an update blocked by a file in use leaving `app` whole, refusals) — in `ci.yml` with a test package and in `release.yml` with the real one.
 
 ---
 

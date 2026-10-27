@@ -14,7 +14,8 @@
        served.
     4. install.ps1 again: "already installed", nothing changes.
     5. install.ps1 -Force (the update path): the database is copied to backups\, the old version is
-       kept in app.previous, app\ is complete and linked again.
+       kept in app.previous, app\ is complete and linked again. With a file in app\ in use the
+       update fails and app\ stays whole and linked.
     6. A wrong -Sha256 and a missing package are refused and change nothing.
     7. install.ps1 -DryRun changes nothing.
     Before all of this, install.ps1's Restore-InstDatabase is run on a temporary data folder: after
@@ -259,6 +260,21 @@ try {
     Assert-That -Name 'a second update replaces app.previous and leaves app\shared intact' -Condition (
         $second.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $app 'shared\package.json') -PathType Leaf) -and
         $null -ne (Get-HbReleaseInfo -RepoRoot $previous)) -Detail $second.Text
+
+    # A file in app\ is in use (in real use: a Portly server a browser tab started again). The
+    # rename must fail as a whole: Move-Item in Windows PowerShell 5.1 moved part of the folder.
+    $appFiles = @(Get-ChildItem -LiteralPath $app -Recurse -File -Force).Count
+    $held = [System.IO.File]::Open((Join-Path $app 'release.json'), 'Open', 'Read', 'Read')
+    try {
+        $blocked = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip, '-Force') + $common)
+    } finally {
+        $held.Dispose()
+    }
+    Assert-That -Name 'an update that cannot move app\ (a file in use) fails and leaves app\ whole and linked' -Condition (
+        $blocked.ExitCode -eq 1 -and $blocked.Text.Contains("Could not move $app to $previous") -and
+        $null -ne (Get-HbReleaseInfo -RepoRoot $app) -and -not (Test-Path -LiteralPath $previous) -and
+        @(Get-ChildItem -LiteralPath $app -Recurse -File -Force).Count -eq $appFiles -and
+        (Test-Junction -Path (Join-Path $app 'node_modules\@portly\shared') -Target (Join-Path $app 'shared'))) -Detail $blocked.Text
 
     Write-Host ''
     Write-Host 'Refusals' -ForegroundColor White

@@ -17,7 +17,7 @@ checks).
 | 1 | Baseline and a truthful public surface | Done (1.8's real run waits for the next `portly --update`, see the checks table) |
 | 2 | Prove what is built, on this PC | In progress: 2.1, 2.3 and 2.5 done |
 | 3 | Every PC on Portly, Homebase retired | Not started |
-| 4 | Release rehearsal in private | In progress: 4.1, 4.5, 4.6 and 4.7 done; 4.2 to 4.4 open |
+| 4 | Release rehearsal in private | In progress: 4.1, 4.2, 4.5, 4.6 and 4.7 done; 4.3 found an update bug (fixed) and is run again; 4.4 open |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
 | 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Not started |
 
@@ -683,10 +683,17 @@ Items:
   *Done when:* `gh run list --workflow release.yml` shows one green run with an artifact whose
   `release.json` matches 4.1's version; nothing published.
 
+  *Status:* done 2026-10-26. Run 40449825242 at e11c158: the build-and-check job passed, the
+  publish job was skipped. The artifact's `release.json` reads 0.2.0-alpha.1, commit e11c158,
+  extension 0.5.3, not dirty, and the zip matched the SHA-256 in its `portly-release.json`. The
+  repository has no releases.
+
 - **4.3 Install, fail an update, and uninstall on a fresh Windows account** (M; go-ahead; after
   4.1).
-  On a second local account on this PC (sign the main account out first: its Portly holds
-  127.0.0.1:5757) or a VM, run the whole shipping path with 4.1's package:
+  On a second local account on this PC or a VM, run the whole shipping path with 4.1's package.
+  On this PC the main account's autostart must be removed first (`uninstall-autostart.ps1`, data
+  kept; `install-autostart.ps1` afterwards): every account shares port 5757 and the task name
+  `\Portly Server`.
   - Install: `install.ps1 -ZipPath` with the real `install-autostart.ps1` (Browser mode, then
     `-Trigger Logon`), `install-cli.ps1`, Load unpacked with Developer mode. A new tab must start
     the server through the native host and the scheduled task; `portly --status` and
@@ -706,6 +713,24 @@ Items:
   under that user; `/api/health` reports the old version after the failed update and `backups\`
   holds `portly-failed-*`; the Reload notice appears; uninstall leaves no task, keys or host
   folder; dated lines, so the CHANGELOG's rollback sentence is true.
+
+  *Status:* first run 2026-10-27 on a standard local account, Chrome, with packages built from
+  e11c158 (the good one, one whose server exits at start-up, and one with extension 0.5.4).
+  - Passed: the install (SHA-256, the task in Browser mode, the native host, the CLI, health
+    0.2.0-alpha.1); Load unpacked; a new tab starting the stopped server through the launcher;
+    Settings > About showing 0.2.0-alpha.1 and the account's own data folder; `portly --status`
+    healthy; `portly --update` failing with "not found"; the switch to Logon mode; and
+    `portly --start`. Uninstall removed the task, both registry keys and the host folder.
+  - Failed: the update. `install.ps1` stopped Portly and copied the database. Then the Portly tab
+    still open in Chrome had the launcher start the task again, and a file in `app` was in use.
+    Windows PowerShell 5.1's `Move-Item` then moved part of `app` into `app.previous` and stopped.
+    The server came back from the half-moved folder as version 0.0.0, the rollback never ran, and
+    the next update refused the folder as "not a Portly release install". No sharing violation
+    was seen.
+  - Fixed in the commit that adds this note: the task is disabled while the folders are swapped
+    and during a rollback, and each folder is renamed with `Directory.Move`, which moves all or
+    nothing. `check-release.ps1` now holds a file in `app` during an update. The failed-update
+    and Reload-notice parts are run again on the same account.
 
 - **4.4 Newcomer read of README and SETUP** (S; after 4.3).
   Using only the docs on that account, write down every point where README or SETUP were
@@ -1130,10 +1155,10 @@ date and the outcome once a row has been run for real.
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
 | `publish-release.ps1` handing the CHANGELOG notes to a real `gh release create --notes-file`, and how they render on github.com (links, the arrow character); the dry run printed the 0.2.0-alpha.1 section in both PowerShell versions but stops at the private-repository refusal before the `gh` command line | this commit, 2026-10-25 | 5.3 | not yet |
-| The package built with the nodejs.org runtime installed for real: the scheduled task, native host and extension on a real account; `check-release.ps1` only installs into a temporary folder without autostart or the CLI | this commit, 2026-10-25 | 4.3 | not yet |
+| The package built with the nodejs.org runtime installed for real: the scheduled task, native host and extension on a real account; `check-release.ps1` only installs into a temporary folder without autostart or the CLI | this commit, 2026-10-25 | 4.3 | 2026-10-27 (4.3): installed on a fresh standard account with the real task, native host, CLI and Load unpacked; a new tab started it and About showed the account's data folder. Its update path is the failed-update row below |
 | The Weather widget's place name from a real browser location (the browser pane blocks location, so the check faked the position; the server's real Nominatim lookup did answer with the expected city) | this commit, 2026-10-25 | owner's next use with *Use this device's location* | not yet |
 | The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | 2026-10-25 (2.5): on `preview:static`, *Use my location* with a faked position called nominatim.openstreetmap.org (200) with no CSP violation and named the place; a real browser location prompt is still the row above |
-| A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | not yet |
+| A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | 2026-10-27 (4.3): failed before the rollback was reached. A Portly tab restarted the server mid-update and `Move-Item` split `app` in two (4.3's status). Fixed; run again in 4.3 |
 | The settings dialog's focus change (it keeps looking for the requested field for 10 s and stops once focus has moved inside the dialog), by hand in a browser; only the new tests cover it | 29347b8, 2026-10-19 | 2.4 | not yet |
 | The browser-only build's Outlook.com sign-in on the published Pages address itself: the same sign-in and sync check, the automatic 24-hour renewal and writing an event (the localhost copy passed) | 3b3edd7, 2026-10-19 | 2.1 | 2026-10-26 (2.1): passed on the published site with a real account, reported by the owner: connect, sync, an event created, edited and deleted and seen in Outlook, the renewal after more than 24 hours |
 | The OneDrive spike (sign-in, app folder reads and writes, cross-origin download URLs) in Firefox and Safari; only the desktop app's Chromium-based browser pane was used | 3b3edd7, 2026-10-19 | 6.7 (Firefox smoke run); Safari stays unsupported | not yet |
@@ -1148,14 +1173,15 @@ date and the outcome once a row has been run for real.
 | The retried copy of Homebase's IndexedDB database in a real browser (a copy that fails part-way, then the next load trying again and giving up after three loads); unit tests only | f0d5331, 2026-10-19 | 3.1 | not yet |
 | The vault key swap during a Homebase copy (Homebase's key moved in, Portly's kept beside its old database) with a real DPAPI-protected key; the tests use plain files | 1860efe, 2026-10-19 | 3.1 | not yet |
 | The 2026-10-19 switch-over fixes on a real Homebase PC: the extension and native host refusing a Homebase health answer (b5f5cc5), `HOMEBASE_DATA_DIR` read as the copy source (d14862a) and the one-time `HOMEBASE_*` variable copy (7eaee9c); fakes and temporary folders only | b5f5cc5, 2026-10-19 | 3.1 (scratch folders), 3.3 (a real Homebase PC) | not yet |
-| The retry when setting a fresh program copy's modification time hits a sharing violation during a real install or update (the holder never reproduced in 110 runs; Defender real-time protection is the likely one) | 8f5fe93, 2026-10-19 | 4.3 and 5.5 (watch for it) | not yet |
+| The retry when setting a fresh program copy's modification time hits a sharing violation during a real install or update (the holder never reproduced in 110 runs; Defender real-time protection is the likely one) | 8f5fe93, 2026-10-19 | 4.3 and 5.5 (watch for it) | 2026-10-27 (4.3, first run): not seen in the install, the switch to Logon mode or `portly --start`; the updates stopped before they refreshed the copies, so keep watching |
 | Hidden-tab behaviour (stopped clock and upload timers, the once-a-minute local server probe, the throttled cache save) with a real hidden tab instead of simulated visibility events | 3407dfc, 2026-10-18 | 2.4 (2.3 checked only the reload) | not yet |
 | The hybrid pairing check in a real browser: a pairing change reloads each background tab only when you switch to it, after one more probe | 3407dfc, 2026-10-18 | 2.3 | 2026-10-26 (2.3): in Chrome, a background tab across a server stop and restart reloaded only when switched to, and its Diagnostics > This browser showed the switch deferred, then performed (reported by the owner; the server log has the restarts) |
-| Pairing in Edge (Local network access prompt, approval, **Connected**); 2.3 ran in Chrome only, the Edge pairing deferred by the owner | this commit, 2026-10-26 | 4.3 (the fresh account) or the owner's next Edge use | not yet |
+| Pairing in Edge (Local network access prompt, approval, **Connected**); 2.3 ran in Chrome only, the Edge pairing deferred by the owner | 6966fd5, 2026-10-26 | 4.3 (the fresh account) or the owner's next Edge use | not yet (4.3's first run used Chrome) |
+| An update with a Portly tab open on a real account after the fix: the task disabled during the swap and enabled again, the rollback with the task disabled, and the Reload notice. `check-release.ps1` covers only the all-or-nothing rename, because it has no real task | this commit, 2026-10-27 | 4.3 (the rerun) | not yet |
 | Background upload preparation in Edge or Firefox, with a real camera photo, and with EXIF-rotated files; only Chrome's built-in browser pane was tried | 501e85b, 2026-10-18 | 2.4 | not yet |
 | The frosted glass switch and the baked photo blur in a visible browser window and in browsers other than Chrome; only headless Chrome measurements and screenshots were made | 1169e15, 2026-10-18 | 2.4 | not yet |
-| A real `install-autostart` run that registers the task to run `portly-supervisor.exe`; nothing in the repository records one (the installed task on the developer's PC does name it, dated 2026-10-18 in the memory note, but that is outside the repository) | 89e4325, 2026-10-18 | 4.3 (on a fresh account) | 2026-10-21 (after 1.3, on this PC): `install-autostart.ps1` replaced the running Browser-mode task, found the `node.exe` copies up to date, rewrote the native host files and registry keys, stopped the old processes and started the task; `/api/health` answered 0.2.0-alpha.1 and `portly --status` shows no warning. The fresh-account run stays with 4.3 |
-| `update.ps1` and `portly --start` for real, refreshing out-of-date copies of `node.exe` before starting the task | 89e4325, 2026-10-18 | 1.3 (`update.ps1`), 5.4 (its task restart), 4.3 (`portly --start` on a fresh install) | 2026-10-21 (1.3): `portly --update` ran `npm ci` (the lockfile had changed), the build and the publish; the server was stopped at the time, so the task-restart path did not run. `portly --start` then started the task and waited for health; the copies of `node.exe` were up to date, so the refresh path did not run |
+| A real `install-autostart` run that registers the task to run `portly-supervisor.exe`; nothing in the repository records one (the installed task on the developer's PC does name it, dated 2026-10-18 in the memory note, but that is outside the repository) | 89e4325, 2026-10-18 | 4.3 (on a fresh account) | 2026-10-21 (after 1.3, on this PC): `install-autostart.ps1` replaced the running Browser-mode task, found the `node.exe` copies up to date, rewrote the native host files and registry keys, stopped the old processes and started the task; `/api/health` answered 0.2.0-alpha.1 and `portly --status` shows no warning. 2026-10-27 (4.3): on a fresh account the release install copied `runtime\node.exe` to `portly-supervisor.exe` and `portly-server.exe` and registered the task to run it, in Browser and then Logon mode |
+| `update.ps1` and `portly --start` for real, refreshing out-of-date copies of `node.exe` before starting the task | 89e4325, 2026-10-18 | 1.3 (`update.ps1`), 5.4 (its task restart), 4.3 (`portly --start` on a fresh install) | 2026-10-21 (1.3): `portly --update` ran `npm ci` (the lockfile had changed), the build and the publish; the server was stopped at the time, so the task-restart path did not run. `portly --start` then started the task and waited for health; the copies of `node.exe` were up to date, so the refresh path did not run. 2026-10-27 (4.3): `portly --start` on a fresh release install started the Logon-mode task after its processes were stopped; the copies were up to date there too |
 | A PC whose policy blocks running programs from `%LOCALAPPDATA%` (the task should fall back to `node.exe` and the supervisor to its own program) | 89e4325, 2026-10-18 | none: parked, cannot be reproduced on Windows 11 Home | not yet |
 | The Weather widget's location prompt flow in a real browser (permission already granted, *Use my location*, a one-time *Allow this time*); the browser APIs are faked in the tests | 82fb2f8, 2026-10-13 | 2.4 | not yet |
 | The animated lighthouse logo in Firefox and as the extension's New Tab page; frames were checked by eye in Chromium only | 7657e96, 2026-10-13 | 2.4 | not yet |
