@@ -12,6 +12,7 @@ import * as accounts from './accounts.ts';
 import * as bookmarks from './bookmarks.ts';
 import * as calendar from './calendar.ts';
 import * as core from './core.ts';
+import * as gistSync from './gistSync.ts';
 import * as profiles from './profiles.ts';
 import * as search from './search.ts';
 import * as settings from './settings.ts';
@@ -40,6 +41,7 @@ export const MODULES: readonly HandlerModule[] = Object.freeze([
   weather,
   sports,
   todoist,
+  gistSync,
   accounts,
   calendar,
   unavailable,
@@ -57,6 +59,7 @@ const MODULE_NAMES: ReadonlyMap<HandlerModule, string> = new Map<HandlerModule, 
   [weather, 'weather'],
   [sports, 'sports'],
   [todoist, 'todoist'],
+  [gistSync, 'gistSync'],
   [accounts, 'accounts'],
   [calendar, 'calendar'],
   [unavailable, 'unavailable'],

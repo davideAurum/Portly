@@ -78,6 +78,8 @@ function tileSummary(connection: ConnectionInfo): string {
   switch (connection.id) {
     case 'todoist':
       return 'Tasks';
+    case 'github':
+      return 'Launch pad sync (secret gist)';
     case 'other':
       return 'CalDAV calendar or IMAP mail';
     case 'microsoft':

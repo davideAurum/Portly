@@ -379,7 +379,9 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
   static hosts send no headers. It matches the HTML CSP except: `img-src` also allows `https://icons.duckduckgo.com`
   (favicons as `<img>`); `connect-src` is `'self'` plus the hosts the in-browser backend calls directly,
   `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://nominatim.openstreetmap.org`,
-  `https://api.todoist.com`,
+  `https://api.todoist.com`, `https://api.github.com` and `https://gist.githubusercontent.com` (launch pad sync
+  through secret gists, docs/design/launchpad-sync-gist.md; built but not wired to a sync engine yet; its token is kept
+  like the Todoist token, in the never-exported `gist-sync` slice),
   `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://login.microsoftonline.com` and
   `https://graph.microsoft.com` (Outlook.com sign-in and calendar), and in hybrid mode the local server origin
   (`PORTLY_STATIC_SERVER`, §16); there is no `frame-ancestors` (a meta tag cannot set it). The `script-src` invariant

@@ -10,7 +10,7 @@
  * handler or keep the backend from starting.
  *
  * Export (`GET /api/export`) reads settings, profiles, bookmarks, uploads and icons. The Todoist
- * token, the pre-import backups, accounts and their tokens, the OAuth client, pending sign-ins and
+ * token, the GitHub gist token, the pre-import backups, accounts and their tokens, the OAuth client, pending sign-ins and
  * the calendar cache are never exported (and an import never touches them), and neither is the
  * list of one-time data upgrades already applied.
  */
@@ -37,6 +37,7 @@ export const SLICE = Object.freeze({
   uploads: 'uploads',
   icons: 'icons',
   todoistToken: 'todoist-token',
+  gistSync: 'gist-sync',
   backups: 'backups',
   accounts: 'accounts',
   accountTokens: 'account-tokens',
@@ -260,6 +261,35 @@ export function getTodoistToken(ctx: StaticContext): TodoistTokenSlice {
     (value) => isRow(value) && (value.token === null || typeof value.token === 'string') && Number.isFinite(value.generation),
     // Keep the generation moving forward so token-keyed caches are never reused.
     (value) => ({ token: null, generation: isRow(value) && Number.isFinite(value.generation) ? Number(value.generation) + 1 : 1 }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// GitHub gist token for launch pad sync (never exported)
+// ---------------------------------------------------------------------------
+
+export interface GistSyncSlice {
+  token: string | null;
+  /** Bumped on every token change, like the Todoist token's. */
+  generation: number;
+  /** The sync gists found or created with this token (cleared when the token changes). */
+  mainGistId: string | null;
+  iconsGistId: string | null;
+}
+
+export function getGistSync(ctx: StaticContext): GistSyncSlice {
+  return checkedSlice<GistSyncSlice>(
+    ctx,
+    SLICE.gistSync,
+    () => ({ token: null, generation: 0, mainGistId: null, iconsGistId: null }),
+    (value) =>
+      isRow(value) && isNullableString(value.token) && Number.isFinite(value.generation) && isNullableString(value.mainGistId) && isNullableString(value.iconsGistId),
+    (value) => ({
+      token: null,
+      generation: isRow(value) && Number.isFinite(value.generation) ? Number(value.generation) + 1 : 1,
+      mainGistId: null,
+      iconsGistId: null,
+    }),
   );
 }
 
