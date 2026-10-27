@@ -12,8 +12,8 @@
  * backend only Microsoft (calendar only, signed in from the browser) and Todoist work; Google,
  * Yahoo, CalDAV and IMAP need the Portly server. On another PC's page load (`remoteClient`) the
  * Google and Microsoft sign-ins stay on the main PC (their redirect lands there); Yahoo, CalDAV,
- * IMAP and Todoist work from anywhere, because the server keeps the credentials. GitHub (a token
- * for launch pad sync through secret gists) is offered only when the page's data lives in this
+ * IMAP and Todoist work from anywhere, because the server keeps the credentials. GitHub (a private
+ * repository and token for launch pad sync) is offered only when the page's data lives in this
  * browser.
  */
 import { CAPABILITIES, OAUTH_PROVIDER_CAPABILITIES, type AccountKind, type Capability, type OAuthProvider } from '@portly/shared';

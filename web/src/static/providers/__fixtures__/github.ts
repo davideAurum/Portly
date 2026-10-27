@@ -1,132 +1,114 @@
 /**
- * A small in-memory GitHub for the gist store's tests: the REST routes it uses (`GET /gists`,
- * `POST /gists`, `GET|PATCH|DELETE /gists/{id}`, `GET /gists/{id}/{sha}`) and the raw host, with
- * revisions, 1 MB inline truncation and hooks to inject failures or another browser's write.
- * Answers follow the shapes seen from api.github.com on 2026-10-27. The account is fictional.
+ * A small in-memory GitHub for the repository store's tests: one repository with the REST routes
+ * the store uses (`GET /repos/{owner}/{repo}`, `GET|PUT|DELETE …/contents/{path}`,
+ * `GET …/git/blobs/{sha}`), content-addressed blob shas, 1 MB inline limit, `ETag`/`If-None-Match`,
+ * the sha checks of the contents API (422 without a needed sha, 409 with a stale one) and hooks to
+ * inject failures or another browser's write. Answers follow the shapes seen from api.github.com
+ * on 2026-10-27. The account is fictional.
  */
+import { decodeBase64, encodeBase64 } from '../../lib/base64.ts';
 import { createFakeFetch, type FakeFetch, type FakeRequest, type FakeResponseSpec } from './fakeFetch.ts';
 
 export const GITHUB_TOKEN = 'github_pat_11TESTTOKEN0123456789_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456';
 export const CLASSIC_TOKEN = 'ghp_TestToken0123456789abcdefghijklmnopq';
 export const OWNER = 'octo-tester';
+export const REPO = 'portly-sync';
+export const REPOSITORY = { owner: OWNER, name: REPO } as const;
 const API = 'https://api.github.com';
-const RAW = 'https://gist.githubusercontent.com';
-/** What the API inlines of each file. */
+export const REPO_URL = `${API}/repos/${OWNER}/${REPO}`;
+/** What the contents API inlines of a file. */
 export const INLINE_LIMIT = 1024 * 1024;
 
-interface Revision {
-  version: string;
-  files: Map<string, string>;
-}
-
-export interface FakeGist {
-  id: string;
-  public: boolean;
-  description: string;
-  createdAt: string;
-  files: Map<string, string>;
-  /** Newest first. */
-  history: Revision[];
+export interface FakeCommit {
+  path: string;
+  message: string;
 }
 
 export interface FakeGitHub {
   fake: FakeFetch;
-  gists: Map<string, FakeGist>;
-  /** Adds a gist as if created earlier (by another browser, or by hand). */
-  seed(files: Record<string, string>, options?: { id?: string; public?: boolean; createdAt?: string }): FakeGist;
-  /** Changes a gist's files directly (another browser's write); returns the new version. */
-  write(id: string, files: Record<string, string | null>): string;
-  /** Runs right before a PATCH is applied (to inject a concurrent write); return a spec to answer with it instead. */
-  beforePatch: ((req: FakeRequest, gist: FakeGist) => FakeResponseSpec | void) | null;
-  /** Answers every API request with this instead, while set. */
+  repo: { exists: boolean; private: boolean };
+  /** path → blob sha, on the default branch. */
+  files: Map<string, string>;
+  commits: FakeCommit[];
+  /** Writes a file directly (another browser's write, or by hand); returns its sha. */
+  put(path: string, content: string | Uint8Array): string;
+  remove(path: string): void;
+  sha(path: string): string | undefined;
+  text(path: string): string | undefined;
+  bytes(path: string): Uint8Array | undefined;
+  /** Runs before a PUT or DELETE is applied (to inject a concurrent write); return a spec to answer with it instead. */
+  beforeWrite: ((req: FakeRequest) => FakeResponseSpec | void) | null;
+  /** Answers every request with this instead, while it returns a spec. */
   override: ((req: FakeRequest) => FakeResponseSpec | null) | null;
   calls(method?: string, pattern?: RegExp): FakeRequest[];
 }
 
-const utf8 = (text: string) => new TextEncoder().encode(text).byteLength;
+const encoder = new TextEncoder();
+
+/** GitHub's base64: a line break every 60 characters, and one at the end. */
+export function githubBase64(bytes: Uint8Array): string {
+  const plain = encodeBase64(bytes);
+  return plain === '' ? '' : `${plain.replace(/.{60}/g, '$&\n')}\n`;
+}
 
 export function createFakeGitHub(): FakeGitHub {
-  const gists = new Map<string, FakeGist>();
-  const blobs = new Map<string, string>();
+  const blobs = new Map<string, Uint8Array>();
+  const shaByContent = new Map<string, string>();
   let counter = 0;
-  let gistCounter = 0;
-  let clock = Date.parse('2026-10-01T00:00:00Z');
 
-  const nextVersion = () => (++counter).toString(16).padStart(40, '0');
-  const blobOf = (content: string) => {
-    const sha = `b${(++counter).toString(16).padStart(39, '0')}`;
-    blobs.set(sha, content);
-    return sha;
-  };
-  const stamp = () => new Date((clock += 1000)).toISOString();
-
-  function fileJson(gist: FakeGist, name: string, content: string, withContent: boolean) {
-    const size = utf8(content);
-    const raw_url = `${RAW}/${OWNER}/${gist.id}/raw/${blobOf(content)}/${encodeURIComponent(name)}`;
-    if (!withContent) return { filename: name, type: 'text/plain', language: null, raw_url, size };
-    const truncated = size > INLINE_LIMIT;
-    // The API cuts at 1 MB of bytes; these fixtures are ASCII, so characters are bytes.
-    return { filename: name, type: 'text/plain', language: null, raw_url, size, truncated, content: truncated ? content.slice(0, INLINE_LIMIT) : content, encoding: 'utf-8' };
-  }
-
-  function gistJson(gist: FakeGist, files: Map<string, string>, withContent: boolean, history: Revision[] | null) {
-    const out: Record<string, unknown> = {
-      url: `${API}/gists/${gist.id}`,
-      id: gist.id,
-      public: gist.public,
-      created_at: gist.createdAt,
-      updated_at: gist.createdAt,
-      description: gist.description,
-      owner: { login: OWNER },
-      files: Object.fromEntries([...files].map(([name, content]) => [name, fileJson(gist, name, content, withContent)])),
-      truncated: false,
-    };
-    if (history !== null) out.history = history.map((r) => ({ user: { login: OWNER }, version: r.version, committed_at: gist.createdAt, url: `${API}/gists/${gist.id}/${r.version}` }));
-    return out;
-  }
-
-  function commit(gist: FakeGist): string {
-    const version = nextVersion();
-    gist.history.unshift({ version, files: new Map(gist.files) });
-    return version;
-  }
-
-  function apply(gist: FakeGist, files: Record<string, unknown>): boolean {
-    let changed = false;
-    for (const [name, value] of Object.entries(files)) {
-      if (value === null) changed = gist.files.delete(name) || changed;
-      else {
-        const content = (value as { content: string }).content;
-        if (gist.files.get(name) !== content) changed = true;
-        gist.files.set(name, content);
-      }
+  /** Content-addressed like git: the same bytes always get the same sha. */
+  function store(bytes: Uint8Array): string {
+    const key = encodeBase64(bytes);
+    let sha = shaByContent.get(key);
+    if (sha === undefined) {
+      sha = (++counter).toString(16).padStart(40, '0');
+      shaByContent.set(key, sha);
+      blobs.set(sha, bytes);
     }
-    return changed;
+    return sha;
+  }
+
+  const notFound = (message = 'Not Found'): FakeResponseSpec => ({ status: 404, json: { message, status: '404' } });
+
+  function fileJson(path: string, sha: string) {
+    const bytes = blobs.get(sha)!;
+    const inline = bytes.byteLength <= INLINE_LIMIT;
+    return {
+      name: path.split('/').at(-1),
+      path,
+      sha,
+      size: bytes.byteLength,
+      type: 'file',
+      content: inline ? githubBase64(bytes) : '',
+      encoding: inline ? 'base64' : 'none',
+      download_url: `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${path}?token=SHOULD_NOT_BE_USED`,
+    };
   }
 
   const github: FakeGitHub = {
     fake: createFakeFetch(),
-    gists,
-    seed(files, options = {}) {
-      const id = options.id ?? `aa${(++gistCounter).toString(16).padStart(30, '0')}`;
-      const gist: FakeGist = {
-        id,
-        public: options.public ?? false,
-        description: 'seeded',
-        createdAt: options.createdAt ?? stamp(),
-        files: new Map(Object.entries(files)),
-        history: [],
-      };
-      commit(gist);
-      gists.set(id, gist);
-      return gist;
+    repo: { exists: true, private: true },
+    files: new Map(),
+    commits: [],
+    put(path, content) {
+      const sha = store(typeof content === 'string' ? encoder.encode(content) : content);
+      github.files.set(path, sha);
+      github.commits.push({ path, message: 'by hand' });
+      return sha;
     },
-    write(id, files) {
-      const gist = gists.get(id)!;
-      apply(gist, Object.fromEntries(Object.entries(files).map(([name, content]) => [name, content === null ? null : { content }])));
-      return commit(gist);
+    remove(path) {
+      github.files.delete(path);
     },
-    beforePatch: null,
+    sha: (path) => github.files.get(path),
+    text(path) {
+      const bytes = github.bytes(path);
+      return bytes === undefined ? undefined : new TextDecoder().decode(bytes);
+    },
+    bytes(path) {
+      const sha = github.files.get(path);
+      return sha === undefined ? undefined : blobs.get(sha);
+    },
+    beforeWrite: null,
     override: null,
     calls(method, pattern) {
       return github.fake.calls.filter((c) => (method === undefined || c.method === method) && (pattern === undefined || pattern.test(c.url)));
@@ -136,50 +118,55 @@ export function createFakeGitHub(): FakeGitHub {
   github.fake.add({
     match: /./,
     respond: (req) => {
-      const url = new URL(req.url);
-      if (url.origin === RAW) {
-        const parts = url.pathname.split('/');
-        const content = blobs.get(parts[4] ?? '');
-        return content === undefined ? { status: 404, text: '404: Not Found' } : { text: content, headers: { 'content-type': 'text/plain; charset=utf-8' } };
-      }
       const overridden = github.override?.(req);
       if (overridden) return overridden;
-      const path = url.pathname;
-      if (path === '/gists' && req.method === 'GET') {
-        const perPage = Number(url.searchParams.get('per_page') ?? 30);
-        const page = Number(url.searchParams.get('page') ?? 1);
-        // Newest first, like GitHub.
-        const all = [...gists.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        return { json: all.slice((page - 1) * perPage, page * perPage).map((g) => gistJson(g, g.files, false, null)) };
+      const url = new URL(req.url);
+      const prefix = `/repos/${OWNER}/${REPO}`;
+      if (url.origin !== API || !github.repo.exists || (url.pathname !== prefix && !url.pathname.startsWith(`${prefix}/`))) return notFound();
+      const rest = url.pathname.slice(prefix.length);
+      if (rest === '' && req.method === 'GET') return { json: { id: 1, name: REPO, full_name: `${OWNER}/${REPO}`, private: github.repo.private } };
+
+      const blob = /^\/git\/blobs\/([0-9a-f]{40})$/.exec(rest);
+      if (blob && req.method === 'GET') {
+        const bytes = blobs.get(blob[1]!);
+        return bytes ? { json: { sha: blob[1], size: bytes.byteLength, encoding: 'base64', content: githubBase64(bytes) } } : notFound();
       }
-      if (path === '/gists' && req.method === 'POST') {
-        const body = JSON.parse(req.body ?? '{}') as { description: string; public: boolean; files: Record<string, { content: string }> };
-        const gist = github.seed(Object.fromEntries(Object.entries(body.files).map(([n, f]) => [n, f.content])), { public: body.public });
-        gist.description = body.description;
-        return { status: 201, json: gistJson(gist, gist.files, true, gist.history) };
-      }
-      const match = /^\/gists\/([^/]+)(?:\/([0-9a-f]{40}))?$/.exec(path);
-      const gist = match ? gists.get(match[1]!) : undefined;
-      if (!match || !gist) return { status: 404, json: { message: 'Not Found', status: '404' } };
-      if (match[2] !== undefined) {
-        const revision = gist.history.find((r) => r.version === match[2]);
-        return revision ? { json: gistJson(gist, revision.files, true, gist.history) } : { status: 404, json: { message: 'Not Found' } };
-      }
-      switch (req.method) {
-        case 'GET':
-          return { json: gistJson(gist, gist.files, true, gist.history) };
-        case 'DELETE':
-          gists.delete(gist.id);
-          return { status: 204 };
-        case 'PATCH': {
-          const injected = github.beforePatch?.(req, gist);
-          if (injected) return injected;
-          const body = JSON.parse(req.body ?? '{}') as { files: Record<string, unknown> };
-          if (apply(gist, body.files)) commit(gist);
-          return { json: gistJson(gist, gist.files, true, gist.history) };
+
+      if (!rest.startsWith('/contents/')) return notFound();
+      const path = rest.slice('/contents/'.length);
+      const current = github.files.get(path);
+      if (req.method === 'GET') {
+        if (github.files.size === 0) return notFound('This repository is empty.');
+        if (current === undefined) {
+          const children = [...github.files.keys()].filter((p) => p.startsWith(`${path}/`));
+          return children.length > 0 ? { json: children.map((p) => ({ name: p, path: p, type: 'file' })) } : notFound();
         }
+        const etag = `"${current}"`;
+        if (req.headers.get('if-none-match') === etag) return { status: 304, headers: { etag } };
+        return { json: fileJson(path, current), headers: { etag } };
       }
-      return { status: 404, json: { message: 'Not Found' } };
+
+      const injected = github.beforeWrite?.(req);
+      if (injected) return injected;
+      const after = github.files.get(path);
+      const body = JSON.parse(req.body ?? '{}') as { message?: string; content?: string; sha?: string };
+      if (req.method === 'PUT') {
+        if (after !== undefined && body.sha === undefined) return { status: 422, json: { message: 'Invalid request.\n\n"sha" wasn\'t supplied.', status: '422' } };
+        if (after === undefined && body.sha !== undefined) return { status: 422, json: { message: 'Invalid request.\n\n"sha" is not a valid blob.', status: '422' } };
+        if (after !== undefined && body.sha !== after) return { status: 409, json: { message: `${path} does not match ${body.sha}`, status: '409' } };
+        const sha = store(decodeBase64(body.content ?? ''));
+        github.files.set(path, sha);
+        github.commits.push({ path, message: body.message ?? '' });
+        return { status: after === undefined ? 201 : 200, json: { content: fileJson(path, sha), commit: { sha: `c${counter}`, message: body.message } } };
+      }
+      if (req.method === 'DELETE') {
+        if (after === undefined) return notFound();
+        if (body.sha !== after) return { status: 409, json: { message: `${path} does not match ${body.sha}`, status: '409' } };
+        github.files.delete(path);
+        github.commits.push({ path, message: body.message ?? '' });
+        return { json: { content: null, commit: { sha: `c${counter}`, message: body.message } } };
+      }
+      return notFound();
     },
   });
   return github;

@@ -11,12 +11,10 @@ function directive(csp: string, name: string): string[] {
 }
 
 describe('static build CSP', () => {
-  it('lets the page reach GitHub for launch pad sync through gists, and nothing else of GitHub', () => {
+  it("lets the page reach GitHub's API for launch pad sync, and no other GitHub host", () => {
     const connect = directive(staticCsp(''), 'connect-src');
-    expect(connect).toContain('https://api.github.com');
-    // Files over 1 MB are read from their raw_url, which answers any origin.
-    expect(connect).toContain('https://gist.githubusercontent.com');
-    expect(connect.filter((source) => source.includes('github'))).toEqual(['https://api.github.com', 'https://gist.githubusercontent.com']);
+    // Files over 1 MB come from the blob API, so no raw or download host is needed.
+    expect(connect.filter((source) => source.includes('github'))).toEqual(['https://api.github.com']);
   });
 
   it('keeps the providers it already allowed and adds the local server only when set', () => {
@@ -24,6 +22,6 @@ describe('static build CSP', () => {
     expect(connect).toEqual(expect.arrayContaining(["'self'", 'https://api.todoist.com', 'https://graph.microsoft.com']));
     expect(connect).not.toContain('http://127.0.0.1:5757');
     expect(directive(staticCsp('http://127.0.0.1:5757'), 'connect-src')).toContain('http://127.0.0.1:5757');
-    expect(directive(staticCsp(''), 'img-src')).not.toContain('https://gist.githubusercontent.com');
+    expect(directive(staticCsp(''), 'img-src').filter((source) => source.includes('github'))).toEqual([]);
   });
 });
