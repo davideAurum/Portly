@@ -49,7 +49,7 @@ function account(extra: Partial<StoredAccount> = {}): StoredAccount {
 function memoryStore(fail?: () => SyncStoreError | null): SyncStore & { reads: number } {
   let file: SyncFileVersion | null = null;
   const store = {
-    kind: 'gist' as const,
+    kind: 'github' as const,
     reads: 0,
     async readMain() {
       store.reads++;

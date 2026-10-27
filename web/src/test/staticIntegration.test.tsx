@@ -421,7 +421,7 @@ describe('static build: server-only features', () => {
     expect(await screen.findByText('No accounts yet')).toBeInTheDocument();
     expect(screen.getByText('Connect Microsoft (Outlook.com) or Todoist below to see your calendars and tasks.')).toBeInTheDocument();
     const tiles = within(screen.getByRole('list', { name: 'Add a connection' })).getAllByRole('button');
-    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Microsoft', 'Connect Todoist']);
+    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Microsoft', 'Connect Todoist', 'Connect GitHub']);
     expect(within(tiles[0]!).getByText('Outlook.com calendar and launch pad sync')).toBeInTheDocument();
     expect(screen.getByText('Google, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.')).toBeInTheDocument();
     expect(screen.queryByText("Saved credentials can't be unlocked")).not.toBeInTheDocument();

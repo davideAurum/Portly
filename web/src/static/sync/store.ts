@@ -1,6 +1,6 @@
 /** One sync backend: where the launch pad file and its icons are kept. */
 export interface SyncStore {
-  readonly kind: 'onedrive' | 'gist';
+  readonly kind: 'onedrive' | 'github';
   /** The main file, or null when it does not exist yet. */
   readMain(signal: AbortSignal): Promise<SyncFileVersion | null>;
   /** Writes the main file only while it is still at `ifVersion` (null: only while it is missing). */

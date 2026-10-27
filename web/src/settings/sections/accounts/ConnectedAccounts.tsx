@@ -1,15 +1,16 @@
 /**
  * "Connected accounts" (§7 Accounts): one row per account (name, email, status, the services in
- * use as chips; Manage, Reconnect for OAuth accounts, Test and Remove), plus Todoist while its
- * token is saved. Manage renames, recolors and switches services on and off; for Google and
- * Microsoft it can also add a service the account was not granted, by signing in again for the
- * extra scopes (incremental consent). Switching a service off never revokes anything at the
- * provider.
+ * use as chips; Manage, Reconnect for OAuth accounts, Test and Remove), plus Todoist and GitHub
+ * (launch pad sync) while their tokens are saved. Manage renames, recolors and switches services
+ * on and off; for Google and Microsoft it can also add a service the account was not granted, by
+ * signing in again for the extra scopes (incremental consent). Switching a service off never
+ * revokes anything at the provider.
  */
 import { useState, type FormEvent } from 'react';
 import { FlaskConical, LogIn, Plus, Settings2, Trash, UserRoundPlus } from 'lucide-react';
 import { CAPABILITIES, type Account, type Capability } from '@portly/shared';
 import { useAccounts, useDeleteAccount, useStartOAuth, useTestAccount, useUpdateAccount } from '../../../api/accounts.ts';
+import { useGitHubSync } from '../../../api/githubSync.ts';
 import { useTodoistToken } from '../../../api/todoist.ts';
 import { getCapabilities } from '../../../capabilities.ts';
 import { accountColor } from '../../../ui/accounts/AccountBadge.tsx';
@@ -28,6 +29,7 @@ import { toast, toastError } from '../../../ui/toast.ts';
 import { Switch } from '../../../ui/Toggles.tsx';
 import { connectionServices, serviceDescription } from './connections.ts';
 import { summarizeProbes } from './CredentialForms.tsx';
+import { GitHubSyncRow } from './GitHubSync.tsx';
 import { TodoistRow } from './Todoist.tsx';
 import { useVaultLocked } from './vault.ts';
 import styles from '../../../styles/settings.module.css';
@@ -40,12 +42,13 @@ export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void
   const [managing, setManaging] = useState<string | null>(null);
   const list = [...(accounts.data ?? [])].sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label));
   const todoistConnected = todoist.data?.configured === true;
+  const githubConnected = useGitHubSync().data?.configured === true;
   const managed = list.find((a) => a.id === managing);
 
   let body;
   if (accounts.data === undefined) {
     body = accounts.isError ? <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} /> : <SkeletonList rows={2} />;
-  } else if (list.length === 0 && !todoistConnected) {
+  } else if (list.length === 0 && !todoistConnected && !githubConnected) {
     body = (
       <EmptyState
         icon={UserRoundPlus}
@@ -70,6 +73,11 @@ export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void
         {todoistConnected ? (
           <li>
             <TodoistRow onManage={onManageTodoist} />
+          </li>
+        ) : null}
+        {githubConnected ? (
+          <li>
+            <GitHubSyncRow />
           </li>
         ) : null}
       </ul>

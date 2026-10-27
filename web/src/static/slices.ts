@@ -10,9 +10,9 @@
  * handler or keep the backend from starting.
  *
  * Export (`GET /api/export`) reads settings, profiles, bookmarks, uploads and icons. The Todoist
- * token, the pre-import backups, accounts and their tokens, the OAuth client, pending sign-ins and
- * the calendar cache are never exported (and an import never touches them), and neither is the
- * list of one-time data upgrades already applied.
+ * token, the GitHub sync repository and token, the pre-import backups, accounts and their tokens,
+ * the OAuth client, pending sign-ins and the calendar cache are never exported (and an import
+ * never touches them), and neither is the list of one-time data upgrades already applied.
  */
 import {
   ACCOUNT_STATUSES,
@@ -41,6 +41,7 @@ export const SLICE = Object.freeze({
   uploads: 'uploads',
   icons: 'icons',
   todoistToken: 'todoist-token',
+  githubSync: 'github-sync',
   backups: 'backups',
   accounts: 'accounts',
   accountTokens: 'account-tokens',
@@ -326,6 +327,28 @@ export function getTodoistToken(ctx: StaticContext): TodoistTokenSlice {
     (value) => isRow(value) && (value.token === null || typeof value.token === 'string') && Number.isFinite(value.generation),
     // Keep the generation moving forward so token-keyed caches are never reused.
     (value) => ({ token: null, generation: isRow(value) && Number.isFinite(value.generation) ? Number(value.generation) + 1 : 1 }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// GitHub repository and token for launch pad sync (never exported)
+// ---------------------------------------------------------------------------
+
+export interface GitHubSyncSlice {
+  token: string | null;
+  /** The private sync repository, `owner/name`; saved together with the token. */
+  repository: string | null;
+  /** Bumped on every change, like the Todoist token's, so a store for the old one is never reused. */
+  generation: number;
+}
+
+export function getGitHubSync(ctx: StaticContext): GitHubSyncSlice {
+  return checkedSlice<GitHubSyncSlice>(
+    ctx,
+    SLICE.githubSync,
+    () => ({ token: null, repository: null, generation: 0 }),
+    (value) => isRow(value) && isNullableString(value.token) && isNullableString(value.repository) && Number.isFinite(value.generation),
+    (value) => ({ token: null, repository: null, generation: isRow(value) && Number.isFinite(value.generation) ? Number(value.generation) + 1 : 1 }),
   );
 }
 

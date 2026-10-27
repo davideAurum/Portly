@@ -13,13 +13,15 @@
  * work; launch pad sync works nowhere else (the server's launch pad is not synced); Google,
  * Yahoo, CalDAV and IMAP need the Portly server. On another PC's page load (`remoteClient`) the
  * Google and Microsoft sign-ins stay on the main PC (their redirect lands there); Yahoo, CalDAV,
- * IMAP and Todoist work from anywhere, because the server keeps the credentials.
+ * IMAP and Todoist work from anywhere, because the server keeps the credentials. GitHub (a private
+ * repository and token for launch pad sync) is offered only when the page's data lives in this
+ * browser.
  */
 import { CAPABILITIES, OAUTH_PROVIDER_CAPABILITIES, type AccountKind, type Capability, type OAuthProvider } from '@portly/shared';
 import { getCapabilities, type Capabilities } from '../../../capabilities.ts';
 import { CAPABILITY_LABELS } from '../../../ui/accounts/accountKinds.ts';
 
-export type ConnectionId = OAuthProvider | 'yahoo' | 'todoist' | 'other';
+export type ConnectionId = OAuthProvider | 'yahoo' | 'todoist' | 'github' | 'other';
 
 export interface ConnectionInfo {
   id: ConnectionId;
@@ -37,6 +39,7 @@ export const CONNECTIONS: readonly ConnectionInfo[] = Object.freeze([
   { id: 'microsoft', title: 'Microsoft', mark: { letter: 'M', color: '#0f6cbd' }, available: (caps) => caps.accounts && !caps.remoteClient },
   { id: 'yahoo', title: 'Yahoo', mark: { letter: 'Y', color: '#5f01d1' }, available: (caps) => caps.appPasswordAccounts },
   { id: 'todoist', title: 'Todoist', mark: { letter: 'T', color: '#dc4c3e' }, available: () => true },
+  { id: 'github', title: 'GitHub', mark: { letter: 'G', color: '#24292f' }, available: (caps) => caps.backend === 'browser' },
   { id: 'other', title: 'Other', mark: null, available: (caps) => caps.appPasswordAccounts },
 ]);
 
@@ -51,8 +54,8 @@ export function availableConnections(caps: Capabilities = getCapabilities()): Co
   return CONNECTIONS.filter((c) => c.available(caps));
 }
 
-/** Connections with services to pick (Todoist has one: its tasks). */
-export type ServiceConnection = Exclude<ConnectionId, 'todoist'>;
+/** Connections with services to pick (Todoist has one: its tasks; GitHub one: launch pad sync). */
+export type ServiceConnection = Exclude<ConnectionId, 'todoist' | 'github'>;
 
 /** One line per service and connection, shown next to its checkbox or switch. */
 const SERVICE_DESCRIPTIONS: Readonly<Record<ServiceConnection, Readonly<Partial<Record<Capability, string>>>>> = Object.freeze({

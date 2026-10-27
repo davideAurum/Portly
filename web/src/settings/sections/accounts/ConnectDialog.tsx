@@ -7,6 +7,7 @@
  * - Yahoo: the services, then the app-password form (services left unticked start switched off).
  * - Other: CalDAV calendar or IMAP mail, then that server's form.
  * - Todoist: the API token.
+ * - GitHub: a private repository and fine-grained token for launch pad sync (browser backend).
  *
  * Password forms show what Portly's checks found per service, whether the account was added or not.
  */
@@ -27,6 +28,7 @@ import { Checkbox, SegmentedControl } from '../../../ui/Toggles.tsx';
 import { AppRegistrationForm, PROVIDER_INFO, isClientConfigured } from './AppRegistration.tsx';
 import { connectionInfo, connectionServices, defaultPicked, type ConnectionId, type ServiceInfo } from './connections.ts';
 import { CaldavForm, CreatedResult, ImapForm, YahooForm } from './CredentialForms.tsx';
+import { GitHubSyncForm } from './GitHubSync.tsx';
 import { TodoistTokenForm } from './Todoist.tsx';
 import { useVaultLocked } from './vault.ts';
 import styles from '../../../styles/settings.module.css';
@@ -70,6 +72,8 @@ function ConnectFlow({ connection, onClose }: { connection: ConnectionId; onClos
       return <OtherConnect onClose={onClose} />;
     case 'todoist':
       return <TodoistTokenForm onSaved={onClose} />;
+    case 'github':
+      return <GitHubSyncForm onSaved={onClose} />;
   }
 }
 

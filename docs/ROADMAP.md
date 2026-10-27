@@ -69,6 +69,9 @@ checks).
   account as the only sync, no passphrase encryption, layouts and theme per PC, first sync
   defaults to *Use the synced launch pad* with no *Combine both* option, tombstones kept 90 days,
   one Microsoft connection per browser, a backup slot of its own, Chrome and Edge in scope.
+  *Changed 2026-10-27:* OneDrive is no longer the only sync. The owner asked for a GitHub
+  backend to be built alongside it, first on secret gists, then (the same day, G.2) on a private
+  repository through the contents API (see "Launch pad sync through GitHub" below).
 - **D9 Custom domain.** Accept and document the shared-origin risk of the Pages site now; decide
   again before the sync engine (6.5) ships.
 - **D10 Multi-PC.** One server with an approve-from-the-main-PC login over Tailscale Serve is built
@@ -1172,6 +1175,26 @@ Items:
   matching SHA-256; the tag points at the built commit; the live site's footer reads
   0.2.0-alpha.2; the phase 6 row reads Done with the date.
 
+## Launch pad sync through GitHub (beside phase 6)
+
+On 2026-10-27 the owner asked for a GitHub backend for launch pad sync, built at the same time as
+OneDrive's (D8 note). Design: [launchpad-sync-github.md](design/launchpad-sync-github.md). Phase
+6's items are unchanged: the GitHub work reuses their engine.
+
+- **G.1 Gist store, token setting, CSP** (M). Done on branch `claude/sync-gist-118208`, not on
+  `main`: the `SyncStore` interface, a store on two secret gists with in-memory GitHub tests, the
+  GitHub token in Settings → Accounts (browser backend only), the static CSP. Replaced by G.2.
+- **G.2 Choose the GitHub backend** (S). Decided 2026-10-27: a private repository through the
+  contents API, not secret gists (private data, GitHub's own `sha` refusal, a fine-grained token
+  limited to one repository). Done on the same branch: the store (`kind: 'github'`, renamed from
+  `'gist'` in `sync/store.ts`), the repository and token in Settings → Accounts, only
+  `api.github.com` in the static CSP. Saving them syncs nothing yet.
+- **G.3 Hook it into the engine** (M; after 6.5). Pick the store from the connection, the status
+  line and **Sync now** on the GitHub row, the `sync` events.
+
+  *Done when:* two browsers on one GitHub account converge, a forced race is refused, and the
+  "Checks never run for real" rows of G.2 are run with the owner's repository and token.
+
 ## Track B: multi-PC
 
 One Portly server for several PCs, built beside the phases on the go of 2026-10-21 (D10 asked
@@ -1349,6 +1372,9 @@ date and the outcome once a row has been run for real.
 | The static CSP with launch pad sync running (`my.microsoftpersonalcontent.com` in `connect-src`) on `preview:static`, no violations; only the built `index.html` was read | 6.5 commit, 2026-10-27 | 6.6 | not yet |
 | The scheduler in a real browser: the Web Lock between two tabs, focus and visibility, the 5 s change delay, online, backoff after a real failure; only fake timers, events and locks | 6.5 commit, 2026-10-27 | 6.7 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | not yet |
+| The repository store against GitHub itself with the owner's private repository and a fine-grained token: creating `launchpad.json` in the empty repository, a `304` on the next check, a read over 1 MB through the blob API, an icon written, read and deleted, a 401 after revoking, a 403 with a Contents: Read only token; only an in-memory GitHub in the tests | G.2 commit, 2026-10-27 | G.3 | not yet |
+| GitHub's answers to a refused contents write: `409` for a stale `sha`, `422` for a missing one, what a `sha` on a missing file gets (the store assumes `422`, handles `404`), and a `409` for two writes to the branch at once; only GitHub's docs and the in-memory GitHub | G.2 commit, 2026-10-27 | G.3 | not yet |
+| Saving the repository and token in Settings → Accounts on the published site (the check with GitHub, the refusal of a public repository and of a classic token), and the CSP with `api.github.com` alone (the preflight with `If-None-Match`) in a real browser; only unit tests, the built CSP and an unauthenticated `curl` of the preflight | G.2 commit, 2026-10-27 | G.3, and 2.5's CSP check before the release that ships it | not yet |
 
 ### Closed
 
