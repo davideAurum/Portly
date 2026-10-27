@@ -380,7 +380,7 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
   (favicons as `<img>`); `connect-src` is `'self'` plus the hosts the in-browser backend calls directly,
   `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://nominatim.openstreetmap.org`,
   `https://api.todoist.com`, `https://api.github.com` (launch pad sync through a private repository,
-  docs/design/launchpad-sync-github.md; built but not wired to a sync engine yet; the repository and token are kept
+  docs/design/launchpad-sync-github.md; one of the two sync connections, design/launchpad-sync.md 6.10; the repository and token are kept
   like the Todoist token, in the never-exported `github-sync` slice),
   `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://login.microsoftonline.com` and
   `https://graph.microsoft.com` (Outlook.com sign-in and calendar, and launch pad sync's OneDrive metadata and

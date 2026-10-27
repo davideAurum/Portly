@@ -138,7 +138,10 @@ part of it. The steps above apply, with these differences:
   **Microsoft** tile has no Mail service. The site asks for **Calendars.ReadWrite** (plus the
   sign-in ones), never **Mail.ReadWrite**, and **Files.ReadWrite.AppFolder** (your OneDrive's
   folder for this app, nothing else) only for **Launch pad sync**. Launch pad sync is still being
-  built: ticking it does not sync anything yet.
+  built: ticking it syncs the launch pad, but the page doesn't show how it went yet, and a browser
+  whose launch pad differs from the synced one waits for a question a later version asks. Use one
+  sync connection per browser: a second one (another Microsoft connection with the service, or
+  GitHub) stops sync until only one is left.
 - **The sign-in lasts 24 hours.** Microsoft limits sign-ins made from a web page to a day. The
   site renews it by itself when you open it while you are still signed in to Microsoft in that
   browser; otherwise the account shows **Reconnect**. Checked with a real Outlook.com account on

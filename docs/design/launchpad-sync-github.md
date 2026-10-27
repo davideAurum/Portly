@@ -1,9 +1,9 @@
 # Design: syncing the launch pad of the browser-only site through a private GitHub repository
 
-**Status:** the storage backend, its setting and the CSP are built (2026-10-27); nothing syncs yet.
-The sync engine of [launchpad-sync.md](launchpad-sync.md) (ROADMAP 6.1 to 6.5) is being built at
-the same time for OneDrive. Hooking the GitHub backend into it comes after both land. Nothing
-sync-related reaches `main` before 0.2.0-alpha.1 is tagged.
+**Status:** the storage backend, its setting and the CSP are built (2026-10-27), and the sync
+engine of [launchpad-sync.md](launchpad-sync.md) (ROADMAP 6.1 to 6.5) uses it (G.3): a browser whose
+only sync connection is the GitHub repository syncs with it. The status line and the first-sync
+question come with 6.6. Nothing sync-related reaches `main` before 0.2.0-alpha.1 is tagged.
 
 **The decision.** [launchpad-sync.md](launchpad-sync.md) section 11 set GitHub aside: it needs a
 long-lived token, unencrypted in browser storage on the shared `<user>.github.io` origin. On
@@ -31,8 +31,13 @@ On GitHub, by hand (Portly never creates, renames or deletes repositories):
 Then in **Settings → Accounts**, on the browser-only site when its data lives in the browser, the
 **GitHub** tile asks for the repository as `owner/name` and the token. Both are write-only: the
 page only learns `{configured}`, never the token or the repository name. Neither is exported.
-**Remove** deletes both from the browser; the repository stays on GitHub with its history. The
-tile and the row say that sync isn't switched on yet.
+**Remove** deletes both from the browser and stops sync; the repository stays on GitHub with its
+history. The tile and the row say that sync is still being built.
+
+**One sync connection per browser** ([launchpad-sync.md](launchpad-sync.md) section 6.10): GitHub
+syncs only while no Microsoft connection has the Launch pad sync service on. With both set up,
+nothing syncs until one is removed. 6.6 makes the GitHub tile say so before saving, and the
+Microsoft service switch likewise.
 
 **Checks before saving:**
 
@@ -210,8 +215,9 @@ secret gists. The owner chose the repository on 2026-10-27:
 
 ## 12. Not built, not tested
 
-- **Not wired up:** no engine calls the store yet. Saving the settings syncs nothing, and the UI
-  says so.
+- **No status line or first-sync question yet** (ROADMAP 6.6): a browser whose launch pad differs
+  from the repository's stops at `needs_choice` with nothing on screen, and **Sync now** has no
+  button. Engine tests with the in-memory GitHub: `web/src/static/sync/github.test.ts`.
 - **Not tested against GitHub:** every test uses an in-memory GitHub. A real check needs the owner's
   repository and token. It should cover:
   - saving the settings (private repository accepted, a public one and a classic token refused);

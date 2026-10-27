@@ -4,8 +4,9 @@
  * (`owner/name`) and a fine-grained personal access token, both write-only and checked with GitHub
  * before they are saved, and a row under "Connected accounts" with Manage (replace both) and Remove.
  *
- * The sync engine is not wired up yet, so the form and the row say that saving them syncs nothing
- * so far.
+ * Launch pad sync uses them as soon as they are saved (when no Microsoft connection has the service
+ * on: one sync connection per browser). Its status line and first-sync question come in ROADMAP
+ * 6.6, so the form and the row say it is still being built.
  */
 import { useState, type FormEvent } from 'react';
 import { RefreshCw, Save, Settings2, Trash } from 'lucide-react';
@@ -36,7 +37,7 @@ export function cleanGitHubToken(raw: string): string {
   return raw.trim().replace(/^(?:bearer|token)\s+/i, '');
 }
 
-const NOT_WIRED_NOTE = 'Launch pad sync through GitHub is not switched on yet: for now Portly only checks and keeps the repository and token.';
+const PREVIEW_NOTE = "Launch pad sync is still being built: Portly syncs with this repository but doesn't show how it went yet. Use one sync connection per browser: this, or a Microsoft connection's Launch pad sync.";
 
 type Errors = { repository?: string; token?: string };
 
@@ -84,7 +85,7 @@ export function GitHubSyncForm({ onSaved, replacing = false }: { onSaved?(): voi
         commit, so the repository's history keeps old launch pads until you delete the repository. The repository name and token are
         stored only in this browser, not encrypted, are sent only to api.github.com and are not included in exports.
       </p>
-      <p className={styles.intro}>{NOT_WIRED_NOTE}</p>
+      <p className={styles.intro}>{PREVIEW_NOTE}</p>
       <ol className={styles.steps} aria-label="What to create on GitHub">
         <li>
           Create an empty <strong>private</strong> repository (
@@ -156,7 +157,7 @@ export function GitHubSyncRow() {
           <Badge tone="neutral">Token saved</Badge>
         </div>
         <span className={styles.itemMeta}>GitHub · fine-grained token · private repository</span>
-        <span className={styles.itemMeta}>{NOT_WIRED_NOTE}</span>
+        <span className={styles.itemMeta}>{PREVIEW_NOTE}</span>
         <ul className={styles.serviceChips} aria-label="GitHub services in use">
           <li className={styles.serviceChip}>
             <RefreshCw aria-hidden="true" />

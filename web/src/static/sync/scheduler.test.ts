@@ -112,19 +112,14 @@ async function setup(options: { account?: StoredAccount | null; store?: SyncStor
   const settled = async () => {
     for (let i = 0; i < 20; i++) await new Promise((resolve) => setTimeout(resolve, 0));
   };
-  // One store per run: counts how often a round started.
-  const runs = { count: 0 };
   controller = startLaunchpadSync(t.ctx, {
-    storeFor: () => {
-      runs.count++;
-      return store;
-    },
+    storeFor: () => store,
     timers,
     locks: null,
     page,
   });
   await settled();
-  return { store, timers, listeners, settled, runs };
+  return { store, timers, listeners, settled };
 }
 
 describe('the commit hook', () => {
@@ -183,7 +178,7 @@ describe('the scheduler', () => {
   });
 
   it('syncs 5 s after the last local change, at most 30 s after the first', async () => {
-    const { timers, settled, runs } = await setup();
+    const { store, timers, settled } = await setup();
     const group = await t.json<{ id: string }>('POST', '/api/bookmark-groups', { name: 'Work' });
     for (let i = 0; i < 8; i++) {
       t.tick(4000);
@@ -192,12 +187,12 @@ describe('the scheduler', () => {
       await settled();
     }
     // Changes every 4 s keep pushing it back, but not past 30 s after the first.
-    expect(runs.count).toBe(2);
+    expect(store.reads).toBe(2);
     expect(CHANGE_MAX_DELAY_MS).toBe(30_000);
     t.tick(CHANGE_DELAY_MS);
     timers.advance(CHANGE_DELAY_MS);
     await settled();
-    expect(runs.count).toBe(3);
+    expect(store.reads).toBe(3);
   });
 
   it('backs off after a failure, and Sync now ignores the backoff', async () => {

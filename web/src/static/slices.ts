@@ -706,8 +706,10 @@ export const LAUNCHPAD_SYNC_STATUSES = [
   'up_to_date',
   /** Both this browser and the synced file have a launch pad: the user picks (design 6.6). */
   'needs_choice',
-  /** The account needs reconnecting. */
+  /** The account needs reconnecting, or GitHub refused the token or the repository. */
   'paused_reauth',
+  /** More than one sync connection is set up: none is used until only one is left (design 6.10). */
+  'several_sources',
   /** The synced file was written by a newer Portly. */
   'stopped_newer',
   /** The synced file could not be read (`problem` says why). */
@@ -744,8 +746,13 @@ export interface LaunchpadSyncSlice {
   pointers: SyncPointers;
   /** Their values as this browser last applied or recorded them: a different value in settings is a local change. */
   applied: AppliedPointers;
-  /** The Microsoft connection synced with (another one means a first sync). */
-  accountId: string | null;
+  /**
+   * The sync source synced with: `microsoft:<account id>` or `github:<SHA-256 of owner/name>`
+   * (another one means a first sync). The repository name itself is never kept here.
+   */
+  sourceId: string | null;
+  /** The GitHub settings (`github:<generation>`) whose token or repository was refused: scheduled checks wait for new ones. */
+  pausedFor: string | null;
   /** The file generation last merged (null: never synced with this account). */
   epoch: string | null;
   /** The store's version of the file last merged or written (OneDrive: its eTag). */
@@ -788,7 +795,8 @@ export function defaultLaunchpadSync(): LaunchpadSyncSlice {
     changes: 0,
     pointers: emptyPointers(),
     applied: { defaultGroupId: null, ungroupedGroupId: null },
-    accountId: null,
+    sourceId: null,
+    pausedFor: null,
     epoch: null,
     version: null,
     lastSynced: 0,
@@ -822,7 +830,8 @@ function repairLaunchpadSync(value: unknown): LaunchpadSyncSlice {
     changes: finite(raw.changes, 0),
     pointers: pointers.success ? pointers.data : base.pointers,
     applied: { defaultGroupId: nullableString(applied.defaultGroupId), ungroupedGroupId: nullableString(applied.ungroupedGroupId) },
-    accountId: nullableString(raw.accountId),
+    sourceId: nullableString(raw.sourceId),
+    pausedFor: nullableString(raw.pausedFor),
     epoch: nullableString(raw.epoch),
     version: nullableString(raw.version),
     lastSynced: finite(raw.lastSynced, 0),

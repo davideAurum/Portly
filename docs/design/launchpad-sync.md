@@ -43,7 +43,8 @@ match them.
   - the first sync defaults to **Use the synced launch pad**, and there is no **Combine both**
     option (section 6.6);
   - tombstones are kept 90 days (section 6.3);
-  - one Microsoft connection per browser has the service (section 3);
+  - one Microsoft connection per browser has the service (section 3); with GitHub added, one sync
+    connection per browser of either kind (section 6.10);
   - sync's safety backup has a slot of its own, apart from the import backups (section 6.7);
   - Chrome and Edge are in scope; Firefox gets a smoke run, Safari is not supported.
 - **D9: the custom domain.** The shared `<user>.github.io` origin (ARCHITECTURE section 4.1) means
@@ -401,8 +402,9 @@ that is more than 30 days old.
 - **The store interface.** The engine talks to storage only through `SyncStore`
   (`web/src/static/sync/store.ts`: read and write the main file with a version, read, write and
   delete icons). OneDrive (`providers/graphDrive.ts`) is one implementation, where the version is
-  the item's `eTag`; a GitHub gist store is being built alongside (ROADMAP D8). The merge, the
-  format and the engine know nothing of OneDrive.
+  the item's `eTag`; a private GitHub repository (`providers/githubRepo.ts`,
+  [launchpad-sync-github.md](launchpad-sync-github.md)) is the other, where it is the blob `sha`.
+  The merge, the format and the engine know nothing of either.
 - **The quick check uses the `eTag`, not the `cTag`.** The store keeps the text it last read or
   wrote per page and account, and when the metadata shows the same `eTag` it does not download
   again. An `eTag` also changes when only metadata changes (a rename in OneDrive), which costs one
@@ -416,6 +418,33 @@ that is more than 30 days old.
   round start again before it applies anything, so the change is never overwritten.
 - **Old icon files** are deleted 30 days after the file stopped naming them, by the browser that
   noticed (the store has no listing, so a file nobody noticed stays).
+
+### 6.10 One sync connection per browser (2026-10-27)
+
+D8's "one Microsoft connection per browser" now covers GitHub too: a browser syncs with exactly
+one **sync connection**, either a Microsoft connection with the Launch pad sync service switched
+on or the GitHub repository and token (`syncSources()` in `sync/scheduler.ts`).
+
+- **None:** sync is off.
+- **More than one** (two Microsoft connections with the service, or one and GitHub): nothing
+  syncs, the status is `several_sources`, and no store is opened, until only one is left. Sync
+  never guesses which file the user meant: merging a launch pad into the wrong file would spread
+  it to every browser on that file. 6.6 keeps the second one from being set up (the service switch
+  and the GitHub tile say which connection syncs today) and shows the status line.
+- **The source id** in the sync state is `microsoft:<account id>` or `github:<SHA-256 of
+  owner/name, lowercased>`; the repository name itself stays in the GitHub settings slice. Another
+  id means a first sync (section 6.6): switching source asks again when both sides have a
+  launch pad. A new token for the same repository is the same source and carries on.
+- **One store per page load and source.** The GitHub store keeps the file's `ETag` (a `304` costs no
+  rate limit) and checks once that the repository is private; it is dropped when the GitHub
+  settings change (their `generation`) or the source changes. Removing the token stops sync at the
+  next check, and the store with it.
+- **A refused token** (GitHub's `401`, a public or missing repository: `reauth_required`) pauses
+  scheduled checks for those settings until new ones are saved; **Sync now** tries again. A
+  Microsoft connection's own Reconnect state does this for OneDrive.
+- **One request at a time.** GitHub refuses simultaneous writes to a branch (`409`). The Web Lock
+  and each page's own queue run one round at a time, and a round sends its requests one after the
+  other.
 
 ## 7. When it runs
 

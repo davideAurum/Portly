@@ -19,7 +19,7 @@ checks).
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
 | 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4's fixes landed, its second run-through is due with 5.2 |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 to 6.5 built; 6.5's real checks and D9 wait for you |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 to 6.5 built, and GitHub hooked in (G.3); 6.5's real checks and D9 wait for you |
 
 ## How this roadmap is used
 
@@ -71,7 +71,9 @@ checks).
   one Microsoft connection per browser, a backup slot of its own, Chrome and Edge in scope.
   *Changed 2026-10-27:* OneDrive is no longer the only sync. The owner asked for a GitHub
   backend to be built alongside it, first on secret gists, then (the same day, G.2) on a private
-  repository through the contents API (see "Launch pad sync through GitHub" below).
+  repository through the contents API (see "Launch pad sync through GitHub" below). "One
+  Microsoft connection per browser" became one sync connection per browser, Microsoft or GitHub
+  (design section 6.10).
 - **D9 Custom domain.** Accept and document the shared-origin risk of the Pages site now; decide
   again before the sync engine (6.5) ships.
 - **D10 Multi-PC.** One server with an approve-from-the-main-PC login over Tailscale Serve is built
@@ -1151,6 +1153,11 @@ Items:
   step (explain, reconnect with the larger set, back to `#/settings/accounts`), the first-sync
   dialog defaulting to *Use the synced launch pad*, the Settings > Bookmarks pointer, the import
   warning and a "sync" client event category. This is where 6.1 gets its real check.
+  For GitHub as well (G.3): the status line and **Sync now** on the GitHub row, the first-sync
+  dialog for either source, the `several_sources` status ("Launch pad sync is set up twice: remove
+  one"), and keeping a second sync connection from being set up (the GitHub tile and the Microsoft
+  service switch name the connection that syncs today; design section 6.10), and Reconnect wording
+  for a refused GitHub token (new token, or the repository made private again).
 
   *Done when:* web and static tests; on `npm run preview:static` with your account, Microsoft's
   screen lists only `Files.ReadWrite.AppFolder` and Diagnostics shows sync events; then connect
@@ -1191,6 +1198,15 @@ OneDrive's (D8 note). Design: [launchpad-sync-github.md](design/launchpad-sync-g
   `api.github.com` in the static CSP. Saving them syncs nothing yet.
 - **G.3 Hook it into the engine** (M; after 6.5). Pick the store from the connection, the status
   line and **Sync now** on the GitHub row, the `sync` events.
+
+  *Status:* the hookup is done on the OneDrive sync branch, 2026-10-27 (merged in from the GitHub
+  branch, not on `main`): one sync connection per browser, a Microsoft connection with the
+  service or the GitHub repository, and none while both are set up (`several_sources`, design
+  6.10); one store per page load, dropped when the settings change; a refused token pauses
+  scheduled checks until new settings. Tests with the in-memory GitHub: the first write to an empty
+  repository, a `304`, a `409` race, switching source, removing and replacing the token, a refused
+  token, one request at a time. The status line, **Sync now** and the first-sync dialog moved to
+  6.6 for both sources.
 
   *Done when:* two browsers on one GitHub account converge, a forced race is refused, and the
   "Checks never run for real" rows of G.2 are run with the owner's repository and token.
@@ -1371,6 +1387,7 @@ date and the outcome once a row has been run for real.
 | Launch pad sync against real OneDrive: the path-addressed `DELETE` of an icon file, `If-Match` and `conflictBehavior=fail` from the store as built, a second sign-in's download host, the download's `ETag`/`cTag` against Graph's; only `createFakeFetch()` with a fake app folder modelled on the spike | 6.5 commit, 2026-10-27 | 6.6 (first real sync), 6.7 | not yet |
 | The static CSP with launch pad sync running (`my.microsoftpersonalcontent.com` in `connect-src`) on `preview:static`, no violations; only the built `index.html` was read | 6.5 commit, 2026-10-27 | 6.6 | not yet |
 | The scheduler in a real browser: the Web Lock between two tabs, focus and visibility, the 5 s change delay, online, backoff after a real failure; only fake timers, events and locks | 6.5 commit, 2026-10-27 | 6.7 | not yet |
+| Launch pad sync through the owner's private repository end to end: two browsers converging, a forced race, the `304` check, the first file in the empty repository, a revoked token pausing sync and a new one resuming it, GitHub plus a Microsoft connection giving `several_sources`; only the engine and scheduler against the in-memory GitHub (`sync/github.test.ts`) | G.3 hookup commit, 2026-10-27 | 6.6, G.3 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | not yet |
 | The repository store against GitHub itself with the owner's private repository and a fine-grained token: creating `launchpad.json` in the empty repository, a `304` on the next check, a read over 1 MB through the blob API, an icon written, read and deleted, a 401 after revoking, a 403 with a Contents: Read only token; only an in-memory GitHub in the tests | G.2 commit, 2026-10-27 | G.3 | not yet |
 | GitHub's answers to a refused contents write: `409` for a stale `sha`, `422` for a missing one, what a `sha` on a missing file gets (the store assumes `422`, handles `404`), and a `409` for two writes to the branch at once; only GitHub's docs and the in-memory GitHub | G.2 commit, 2026-10-27 | G.3 | not yet |

@@ -8,7 +8,8 @@
  *   saved;
  * - `DELETE /api/sync/github` → removes both. The repository stays on GitHub.
  *
- * The sync engine is not wired up yet: saving them syncs nothing so far.
+ * Launch pad sync (`sync/scheduler.ts`) picks them up at its next check, when they are this
+ * browser's only sync connection.
  */
 import { z } from 'zod';
 import { parseJsonBody } from '../lib/validate.ts';

@@ -77,11 +77,13 @@ with it. The server build's new-tab extension is for Chrome and Edge as well
   saved in this browser* and runs from memory. Clearing the browser's site data removes everything
   too.
 - Several tabs of the site stay in step with each other.
-- **Launch pad sync through GitHub (not wired up yet).** **Settings → Accounts → GitHub** keeps
+- **Launch pad sync through GitHub (still being built).** **Settings → Accounts → GitHub** keeps
   the name of a *private* repository you create on GitHub and a fine-grained token limited to it
-  (Contents: Read and write). For now Portly only checks and keeps them: nothing is synced yet.
-  Once it is, your groups, bookmark titles and addresses, and custom icons will be stored in that
-  repository. Only your account can read it (and GitHub). Every change is a commit, so the
+  (Contents: Read and write). Once they are saved, your groups, bookmark titles and addresses, and
+  custom icons are stored in that repository. The page doesn't show how a sync went yet, and a
+  browser whose launch pad differs from the synced one waits for a question a later version asks.
+  Use one sync connection per browser: with GitHub and a Microsoft connection's **Launch pad
+  sync** both set up, nothing syncs until one is removed. Only your account can read it (and GitHub). Every change is a commit, so the
   repository's history keeps old launch pads, removed bookmarks included, until you delete the
   repository. Portly doesn't encrypt the files. Like the Todoist token, the repository name and
   token are stored unencrypted in this browser and never exported. Portly refuses a public
@@ -277,7 +279,7 @@ what keep the data private.
 | OpenStreetMap Nominatim (`nominatim.openstreetmap.org`) | Weather widget using this device's location | Those coordinates, rounded to about 1 km, to show the town's name instead of "Current location". At most once a week per spot; no key. The name is © OpenStreetMap contributors, credited in the widget. |
 | Todoist (`api.todoist.com`) | Todoist widget | Your personal token with every request, straight from the browser — the same as the Todoist apps do. |
 | Microsoft (`login.microsoftonline.com`, `graph.microsoft.com`) | Outlook.com account and the Calendar widget | The sign-in (your app registration's client id, the one-time code, then token refreshes), and the calendar requests with the account's access token: which calendars you have, the events of the synced window, and the events you create, change or delete. |
-| GitHub (`api.github.com`) | Launch pad sync through your private repository, once it and a token are saved in **Settings → Accounts**. Not wired up yet: today only the check when you save them | Your GitHub token and the repository name with every request. Once sync runs: the launch pad file and custom icons, read on each check and written (as commits) after changes. |
+| GitHub (`api.github.com`) | Launch pad sync through your private repository, once it and a token are saved in **Settings → Accounts**: the check when you save them, then a sync check at page load, on focus and every 5 minutes while the page is visible | Your GitHub token and the repository name with every request; the launch pad file and custom icons, read on each check and written (as commits) after changes. |
 | Wikipedia (`en.wikipedia.org`) | Search suggestions, while **Settings → Search → Search suggestions** is on (it is by default), for an engine with Wikipedia suggestions (the Wikipedia engine, keyword `w`). Only if you also turn on **Wikipedia suggestions instead** (off by default) in place of Google, DuckDuckGo, Bing and YouTube suggestions, which can't be asked from a browser. With the default engines and settings, nothing goes to Wikipedia unless you search with the Wikipedia engine. | What you have typed so far. |
 | ESPN (`site.api.espn.com`, logos from `a.espncdn.com`) | Sports scores widget | Which leagues and teams you follow (as ESPN team ids). No key or account. With the Portly server (hybrid mode) the server reads the scores instead, but team logos still load from `a.espncdn.com`. |
 | Portly on this PC (`http://127.0.0.1:5757`, hybrid mode) | In a paired browser, on every page load and then regularly while the page is open. In an unpaired one, on every page load and when the page gets focus, becomes visible or the network comes back (at most every 5 minutes while Portly isn't found) — once the browser has granted the site local network access, or right away when the browser has no such permission; otherwise only when you click **Look for Portly on this PC** | Nothing leaves the PC. Before pairing only a health check; once paired, every request of the page, with the pairing token. |

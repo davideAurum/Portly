@@ -13,16 +13,27 @@
  *
  * Tabs take turns with a Web Lock, `portly-static:<base>:launchpad-sync`; scheduled checks skip
  * when another tab holds it. Failures back off like the calendar sync: 15 minutes, doubling up to 6
- * hours, `Retry-After` honoured. A needed reconnect pauses sync until the account works again.
+ * hours, `Retry-After` honoured. A needed reconnect pauses sync until the account works again; a
+ * GitHub token or repository GitHub refused pauses scheduled checks until new ones are saved.
  *
- * The connection synced with is the first Microsoft connection (in the Accounts order) that has
- * the Launch pad sync service switched on; 6.6 keeps it to one per browser.
+ * **One sync connection per browser** (design 6.10): a Microsoft connection with the Launch pad
+ * sync service switched on, or the GitHub repository and token. With none, sync is off; with more
+ * than one, nothing syncs (`several_sources`) until only one is left, so a launch pad is never
+ * merged into a file the user did not mean.
+ *
+ * One store per page load and source (the GitHub one keeps the file's `ETag` and its private-
+ * repository check), dropped when the source or its GitHub settings change. The lock and the
+ * page's own queue mean one round at a time, and a round sends one request at a time, which GitHub
+ * needs (it refuses simultaneous writes to a branch).
  */
 import { recordClientEvent } from '../../diagnostics/clientLog.ts';
 import type { StaticContext } from '../context.ts';
 import { createGraphDriveStore } from '../providers/graphDrive.ts';
-import { SLICE, getAccounts, getLaunchpadSync, type StoredAccount } from '../slices.ts';
+import { parseRepository } from '../providers/githubRepo.ts';
+import { hasGitHubSync, openGitHubStore } from '../providers/githubSync.ts';
+import { SLICE, getAccounts, getGitHubSync, getLaunchpadSync, type StoredAccount } from '../slices.ts';
 import { runSyncRound, type FirstSyncChoice, type SyncRoundResult } from './engine.ts';
+import { sha256Hex } from './format.ts';
 import { SYNC_ORIGIN, launchpadCommitHook } from './hook.ts';
 import { SyncStoreError, type SyncStore } from './store.ts';
 
@@ -42,10 +53,33 @@ export function syncBackoffMs(failures: number): number {
   return Math.min(SYNC_BACKOFF_BASE_MS * 2 ** Math.max(0, failures - 1), SYNC_BACKOFF_MAX_MS);
 }
 
-/** The account launch pad sync uses: the first Microsoft connection with the service on. */
-export function syncAccount(ctx: StaticContext): StoredAccount | null {
-  const accounts = [...getAccounts(ctx)].sort((a, b) => a.sort - b.sort || a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return accounts.find((a) => a.capabilities.includes('launchpadSync') && a.enabledCapabilities.includes('launchpadSync')) ?? null;
+/** Where this browser's launch pad syncs to. */
+export type SyncSource =
+  | { kind: 'onedrive'; id: string; account: StoredAccount }
+  | { kind: 'github'; id: string; generation: number };
+
+/** The sync connections set up in this browser: Microsoft ones with the service on, then GitHub. */
+export async function syncSources(ctx: StaticContext): Promise<SyncSource[]> {
+  const sources: SyncSource[] = getAccounts(ctx)
+    .filter((a) => a.capabilities.includes('launchpadSync') && a.enabledCapabilities.includes('launchpadSync'))
+    .map((account) => ({ kind: 'onedrive', id: `microsoft:${account.id}`, account }));
+  const github = getGitHubSync(ctx);
+  const repository = hasGitHubSync(ctx) ? parseRepository(github.repository ?? '') : null;
+  if (repository) {
+    // GitHub names are case-insensitive; the name itself stays in the github-sync slice.
+    const hash = await sha256Hex(new TextEncoder().encode(`${repository.owner}/${repository.name}`.toLowerCase()));
+    sources.push({ kind: 'github', id: `github:${hash}`, generation: github.generation });
+  }
+  return sources;
+}
+
+/** Which store a source's settings open: a new one when this changes. */
+function storeKey(source: SyncSource): string {
+  return source.kind === 'onedrive' ? source.id : `github:${source.generation}`;
+}
+
+function defaultStoreFor(ctx: StaticContext, source: SyncSource): SyncStore | null {
+  return source.kind === 'onedrive' ? createGraphDriveStore(ctx, source.account.id) : openGitHubStore(ctx);
 }
 
 interface Timers {
@@ -54,8 +88,8 @@ interface Timers {
 }
 
 export interface LaunchpadSyncDeps {
-  /** The store for an account (default: its OneDrive app folder). */
-  storeFor?: (ctx: StaticContext, accountId: string) => SyncStore;
+  /** The store for a source (default: the account's OneDrive app folder, or the GitHub repository). Called once per source and settings. */
+  storeFor?: (ctx: StaticContext, source: SyncSource) => SyncStore | null;
   timers?: Timers;
   /** Web Locks (default `navigator.locks`; null: this page only). */
   locks?: LockManager | null;
@@ -79,7 +113,7 @@ function defaultLocks(): LockManager | null {
 
 /** Starts launch pad sync for this page's backend and installs its commit hook. */
 export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps = {}): LaunchpadSyncController {
-  const storeFor = deps.storeFor ?? ((c, accountId) => createGraphDriveStore(c, accountId));
+  const storeFor = deps.storeFor ?? defaultStoreFor;
   const timers: Timers = deps.timers ?? { setTimeout: (fn, ms) => globalThis.setTimeout(fn, ms), clearTimeout: (h) => globalThis.clearTimeout(h as number) };
   const locks = deps.locks === undefined ? defaultLocks() : deps.locks;
   const page =
@@ -91,6 +125,7 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
   let intervalTimer: unknown = null;
   let changeTimer: unknown = null;
   let firstChangeAt: number | null = null;
+  let current: { key: string; store: SyncStore | null } | null = null;
 
   const visible = (): boolean => !page || page.document.visibilityState === 'visible';
 
@@ -105,7 +140,7 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
     return next;
   }
 
-  async function record(status: 'off' | 'paused_reauth'): Promise<null> {
+  async function record(status: 'off' | 'paused_reauth' | 'several_sources'): Promise<null> {
     const state = getLaunchpadSync(ctx);
     if (state.status === status) return null;
     state.status = status;
@@ -114,13 +149,15 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
     return null;
   }
 
-  async function failed(err: unknown): Promise<null> {
+  async function failed(source: SyncSource, err: unknown): Promise<null> {
     const state = getLaunchpadSync(ctx);
     const now = ctx.now();
     state.checkedAt = now;
     if (err instanceof SyncStoreError && err.code === 'reauth_required') {
       state.status = 'paused_reauth';
       state.problem = null;
+      // A Microsoft connection's own status says when it works again; GitHub's settings must change.
+      if (source.kind === 'github') state.pausedFor = storeKey(source);
     } else {
       state.failures += 1;
       const retryAfter = err instanceof SyncStoreError ? (err.retryAfterMs ?? 0) : 0;
@@ -138,18 +175,33 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
 
   async function attempt(trigger: SyncTrigger, choice?: FirstSyncChoice): Promise<SyncRoundResult | null> {
     if (stopped) return null;
-    await ctx.state.reload([SLICE.accounts, SLICE.launchpadSync]);
-    const account = syncAccount(ctx);
-    if (!account) return record('off');
-    if (account.status === 'reauth') return record('paused_reauth');
+    await ctx.state.reload([SLICE.accounts, SLICE.githubSync, SLICE.launchpadSync]);
+    const sources = await syncSources(ctx);
+    const source = sources.length === 1 ? sources[0]! : null;
+    if (!source) {
+      current = null;
+      return record(sources.length === 0 ? 'off' : 'several_sources');
+    }
+    const key = storeKey(source);
+    if (current?.key !== key) current = { key, store: storeFor(ctx, source) };
+    const store = current.store;
+    if (!store) return record('off');
+    if (source.kind === 'onedrive' && source.account.status === 'reauth') return record('paused_reauth');
     const state = getLaunchpadSync(ctx);
+    if (trigger !== 'manual' && state.pausedFor === key) return record('paused_reauth');
     const now = ctx.now();
-    if (trigger !== 'manual') {
+    // A new source is tried at once: the backoff was the old one's (the round resets it).
+    if (trigger !== 'manual' && state.sourceId === source.id) {
       if (now < state.retryAt) return null;
       if (trigger === 'focus' && state.checkedAt !== null && now - state.checkedAt < FOCUS_THROTTLE_MS) return null;
     }
+    if (state.pausedFor !== null) {
+      // Sync now, or new settings: try again (the round reloads the sync state, so commit it first).
+      state.pausedFor = null;
+      await ctx.state.commitWith([SLICE.launchpadSync], { origin: SYNC_ORIGIN });
+    }
     try {
-      const result = await runSyncRound(ctx, storeFor(ctx, account.id), { accountId: account.id, signal: abort.signal, ...(choice ? { choice } : {}) });
+      const result = await runSyncRound(ctx, store, { sourceId: source.id, signal: abort.signal, ...(choice ? { choice } : {}) });
       if (result.status === 'busy') {
         const busy = getLaunchpadSync(ctx);
         busy.failures += 1;
@@ -159,7 +211,7 @@ export function startLaunchpadSync(ctx: StaticContext, deps: LaunchpadSyncDeps =
       return result;
     } catch (err) {
       if (abort.signal.aborted) return null;
-      return failed(err);
+      return failed(source, err);
     }
   }
 

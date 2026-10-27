@@ -75,7 +75,7 @@ async function browser(letter: string, storage = new MemoryStorage()): Promise<T
 }
 
 function sync(t: TestBackend, choice?: FirstSyncChoice) {
-  return runSyncRound(t.ctx, createGraphDriveStore(t.ctx, ACCOUNT), { accountId: ACCOUNT, signal: new AbortController().signal, ...(choice ? { choice } : {}) });
+  return runSyncRound(t.ctx, createGraphDriveStore(t.ctx, ACCOUNT), { sourceId: `microsoft:${ACCOUNT}`, signal: new AbortController().signal, ...(choice ? { choice } : {}) });
 }
 
 async function group(t: TestBackend, name: string): Promise<string> {
@@ -108,7 +108,7 @@ describe('a first sync', () => {
     expect(put.url).toBe(`${APPROOT}${MAIN}:/content?@microsoft.graph.conflictBehavior=fail`);
     expect(put.headers.has('if-match')).toBe(false);
     expect(JSON.parse(drive.text(MAIN)!)).toMatchObject({ format: 'portly-sync', version: 1, groups: [{ name: 'Work' }], bookmarks: [{ title: 'Mail' }] });
-    expect(getLaunchpadSync(a.ctx)).toMatchObject({ waiting: false, status: 'up_to_date', accountId: ACCOUNT, version: drive.files.get(MAIN)!.eTag });
+    expect(getLaunchpadSync(a.ctx)).toMatchObject({ waiting: false, status: 'up_to_date', sourceId: `microsoft:${ACCOUNT}`, version: drive.files.get(MAIN)!.eTag });
 
     const b = await browser('b');
     expect(await sync(b)).toMatchObject({ status: 'up_to_date', received: true, sent: false });
@@ -256,7 +256,7 @@ describe('changes between browsers', () => {
       }
       return result;
     };
-    expect(await runSyncRound(a.ctx, store, { accountId: ACCOUNT, signal: new AbortController().signal })).toMatchObject({ status: 'up_to_date', sent: true });
+    expect(await runSyncRound(a.ctx, store, { sourceId: `microsoft:${ACCOUNT}`, signal: new AbortController().signal })).toMatchObject({ status: 'up_to_date', sent: true });
     expect(JSON.parse(drive.text(MAIN)!).bookmarks.map((x: { title: string }) => x.title).sort()).toEqual(['Late', 'Mail', 'Wiki']);
     expect(getLaunchpadSync(a.ctx).waiting).toBe(false);
   });

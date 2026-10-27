@@ -54,8 +54,8 @@ export const ICON_DELETE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 export type FirstSyncChoice = 'use_synced' | 'replace_synced';
 
 export interface SyncRoundOptions {
-  /** The Microsoft connection (or other account) the store belongs to. */
-  accountId: string;
+  /** The sync source the store belongs to (`microsoft:<account id>`, `github:<hash>`; scheduler.ts). */
+  sourceId: string;
   signal: AbortSignal;
   choice?: FirstSyncChoice;
 }
@@ -94,10 +94,10 @@ function restamped(ctx: StaticContext, doc: SyncLaunchpad, epoch: string): SyncL
   });
 }
 
-/** A new account starts over: its file is unknown here. */
-function forAccount(state: LaunchpadSyncSlice, accountId: string): void {
-  if (state.accountId === accountId) return;
-  state.accountId = accountId;
+/** A new source starts over: its file is unknown here. */
+function forSource(state: LaunchpadSyncSlice, sourceId: string): void {
+  if (state.sourceId === sourceId) return;
+  state.sourceId = sourceId;
   state.epoch = null;
   state.version = null;
   state.lastSynced = 0;
@@ -105,6 +105,9 @@ function forAccount(state: LaunchpadSyncSlice, accountId: string): void {
   state.rehomed = {};
   state.refused = null;
   state.droppedIcons = [];
+  // The old source's failures say nothing about this one.
+  state.failures = 0;
+  state.retryAt = 0;
 }
 
 /** Records how the round ended (not a success) and commits the sync state. */
@@ -164,7 +167,7 @@ export async function runSyncRound(ctx: StaticContext, store: SyncStore, options
   for (let round = 0; round < SYNC_ROUNDS; round++) {
     // Another tab may have changed the launch pad or synced since this page loaded.
     await ctx.state.reload([SLICE.bookmarks, SLICE.icons, SLICE.settings, SLICE.launchpadSync, SLICE.backups]);
-    forAccount(getLaunchpadSync(ctx), options.accountId);
+    forSource(getLaunchpadSync(ctx), options.sourceId);
 
     const remote = await store.readMain(signal);
     let state = getLaunchpadSync(ctx);
@@ -261,7 +264,7 @@ export async function runSyncRound(ctx: StaticContext, store: SyncStore, options
 
     const now = ctx.now();
     state = getLaunchpadSync(ctx);
-    state.accountId = options.accountId;
+    state.sourceId = options.sourceId;
     state.epoch = plan.doc.epoch;
     state.version = version;
     state.lastSynced = highestSyncStamp(plan.doc);
