@@ -14,8 +14,8 @@ checks).
 | Phase | What | Status |
 | --- | --- | --- |
 | 0 | Make the move from Homebase safe | Done ([details](#done-before-this-plan)) |
-| 1 | Baseline and a truthful public surface | Nearly done: 1.4's check runs with 2.1's first connect |
-| 2 | Prove what is built, on this PC | In progress: 2.5 done |
+| 1 | Baseline and a truthful public surface | Done (1.8's real run waits for the next `portly --update`, see the checks table) |
+| 2 | Prove what is built, on this PC | In progress: 2.1 and 2.5 done |
 | 3 | Every PC on Portly, Homebase retired | Not started |
 | 4 | Release rehearsal in private | In progress: 4.1, 4.5, 4.6 and 4.7 done; 4.2 to 4.4 open |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
@@ -187,6 +187,10 @@ Items:
 
   *Done when:* on the republished site, Settings > Accounts > Outlook.com returns to
   `#/settings/accounts` connected instead of a `redirect_uri` error.
+
+  *Status:* done. The redirect URI was registered on 2026-10-20 (the portal lists
+  `https://davideaurum.github.io/` under *Single-page application*), and 2.1's first connect on the
+  published site, on 2026-10-25, came back connected with no `redirect_uri` error.
 
 - **1.5 Make site/ privacy and terms true for Portly** (S; after 1.1).
   `site/privacy.html` must say that the browser-only build keeps the Microsoft sign-in in the
@@ -393,6 +397,14 @@ Items:
   *Done when:* a real-account check in Chrome over more than 24 hours: events round-trip to
   Outlook; Diagnostics > This browser shows the renewal and no `reauth_required`; the Reconnect
   fallback and guard seen; a dated line here and in [Outlook.com](setup/microsoft.md).
+
+  *Status:* done 2026-10-26, run by the owner with a real Outlook.com account on
+  `https://davideaurum.github.io/` and reported as every step above passing: connected on
+  2026-10-25, synced, and created, edited and deleted an event, each seen in Outlook; reopened
+  after 2 pm on 2026-10-26, more than 24 hours after the connect, and the sign-in renewed by itself
+  with no "Reconnect needed"; then consent withdrawn at account.live.com, and the site fell back
+  to Reconnect. The assistant did not watch the browser, so the exact `sessionExpiresAt` and the
+  Diagnostics lines were not written down.
 
 - **2.2 Real Google and Microsoft sign-ins on the installed server** (M; after 1.1).
   On this PC's installed Portly, on purpose with real data, with one Google account, one
@@ -1084,9 +1096,10 @@ date and the outcome once a row has been run for real.
 | The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | 2026-10-25 (2.5): on `preview:static`, *Use my location* with a faked position called nominatim.openstreetmap.org (200) with no CSP violation and named the place; a real browser location prompt is still the row above |
 | A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | not yet |
 | The settings dialog's focus change (it keeps looking for the requested field for 10 s and stops once focus has moved inside the dialog), by hand in a browser; only the new tests cover it | 29347b8, 2026-10-19 | 2.4 | not yet |
-| The browser-only build's Outlook.com sign-in on the published Pages address itself: the same sign-in and sync check, the automatic 24-hour renewal and writing an event (the localhost copy passed) | 3b3edd7, 2026-10-19 | 2.1 | not yet |
+| The browser-only build's Outlook.com sign-in on the published Pages address itself: the same sign-in and sync check, the automatic 24-hour renewal and writing an event (the localhost copy passed) | 3b3edd7, 2026-10-19 | 2.1 | 2026-10-26 (2.1): passed on the published site with a real account, reported by the owner: connect, sync, an event created, edited and deleted and seen in Outlook, the renewal after more than 24 hours |
 | The OneDrive spike (sign-in, app folder reads and writes, cross-origin download URLs) in Firefox and Safari; only the desktop app's Chromium-based browser pane was used | 3b3edd7, 2026-10-19 | 6.7 (Firefox smoke run); Safari stays unsupported | not yet |
-| The browser-only build's own automatic token renewal (`planSilentReauth`) against a real Outlook.com account; the spike only sent the same `prompt=none` request by hand | 3b3edd7, 2026-10-19 | 2.1 | not yet |
+| The browser-only build's own automatic token renewal (`planSilentReauth`) against a real Outlook.com account; the spike only sent the same `prompt=none` request by hand | 3b3edd7, 2026-10-19 | 2.1 | 2026-10-26 (2.1): reopening the site more than 24 hours after the connect renewed the sign-in with no "Reconnect needed", and after consent was withdrawn it fell back to Reconnect (reported by the owner) |
+| The 6-hour retry guard after Reconnect on the published site (at most one further `prompt=none` attempt): 2.1 saw the fallback to Reconnect, but nobody counted the redirects or read Diagnostics > This browser | this commit, 2026-10-26 | 6.7 (the two-browser test signs in on Pages again) | not yet |
 | The `*.files.1drv.com` download host kept in the sync CSP table: never seen in the spike and its CORS behaviour unverified (launchpad-sync.md section 4) | 3b3edd7, 2026-10-19 | 6.5 | not yet |
 | A real Google or Microsoft sign-in through the new Accounts flow (connect, choose services, Manage adding a service by incremental consent); the tests and the hand check used fakes | 9cce15e, 2026-10-19 | 2.2 | not yet |
 | Whether Microsoft's consent screen shows only the requested services' scopes on a sign-in through Portly's own flow (the spike saw the incremental-consent screen list only the added permission, but from a scratch page) | 9cce15e, 2026-10-19 | 2.2 | not yet |

@@ -138,7 +138,9 @@ part of it. The steps above apply, with these differences:
   and the site asks for **Calendars.ReadWrite** (plus the sign-in ones), not **Mail.ReadWrite**.
 - **The sign-in lasts 24 hours.** Microsoft limits sign-ins made from a web page to a day. The
   site renews it by itself when you open it while you are still signed in to Microsoft in that
-  browser; otherwise the account shows **Reconnect**.
+  browser; otherwise the account shows **Reconnect**. Checked with a real Outlook.com account on
+  the published site on 2026-10-26: the sign-in renewed by itself more than 24 hours after
+  connecting, and showed **Reconnect** once consent was withdrawn.
 - **Calendars sync while the site is open**, every sync interval (**Settings → Calendars**), and
   are kept in this browser (not encrypted) so the page shows them right away next time. Add the
   **Calendar** widget from **Add widget**.
