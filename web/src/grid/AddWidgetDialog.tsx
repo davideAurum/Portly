@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Dialog } from '../ui/Dialog.tsx';
 import { Spinner } from '../ui/Spinner.tsx';
-import { availableWidgetDefinitions } from '../widgets/registry.ts';
+import { availableWidgetDefinitions, widgetDescription } from '../widgets/registry.ts';
 import styles from './Grid.module.css';
 
 /** The example names a widget every page load offers (the calendar runs on both backends). */
@@ -59,7 +59,7 @@ export function AddWidgetDialog({ open, onOpenChange, onAdd }: AddWidgetDialogPr
                 </span>
                 <span className={styles.catalogText}>
                   <span className={styles.catalogTitle}>{def.title}</span>
-                  <span className={styles.catalogDescription}>{def.description}</span>
+                  <span className={styles.catalogDescription}>{widgetDescription(def)}</span>
                 </span>
                 <span className={styles.catalogAdd} aria-hidden="true">
                   {adding === def.type ? <Spinner size={16} /> : <Plus />}

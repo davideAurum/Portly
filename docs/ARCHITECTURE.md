@@ -1104,6 +1104,8 @@ Each `web/src/widgets/<type>/index.ts` exports
 `definition: WidgetDefinition<C> = {type, title, description, icon, defaultSize: {w, h, minW, minH, maxW?, maxH?},
 configSchema /* zod, every field defaulted */, Component: lazyWithPreload(() => import('./Widget.tsx')), Settings?: lazy(() => import('./Settings.tsx')), stackSizing?}`
 (`lazyWithPreload` is `React.lazy` plus `preload()`; once preloaded it renders without suspending).
+`description` is the "Add widget" text, a string or `(caps: Capabilities) => string` when it depends on the page
+load's backend (the calendar names Outlook.com alone on the in-browser backend); read it with `widgetDescription()`.
 `web/src/widgets/registry.ts` lists all nine definitions in "Add widget" order (search, launch pad, calendar, mail,
 Todoist, weather, feeds, sports, clock) and throws at load when they differ from `WIDGET_TYPES`
 (`shared/src/profiles.ts`); `availableWidgetDefinitions()` leaves out the types this page load's backend cannot run

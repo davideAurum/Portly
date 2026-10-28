@@ -2,7 +2,8 @@
  * Pages-build copy on the in-browser backend (`setCapabilitiesForTests(capabilitiesFor(true,
  * 'browser'))`): About describes browser storage instead of a data folder, log file and vault;
  * Import & export promises the in-browser backup and no longer mentions accounts; the
- * empty-profile hint and the Add-widget example name only widgets this page load has. On the
+ * empty-profile hint, the Add-widget example and the Calendar card name only widgets and calendar
+ * sources this page load has. On the
  * Portly server (hybrid mode) the same page load reads like the server's own page: no in-browser
  * backup, server-made backups, every widget.
  */
@@ -87,7 +88,10 @@ describe('static build copy', () => {
     // The calendar is offered (Outlook.com from the browser), mail and feeds are not.
     expect(dialog).toHaveTextContent('Widgets can be added more than once — for example two calendars with different views.');
     // Buttons are named by their whole content (title, description, hidden "Add <title>").
-    expect(within(dialog).getByRole('button', { name: /Add Calendar/ })).toBeInTheDocument();
+    const calendar = within(dialog).getByRole('button', { name: /Add Calendar/ });
+    // Outlook.com is the only calendar source the browser syncs itself.
+    expect(calendar).toHaveTextContent('Upcoming events from your Outlook.com calendars.');
+    expect(calendar).not.toHaveTextContent(/Google|Yahoo|CalDAV|ICS/);
     expect(within(dialog).queryByRole('button', { name: /Add Mail/ })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /Add RSS feeds/ })).not.toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: /Add Clock/ })).toBeInTheDocument();
@@ -121,5 +125,8 @@ describe('Pages build copy on the Portly server on this PC', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Add a widget' });
     expect(dialog).toHaveTextContent('Widgets can be added more than once — for example two calendars with different views.');
     for (const name of [/Add Calendar/, /Add Mail/, /Add RSS feeds/]) expect(within(dialog).getByRole('button', { name })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Add Calendar/ })).toHaveTextContent(
+      'Upcoming events from your Google, Outlook.com, Yahoo, CalDAV and ICS calendars.',
+    );
   });
 });

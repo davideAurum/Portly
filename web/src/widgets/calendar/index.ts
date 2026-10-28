@@ -16,7 +16,11 @@ export type CalendarConfig = z.output<typeof calendarConfigSchema>;
 export const definition: WidgetDefinition<CalendarConfig> = {
   type: 'calendar',
   title: 'Calendar',
-  description: 'Upcoming events from your Google, Outlook, CalDAV and ICS calendars.',
+  // The in-browser backend syncs Outlook.com alone (the same test as the widget's empty state).
+  description: (caps) =>
+    caps.icsSubscriptions
+      ? 'Upcoming events from your Google, Outlook.com, Yahoo, CalDAV and ICS calendars.'
+      : 'Upcoming events from your Outlook.com calendars.',
   icon: CalendarDays,
   defaultSize: { w: 4, h: 8, minW: 3, minH: 4 },
   configSchema: calendarConfigSchema,
