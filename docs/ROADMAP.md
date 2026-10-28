@@ -903,6 +903,12 @@ installer, as a repeat of the phase 4 rehearsal on the actual release candidate.
 after phase 4, as decided on 2026-10-20; launch pad sync (phase 6) follows and ships as
 0.2.0-alpha.2.
 
+The release is built from the branch `release/0.2.0-alpha.1`, cut from main at b32a114 on
+2026-10-28 by the owner's decision, so that the sync code of phase 6 could merge to main before
+the release while the first alpha still ships without it. A fix that must be in 0.2.0-alpha.1
+goes on that branch as well as on main. Until 5.4, `portly --update` on this PC runs with
+`--skip-publish`, so the Pages site is not republished from main with unreleased sync code.
+
 Done when:
 - davideAurum/Portly is public and a `workflow_dispatch` CI run after the flip is green.
 - Release v0.2.0-alpha.1 exists, tagged on the exact commit it was built from, with notes from the
@@ -926,9 +932,10 @@ Items:
   run after the flip is green.
 
 - **5.2 Install the release candidate on the clean account** (S; go-ahead; after 4.3).
-  Build the candidate from the commit to be tagged (pinned download) and install it on the phase 4
-  account; repeat the failed-update rollback only if `install.ps1` changed since 4.3. Needed
-  because code lands between the rehearsal and the release.
+  Build the candidate from the tip of `release/0.2.0-alpha.1`, the commit to be tagged (pinned
+  download), and install it on the phase 4 account; repeat the failed-update rollback only if
+  `install.ps1` changed since 4.3. Needed because code lands between the rehearsal and the
+  release.
 
   *Done when:* `portly --status` healthy; the installed version matches the candidate; dated line.
 
@@ -938,21 +945,27 @@ Items:
 
 - **5.3 Release-day commit, build and publish** (S; go-ahead; after 5.1, 5.2, and the release
   gates 2.1, 2.3, 2.5 and 4.3).
-  One commit on main: the CHANGELOG entry gets its date, README and SETUP lose "No release is
-  published yet", and SETUP loses the `setup.ps1` owner-only note. Build from that clean commit,
-  run `check-release.ps1` on it, then `publish-release.ps1` from this PC (notes from the CHANGELOG
-  via 4.5, `--target` that commit, `--latest` so `install.ps1` resolves it); `release.yml`'s
-  publish job stays the fallback. A version is published once.
+  One commit on `release/0.2.0-alpha.1`, not on main: the CHANGELOG entry gets its date, README
+  and SETUP lose "No release is published yet", and SETUP loses the `setup.ps1` owner-only note.
+  Work in a checkout of that branch outside `.claude\worktrees` (for example
+  `git worktree add ..\Portly-release release/0.2.0-alpha.1`, then `npm ci` there). Push the
+  branch, build from that clean commit, run `check-release.ps1` on it, then `publish-release.ps1`
+  from that checkout (notes from the CHANGELOG via 4.5, `--target` that commit, `--latest` so
+  `install.ps1` resolves it); `release.yml`'s publish job, run on the release branch, stays the
+  fallback. A version is published once. Afterwards merge the release branch into main, which
+  brings main the dated CHANGELOG and the README and SETUP lines, and delete the branch; the tag
+  keeps the commit.
 
   *Done when:* `gh release view v0.2.0-alpha.1` lists the zip and `portly-release.json` with
-  matching SHA-256; the tag points at the built commit;
-  `releases/latest/download/portly-release.json` resolves.
+  matching SHA-256; the tag points at the built commit on the release branch;
+  `releases/latest/download/portly-release.json` resolves; main contains the tagged commit.
 
 - **5.4 Republish the Pages site at the released commit** (S; go-ahead; after 5.3).
-  `portly --update` from the main checkout, so the site's `install.ps1` and `setup.ps1` are the
-  released ones and the footer shows the version. `update.ps1` deploys the checkout as-is, so
-  main's tip must equal the tagged commit at that moment; if anything was merged after the tag,
-  run `publish-static.ps1` from a checkout of the tag instead.
+  `publish-static.ps1` from the release checkout of 5.3, at the tag, so the site's `install.ps1`
+  and `setup.ps1` are the released ones and the footer shows the version. Not `portly --update`:
+  `update.ps1` deploys the main checkout as-is, and main already carries the sync code of phase
+  6. Until 0.2.0-alpha.2 is released, republish the site only this way and keep running
+  `portly --update --skip-publish` on this PC.
 
   *Done when:* the live `install.ps1` is byte-equal to the tagged file; the footer reads
   0.2.0-alpha.1; the Pages repository's publish commit names the tagged commit.
@@ -1004,8 +1017,10 @@ Items:
 
 Fix the account-scope gap, build the sync design's phases 1-5 on the verified Outlook.com-on-Pages
 flow, and ship the result as 0.2.0-alpha.2 by repeating the phase 5 release steps. 6.1 may be built
-in a parallel worktree as soon as phase 2 closes and needs no decision, but it merges to main only
-after 5.3 has tagged 0.2.0-alpha.1, so the first alpha ships without sync code; 6.2 writes the
+in a parallel worktree as soon as phase 2 closes and needs no decision. It was to merge to main
+only after 5.3 had tagged 0.2.0-alpha.1; on 2026-10-28 the owner cut `release/0.2.0-alpha.1`
+from main instead (phase 5) and merged 6.1 to 6.6 and G.1 to G.3 to main, so the first alpha
+still ships without sync code; 6.2 writes the
 decisions taken on 2026-10-20 into the design doc before any other sync code lands. Design:
 [design/launchpad-sync.md](design/launchpad-sync.md).
 

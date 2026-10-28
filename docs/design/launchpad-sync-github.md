@@ -3,8 +3,9 @@
 **Status:** the storage backend, its setting and the CSP are built (2026-10-27), and the sync
 engine of [launchpad-sync.md](launchpad-sync.md) (ROADMAP 6.1 to 6.5) uses it (G.3): a browser whose
 only sync connection is the GitHub repository syncs with it, and the GitHub row shows the status
-line, **Sync now** and the first-sync question (ROADMAP 6.6). Nothing sync-related reaches `main`
-before 0.2.0-alpha.1 is tagged.
+line, **Sync now** and the first-sync question (ROADMAP 6.6). It is on `main` since 2026-10-28;
+0.2.0-alpha.1 is built from the branch `release/0.2.0-alpha.1`, which has none of it (ROADMAP
+phase 5).
 
 **The decision.** [launchpad-sync.md](launchpad-sync.md) section 11 set GitHub aside: it needs a
 long-lived token, unencrypted in browser storage on the shared `<user>.github.io` origin. On
