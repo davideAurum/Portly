@@ -4,7 +4,9 @@
  * commit. Accounts, passwords, tokens and calendars are never part of an export. When the data
  * lives in this browser (the in-browser backend), the data an import replaced is kept in this
  * browser and offered for download (it imports like any export file); the server backs its
- * database up to a file instead.
+ * database up to a file instead. There, launch pad sync also keeps a backup before a sync that
+ * replaced or removed much of the launch pad, offered the same way, and the import preview warns
+ * that an import replaces the launch pad in every browser that syncs.
  */
 import { useRef, useState, type ChangeEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +15,7 @@ import type { ImportPreviewResponse } from '@portly/shared';
 import { expectNewIcons } from '../../api/bookmarks.ts';
 import { apiGet, apiPath } from '../../api/client.ts';
 import { checkImportFile, commitImport, downloadExport, previewImport } from '../../api/importExport.ts';
+import { useLaunchpadSync } from '../../api/launchpadSync.ts';
 import { getCapabilities } from '../../capabilities.ts';
 import { saveBlob } from '../../lib/download.ts';
 import { Banner } from '../../ui/Banner.tsx';
@@ -22,13 +25,14 @@ import { FormFooter, SettingsCard } from '../../ui/Section.tsx';
 import { errorMessage, toast, toastError } from '../../ui/toast.ts';
 import { useFormatters } from '../../lib/format.ts';
 import styles from '../../styles/settings.module.css';
+import { syncedThrough } from './SyncPointer.tsx';
 
 export default function ImportExportSettings() {
   return (
     <div className={styles.stack}>
       <ExportCard />
       <ImportCard />
-      {getCapabilities().browserBackups ? <BackupCard /> : null}
+      {getCapabilities().browserBackups ? <BackupCards /> : null}
     </div>
   );
 }
@@ -38,27 +42,41 @@ interface BackupInfo {
   id: string;
   at: string;
   bytes: number;
+  /** Taken before an import, or before a launch pad sync that replaced or removed a lot. */
+  reason?: 'import' | 'sync';
 }
 
 const BACKUPS_KEY = ['backups'] as const;
 
-/** `portly-backup-2026-09-25.json` (local date of the import that replaced the data). */
+/** `portly-backup-2026-09-25.json` (local date of the import or sync that replaced the data). */
 function backupFilename(at: string): string {
   const date = new Date(at);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `portly-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`;
 }
 
-function BackupCard() {
-  const fmt = useFormatters();
-  const [busy, setBusy] = useState(false);
+/** The newest backup of each kind: before the last import, before the last sync that replaced a lot. */
+function BackupCards() {
   const backups = useQuery({
     queryKey: BACKUPS_KEY,
     queryFn: ({ signal }) => apiGet<BackupInfo[]>('/api/backups', { signal }),
     meta: { persist: false },
   });
-  const latest = backups.data?.[0];
-  if (!latest) return null;
+  const list = backups.data ?? [];
+  const latestImport = list.find((b) => (b.reason ?? 'import') === 'import');
+  const latestSync = list.find((b) => b.reason === 'sync');
+  return (
+    <>
+      {latestImport ? <BackupCard latest={latestImport} /> : null}
+      {latestSync ? <BackupCard latest={latestSync} /> : null}
+    </>
+  );
+}
+
+function BackupCard({ latest }: { latest: BackupInfo }) {
+  const fmt = useFormatters();
+  const [busy, setBusy] = useState(false);
+  const sync = latest.reason === 'sync';
 
   const download = async () => {
     setBusy(true);
@@ -75,8 +93,12 @@ function BackupCard() {
   };
   return (
     <SettingsCard
-      title="Backup before the last import"
-      description={`Your settings, profiles and bookmarks as they were before the import on ${fmt.dateTime(latest.at)}. Download it and import it here to go back.`}
+      title={sync ? 'Backup before sync' : 'Backup before the last import'}
+      description={
+        sync
+          ? `Your settings, profiles and bookmarks as they were before launch pad sync replaced or removed much of the launch pad on ${fmt.dateTime(latest.at)}. Download it and import it here to go back.`
+          : `Your settings, profiles and bookmarks as they were before the import on ${fmt.dateTime(latest.at)}. Download it and import it here to go back.`
+      }
       actions={
         <Button icon={Download} onClick={() => void download()} loading={busy}>
           Download backup
@@ -144,6 +166,8 @@ function ImportCard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const sync = useLaunchpadSync().data;
+  const syncing = sync ? syncedThrough(sync) : null;
 
   const reset = () => {
     setPreview(null);
@@ -218,6 +242,12 @@ function ImportCard() {
 
       {summary ? (
         <section className={styles.stack} aria-label="Import preview">
+          {syncing !== null ? (
+            <Banner tone="warning" icon={TriangleAlert} title="This replaces the launch pad in every synced browser">
+              Launch pad sync is on through {syncing}: after the import, every browser that syncs with it takes the imported groups and
+              bookmarks (a browser that would lose many of its own keeps a backup first).
+            </Banner>
+          ) : null}
           <p className={styles.preview}>
             Exported <strong>{fmt.dateTime(summary.exportedAt)}</strong>. Importing replaces:
           </p>

@@ -37,7 +37,16 @@ export interface CommitExtras {
   json?: ReadonlyMap<string, unknown>;
   deleteBlobs?: readonly string[];
   putBlobs?: readonly StoredBlob[];
+  /** Who commits, for the commit hook: `'sync'` when launch pad sync applies a merge. */
+  origin?: string;
 }
+
+/**
+ * Runs at the start of every commit with the slice names and the origin. It may change slices in
+ * memory and returns more slice names to write in the same transaction, and optionally a callback
+ * for after the commit succeeded.
+ */
+export type CommitHook = (names: readonly string[], origin: string | undefined) => { extra: readonly string[]; committed?: () => void };
 
 function openChannel(): ChangeChannel | null {
   if (typeof BroadcastChannel !== 'function') return null;
@@ -58,6 +67,7 @@ export class StaticState {
   private readonly listeners = new Set<ExternalChangeListener>();
   /** Reloads triggered by other tabs, in arrival order (never rejects). */
   private pending: Promise<void> = Promise.resolve();
+  private commitHook: CommitHook | null = null;
 
   constructor(storage: StaticStorage, options: { channel?: ChangeChannel | null; instanceId?: string } = {}) {
     this.storage = storage;
@@ -122,8 +132,10 @@ export class StaticState {
   }
 
   /** {@link commit} plus other documents and blob writes, all in the same transaction. */
-  async commitWith(names: readonly string[], extras: CommitExtras = {}): Promise<void> {
+  async commitWith(requested: readonly string[], extras: CommitExtras = {}): Promise<void> {
     const texts = new Map<string, string | undefined>();
+    const hooked = this.runCommitHook(requested, extras.origin);
+    const names = hooked.names;
     try {
       // Serialized before the first await: a reload from another tab while the write is in
       // flight must not change what this commit writes.
@@ -143,6 +155,33 @@ export class StaticState {
       else this.committed.set(name, text);
     }
     this.announce([...texts.keys()]);
+    try {
+      hooked.committed?.();
+    } catch (err) {
+      console.error('[Portly] A commit listener failed', err);
+    }
+  }
+
+  /**
+   * Installs the hook every commit runs before anything is serialized (one per state; null
+   * removes it). Launch pad sync uses it to mark changes waiting and stamp the settings it syncs
+   * in the same transaction (sync/hook.ts).
+   */
+  setCommitHook(hook: CommitHook | null): void {
+    this.commitHook = hook;
+  }
+
+  private runCommitHook(names: readonly string[], origin: string | undefined): { names: readonly string[]; committed?: () => void } {
+    if (!this.commitHook) return { names };
+    try {
+      const result = this.commitHook(names, origin);
+      const extra = result.extra.filter((name) => !names.includes(name));
+      return { names: extra.length > 0 ? [...names, ...extra] : names, committed: result.committed };
+    } catch (err) {
+      // The hook must never fail someone's change.
+      console.error('[Portly] The commit hook failed', err);
+      return { names };
+    }
   }
 
   /** Deletes slices from storage and memory (one transaction). */

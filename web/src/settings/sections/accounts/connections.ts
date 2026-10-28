@@ -9,16 +9,19 @@
  * listed: nothing "coming later".
  *
  * What this page load can do decides what is offered (`getCapabilities()`): on the in-browser
- * backend only Microsoft (calendar only, signed in from the browser) and Todoist work; Google,
+ * backend only Microsoft (calendar and launch pad sync, signed in from the browser) and Todoist
+ * work; launch pad sync works nowhere else (the server's launch pad is not synced); Google,
  * Yahoo, CalDAV and IMAP need the Portly server. On another PC's page load (`remoteClient`) the
  * Google and Microsoft sign-ins stay on the main PC (their redirect lands there); Yahoo, CalDAV,
- * IMAP and Todoist work from anywhere, because the server keeps the credentials.
+ * IMAP and Todoist work from anywhere, because the server keeps the credentials. GitHub (a private
+ * repository and token for launch pad sync) is offered only when the page's data lives in this
+ * browser.
  */
 import { CAPABILITIES, OAUTH_PROVIDER_CAPABILITIES, type AccountKind, type Capability, type OAuthProvider } from '@portly/shared';
 import { getCapabilities, type Capabilities } from '../../../capabilities.ts';
 import { CAPABILITY_LABELS } from '../../../ui/accounts/accountKinds.ts';
 
-export type ConnectionId = OAuthProvider | 'yahoo' | 'todoist' | 'other';
+export type ConnectionId = OAuthProvider | 'yahoo' | 'todoist' | 'github' | 'other';
 
 export interface ConnectionInfo {
   id: ConnectionId;
@@ -36,6 +39,7 @@ export const CONNECTIONS: readonly ConnectionInfo[] = Object.freeze([
   { id: 'microsoft', title: 'Microsoft', mark: { letter: 'M', color: '#0f6cbd' }, available: (caps) => caps.accounts && !caps.remoteClient },
   { id: 'yahoo', title: 'Yahoo', mark: { letter: 'Y', color: '#5f01d1' }, available: (caps) => caps.appPasswordAccounts },
   { id: 'todoist', title: 'Todoist', mark: { letter: 'T', color: '#dc4c3e' }, available: () => true },
+  { id: 'github', title: 'GitHub', mark: { letter: 'G', color: '#24292f' }, available: (caps) => caps.backend === 'browser' },
   { id: 'other', title: 'Other', mark: null, available: (caps) => caps.appPasswordAccounts },
 ]);
 
@@ -50,8 +54,8 @@ export function availableConnections(caps: Capabilities = getCapabilities()): Co
   return CONNECTIONS.filter((c) => c.available(caps));
 }
 
-/** Connections with services to pick (Todoist has one: its tasks). */
-export type ServiceConnection = Exclude<ConnectionId, 'todoist'>;
+/** Connections with services to pick (Todoist has one: its tasks; GitHub one: launch pad sync). */
+export type ServiceConnection = Exclude<ConnectionId, 'todoist' | 'github'>;
 
 /** One line per service and connection, shown next to its checkbox or switch. */
 const SERVICE_DESCRIPTIONS: Readonly<Record<ServiceConnection, Readonly<Partial<Record<Capability, string>>>>> = Object.freeze({
@@ -62,6 +66,7 @@ const SERVICE_DESCRIPTIONS: Readonly<Record<ServiceConnection, Readonly<Partial<
   microsoft: {
     calendar: 'See, add and edit events in your Outlook.com calendars.',
     mail: 'Unread Outlook.com mail at a glance: mark as read, archive or delete.',
+    launchpadSync: 'Keeps your launch pad the same in every browser where you turn this on. Stored in your OneDrive, under Apps.',
   },
   yahoo: {
     calendar: 'Your Yahoo calendars, read-only (CalDAV).',
@@ -73,15 +78,20 @@ const SERVICE_DESCRIPTIONS: Readonly<Record<ServiceConnection, Readonly<Partial<
   },
 });
 
-/** Whether this page load can use a service at all (the in-browser backend has no mail). */
+/** Whether this page load can use a service at all (the in-browser backend has no mail, the server no launch pad sync). */
 const PAGE_SUPPORT: Readonly<Record<Capability, (caps: Capabilities) => boolean>> = Object.freeze({
   calendar: (caps) => caps.calendar,
   mail: (caps) => caps.mail,
+  launchpadSync: (caps) => caps.launchpadSync,
 });
 
-/** The services each connection can offer, before this page load's limits. */
+/**
+ * The services each connection can offer, before this page load's limits. The server's sign-ins
+ * (`OAUTH_PROVIDER_CAPABILITIES`) leave launch pad sync out; the browser's Microsoft sign-in adds it.
+ */
 const OFFERED: Readonly<Record<ServiceConnection, readonly Capability[]>> = Object.freeze({
-  ...OAUTH_PROVIDER_CAPABILITIES,
+  google: OAUTH_PROVIDER_CAPABILITIES.google,
+  microsoft: [...OAUTH_PROVIDER_CAPABILITIES.microsoft, 'launchpadSync'],
   yahoo: CAPABILITIES,
   other: CAPABILITIES,
 });
@@ -99,6 +109,14 @@ export function connectionServices(id: ServiceConnection, caps: Capabilities = g
     const description = descriptions[capability];
     return description !== undefined && PAGE_SUPPORT[capability](caps) ? [{ capability, label: CAPABILITY_LABELS[capability], description }] : [];
   });
+}
+
+/** Services a new connection does not tick for the user: launch pad sync is turned on on purpose. */
+const OPT_IN: readonly Capability[] = Object.freeze(['launchpadSync']);
+
+/** The services a connect dialog starts with ticked. */
+export function defaultPicked(services: readonly ServiceInfo[]): Capability[] {
+  return services.map((s) => s.capability).filter((c) => !OPT_IN.includes(c));
 }
 
 /** The connection an account kind belongs to (CalDAV and IMAP accounts are "Other"). */

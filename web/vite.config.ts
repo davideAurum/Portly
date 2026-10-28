@@ -42,7 +42,8 @@ export const STATIC_MODE = 'static';
  * no headers. Mirrors the server's CSP (§4.3) plus the third-party origins the browser now calls
  * directly: Open-Meteo (weather, geocoding), Nominatim (the device location's place name), Todoist, Wikipedia (suggestions), ESPN (sports),
  * Microsoft's token endpoint and Graph (Outlook.com sign-in and calendar on the in-browser
- * backend), and DuckDuckGo's favicon service used as `<img src>`. In hybrid mode `connect-src` also
+ * backend), GitHub's API (launch pad sync through a private repository), and DuckDuckGo's
+ * favicon service used as `<img src>`. In hybrid mode `connect-src` also
  * allows the Portly server on this PC (`localServer`); its images reach the page as
  * `blob:`/`data:` URLs, which `img-src` already allows. `frame-ancestors` cannot be expressed in a
  * meta tag.
@@ -54,10 +55,14 @@ export function staticCsp(localServer: string): string {
     'https://geocoding-api.open-meteo.com',
     'https://nominatim.openstreetmap.org',
     'https://api.todoist.com',
+    // Launch pad sync through a private repository: the REST API only (big files come from its blob API).
+    'https://api.github.com',
     'https://en.wikipedia.org',
     'https://site.api.espn.com',
     'https://login.microsoftonline.com',
     'https://graph.microsoft.com',
+    // OneDrive download URLs of launch pad sync (the only host seen for a personal account; design section 4).
+    'https://my.microsoftpersonalcontent.com',
   ];
   if (localServer !== '') connect.push(localServer);
   return [

@@ -10,9 +10,9 @@
  * handler or keep the backend from starting.
  *
  * Export (`GET /api/export`) reads settings, profiles, bookmarks, uploads and icons. The Todoist
- * token, the pre-import backups, accounts and their tokens, the OAuth client, pending sign-ins and
- * the calendar cache are never exported (and an import never touches them), and neither is the
- * list of one-time data upgrades already applied.
+ * token, the GitHub sync repository and token, the pre-import backups, accounts and their tokens,
+ * the OAuth client, pending sign-ins and the calendar cache are never exported (and an import
+ * never touches them), and neither is the list of one-time data upgrades already applied.
  */
 import {
   ACCOUNT_STATUSES,
@@ -20,12 +20,16 @@ import {
   CAPABILITIES,
   SETTINGS_NAMESPACES,
   SettingsSchema,
+  SyncIconSchema,
+  SyncPointersSchema,
   defaultSettings,
   settingsNamespaceSchema,
   type AccountStatus,
   type Capability,
   type Profile,
   type Settings,
+  type SyncIcon,
+  type SyncPointers,
 } from '@portly/shared';
 import type { StaticContext } from './context.ts';
 import type { CalendarRow, EventRow } from './lib/calendarRecords.ts';
@@ -37,6 +41,7 @@ export const SLICE = Object.freeze({
   uploads: 'uploads',
   icons: 'icons',
   todoistToken: 'todoist-token',
+  githubSync: 'github-sync',
   backups: 'backups',
   accounts: 'accounts',
   accountTokens: 'account-tokens',
@@ -46,6 +51,7 @@ export const SLICE = Object.freeze({
   calendarEvents: 'calendar-events',
   calendarSync: 'calendar-sync',
   upgrades: 'upgrades',
+  launchpadSync: 'launchpad-sync',
 });
 
 // ---------------------------------------------------------------------------
@@ -166,6 +172,14 @@ export function getProfiles(ctx: StaticContext): StoredProfile[] {
 // Bookmarks
 // ---------------------------------------------------------------------------
 
+/*
+ * Launch pad sync (docs/design/launchpad-sync.md section 6) needs two stamps per row and lasting
+ * tombstones. Stamps come from the launch pad clock (sync/clock.ts), never `ctx.now()` directly:
+ * `updatedAt` stamps the content (name, color, collapsed; title, URL, icon, letter color),
+ * `placedAt` the placement (`sort`, and `groupId` for a bookmark), so reordering on one PC never
+ * undoes a rename made on another.
+ */
+
 export interface StoredBookmarkGroup {
   id: string;
   name: string;
@@ -173,7 +187,10 @@ export interface StoredBookmarkGroup {
   color: string | null;
   collapsed: boolean;
   createdAt: number;
+  /** Content stamp: name, color, collapsed. */
   updatedAt: number;
+  /** Placement stamp: sort. */
+  placedAt: number;
 }
 
 export interface StoredBookmark {
@@ -187,27 +204,77 @@ export interface StoredBookmark {
   iconId: string | null;
   letterColor: string | null;
   createdAt: number;
+  /** Content stamp: title, URL, icon, letter color. */
   updatedAt: number;
+  /** Placement stamp: sort and groupId. */
+  placedAt: number;
+}
+
+export const TOMBSTONE_KINDS = ['group', 'bookmark'] as const;
+export type TombstoneKind = (typeof TOMBSTONE_KINDS)[number];
+
+/** A removed row, written in the same commit as the removal so a merge cannot bring it back. */
+export interface Tombstone {
+  kind: TombstoneKind;
+  id: string;
+  /** Launch pad clock stamp of the removal. */
+  at: number;
 }
 
 export interface BookmarksSlice {
   groups: StoredBookmarkGroup[];
   bookmarks: StoredBookmark[];
+  /** Tombstones, added by sync/tombstones.ts and kept {@link TOMBSTONE_TTL_MS}. Never exported. */
+  deleted: Tombstone[];
+}
+
+/** How long a tombstone is kept (design section 6.3). */
+export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+function isTombstone(value: unknown): value is Tombstone {
+  return isRow(value) && (TOMBSTONE_KINDS as readonly unknown[]).includes(value.kind) && typeof value.id === 'string' && Number.isFinite(value.at);
+}
+
+/** Bookmarks slices whose rows already have their sync fields (identity changes when replaced). */
+const syncReadySlices = new WeakSet<object>();
+
+/**
+ * Rows stored before the sync fields existed (or written meanwhile by an older build in another
+ * tab) get `placedAt = updatedAt`, and the slice an empty tombstone list. In memory only; the
+ * `bookmarks-sync-fields` upgrade (handlers/bookmarks.ts) persists it once.
+ */
+function withSyncFields(slice: BookmarksSlice): BookmarksSlice {
+  if (syncReadySlices.has(slice)) return slice;
+  for (const row of [...slice.groups, ...slice.bookmarks]) {
+    if (!Number.isFinite(row.updatedAt)) row.updatedAt = Number.isFinite(row.createdAt) ? row.createdAt : 0;
+    if (!Number.isFinite(row.placedAt)) row.placedAt = row.updatedAt;
+  }
+  if (!Array.isArray(slice.deleted)) slice.deleted = [];
+  syncReadySlices.add(slice);
+  return slice;
 }
 
 export function getBookmarks(ctx: StaticContext): BookmarksSlice {
   const rows = (value: unknown): unknown[] => (Array.isArray(value) ? value.filter(hasId) : []);
-  return checkedSlice<BookmarksSlice>(
+  const tombstones = (value: unknown): Tombstone[] => (Array.isArray(value) ? value.filter(isTombstone) : []);
+  const slice = checkedSlice<BookmarksSlice>(
     ctx,
     SLICE.bookmarks,
-    () => ({ groups: [], bookmarks: [] }),
+    () => ({ groups: [], bookmarks: [], deleted: [] }),
     (value) =>
-      isRow(value) && Array.isArray(value.groups) && value.groups.every(hasId) && Array.isArray(value.bookmarks) && value.bookmarks.every(hasId),
+      isRow(value) &&
+      Array.isArray(value.groups) &&
+      value.groups.every(hasId) &&
+      Array.isArray(value.bookmarks) &&
+      value.bookmarks.every(hasId) &&
+      (value.deleted === undefined || (Array.isArray(value.deleted) && value.deleted.every(isTombstone))),
     (value) => ({
       groups: rows(isRow(value) ? value.groups : undefined) as StoredBookmarkGroup[],
       bookmarks: rows(isRow(value) ? value.bookmarks : undefined) as StoredBookmark[],
+      deleted: tombstones(isRow(value) ? value.deleted : undefined),
     }),
   );
+  return withSyncFields(slice);
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +331,28 @@ export function getTodoistToken(ctx: StaticContext): TodoistTokenSlice {
 }
 
 // ---------------------------------------------------------------------------
+// GitHub repository and token for launch pad sync (never exported)
+// ---------------------------------------------------------------------------
+
+export interface GitHubSyncSlice {
+  token: string | null;
+  /** The private sync repository, `owner/name`; saved together with the token. */
+  repository: string | null;
+  /** Bumped on every change, like the Todoist token's, so a store for the old one is never reused. */
+  generation: number;
+}
+
+export function getGitHubSync(ctx: StaticContext): GitHubSyncSlice {
+  return checkedSlice<GitHubSyncSlice>(
+    ctx,
+    SLICE.githubSync,
+    () => ({ token: null, repository: null, generation: 0 }),
+    (value) => isRow(value) && isNullableString(value.token) && isNullableString(value.repository) && Number.isFinite(value.generation),
+    (value) => ({ token: null, repository: null, generation: isRow(value) && Number.isFinite(value.generation) ? Number(value.generation) + 1 : 1 }),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Pre-import backups (never exported)
 // ---------------------------------------------------------------------------
 
@@ -272,19 +361,47 @@ export function getTodoistToken(ctx: StaticContext): TodoistTokenSlice {
  * the JSON string stored under {@link backupKey}`(id)`, outside the `slice:` namespace, so it is
  * never loaded at startup or on a cross-tab reload — only when it is downloaded.
  */
+export const BACKUP_REASONS = ['import', 'sync'] as const;
+export type BackupReason = (typeof BACKUP_REASONS)[number];
+
 export interface BackupEntry {
   id: string;
-  /** When the import replaced everything (epoch ms). */
+  /** When the import (or a sync) replaced the data (epoch ms). */
   at: number;
   /** Length of the stored export document (characters), for the UI. */
   bytes: number;
+  /** What it was taken before (absent on entries from before sync existed: an import). */
+  reason?: BackupReason;
 }
 
 export interface BackupsSlice {
   entries: BackupEntry[];
 }
 
+/** Import backups kept. Sync keeps {@link MAX_SYNC_BACKUPS} of its own besides (ROADMAP D8). */
 export const MAX_BACKUPS = 3;
+export const MAX_SYNC_BACKUPS = 1;
+
+/**
+ * Splits backup entries into those kept (newest first: the newest {@link MAX_BACKUPS} import
+ * backups and the newest {@link MAX_SYNC_BACKUPS} sync backups, so a sync never pushes out an
+ * import's backup or the other way round) and those to delete.
+ */
+export function keepBackups(entries: readonly BackupEntry[]): { kept: BackupEntry[]; evicted: BackupEntry[] } {
+  const kept: BackupEntry[] = [];
+  const evicted: BackupEntry[] = [];
+  let imports = 0;
+  let syncs = 0;
+  for (const entry of [...entries].sort((a, b) => b.at - a.at)) {
+    const sync = entry.reason === 'sync';
+    if (sync ? syncs < MAX_SYNC_BACKUPS : imports < MAX_BACKUPS) {
+      kept.push(entry);
+      if (sync) syncs++;
+      else imports++;
+    } else evicted.push(entry);
+  }
+  return { kept, evicted };
+}
 
 export const BACKUP_KEY_PREFIX = 'backup:';
 
@@ -294,7 +411,12 @@ export function backupKey(id: string): string {
 }
 
 function isBackupEntry(entry: unknown): boolean {
-  return hasId(entry) && Number.isFinite(entry.at) && Number.isFinite(entry.bytes);
+  return (
+    hasId(entry) &&
+    Number.isFinite(entry.at) &&
+    Number.isFinite(entry.bytes) &&
+    (entry.reason === undefined || (BACKUP_REASONS as readonly unknown[]).includes(entry.reason))
+  );
 }
 
 export function getBackups(ctx: StaticContext): BackupsSlice {
@@ -320,9 +442,17 @@ export interface StoredAccount {
   /** Provider subject (`oid`): reconnects match on it. */
   externalId: string;
   color: string | null;
+  /** The services this browser may use: asked for by the last sign-in and in its grant. */
   capabilities: Capability[];
   enabledCapabilities: Capability[];
+  /** What Microsoft reported as granted (normalized): every grant of the account, not only this sign-in's. */
   grantedScopes: string[];
+  /**
+   * The scopes the last sign-in asked for (normalized). Refreshes and automatic re-sign-ins never
+   * ask for more. Absent on rows stored before it was recorded, until the `account-requested-scopes`
+   * upgrade fills it (handlers/accounts.ts).
+   */
+  requestedScopes?: string[];
   status: AccountStatus;
   statusMessage: string | null;
   sort: number;
@@ -334,6 +464,10 @@ function isCapabilityList(value: unknown): boolean {
   return Array.isArray(value) && value.every((c) => (CAPABILITIES as readonly unknown[]).includes(c));
 }
 
+function isStringList(value: unknown): boolean {
+  return Array.isArray(value) && value.every((s) => typeof s === 'string');
+}
+
 function isAccountRow(row: unknown): boolean {
   return (
     hasId(row) &&
@@ -342,6 +476,7 @@ function isAccountRow(row: unknown): boolean {
     typeof row.externalId === 'string' &&
     isCapabilityList(row.capabilities) &&
     isCapabilityList(row.enabledCapabilities) &&
+    (row.requestedScopes === undefined || isStringList(row.requestedScopes)) &&
     (ACCOUNT_STATUSES as readonly unknown[]).includes(row.status) &&
     Number.isFinite(row.sort)
   );
@@ -558,4 +693,175 @@ export function getCalendarSync(ctx: StaticContext): CalendarSyncSlice {
     (value) => isRow(value) && Object.values(value).every(isSyncState),
     (value) => (isRow(value) ? (Object.fromEntries(Object.entries(value).filter(([, v]) => isSyncState(v))) as CalendarSyncSlice) : {}),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Launch pad sync state (this browser only; never exported)
+// ---------------------------------------------------------------------------
+
+/** Where launch pad sync stands in this browser, for the Accounts page (6.6) and Diagnostics. */
+export const LAUNCHPAD_SYNC_STATUSES = [
+  /** Never synced, or the service is off. */
+  'off',
+  'up_to_date',
+  /** Both this browser and the synced file have a launch pad: the user picks (design 6.6). */
+  'needs_choice',
+  /** The account needs reconnecting, or GitHub refused the token or the repository. */
+  'paused_reauth',
+  /** More than one sync connection is set up: none is used until only one is left (design 6.10). */
+  'several_sources',
+  /** The synced file was written by a newer Portly. */
+  'stopped_newer',
+  /** The synced file could not be read (`problem` says why). */
+  'refused',
+  /** Other browsers kept writing: three rounds in a row lost the race. */
+  'busy',
+  'error',
+] as const;
+export type LaunchpadSyncStatus = (typeof LAUNCHPAD_SYNC_STATUSES)[number];
+
+export interface RehomedBookmark {
+  groupId: string;
+  placedAt: number;
+}
+
+/** The values of the synced settings this browser last applied or recorded. */
+export interface AppliedPointers {
+  defaultGroupId: string | null;
+  ungroupedGroupId: string | null;
+}
+
+/**
+ * Launch pad sync's own state (docs/design/launchpad-sync.md section 2), this browser only.
+ * Never holds a token, a URL or file content beyond the icon list.
+ */
+export interface LaunchpadSyncSlice {
+  /** The launch pad clock: the highest stamp this browser has given out or seen (sync/clock.ts). */
+  clock: number;
+  /** Local changes not uploaded yet (set by the commit hook, cleared by a successful upload). */
+  waiting: boolean;
+  /** Counts local changes (the commit hook): a sync clears `waiting` only if none came in meanwhile. */
+  changes: number;
+  /** The synced settings that name a group, each with the stamp of its last change. */
+  pointers: SyncPointers;
+  /** Their values as this browser last applied or recorded them: a different value in settings is a local change. */
+  applied: AppliedPointers;
+  /**
+   * The sync source synced with: `microsoft:<account id>` or `github:<SHA-256 of owner/name>`
+   * (another one means a first sync). The repository name itself is never kept here.
+   */
+  sourceId: string | null;
+  /** The GitHub settings (`github:<generation>`) whose token or repository was refused: scheduled checks wait for new ones. */
+  pausedFor: string | null;
+  /** The file generation last merged (null: never synced with this account). */
+  epoch: string | null;
+  /** The store's version of the file last merged or written (OneDrive: its eTag). */
+  version: string | null;
+  /** The highest stamp of the file last merged (0: never): rows changed after it were made here since. */
+  lastSynced: number;
+  /** Wall-clock times: last successful sync, last check (any tab; checks are throttled on it). */
+  syncedAt: number | null;
+  checkedAt: number | null;
+  /** When a change last came in from the file, and last went out to it. */
+  receivedAt: number | null;
+  sentAt: number | null;
+  /** The icon entries of the file last merged (their checksums). */
+  icons: SyncIcon[];
+  /**
+   * Bookmarks this browser shows under "No group" because their group is gone: id → their synced
+   * group and the placement stamp they had then (placed again here since: no longer a repair).
+   */
+  rehomed: Record<string, RehomedBookmark>;
+  /** The version of the file last refused (a newer or unreadable one): not read again until it changes. */
+  refused: string | null;
+  /** Icon files the file stopped naming, deleted from the store 30 days after. */
+  droppedIcons: { id: string; at: number }[];
+  /** Backoff after failures (0: none). */
+  retryAt: number;
+  failures: number;
+  status: LaunchpadSyncStatus;
+  /** A problem code for `refused` or `error` (never content). */
+  problem: string | null;
+}
+
+function emptyPointers(): SyncPointers {
+  return { defaultGroupId: { value: null, at: 0 }, ungroupedGroupId: { value: null, at: 0 } };
+}
+
+export function defaultLaunchpadSync(): LaunchpadSyncSlice {
+  return {
+    clock: 0,
+    waiting: false,
+    changes: 0,
+    pointers: emptyPointers(),
+    applied: { defaultGroupId: null, ungroupedGroupId: null },
+    sourceId: null,
+    pausedFor: null,
+    epoch: null,
+    version: null,
+    lastSynced: 0,
+    syncedAt: null,
+    checkedAt: null,
+    receivedAt: null,
+    sentAt: null,
+    icons: [],
+    rehomed: {},
+    refused: null,
+    droppedIcons: [],
+    retryAt: 0,
+    failures: 0,
+    status: 'off',
+    problem: null,
+  };
+}
+
+/** Each field checked on its own: a bad one falls back to its default (a lost clock restarts from the stored rows). */
+function repairLaunchpadSync(value: unknown): LaunchpadSyncSlice {
+  const raw = isRow(value) ? value : {};
+  const base = defaultLaunchpadSync();
+  const finite = (v: unknown, fallback: number): number => (Number.isFinite(v) ? Number(v) : fallback);
+  const nullableFinite = (v: unknown): number | null => (Number.isFinite(v) ? Number(v) : null);
+  const nullableString = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+  const applied = isRow(raw.applied) ? raw.applied : {};
+  const pointers = SyncPointersSchema.safeParse(raw.pointers);
+  return {
+    clock: finite(raw.clock, base.clock),
+    waiting: raw.waiting === true,
+    changes: finite(raw.changes, 0),
+    pointers: pointers.success ? pointers.data : base.pointers,
+    applied: { defaultGroupId: nullableString(applied.defaultGroupId), ungroupedGroupId: nullableString(applied.ungroupedGroupId) },
+    sourceId: nullableString(raw.sourceId),
+    pausedFor: nullableString(raw.pausedFor),
+    epoch: nullableString(raw.epoch),
+    version: nullableString(raw.version),
+    lastSynced: finite(raw.lastSynced, 0),
+    syncedAt: nullableFinite(raw.syncedAt),
+    checkedAt: nullableFinite(raw.checkedAt),
+    receivedAt: nullableFinite(raw.receivedAt),
+    sentAt: nullableFinite(raw.sentAt),
+    icons: Array.isArray(raw.icons) ? raw.icons.flatMap((icon) => SyncIconSchema.safeParse(icon).data ?? []) : [],
+    rehomed: isRow(raw.rehomed)
+      ? Object.fromEntries(
+          Object.entries(raw.rehomed).flatMap(([id, r]) =>
+            isRow(r) && typeof r.groupId === 'string' && Number.isFinite(r.placedAt) ? [[id, { groupId: r.groupId, placedAt: Number(r.placedAt) }]] : [],
+          ),
+        )
+      : {},
+    refused: nullableString(raw.refused),
+    droppedIcons: Array.isArray(raw.droppedIcons)
+      ? raw.droppedIcons.filter((d): d is { id: string; at: number } => isRow(d) && typeof d.id === 'string' && Number.isFinite(d.at))
+      : [],
+    retryAt: finite(raw.retryAt, 0),
+    failures: finite(raw.failures, 0),
+    status: (LAUNCHPAD_SYNC_STATUSES as readonly unknown[]).includes(raw.status) ? (raw.status as LaunchpadSyncStatus) : 'off',
+    problem: nullableString(raw.problem),
+  };
+}
+
+function isLaunchpadSyncState(value: unknown): boolean {
+  return isRow(value) && JSON.stringify(repairLaunchpadSync(value)) === JSON.stringify(value);
+}
+
+export function getLaunchpadSync(ctx: StaticContext): LaunchpadSyncSlice {
+  return checkedSlice<LaunchpadSyncSlice>(ctx, SLICE.launchpadSync, defaultLaunchpadSync, isLaunchpadSyncState, repairLaunchpadSync);
 }

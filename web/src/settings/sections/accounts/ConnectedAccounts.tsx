@@ -1,15 +1,22 @@
 /**
  * "Connected accounts" (§7 Accounts): one row per account (name, email, status, the services in
- * use as chips; Manage, Reconnect for OAuth accounts, Test and Remove), plus Todoist while its
- * token is saved. Manage renames, recolors and switches services on and off; for Google and
- * Microsoft it can also add a service the account was not granted, by signing in again for the
- * extra scopes (incremental consent). Switching a service off never revokes anything at the
- * provider.
+ * use as chips; Manage, Reconnect for OAuth accounts, Test and Remove), plus Todoist and GitHub
+ * (launch pad sync) while their tokens are saved. Manage renames, recolors and switches services
+ * on and off; for Google and Microsoft it can also add a service the account was not granted, by
+ * signing in again for the extra scopes (incremental consent). Switching a service off never
+ * revokes anything at the provider.
+ *
+ * Launch pad sync (browser backend): the connection that syncs shows its status line
+ * (`LaunchpadSync.tsx`). A browser syncs through one connection: switching the service on while
+ * another Microsoft connection has it offers to move it; while GitHub syncs it is refused. Adding
+ * the service to a connection first says what Microsoft will ask for (the app folder only).
  */
 import { useState, type FormEvent } from 'react';
 import { FlaskConical, LogIn, Plus, Settings2, Trash, UserRoundPlus } from 'lucide-react';
 import { CAPABILITIES, type Account, type Capability } from '@portly/shared';
 import { useAccounts, useDeleteAccount, useStartOAuth, useTestAccount, useUpdateAccount } from '../../../api/accounts.ts';
+import { useGitHubSync } from '../../../api/githubSync.ts';
+import { useLaunchpadSync, type LaunchpadSyncInfo } from '../../../api/launchpadSync.ts';
 import { useTodoistToken } from '../../../api/todoist.ts';
 import { getCapabilities } from '../../../capabilities.ts';
 import { accountColor } from '../../../ui/accounts/AccountBadge.tsx';
@@ -28,6 +35,8 @@ import { toast, toastError } from '../../../ui/toast.ts';
 import { Switch } from '../../../ui/Toggles.tsx';
 import { connectionServices, serviceDescription } from './connections.ts';
 import { summarizeProbes } from './CredentialForms.tsx';
+import { GitHubSyncRow } from './GitHubSync.tsx';
+import { LaunchpadSyncNotices, SyncStatusLine, otherSyncConnection, useSyncConnections } from './LaunchpadSync.tsx';
 import { TodoistRow } from './Todoist.tsx';
 import { useVaultLocked } from './vault.ts';
 import styles from '../../../styles/settings.module.css';
@@ -40,12 +49,14 @@ export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void
   const [managing, setManaging] = useState<string | null>(null);
   const list = [...(accounts.data ?? [])].sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label));
   const todoistConnected = todoist.data?.configured === true;
+  const githubConnected = useGitHubSync().data?.configured === true;
+  const sync = useLaunchpadSync().data;
   const managed = list.find((a) => a.id === managing);
 
   let body;
   if (accounts.data === undefined) {
     body = accounts.isError ? <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} /> : <SkeletonList rows={2} />;
-  } else if (list.length === 0 && !todoistConnected) {
+  } else if (list.length === 0 && !todoistConnected && !githubConnected) {
     body = (
       <EmptyState
         icon={UserRoundPlus}
@@ -64,12 +75,21 @@ export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void
       <ul className={styles.list} aria-label="Connected accounts">
         {list.map((account) => (
           <li key={account.id}>
-            <AccountRow account={account} onManage={() => setManaging(account.id)} />
+            <AccountRow
+              account={account}
+              sync={sync?.connection?.kind === 'microsoft' && sync.connection.accountId === account.id ? sync : null}
+              onManage={() => setManaging(account.id)}
+            />
           </li>
         ))}
         {todoistConnected ? (
           <li>
             <TodoistRow onManage={onManageTodoist} />
+          </li>
+        ) : null}
+        {githubConnected ? (
+          <li>
+            <GitHubSyncRow sync={sync?.connection?.kind === 'github' ? sync : null} />
           </li>
         ) : null}
       </ul>
@@ -78,6 +98,7 @@ export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void
 
   return (
     <SettingsCard title="Connected accounts">
+      <LaunchpadSyncNotices />
       {body}
       <Dialog
         open={managed !== undefined}
@@ -125,7 +146,7 @@ function ServiceChips({ account }: { account: Account }) {
   );
 }
 
-function AccountRow({ account, onManage }: { account: Account; onManage(): void }) {
+function AccountRow({ account, sync, onManage }: { account: Account; sync: LaunchpadSyncInfo | null; onManage(): void }) {
   const locked = useVaultLocked();
   const remove = useDeleteAccount();
   const test = useTestAccount();
@@ -164,6 +185,7 @@ function AccountRow({ account, onManage }: { account: Account; onManage(): void 
           <span className={styles.itemMeta}>Reconnect it on the main PC, in its Settings → Accounts.</span>
         ) : null}
         <ServiceChips account={account} />
+        {sync ? <SyncStatusLine info={sync} /> : null}
       </div>
       <div className={styles.itemActions}>
         <Button size="sm" variant="secondary" icon={Settings2} onClick={onManage} aria-label={`Manage ${account.label}`}>
@@ -188,11 +210,16 @@ function AccountRow({ account, onManage }: { account: Account; onManage(): void 
         open={confirmRemove}
         onOpenChange={setConfirmRemove}
         title={`Remove ${account.label}?`}
-        description={
+        description={[
           account.kind === 'google'
             ? 'Portly deletes its stored tokens, calendars and cached events for this account and asks Google to revoke access.'
-            : 'Portly deletes its stored credentials, calendars and cached events for this account. Nothing is deleted at the provider.'
-        }
+            : 'Portly deletes its stored credentials, calendars and cached events for this account. Nothing is deleted at the provider.',
+          account.enabledCapabilities.includes('launchpadSync')
+            ? 'Launch pad sync stops in this browser. Your launch pad stays here, and the synced copy stays in your OneDrive.'
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         confirmLabel="Remove account"
         destructive
         onConfirm={async () => {
@@ -263,10 +290,34 @@ function ServiceSwitches({ account }: { account: Account }) {
       ? connectionServices(account.kind as 'google' | 'microsoft').filter((s) => !account.capabilities.includes(s.capability))
       : [];
   const [adding, setAdding] = useState<Capability | null>(null);
+  // Launch pad sync: one connection per browser, and a word on the permission before signing in.
+  const connections = useSyncConnections();
+  const syncElsewhere = otherSyncConnection(connections, { accountId: account.id });
+  const githubSyncs = connections.github;
+  const [moving, setMoving] = useState<Account | null>(null);
+  const [explaining, setExplaining] = useState(false);
+
+  const enabledWith = (capability: Capability, on: boolean, list: readonly Capability[]) => {
+    const next = on ? [...new Set([...list, capability])] : list.filter((c) => c !== capability);
+    return CAPABILITIES.filter((c) => next.includes(c));
+  };
 
   const toggle = (capability: Capability, on: boolean) => {
-    const next = on ? [...new Set([...account.enabledCapabilities, capability])] : account.enabledCapabilities.filter((c) => c !== capability);
-    update.mutate({ id: account.id, enabledCapabilities: CAPABILITIES.filter((c) => next.includes(c)) });
+    if (capability === 'launchpadSync' && on && syncElsewhere !== null) {
+      const other = connections.accounts.find((a) => a.id !== account.id);
+      if (!githubSyncs && other) setMoving(other);
+      return;
+    }
+    // useUpdateAccount reports a failure itself.
+    update.mutate({ id: account.id, enabledCapabilities: enabledWith(capability, on, account.enabledCapabilities) });
+  };
+
+  /** Launch pad sync off on the other connection, then on here: a first sync with this account's OneDrive. */
+  const move = async (from: Account) => {
+    // useUpdateAccount reports a failure itself; the dialog stays open.
+    await update.mutateAsync({ id: from.id, enabledCapabilities: enabledWith('launchpadSync', false, from.enabledCapabilities) });
+    await update.mutateAsync({ id: account.id, enabledCapabilities: enabledWith('launchpadSync', true, account.enabledCapabilities) });
+    toast.success(`Launch pad sync now uses ${account.label}.`);
   };
 
   const add = (capability: Capability) => {
@@ -284,17 +335,25 @@ function ServiceSwitches({ account }: { account: Account }) {
     >
       {account.capabilities.length === 0 && addable.length === 0 ? <p className={styles.intro}>No calendar or mail access was granted.</p> : null}
       <ul className={styles.serviceList}>
-        {CAPABILITIES.filter((c) => account.capabilities.includes(c)).map((capability) => (
-          <li key={capability} className={styles.serviceRow}>
-            <Switch
-              className={styles.grow}
-              label={CAPABILITY_LABELS[capability]}
-              description={serviceDescription(account.kind, capability)}
-              checked={account.enabledCapabilities.includes(capability)}
-              onCheckedChange={(on) => toggle(capability, on)}
-            />
-          </li>
-        ))}
+        {CAPABILITIES.filter((c) => account.capabilities.includes(c)).map((capability) => {
+          const blocked = capability === 'launchpadSync' && githubSyncs && !account.enabledCapabilities.includes(capability);
+          return (
+            <li key={capability} className={styles.serviceRow}>
+              <Switch
+                className={styles.grow}
+                label={CAPABILITY_LABELS[capability]}
+                description={
+                  blocked
+                    ? `${serviceDescription(account.kind, capability)} Launch pad sync uses GitHub in this browser: remove GitHub first.`
+                    : serviceDescription(account.kind, capability)
+                }
+                checked={account.enabledCapabilities.includes(capability)}
+                disabled={blocked}
+                onCheckedChange={(on) => toggle(capability, on)}
+              />
+            </li>
+          );
+        })}
         {addable.map((service) => (
           <li key={service.capability} className={styles.serviceRow} data-addable="true">
             <span className={styles.serviceText}>
@@ -305,15 +364,40 @@ function ServiceSwitches({ account }: { account: Account }) {
               size="sm"
               icon={Plus}
               loading={adding === service.capability}
-              disabled={locked || adding !== null}
-              onClick={() => add(service.capability)}
+              disabled={locked || adding !== null || (service.capability === 'launchpadSync' && syncElsewhere !== null)}
+              onClick={() => (service.capability === 'launchpadSync' ? setExplaining(true) : add(service.capability))}
               aria-label={`Add ${service.label}`}
             >
               Add
             </Button>
+            {service.capability === 'launchpadSync' && syncElsewhere !== null ? (
+              <span className={styles.itemMeta}>Launch pad sync uses {syncElsewhere} in this browser: turn it off there first.</span>
+            ) : null}
           </li>
         ))}
       </ul>
+      <ConfirmDialog
+        open={moving !== null}
+        onOpenChange={(open) => {
+          if (!open) setMoving(null);
+        }}
+        title={`Move launch pad sync to ${account.label}?`}
+        description={
+          moving
+            ? `A browser syncs through one connection. Launch pad sync stops on ${moving.label} and syncs with ${account.label}’s OneDrive instead. If that launch pad differs from this browser’s, Portly asks which one to keep.`
+            : undefined
+        }
+        confirmLabel="Move launch pad sync"
+        onConfirm={() => (moving ? move(moving) : undefined)}
+      />
+      <ConfirmDialog
+        open={explaining}
+        onOpenChange={setExplaining}
+        title="Add launch pad sync?"
+        description="Microsoft asks you to allow one more permission: Portly's own folder in your OneDrive (Apps, then the folder named after your app registration). Portly can't see anything else in your OneDrive. You'll come back here after signing in."
+        confirmLabel="Continue to Microsoft"
+        onConfirm={() => add('launchpadSync')}
+      />
     </FieldGroup>
   );
 }

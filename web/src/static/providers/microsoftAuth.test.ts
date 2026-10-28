@@ -131,12 +131,20 @@ describe('id_token', () => {
 });
 
 describe('scopes', () => {
-  it('offers the calendar only and maps services to scopes like the server', () => {
-    expect(MICROSOFT_STATIC_CAPABILITIES).toEqual(['calendar']);
-    expect(MICROSOFT_STATIC_SCOPES).toEqual(['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Calendars.ReadWrite']);
-    expect(scopesFor(['calendar'])).toEqual(MICROSOFT_STATIC_SCOPES);
+  it('offers the calendar and launch pad sync and maps services to scopes like the server', () => {
+    expect(MICROSOFT_STATIC_CAPABILITIES).toEqual(['calendar', 'launchpadSync']);
+    expect(MICROSOFT_STATIC_SCOPES).toEqual(['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Calendars.ReadWrite', 'Files.ReadWrite.AppFolder']);
+    expect(scopesFor(['calendar'])).toEqual(['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Calendars.ReadWrite']);
+    expect(scopesFor(['launchpadSync'])).toEqual(['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Files.ReadWrite.AppFolder']);
     // Mail is not offered here: it adds no scope.
     expect(scopesFor(['mail'])).toEqual(['openid', 'profile', 'email', 'offline_access', 'User.Read']);
+  });
+
+  it('maps scopes to the services whose scopes are all there', () => {
+    expect(capabilitiesOf(['calendars.readwrite', 'files.readwrite.appfolder', 'openid'])).toEqual(['calendar', 'launchpadSync']);
+    expect(capabilitiesOf(['files.readwrite.appfolder'])).toEqual(['launchpadSync']);
+    // The whole drive is not the app folder.
+    expect(capabilitiesOf(['files.readwrite'])).toEqual([]);
   });
 
 

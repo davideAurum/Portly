@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ImportPreviewResponse } from '@portly/shared';
 import { expectNewIcons } from '../../api/bookmarks.ts';
+import { capabilitiesFor, setCapabilitiesForTests } from '../../capabilities.ts';
 import ImportExportSettings from '../../settings/sections/ImportExport.tsx';
 import { mockError, mockResponse, renderWithProviders, type ApiMock } from '../render.tsx';
 
@@ -139,5 +140,41 @@ describe('Import & export', () => {
       URL.createObjectURL = saved.create;
       URL.revokeObjectURL = saved.revoke;
     }
+  });
+
+  it('on the browser backend: warns that an import replaces the synced launch pad, and offers the backup taken before a sync', async () => {
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    const { user } = renderImportExport({
+      'GET /api/backups': [
+        { id: 'b-sync', at: '2026-10-26T09:00:00.000Z', bytes: 100, reason: 'sync' },
+        { id: 'b-import', at: '2026-10-20T09:00:00.000Z', bytes: 100, reason: 'import' },
+      ],
+      'GET /api/sync/launchpad': {
+        connection: { kind: 'github' },
+        connections: 1,
+        status: 'up_to_date',
+        problem: null,
+        running: false,
+        waiting: false,
+        syncedAt: null,
+        receivedAt: null,
+        sentAt: null,
+        retryAt: null,
+      },
+    });
+    expect(await screen.findByText('Backup before sync')).toBeInTheDocument();
+    expect(screen.getByText('Backup before the last import')).toBeInTheDocument();
+    await user.upload(fileInput(), exportFile());
+    const preview = await screen.findByRole('region', { name: 'Import preview' });
+    expect(within(preview).getByText('This replaces the launch pad in every synced browser')).toBeInTheDocument();
+    expect(within(preview).getByText(/Launch pad sync is on through your GitHub repository/)).toBeInTheDocument();
+  });
+
+  it('does not warn about sync where the launch pad does not sync', async () => {
+    const { user, requestsTo } = renderImportExport();
+    await user.upload(fileInput(), exportFile());
+    await screen.findByRole('region', { name: 'Import preview' });
+    expect(screen.queryByText('This replaces the launch pad in every synced browser')).not.toBeInTheDocument();
+    expect(requestsTo('GET /api/sync/launchpad')).toHaveLength(0);
   });
 });

@@ -17,7 +17,7 @@ browser you have paired with it uses Portly's own data and features while it run
 | Works | Not available |
 | --- | --- |
 | **Search** — engines and keywords, URL detection, bookmark matches, suggestions from Wikipedia (the one suggestion provider that allows requests from a browser). An engine whose own suggestions need Portly (Google, DuckDuckGo, Bing, YouTube) shows none, unless you turn on **Settings → Search → Wikipedia suggestions instead** (off by default, a setting of this browser): it then shows Wikipedia's, under the heading *Wikipedia suggestions* | Suggestions from Google, DuckDuckGo, Bing or YouTube |
-| **Launch pad** — bookmark groups, drag-and-drop ordering, import from an HTML bookmarks file, custom icons; site icons come from DuckDuckGo's icon service | Import straight from the Chrome/Edge profile files; fetching a page's title and icon |
+| **Launch pad** — bookmark groups, drag-and-drop ordering, import from an HTML bookmarks file, custom icons; site icons come from DuckDuckGo's icon service; optional **launch pad sync** between browsers through your OneDrive or a private GitHub repository (see below) | Import straight from the Chrome/Edge profile files; fetching a page's title and icon |
 | **Clock**, **Weather** (Open-Meteo, no key) | — |
 | **Sports scores** — scores, results and schedules straight from ESPN's public feeds | — |
 | **Todoist** — tasks, quick add, complete with undo (token stored in the browser, see below) | — |
@@ -77,6 +77,30 @@ with it. The server build's new-tab extension is for Chrome and Edge as well
   saved in this browser* and runs from memory. Clearing the browser's site data removes everything
   too.
 - Several tabs of the site stay in step with each other.
+- **Launch pad sync (optional).** It keeps the launch pad (groups, bookmark titles and addresses,
+  their order, custom icons, and which group is the default) the same in every browser where you
+  turn it on, through **one** sync connection per browser: a Microsoft connection with **Launch
+  pad sync** ticked, or GitHub. Layouts, widgets, the theme and the other settings stay per
+  browser. It runs while a Portly page is open (at page load, on focus, every 5 minutes, a few
+  seconds after a change); the connection's card in **Settings → Accounts** shows its status,
+  **Sync now** and **Details**, and **Settings → Bookmarks** says whether the launch pad syncs.
+  The first time a browser that already has a launch pad meets a synced one that differs, Portly
+  asks which to keep. A sync that would replace or remove much of the launch pad keeps a backup
+  first (**Settings → Import & export**, *Backup before sync*), and an import replaces the launch
+  pad in every synced browser (the preview says so).
+- **Launch pad sync through OneDrive.** The files are kept in your OneDrive under **Apps**, in the
+  folder named after your Microsoft app registration, which Microsoft can read. Portly doesn't
+  encrypt them, and the permission reaches only that folder
+  ([Outlook.com](microsoft.md#browser-only-build-github-pages)).
+- **Launch pad sync through GitHub.** **Settings → Accounts → GitHub** keeps
+  the name of a *private* repository you create on GitHub and a fine-grained token limited to it
+  (Contents: Read and write). Once they are saved, your groups, bookmark titles and addresses, and
+  custom icons are stored in that repository. Only your account can read it (and GitHub). Every change is a commit, so the
+  repository's history keeps old launch pads, removed bookmarks included, until you delete the
+  repository. Portly doesn't encrypt the files. Like the Todoist token, the repository name and
+  token are stored unencrypted in this browser and never exported. Portly refuses a public
+  repository and classic tokens; **Remove** them in **Settings → Accounts** on a shared PC.
+  Design: `docs/design/launchpad-sync-github.md`.
 
 ## Hybrid mode: Portly on this PC
 
@@ -267,6 +291,8 @@ what keep the data private.
 | OpenStreetMap Nominatim (`nominatim.openstreetmap.org`) | Weather widget using this device's location | Those coordinates, rounded to about 1 km, to show the town's name instead of "Current location". At most once a week per spot; no key. The name is © OpenStreetMap contributors, credited in the widget. |
 | Todoist (`api.todoist.com`) | Todoist widget | Your personal token with every request, straight from the browser — the same as the Todoist apps do. |
 | Microsoft (`login.microsoftonline.com`, `graph.microsoft.com`) | Outlook.com account and the Calendar widget | The sign-in (your app registration's client id, the one-time code, then token refreshes), and the calendar requests with the account's access token: which calendars you have, the events of the synced window, and the events you create, change or delete. |
+| Microsoft OneDrive (`graph.microsoft.com`, downloads from `my.microsoftpersonalcontent.com`) | Launch pad sync through a Microsoft connection, when it is ticked: a check at page load, on focus and every 5 minutes while the page is visible | The account's access token with each Graph request (downloads carry none); the launch pad file and custom icons, read on each check and written after changes. |
+| GitHub (`api.github.com`) | Launch pad sync through your private repository, once it and a token are saved in **Settings → Accounts**: the check when you save them, then a sync check at page load, on focus and every 5 minutes while the page is visible | Your GitHub token and the repository name with every request; the launch pad file and custom icons, read on each check and written (as commits) after changes. |
 | Wikipedia (`en.wikipedia.org`) | Search suggestions, while **Settings → Search → Search suggestions** is on (it is by default), for an engine with Wikipedia suggestions (the Wikipedia engine, keyword `w`). Only if you also turn on **Wikipedia suggestions instead** (off by default) in place of Google, DuckDuckGo, Bing and YouTube suggestions, which can't be asked from a browser. With the default engines and settings, nothing goes to Wikipedia unless you search with the Wikipedia engine. | What you have typed so far. |
 | ESPN (`site.api.espn.com`, logos from `a.espncdn.com`) | Sports scores widget | Which leagues and teams you follow (as ESPN team ids). No key or account. With the Portly server (hybrid mode) the server reads the scores instead, but team logos still load from `a.espncdn.com`. |
 | Portly on this PC (`http://127.0.0.1:5757`, hybrid mode) | In a paired browser, on every page load and then regularly while the page is open. In an unpaired one, on every page load and when the page gets focus, becomes visible or the network comes back (at most every 5 minutes while Portly isn't found) — once the browser has granted the site local network access, or right away when the browser has no such permission; otherwise only when you click **Look for Portly on this PC** | Nothing leaves the PC. Before pairing only a health check; once paired, every request of the page, with the pairing token. |

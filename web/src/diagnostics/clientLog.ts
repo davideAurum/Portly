@@ -1,7 +1,7 @@
 /**
  * This browser's diagnostic events (ARCHITECTURE §17; Settings → Diagnostics, "This browser"):
- * API failures, hybrid-mode transitions, in-browser backend and provider failures, widget errors
- * and uncaught app errors, recorded with {@link recordClientEvent} next to the console lines they
+ * API failures, hybrid-mode transitions, in-browser backend and provider failures, widget errors,
+ * launch pad sync rounds and uncaught app errors, recorded with {@link recordClientEvent} next to the console lines they
  * explain. When this page load's backend is the Portly server, `upload.ts` sends them there
  * ({@link pendingUpload} → `POST /api/diagnostics/client-events` → {@link markUploaded}, inside
  * {@link withUploadLock} so that two tabs never send the same stored events); the diagnostic
@@ -79,6 +79,8 @@ export const CLIENT_EVENT_FIELDS: Readonly<Record<ClientEventCategory, readonly 
   hybrid: Object.freeze(['from', 'to', 'reason', 'kind', 'httpStatus', 'ms', 'timedOut', 'errName', 'permission', 'target', 'attempt', 'graceMs', 'repeats']),
   backend: Object.freeze(['errName', 'attempt', 'op', 'repeats']),
   app: Object.freeze(['errName', 'errMessage', 'source', 'stack', 'repeats']),
+  // Launch pad sync rounds: what started one, how it ended and how much moved (never names or addresses).
+  sync: Object.freeze(['trigger', 'outcome', 'source', 'code', 'ms', 'received', 'sent', 'groups', 'bookmarks', 'icons', 'removed', 'bytesUp', 'repeats']),
 });
 
 const LEVELS: ReadonlySet<string> = new Set(LOG_LEVELS);

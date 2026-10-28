@@ -196,7 +196,7 @@ describe('static bookmarks', () => {
     it('enforces the group and bookmark caps with 409 conflict', async () => {
       const slice = getBookmarks(t.ctx);
       for (let i = 0; i < MAX_BOOKMARK_GROUPS; i++) {
-        slice.groups.push({ id: `g${i}`, name: `G${i}`, sort: i, color: null, collapsed: false, createdAt: T0, updatedAt: T0 });
+        slice.groups.push({ id: `g${i}`, name: `G${i}`, sort: i, color: null, collapsed: false, createdAt: T0, updatedAt: T0, placedAt: T0 });
       }
       expect(await error('POST', '/api/bookmark-groups', { name: 'One more' })).toMatchObject({
         status: 409,
@@ -204,7 +204,7 @@ describe('static bookmarks', () => {
         message: 'You can have at most 200 bookmark groups',
       });
       for (let i = 0; i < MAX_BOOKMARKS; i++) {
-        slice.bookmarks.push({ id: `b${i}`, groupId: 'g0', title: 'x', url: `https://x.example/${i}`, sort: i, iconMode: 'auto', iconId: null, letterColor: null, createdAt: T0, updatedAt: T0 });
+        slice.bookmarks.push({ id: `b${i}`, groupId: 'g0', title: 'x', url: `https://x.example/${i}`, sort: i, iconMode: 'auto', iconId: null, letterColor: null, createdAt: T0, updatedAt: T0, placedAt: T0 });
       }
       expect(await error('POST', '/api/bookmarks', { groupId: 'g0', title: 'x', url: 'https://x.example/more' })).toMatchObject({
         status: 409,
@@ -628,6 +628,7 @@ describe('static bookmarks', () => {
       letterColor: null,
       createdAt: T0,
       updatedAt: T0,
+      placedAt: T0,
     });
     const LIVE = '00000000-0000-4000-8000-00000000aaaa';
     const GHOST = '00000000-0000-4000-8000-00000000bbbb';
@@ -650,7 +651,7 @@ describe('static bookmarks', () => {
         meta(UNREFERENCED_NEW, { createdAt: T0 - 1000 }), // never orphaned, nobody references it, but young
       ]);
       await storage.setJson(`slice:${SLICE.bookmarks}`, {
-        groups: [{ id: 'g1', name: 'G', sort: 0, color: null, collapsed: false, createdAt: T0, updatedAt: T0 }],
+        groups: [{ id: 'g1', name: 'G', sort: 0, color: null, collapsed: false, createdAt: T0, updatedAt: T0, placedAt: T0 }],
         bookmarks: [row('live', 0, LIVE), row('ghost', 1, GHOST), row('again', 2, REREFERENCED), row('letter', 3, FRESH, 'letter')],
       });
       t.close();
@@ -684,7 +685,7 @@ describe('static bookmarks', () => {
       await storage.putBlob({ ...stray, id: LIVE, createdAt: T0 - 2 * ORPHAN_GRACE_MS });
       await storage.putBlob({ id: UNREFERENCED_NEW, kind: 'upload', type: 'image/png', bytes: png(), width: null, createdAt: T0 - 2 * ORPHAN_GRACE_MS });
       await storage.setJson(`slice:${SLICE.icons}`, [meta(LIVE)]);
-      await storage.setJson(`slice:${SLICE.bookmarks}`, { groups: [{ id: 'g1', name: 'G', sort: 0, color: null, collapsed: false, createdAt: T0, updatedAt: T0 }], bookmarks: [row('live', 0, LIVE)] });
+      await storage.setJson(`slice:${SLICE.bookmarks}`, { groups: [{ id: 'g1', name: 'G', sort: 0, color: null, collapsed: false, createdAt: T0, updatedAt: T0, placedAt: T0 }], bookmarks: [row('live', 0, LIVE)] });
       t.close();
       t = await createTestBackend([bookmarks], { storage, startAt: T0 });
       expect((await storage.listBlobs()).map((blob) => blob.id).sort()).toEqual([FRESH, LIVE, UNREFERENCED_NEW].sort());

@@ -35,7 +35,7 @@ export const NOT_VERIFIED = 'not verified';
 export const PROBE_TIMEOUT_MS = 30_000;
 const MAX_PROBE_MESSAGE = 300;
 
-const CAPABILITY_LABEL: Readonly<Record<Capability, string>> = Object.freeze({ calendar: 'Calendar', mail: 'Mail' });
+const CAPABILITY_LABEL: Readonly<Record<Capability, string>> = Object.freeze({ calendar: 'Calendar', mail: 'Mail', launchpadSync: 'Launch pad sync' });
 
 export function capabilityLabel(capability: Capability): string {
   return CAPABILITY_LABEL[capability];

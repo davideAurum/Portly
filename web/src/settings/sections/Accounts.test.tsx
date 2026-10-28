@@ -161,12 +161,37 @@ describe('Accounts settings on the in-browser backend', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Connect Microsoft' });
     expect(within(dialog).getByRole('checkbox', { name: /Calendar/ })).toBeChecked();
     expect(within(dialog).queryByRole('checkbox', { name: /Mail/ })).not.toBeInTheDocument();
+    // Launch pad sync is offered here, but never ticked for the user.
+    expect(within(dialog).getByRole('checkbox', { name: /Launch pad sync/ })).not.toBeChecked();
     await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
     expect(within(dialog).getByText(/lasts 24 hours/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Sign in with Microsoft' }));
     await waitFor(() => expect(assign).toHaveBeenCalled());
     expect(requestsTo('POST /api/oauth/microsoft/start')[0]!.body).toEqual({ returnTo: '#/settings/accounts', capabilities: ['calendar'] });
     expect(requestsTo('GET /api/oauth-clients/google')).toHaveLength(0);
+  });
+
+  it('asks for launch pad sync when it is ticked', async () => {
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    const assign = vi.fn();
+    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, hash: '#/settings/accounts', assign } as Location);
+    const user = userEvent.setup();
+    const { requestsTo } = renderWithProviders(<AccountsSettings />, {
+      apiMocks: {
+        'GET /api/health': health(),
+        'GET /api/accounts': [],
+        'GET /api/oauth-clients/microsoft': { ...MS_CLIENT, redirectUri: 'https://user.github.io/portly/' },
+        'GET /api/todoist/token': { configured: false },
+        'POST /api/oauth/microsoft/start': { authorizeUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?x=1' },
+      },
+    });
+    await user.click(await screen.findByRole('button', { name: 'Connect Microsoft' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Connect Microsoft' });
+    await user.click(within(dialog).getByRole('checkbox', { name: /Launch pad sync/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Sign in with Microsoft' }));
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+    expect(requestsTo('POST /api/oauth/microsoft/start')[0]!.body).toEqual({ returnTo: '#/settings/accounts', capabilities: ['calendar', 'launchpadSync'] });
   });
 });
 

@@ -62,14 +62,14 @@ async function seed(t: TestBackend): Promise<Seeded> {
   const groups = { work: newId(), fun: newId() };
   const store = getBookmarks(t.ctx);
   store.groups.push(
-    { id: groups.work, name: 'Work', sort: 0, color: '#112233', collapsed: false, createdAt: 1, updatedAt: 1 },
-    { id: groups.fun, name: 'Fun', sort: 1, color: 'rgb(1,2,3)', collapsed: true, createdAt: 1, updatedAt: 1 },
+    { id: groups.work, name: 'Work', sort: 0, color: '#112233', collapsed: false, createdAt: 1, updatedAt: 1, placedAt: 1 },
+    { id: groups.fun, name: 'Fun', sort: 1, color: 'rgb(1,2,3)', collapsed: true, createdAt: 1, updatedAt: 1, placedAt: 1 },
   );
   const bookmarks = { custom: newId(), auto: newId(), letter: newId() };
   store.bookmarks.push(
-    { id: bookmarks.custom, groupId: groups.work, title: 'Intranet', url: 'https://intranet.example/', sort: 0, iconMode: 'custom', iconId: icons.custom, letterColor: null, createdAt: 1, updatedAt: 1 },
-    { id: bookmarks.auto, groupId: groups.fun, title: 'Fun', url: 'https://fun.example/', sort: 0, iconMode: 'auto', iconId: 'fav:fun.example', letterColor: null, createdAt: 1, updatedAt: 1 },
-    { id: bookmarks.letter, groupId: groups.fun, title: 'Letters', url: 'https://letters.example/', sort: 1, iconMode: 'letter', iconId: null, letterColor: '#abcdef', createdAt: 1, updatedAt: 1 },
+    { id: bookmarks.custom, groupId: groups.work, title: 'Intranet', url: 'https://intranet.example/', sort: 0, iconMode: 'custom', iconId: icons.custom, letterColor: null, createdAt: 1, updatedAt: 1, placedAt: 1 },
+    { id: bookmarks.auto, groupId: groups.fun, title: 'Fun', url: 'https://fun.example/', sort: 0, iconMode: 'auto', iconId: 'fav:fun.example', letterColor: null, createdAt: 1, updatedAt: 1, placedAt: 1 },
+    { id: bookmarks.letter, groupId: groups.fun, title: 'Letters', url: 'https://letters.example/', sort: 1, iconMode: 'letter', iconId: null, letterColor: '#abcdef', createdAt: 1, updatedAt: 1, placedAt: 1 },
   );
   // Never exported.
   getTodoistToken(t.ctx).token = 'todoist-TOPSECRET';
@@ -172,6 +172,7 @@ describe('static core: export', () => {
       letterColor: null,
       createdAt: 1,
       updatedAt: 1,
+      placedAt: 1,
     });
     await t.ctx.state.commit(SLICE.bookmarks);
 
@@ -290,8 +291,8 @@ describe('static core: import', () => {
     expect(typeof stored).toBe('string');
     const snapshot = ExportSchema.parse(JSON.parse(stored as string));
     expect(snapshot.data.profiles.map((p) => p.id)).toEqual([seeded.profile.id]);
-    const listed = await t.json<{ id: string; at: string; bytes: number }[]>('GET', '/api/backups');
-    expect(listed.body).toEqual([{ id: backups[0]!.id, at: new Date(t.ctx.now()).toISOString(), bytes: exported.length }]);
+    const listed = await t.json<{ id: string; at: string; bytes: number; reason: string }[]>('GET', '/api/backups');
+    expect(listed.body).toEqual([{ id: backups[0]!.id, at: new Date(t.ctx.now()).toISOString(), bytes: exported.length, reason: 'import' }]);
     const download = await t.call('GET', `/api/backups/${backups[0]!.id}`);
     expect(download.status).toBe(200);
     expect(download.headers.get('content-type')).toContain('application/json');

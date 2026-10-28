@@ -19,7 +19,7 @@ checks).
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
 | 4 | Release rehearsal in private | In progress: 4.1 to 4.3 and 4.5 to 4.7 done (4.3 found and fixed an update bug); 4.4's fixes landed, its second run-through is due with 5.2 |
 | 5 | Go public and publish 0.2.0-alpha.1 | Not started |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Not started |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on a branch (merges after 5.3): 6.1 to 6.6 built for OneDrive and GitHub; the real checks of 6.5 and 6.6 and D9 wait for you |
 
 ## How this roadmap is used
 
@@ -69,6 +69,11 @@ checks).
   account as the only sync, no passphrase encryption, layouts and theme per PC, first sync
   defaults to *Use the synced launch pad* with no *Combine both* option, tombstones kept 90 days,
   one Microsoft connection per browser, a backup slot of its own, Chrome and Edge in scope.
+  *Changed 2026-10-27:* OneDrive is no longer the only sync. The owner asked for a GitHub
+  backend to be built alongside it, first on secret gists, then (the same day, G.2) on a private
+  repository through the contents API (see "Launch pad sync through GitHub" below). "One
+  Microsoft connection per browser" became one sync connection per browser, Microsoft or GitHub
+  (design section 6.10).
 - **D9 Custom domain.** Accept and document the shared-origin risk of the Pages site now; decide
   again before the sync engine (6.5) ships.
 - **D10 Multi-PC.** One server with an approve-from-the-main-PC login over Tailscale Serve is built
@@ -1034,6 +1039,13 @@ Items:
   to 6.6 (connect calendar-only, add sync, withdraw one consent at account.live.com/consent/Manage,
   reload, expect the right Reconnect prompt and no `invalid_grant` loop).
 
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged (waits for 5.3). Account rows
+  keep `requestedScopes`; services are what the sign-in asked for and was granted; the refresh,
+  the reconnect and `planSilentReauth` ask for those only; the `account-requested-scopes` upgrade
+  fills older rows with the calendar's scopes. Static tests cover connect, reconnect, adding a
+  service by a sign-in that names it, renewal and the upgrade, with Microsoft reporting a wider
+  grant (mail and the app folder) than was asked for. The real check stays with 6.6.
+
 - **6.2 Write the decisions into the design doc and add launchpadSync to the contract** (M;
   after 2.1, 6.1).
   Write D7 to D9 into [design/launchpad-sync.md](design/launchpad-sync.md) (the shared enum as
@@ -1048,6 +1060,16 @@ Items:
   capability; `isCapabilityList` keeps rows carrying it; the Microsoft tile offers it only on the
   browser backend.
 
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged. The design doc has a new
+  section 0 with D7 to D9 (D8's "only sync" line points at this roadmap's D8), the first-sync
+  dialog down to two choices and sync's own backup slot; the Accounts lines were already marked
+  shipped. `launchpadSync` is a shared `Capability` (`Files.ReadWrite.AppFolder` in the browser
+  build); the server refuses it with 422 for both providers; the per-load `launchpadSync` flag is
+  true on the browser backend only; the Microsoft tile offers it there, unticked. A sign-in that
+  names no service asks for the calendar only, and `OAuthStartSchema` now refuses a service named
+  twice (it relied on the list's length before). Typecheck and the shared, server oauth, static
+  and settings tests pass.
+
 - **6.3 Bookmarks slice groundwork (design phase 1)** (M; after 6.2).
   A hybrid logical clock in sync state, `placedAt` for sort and `groupId` so `renumber()` and
   moves stop bumping `updatedAt`, lasting tombstones `{kind, id, at}` written in the same commit by
@@ -1058,6 +1080,16 @@ Items:
   *Done when:* static tests including the removing-paths enumeration; the export/import round trip
   is unchanged; `staticParity` untouched.
 
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged. The clock lives in a new
+  `launchpad-sync` slice (`sync/clock.ts`) and stamps every bookmarks write; `renumber()`, reorder
+  and move stamp `placedAt` only; group delete (with its bookmarks), bookmark delete and a config
+  import or backup restore write tombstones in the same commit (`sync/tombstones.ts`, 90 days);
+  the `bookmarks-sync-fields` upgrade sets `placedAt = updatedAt`; `BackupEntry.reason` and
+  `keepBackups()` give sync a slot of its own (D8). `tombstones.test.ts` lists the removing paths
+  from the source. The export file is unchanged (no stamps or tombstones in it) and
+  `staticParity` was not touched. The settings pointers (`defaultGroupId`, `ungroupedGroupId`)
+  get their stamps with the engine's commit hook in 6.5.
+
 - **6.4 File format and merge in shared/ (design phase 2)** (M; after 6.3).
   A strict versioned zod schema (`portly-sync` version 1) from the export schemas plus timestamps
   and tombstones with caps; validation through `parseImportFile`, `assertSafeJson` and
@@ -1066,6 +1098,18 @@ Items:
 
   *Done when:* tests prove the merge commutative, idempotent and convergent across three simulated
   PCs; hostile and oversized fixtures are rejected.
+
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged. `shared/src/launchpadSync.ts`
+  has the `portly-sync` v1 schema and a pure merge; `web/src/static/sync/format.ts` reads the file
+  and icons as hostile input. `merge.test.ts` runs 120 seeded random cases each for commutativity
+  and idempotence, all six merge orders of three PCs, and three PCs syncing through one file in
+  random order (a mutation of the tie rule or the tombstone join makes them fail);
+  `format.test.ts` refuses oversized, non-JSON, prototype-key, deeply nested, foreign, newer,
+  schema-breaking and far-future files and bad icons. Two refinements of the design, written into
+  it (sections 6.3, 6.4, 6.8): the file keeps a removed row's content until its tombstone expires
+  (so every sync order gives the same file), and two "No group" groups are not folded together
+  (a limit; the first sync replaces one side, D8). Missing groups and icons are repaired by the
+  browser applying the file, in 6.5.
 
 - **6.5 Drive client and sync engine (design phase 3)** (L; after 6.1, 6.4).
   The engine as the design describes it, with its download hosts verified before the allowlist is
@@ -1088,11 +1132,44 @@ Items:
   and missing files; no dependency added; the download-host and ETag/cTag findings recorded; the
   CSP check (2.5) repeated on `preview:static`.
 
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged; the parts that need you are
+  open. Built: the `SyncStore` interface (shared with the gist store), `providers/graphDrive.ts`,
+  `sync/engine.ts`, `sync/local.ts`, `sync/hook.ts` (a new `StaticState` commit hook),
+  `sync/scheduler.ts` started by the page's backend, and `my.microsoftpersonalcontent.com` in the
+  static CSP. Tests with `createFakeFetch()` and a fake OneDrive (no network): the 412 race, busy
+  after three, the first upload's 404 and create-only write, hostile, newer, oversized and missing
+  files, the first-sync choice both ways, a new epoch, deletes, custom icons (and a bad one), a
+  bookmark whose group is gone, a local change during a round, a config import; the store's
+  requests, download host check, 401 retry and failure codes; the hook and the scheduler. No
+  dependency added. Waiting for you: (1) a real second sign-in (a second Outlook.com account, or
+  the same one from Edge) to see which download host it gets, and once the download's
+  `ETag`/`cTag` compared with Graph's; `*.files.1drv.com` stays out of the allowlist until then;
+  (2) the CSP check on `preview:static`, which needs a connected account with sync on to make the
+  new requests (6.6 adds the switch; for now `enabledCapabilities` would have to be set by hand);
+  (3) the D9 custom-domain decision before this ships.
+
 - **6.6 Accounts and UI for sync (design phase 4)** (M; after 6.5).
   The service checkbox and status line on the Microsoft connection card, the incremental-consent
   step (explain, reconnect with the larger set, back to `#/settings/accounts`), the first-sync
   dialog defaulting to *Use the synced launch pad*, the Settings > Bookmarks pointer, the import
   warning and a "sync" client event category. This is where 6.1 gets its real check.
+  For GitHub as well (G.3): the status line and **Sync now** on the GitHub row, the first-sync
+  dialog for either source, the `several_sources` status ("Launch pad sync is set up twice: remove
+  one"), and keeping a second sync connection from being set up (the GitHub tile and the Microsoft
+  service switch name the connection that syncs today; design section 6.10), and Reconnect wording
+  for a refused GitHub token (new token, or the repository made private again).
+
+  *Status:* built 2026-10-27 on the OneDrive sync branch, not merged; the checks with your accounts
+  are open. Built: `GET`/`POST /api/sync/launchpad[/now]`; the status line, **Sync now** and
+  Details on the Microsoft card and the GitHub row; the first-sync dialog (default *Use the synced
+  launch pad*); the "set up twice" warning; one sync connection enforced by the account and GitHub
+  routes (`409 conflict`, a sign-in leaves sync off) and the page (move offer between Microsoft
+  connections, GitHub form and Microsoft switch blocked); the permission note before a sign-in that
+  asks for the app folder; the Settings > Bookmarks line; the import warning and *Backup before
+  sync*; the `sync` client event category. The GitHub dialog's "still being built" note is gone.
+  Tests: web and static, with mocked answers and fakes. Waiting for you (steps in the 6.6 report):
+  the `preview:static` check with your Microsoft account (consent screen, Diagnostics sync events,
+  CSP), 6.1's consent-withdrawal check, and the same with your GitHub repository.
 
   *Done when:* web and static tests; on `npm run preview:static` with your account, Microsoft's
   screen lists only `Files.ReadWrite.AppFolder` and Diagnostics shows sync events; then connect
@@ -1116,6 +1193,35 @@ Items:
   *Done when:* `gh release view v0.2.0-alpha.2` lists the zip and `portly-release.json` with
   matching SHA-256; the tag points at the built commit; the live site's footer reads
   0.2.0-alpha.2; the phase 6 row reads Done with the date.
+
+## Launch pad sync through GitHub (beside phase 6)
+
+On 2026-10-27 the owner asked for a GitHub backend for launch pad sync, built at the same time as
+OneDrive's (D8 note). Design: [launchpad-sync-github.md](design/launchpad-sync-github.md). Phase
+6's items are unchanged: the GitHub work reuses their engine.
+
+- **G.1 Gist store, token setting, CSP** (M). Done on branch `claude/sync-gist-118208`, not on
+  `main`: the `SyncStore` interface, a store on two secret gists with in-memory GitHub tests, the
+  GitHub token in Settings → Accounts (browser backend only), the static CSP. Replaced by G.2.
+- **G.2 Choose the GitHub backend** (S). Decided 2026-10-27: a private repository through the
+  contents API, not secret gists (private data, GitHub's own `sha` refusal, a fine-grained token
+  limited to one repository). Done on the same branch: the store (`kind: 'github'`, renamed from
+  `'gist'` in `sync/store.ts`), the repository and token in Settings → Accounts, only
+  `api.github.com` in the static CSP. Saving them syncs nothing yet.
+- **G.3 Hook it into the engine** (M; after 6.5). Pick the store from the connection, the status
+  line and **Sync now** on the GitHub row, the `sync` events.
+
+  *Status:* the hookup is done on the OneDrive sync branch, 2026-10-27 (merged in from the GitHub
+  branch, not on `main`): one sync connection per browser, a Microsoft connection with the
+  service or the GitHub repository, and none while both are set up (`several_sources`, design
+  6.10); one store per page load, dropped when the settings change; a refused token pauses
+  scheduled checks until new settings. Tests with the in-memory GitHub: the first write to an empty
+  repository, a `304`, a `409` race, switching source, removing and replacing the token, a refused
+  token, one request at a time. The status line, **Sync now** and the first-sync dialog moved to
+  6.6 for both sources.
+
+  *Done when:* two browsers on one GitHub account converge, a forced race is refused, and the
+  "Checks never run for real" rows of G.2 are run with the owner's repository and token.
 
 ## Track B: multi-PC
 
@@ -1286,7 +1392,20 @@ date and the outcome once a row has been run for real.
 | The Reload notice as the last lines of a real update in a visible PowerShell window (`install.ps1` now prints it after "Updated Portly"); only `check-release.ps1`'s temporary install, whose captured output the console wraps | 4.4 commit, 2026-10-27 | 5.2, or the first release that changes the extension version | not yet |
 | [Adding a PC](setup/add-a-pc.md) followed verbatim on a real PC, from the install to green Diagnostics; written from the scripts and guides only | 4.4 commit, 2026-10-27 | 3.3 | not yet |
 | A fresh browser profile on a PC that ran Homebase: the browser-side copy with `-NoHomebaseCopy`, and deleting the site's data after the first visit leaving it empty, as SETUP and Adding a PC now say | 4.4 commit, 2026-10-27 | 3.3 (3.5's check) | not yet |
+| Browser-only accounts remembering the scopes their last sign-in asked for, against a real Outlook.com account whose grant lists more (refresh, renewal and Reconnect with no `invalid_grant` loop); only static tests with a faked token endpoint | 6.1 commit, 2026-10-27 | 6.6 | not yet |
+| The Microsoft tile's **Launch pad sync** checkbox in a real browser on the browser backend, and its absence on a paired (server-backend) page; only the settings tests with mocked answers | 6.2 commit, 2026-10-27 | 6.6 | not yet |
+| The `bookmarks-sync-fields` upgrade on a real browser's existing launch pad (IndexedDB data from before 6.3) and the stamps after real edits across two tabs; only static tests over memory storage | 6.3 commit, 2026-10-27 | 6.7 | not yet |
+| The merge and the file format against real use: two browsers' real launch pads, real clock skew and a file written by one build and read by another; only seeded simulations and fixtures | 6.4 commit, 2026-10-27 | 6.7 | not yet |
+| Launch pad sync against real OneDrive: the path-addressed `DELETE` of an icon file, `If-Match` and `conflictBehavior=fail` from the store as built, a second sign-in's download host, the download's `ETag`/`cTag` against Graph's; only `createFakeFetch()` with a fake app folder modelled on the spike | 6.5 commit, 2026-10-27 | 6.6 (first real sync), 6.7 | not yet |
+| The static CSP with launch pad sync running (`my.microsoftpersonalcontent.com` in `connect-src`) on `preview:static`, no violations; only the built `index.html` was read | 6.5 commit, 2026-10-27 | 6.6 | not yet |
+| The scheduler in a real browser: the Web Lock between two tabs, focus and visibility, the 5 s change delay, online, backoff after a real failure; only fake timers, events and locks | 6.5 commit, 2026-10-27 | 6.7 | not yet |
+| The sync UI in a real browser on `preview:static`: the Microsoft consent screen listing only `Files.ReadWrite.AppFolder` when the service is added, the status line moving through *Syncing…* to *Up to date*, the first-sync dialog both ways between two browsers, *Backup before sync* downloadable, `sync` events in Diagnostics, no CSP violations; only web and static tests with mocked answers | 6.6 commit, 2026-10-27 | 6.6 | not yet |
+| One sync connection per browser against real accounts: the 409 refusals, the move between two Microsoft connections, the GitHub form blocked while OneDrive syncs, a sign-in that grants sync while GitHub syncs leaving it off; only static and web tests | 6.6 commit, 2026-10-27 | 6.6 | not yet |
+| Launch pad sync through the owner's private repository end to end: two browsers converging, a forced race, the `304` check, the first file in the empty repository, a revoked token pausing sync and a new one resuming it, GitHub plus a Microsoft connection giving `several_sources`; only the engine and scheduler against the in-memory GitHub (`sync/github.test.ts`) | G.3 hookup commit, 2026-10-27 | 6.6, G.3 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | not yet |
+| The repository store against GitHub itself with the owner's private repository and a fine-grained token: creating `launchpad.json` in the empty repository, a `304` on the next check, a read over 1 MB through the blob API, an icon written, read and deleted, a 401 after revoking, a 403 with a Contents: Read only token; only an in-memory GitHub in the tests | G.2 commit, 2026-10-27 | G.3 | not yet |
+| GitHub's answers to a refused contents write: `409` for a stale `sha`, `422` for a missing one, what a `sha` on a missing file gets (the store assumes `422`, handles `404`), and a `409` for two writes to the branch at once; only GitHub's docs and the in-memory GitHub | G.2 commit, 2026-10-27 | G.3 | not yet |
+| Saving the repository and token in Settings → Accounts on the published site (the check with GitHub, the refusal of a public repository and of a classic token), and the CSP with `api.github.com` alone (the preflight with `If-None-Match`) in a real browser; only unit tests, the built CSP and an unauthenticated `curl` of the preflight | G.2 commit, 2026-10-27 | G.3, and 2.5's CSP check before the release that ships it | not yet |
 
 ### Closed
 

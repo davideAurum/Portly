@@ -165,6 +165,7 @@ describe('fields', () => {
       hybrid: ['from', 'to', 'reason', 'kind', 'httpStatus', 'ms', 'timedOut', 'errName', 'permission', 'target', 'attempt', 'graceMs', 'repeats'],
       backend: ['errName', 'attempt', 'op', 'repeats'],
       app: ['errName', 'errMessage', 'source', 'stack', 'repeats'],
+      sync: ['trigger', 'outcome', 'source', 'code', 'ms', 'received', 'sent', 'groups', 'bookmarks', 'icons', 'removed', 'bytesUp', 'repeats'],
     });
     const content = { url: 'https://example.com/x', title: 'Dinner with Ann', body: '{"a":1}', query: 'my search', subject: 'Hi', lat: 52.1 };
     expect(fieldsOf('api', { ...content, method: 'GET', route: '/api/feeds', status: 502, code: 'provider_error', ms: 12, transport: 'server', repeats: 3 })).toEqual({

@@ -15,11 +15,11 @@ export const GOOGLE_SCOPE_GMAIL_MODIFY = 'https://www.googleapis.com/auth/gmail.
 /** Identity scopes, asked for on every sign-in. */
 export const GOOGLE_BASE_SCOPES = ['openid', 'email', 'profile'] as const;
 
-/** The scopes of each service. */
+/** The scopes of each service Google offers (not launch pad sync, which is Microsoft's in the browser-only build). */
 export const GOOGLE_CAPABILITY_SCOPES = Object.freeze({
   calendar: [GOOGLE_SCOPE_CALENDAR_EVENTS, GOOGLE_SCOPE_CALENDAR_LIST],
   mail: [GOOGLE_SCOPE_GMAIL_MODIFY],
-} as const satisfies Record<Capability, readonly string[]>);
+} as const satisfies Partial<Record<Capability, readonly string[]>>);
 
 /** Every scope (all services): what a sign-in asks for when it names no services. */
 export const GOOGLE_SCOPES = [...GOOGLE_BASE_SCOPES, ...GOOGLE_CAPABILITY_SCOPES.calendar, ...GOOGLE_CAPABILITY_SCOPES.mail] as const;

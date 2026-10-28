@@ -10,7 +10,12 @@ export const ACCOUNT_KINDS = ['google', 'microsoft', 'yahoo', 'caldav', 'imap'] 
 export const AccountKindSchema = z.enum(ACCOUNT_KINDS);
 export type AccountKind = z.output<typeof AccountKindSchema>;
 
-export const CAPABILITIES = ['calendar', 'mail'] as const;
+/**
+ * The services an account can be used for. `launchpadSync` (D7) is a service of a Microsoft
+ * connection in the browser-only build only: OneDrive app-folder sync of the launch pad. The
+ * server's sign-ins never offer it (`OAUTH_PROVIDER_CAPABILITIES`).
+ */
+export const CAPABILITIES = ['calendar', 'mail', 'launchpadSync'] as const;
 export const CapabilitySchema = z.enum(CAPABILITIES);
 export type Capability = z.output<typeof CapabilitySchema>;
 
@@ -29,7 +34,8 @@ export function isOAuthProvider(value: unknown): value is OAuthProvider {
 /**
  * The services (capabilities) a sign-in can ask for, per provider, on the Portly server. Each one
  * maps to its own OAuth scopes (the provider specs on the server); a sign-in asks only for the
- * scopes of the services picked. The browser-only build offers fewer (Microsoft: calendar only).
+ * scopes of the services picked. The browser-only build offers others (Microsoft: the calendar and
+ * launch pad sync, which no server sign-in offers).
  */
 export const OAUTH_PROVIDER_CAPABILITIES: Readonly<Record<OAuthProvider, readonly Capability[]>> = Object.freeze({
   google: ['calendar', 'mail'],
@@ -251,7 +257,12 @@ export const OAuthStartSchema = z
   .object({
     accountId: EntityId.optional(),
     returnTo: z.string().max(200).regex(OAUTH_RETURN_TO_REGEX).optional(),
-    capabilities: z.array(CapabilitySchema).min(1).max(CAPABILITIES.length).optional(),
+    capabilities: z
+      .array(CapabilitySchema)
+      .min(1)
+      .max(CAPABILITIES.length)
+      .refine((list) => new Set(list).size === list.length, 'Each service at most once')
+      .optional(),
   })
   .strict();
 export type OAuthStart = z.output<typeof OAuthStartSchema>;

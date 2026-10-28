@@ -276,7 +276,7 @@ describe('query keys', () => {
   it('nests calendar/mail keys under their account-dependent prefixes', () => {
     expect(qk.calendar.events('2026-09-01', '2026-10-01', 'UTC').slice(0, 1)).toEqual(qk.calendar.all());
     expect(qk.mail.summary().slice(0, 1)).toEqual(qk.mail.all());
-    expect(ACCOUNT_DEPENDENT_KEYS).toEqual([['accounts'], ['calendar'], ['mail']]);
+    expect(ACCOUNT_DEPENDENT_KEYS).toEqual([['accounts'], ['calendar'], ['mail'], ['sync', 'launchpad']]);
     expect(qk.weather(52.51704, 13.38886)).toEqual(['weather', 'report', 52.52, 13.39]);
     expect(qk.geocode('Berlin').slice(0, 1)).toEqual(['weather']);
     expect(qk.todoist.tasks('today').slice(0, 1)).toEqual(qk.todoist.all());

@@ -10,12 +10,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Account, OAuthClientInfo } from '@portly/shared';
 import { finishSignIn, planAutomaticSignIn } from '../oauthRedirect.ts';
 import { createFakeFetch, type FakeFetch, type FakeFetchRoute } from '../providers/__fixtures__/fakeFetch.ts';
+import { GITHUB_TOKEN, REPOSITORY } from '../providers/__fixtures__/github.ts';
+import { storeGitHubSync } from '../providers/githubSync.ts';
 import { MICROSOFT_CLIENT_ID, OTHER_SUBJECT, formOf, microsoftIdToken, tokenError, tokenOk } from '../providers/__fixtures__/microsoft.ts';
 import { MICROSOFT_TOKEN_ENDPOINT, SPA_SESSION_MS, pkceChallenge } from '../providers/microsoftAuth.ts';
-import { SLICE, getAccountTokens, getAccounts, getCalendarSync, getOAuthStates } from '../slices.ts';
+import { SLICE, getAccountTokens, getAccounts, getCalendarSync, getOAuthStates, getUpgrades } from '../slices.ts';
 import { createTestBackend, type TestBackend } from '../test/harness.ts';
 import * as accounts from './accounts.ts';
-import { MESSAGES, SILENT_RENEW_BEFORE_MS, SILENT_RETRY_MS, STATE_TTL_MS, getAccessToken } from './accounts.ts';
+import { MESSAGES, REQUESTED_SCOPES_UPGRADE, SILENT_RENEW_BEFORE_MS, SILENT_RETRY_MS, STATE_TTL_MS, getAccessToken } from './accounts.ts';
 
 type ErrorBody = { error: { code: string; message: string; details?: { path: string; message: string }[]; accountId?: string } };
 
@@ -423,6 +425,208 @@ describe('accounts: automatic re-sign-in', () => {
     expect(await planAutomaticSignIn(t.ctx, 'http://localhost:5173/?oauth=connected#/')).toBeNull();
     await t.ctx.state.set(SLICE.oauthClients, { microsoft: null });
     expect(await planAutomaticSignIn(t.ctx, 'http://localhost:5173/#/')).toBeNull();
+  });
+});
+
+describe('accounts: the scopes each sign-in asked for', () => {
+  const CALENDAR_SCOPES = 'openid profile email offline_access User.Read Calendars.ReadWrite';
+  const ASKED = ['calendars.readwrite', 'email', 'offline_access', 'openid', 'profile', 'user.read'];
+  // What Microsoft reports once the account granted more to the registration elsewhere (the spike).
+  const WIDE = `${CALENDAR_SCOPES} Mail.ReadWrite Files.ReadWrite.AppFolder`;
+
+  async function connectedWide(): Promise<string> {
+    await setup();
+    expect(await signIn(grant({ scope: WIDE }), { capabilities: ['calendar'] })).toContain('oauth=connected');
+    return (await list())[0]!.id;
+  }
+
+  it('stores what the sign-in asked for, a strict subset of what Microsoft reports as granted', async () => {
+    const id = await connectedWide();
+    const row = getAccounts(t.ctx).find((a) => a.id === id)!;
+    expect(row.requestedScopes).toEqual(ASKED);
+    expect(row.grantedScopes).toEqual(expect.arrayContaining([...ASKED, 'mail.readwrite', 'files.readwrite.appfolder']));
+    expect(row.requestedScopes!.every((s) => row.grantedScopes.includes(s))).toBe(true);
+    expect(row.requestedScopes!.length).toBeLessThan(row.grantedScopes.length);
+    expect(row.capabilities).toEqual(['calendar']);
+  });
+
+  it('refreshes with the stored set, never the wider grant', async () => {
+    const id = await connectedWide();
+    fake.add(tokenRoute(tokenOk({ access_token: 'AT2', scope: WIDE }), 1));
+    t.tick(3600 * 1000);
+    expect(await getAccessToken(t.ctx, id)).toBe('AT2');
+    expect(formOf(fake.calls[1]!).scope).toBe(CALENDAR_SCOPES);
+  });
+
+  it('renews automatically with the stored set, and the renewal keeps it', async () => {
+    const id = await connectedWide();
+    t.tick(SPA_SESSION_MS - SILENT_RENEW_BEFORE_MS + 60_000);
+    const url = new URL((await planAutomaticSignIn(t.ctx, 'http://localhost:5173/#/'))!);
+    expect(url.searchParams.get('scope')).toBe(CALENDAR_SCOPES);
+
+    fake.add(tokenRoute(grant({ scope: WIDE, refresh_token: 'RT9' }, { exp: Math.floor(t.ctx.now() / 1000) + 3600 }), 1));
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toBe('http://localhost:5173/#/');
+    expect(formOf(fake.calls[1]!).scope).toBe(CALENDAR_SCOPES);
+    expect(getAccounts(t.ctx).find((a) => a.id === id)).toMatchObject({ requestedScopes: ASKED, capabilities: ['calendar'] });
+  });
+
+  it('reconnects with the stored set and replaces it with what the reconnect asked for', async () => {
+    const id = await connectedWide();
+    fake.add(tokenRoute(grant({ scope: WIDE, refresh_token: 'RT2' }), 1));
+    const url = await start({ accountId: id, returnTo: '#/settings/accounts' });
+    expect(url.searchParams.get('scope')).toBe(CALENDAR_SCOPES);
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toContain('oauth=reconnected');
+    expect(formOf(fake.calls[1]!).scope).toBe(CALENDAR_SCOPES);
+    expect(getAccounts(t.ctx)[0]).toMatchObject({ requestedScopes: ASKED, capabilities: ['calendar'] });
+  });
+
+  it('adds a service only through a sign-in that asks for it', async () => {
+    const id = await connectedWide();
+    // A row whose last sign-in asked for the sign-in scopes alone: refreshes ask for no service.
+    const row = getAccounts(t.ctx)[0]!;
+    row.requestedScopes = ['email', 'offline_access', 'openid', 'profile', 'user.read'];
+    await t.ctx.state.commit(SLICE.accounts);
+    fake.add(tokenRoute(tokenOk({ access_token: 'AT2', scope: WIDE }), 1));
+    expect(await getAccessToken(t.ctx, id, { force: true })).toBe('AT2');
+    expect(formOf(fake.calls[1]!).scope).toBe('openid profile email offline_access User.Read');
+
+    // Naming the service on a reconnect asks for its scope (incremental consent) and records it.
+    fake.add(tokenRoute(grant({ scope: WIDE, refresh_token: 'RT3' }), 1));
+    const url = await start({ accountId: id, capabilities: ['calendar'], returnTo: '#/settings/accounts' });
+    expect(url.searchParams.get('scope')).toBe(CALENDAR_SCOPES);
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toContain('oauth=reconnected');
+    expect(getAccounts(t.ctx)[0]!.requestedScopes).toEqual(ASKED);
+    fake.add(tokenRoute(tokenOk({ access_token: 'AT4' }), 1));
+    await getAccessToken(t.ctx, id, { force: true });
+    expect(formOf(fake.calls.at(-1)!).scope).toBe(CALENDAR_SCOPES);
+  });
+
+  it('fills the set once for rows stored before it was recorded', async () => {
+    await setup();
+    await signIn(grant({ scope: WIDE }));
+    const rows = getAccounts(t.ctx);
+    delete rows[0]!.requestedScopes;
+    rows.push({ ...rows[0]!, id: 'acc-none', externalId: 'other', capabilities: [], enabledCapabilities: [] });
+    delete rows[1]!.requestedScopes;
+    const upgrades = getUpgrades(t.ctx);
+    expect(upgrades).toContain(REQUESTED_SCOPES_UPGRADE);
+    upgrades.splice(upgrades.indexOf(REQUESTED_SCOPES_UPGRADE), 1);
+    await t.ctx.state.commit(SLICE.accounts, SLICE.upgrades);
+
+    // A row without the set still refreshes with the calendar's scopes only.
+    fake.add(tokenRoute(tokenOk({ access_token: 'AT2' }), 1));
+    await getAccessToken(t.ctx, rows[0]!.id, { force: true });
+    expect(formOf(fake.calls[1]!).scope).toBe(CALENDAR_SCOPES);
+
+    await accounts.ready(t.ctx);
+    expect(getAccounts(t.ctx).map((a) => a.requestedScopes)).toEqual([ASKED, ['email', 'offline_access', 'openid', 'profile', 'user.read']]);
+    expect(getUpgrades(t.ctx)).toContain(REQUESTED_SCOPES_UPGRADE);
+    expect(await t.storage.getJson(`slice:${SLICE.accounts}`)).toMatchObject([{ requestedScopes: ASKED }, { id: 'acc-none' }]);
+
+    // Once only: a row changed afterwards is left alone.
+    getAccounts(t.ctx)[1]!.requestedScopes = ['openid'];
+    await accounts.ready(t.ctx);
+    expect(getAccounts(t.ctx)[1]!.requestedScopes).toEqual(['openid']);
+  });
+});
+
+describe('accounts: launch pad sync', () => {
+  const BASE = 'openid profile email offline_access User.Read';
+  const BOTH = `${BASE} Calendars.ReadWrite Files.ReadWrite.AppFolder`;
+
+  it('asks for the app folder only when the service is picked', async () => {
+    await setup();
+    expect((await start({ capabilities: ['calendar', 'launchpadSync'] })).searchParams.get('scope')).toBe(BOTH);
+    expect((await start({ capabilities: ['launchpadSync'] })).searchParams.get('scope')).toBe(`${BASE} Files.ReadWrite.AppFolder`);
+    // Naming nothing asks for the calendar alone, never the OneDrive permission.
+    expect((await start({})).searchParams.get('scope')).toBe(`${BASE} Calendars.ReadWrite`);
+  });
+
+  it('connects with sync, keeps it through a reload, and refreshes with the app folder scope', async () => {
+    await setup();
+    expect(await signIn(grant({ scope: BOTH }), { capabilities: ['calendar', 'launchpadSync'] })).toContain('oauth=connected');
+    expect((await list())[0]).toMatchObject({ capabilities: ['calendar', 'launchpadSync'], enabledCapabilities: ['calendar', 'launchpadSync'] });
+    // The stored row passes the shape check when it is read again (another tab's change).
+    await t.ctx.state.reload([SLICE.accounts]);
+    expect(getAccounts(t.ctx)[0]!.capabilities).toEqual(['calendar', 'launchpadSync']);
+
+    const id = (await list())[0]!.id;
+    fake.add(tokenRoute(tokenOk({ access_token: 'AT2' }), 1));
+    await getAccessToken(t.ctx, id, { force: true });
+    expect(formOf(fake.calls[1]!).scope).toBe(BOTH);
+  });
+
+  it('never gives a calendar-only connection sync, even when the account granted it elsewhere', async () => {
+    await setup();
+    expect(await signIn(grant({ scope: BOTH }), { capabilities: ['calendar'] })).toContain('oauth=connected');
+    const [account] = await list();
+    expect(account).toMatchObject({ capabilities: ['calendar'], enabledCapabilities: ['calendar'] });
+    const res = await t.json<ErrorBody>('PATCH', `/api/accounts/${account!.id}`, { enabledCapabilities: ['calendar', 'launchpadSync'] });
+    expect(res.status).toBe(422);
+    expect(res.body.error.details?.[0]?.message).toBe('Launch pad sync is not available for this account');
+  });
+
+  it('adds sync to a calendar-only connection by a reconnect that names it (incremental consent)', async () => {
+    await setup();
+    await signIn(grant(), { capabilities: ['calendar'] });
+    const id = (await list())[0]!.id;
+    fake.add(tokenRoute(grant({ scope: BOTH, refresh_token: 'RT2' }), 1));
+    const url = await start({ accountId: id, capabilities: ['launchpadSync'], returnTo: '#/settings/accounts' });
+    expect(url.searchParams.get('scope')).toBe(BOTH);
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toContain('oauth=reconnected');
+    expect((await list())[0]).toMatchObject({ id, capabilities: ['calendar', 'launchpadSync'], enabledCapabilities: ['calendar', 'launchpadSync'] });
+    expect(getAccounts(t.ctx)[0]!.requestedScopes).toContain('files.readwrite.appfolder');
+
+    // Microsoft declined the new permission (the grant lacks it): the service is not added.
+    fake.add(tokenRoute(grant({ refresh_token: 'RT3' }), 1));
+    const again = await start({ accountId: id, returnTo: '#/settings/accounts' });
+    expect(again.searchParams.get('scope')).toBe(BOTH);
+    await finishSignIn(t.ctx, callback(again.searchParams.get('state')!));
+    expect((await list())[0]).toMatchObject({ capabilities: ['calendar'], enabledCapabilities: ['calendar'] });
+    fake.add(tokenRoute(tokenOk({ access_token: 'AT4' }), 1));
+    await getAccessToken(t.ctx, id, { force: true });
+    expect(formOf(fake.calls.at(-1)!).scope).toBe(`${BASE} Calendars.ReadWrite`);
+  });
+
+  it('keeps sync off on a new connection while GitHub syncs, and refuses to switch it on', async () => {
+    await setup();
+    await storeGitHubSync(t.ctx, GITHUB_TOKEN, REPOSITORY);
+    expect(await signIn(grant({ scope: BOTH }), { capabilities: ['calendar', 'launchpadSync'] })).toContain('oauth=connected');
+    const [account] = await list();
+    // Granted, listed, switched off: one sync connection per browser.
+    expect(account).toMatchObject({ capabilities: ['calendar', 'launchpadSync'], enabledCapabilities: ['calendar'] });
+    const res = await t.json<ErrorBody>('PATCH', `/api/accounts/${account!.id}`, { enabledCapabilities: ['calendar', 'launchpadSync'] });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({ code: 'conflict', message: expect.stringContaining('already uses GitHub') });
+    expect(getAccounts(t.ctx)[0]!.enabledCapabilities).toEqual(['calendar']);
+  });
+
+  it('lets one Microsoft connection sync at a time: another one is refused until the first is switched off', async () => {
+    await setup();
+    await signIn(grant({ scope: BOTH }), { capabilities: ['calendar', 'launchpadSync'] });
+    await signIn(grant({ scope: BOTH, refresh_token: 'RT-other' }, { oid: OTHER_SUBJECT, preferred_username: 'eve@outlook.com' }), {
+      capabilities: ['calendar', 'launchpadSync'],
+    });
+    const [first, second] = await list();
+    expect(first!.enabledCapabilities).toEqual(['calendar', 'launchpadSync']);
+    expect(second!.enabledCapabilities).toEqual(['calendar']);
+    const refused = await t.json<ErrorBody>('PATCH', `/api/accounts/${second!.id}`, { enabledCapabilities: ['calendar', 'launchpadSync'] });
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.message).toContain('bob@outlook.com');
+    // Moving it: off on the first, then on here. Keeping it on where it is stays allowed.
+    expect((await t.json('PATCH', `/api/accounts/${first!.id}`, { enabledCapabilities: ['launchpadSync'] })).status).toBe(200);
+    expect((await t.json('PATCH', `/api/accounts/${first!.id}`, { enabledCapabilities: ['calendar'] })).status).toBe(200);
+    expect((await t.json('PATCH', `/api/accounts/${second!.id}`, { enabledCapabilities: ['calendar', 'launchpadSync'] })).status).toBe(200);
+  });
+
+  it('treats a pending sign-in from before the services were recorded as a calendar sign-in', async () => {
+    await setup();
+    fake.add(tokenRoute(grant({ scope: BOTH }), 1));
+    const url = await start({ capabilities: ['calendar'] });
+    delete getOAuthStates(t.ctx)[0]!.capabilities;
+    await t.ctx.state.commit(SLICE.oauthStates);
+    expect(await finishSignIn(t.ctx, callback(url.searchParams.get('state')!))).toContain('oauth=connected');
+    expect((await list())[0]).toMatchObject({ capabilities: ['calendar'] });
   });
 });
 

@@ -1,10 +1,11 @@
 # Design: syncing the launch pad of the browser-only site through OneDrive
 
-**Status:** proposal, not built. The phase 0 spike with a real Outlook.com account is done, and
-its answer is **go** (section 13). Today the browser-only (GitHub Pages) build keeps everything in
-that browser's IndexedDB (`portly-static:<base>`), and the only way to move data between browsers
-is export and import. Hybrid mode gives a paired browser the local server's data, but that needs
-a server.
+**Status:** accepted, being built (ROADMAP phase 6). The phase 0 spike with a real Outlook.com
+account is done, and its answer is **go** (section 13). The decisions of 2026-10-20 are in
+section 0 and settle most of the open questions at the end. Today the browser-only (GitHub
+Pages) build keeps everything in that browser's IndexedDB (`portly-static:<base>`), and the only
+way to move data between browsers is export and import. Hybrid mode gives a paired browser the
+local server's data, but that needs a server.
 
 **Main idea:** the site writes the launch pad to one file in the user's own OneDrive, in the
 folder Microsoft gives each app (`/me/drive/special/approot`). Every browser that turns sync on
@@ -23,6 +24,34 @@ What it reuses from the Outlook.com calendar support:
 
 Sync depends on the Outlook.com browser flow. The phase 0 spike also tested that flow with a real
 account on a localhost copy (ROADMAP item 2.1 repeats it on the published address).
+
+## 0. Decisions (2026-10-20)
+
+Taken with the owner on 2026-10-20 (ROADMAP decisions D7 to D9). The sections below are written to
+match them.
+
+- **D7: sync in the contract.** `launchpadSync` enters the API contract as a new value of the
+  shared `Capability` enum (`shared/src/accounts.ts`), in one deliberate contract change. The
+  server leaves it out of `OAUTH_PROVIDER_CAPABILITIES` for both providers, so its sign-in refuses
+  it (`422`, "not available"), and the Accounts page shows it only where the page's data lives in
+  the browser (the `launchpadSync` per-load capability, section 9).
+- **D8: the defaults, all as proposed.** (Whether OneDrive stays the only sync is recorded in
+  ROADMAP decision D8.)
+  - OneDrive through an Outlook.com account is the sync this design describes;
+  - no passphrase encryption of the file;
+  - layouts, the launch pad's display settings and the theme stay per PC;
+  - the first sync defaults to **Use the synced launch pad**, and there is no **Combine both**
+    option (section 6.6);
+  - tombstones are kept 90 days (section 6.3);
+  - one Microsoft connection per browser has the service (section 3); with GitHub added, one sync
+    connection per browser of either kind (section 6.10);
+  - sync's safety backup has a slot of its own, apart from the import backups (section 6.7);
+  - Chrome and Edge are in scope; Firefox gets a smoke run, Safari is not supported.
+- **D9: the custom domain.** The shared `<user>.github.io` origin (ARCHITECTURE section 4.1) means
+  any script on any Pages site of the account can read the access token and so the app folder.
+  This is accepted and documented for now. It is decided again before the sync engine (ROADMAP
+  6.5) ships: either a custom domain used only for the site, or the risk stays accepted with the
+  docs saying so.
 
 ## 1. What the user gets
 
@@ -108,7 +137,7 @@ in OneDrive. `Files.ReadWrite` (the whole drive) is not needed and is not reques
   The shipped page lists a provider's services as capabilities (`OAUTH_PROVIDER_CAPABILITIES` in
   `shared/src/accounts.ts`, today `calendar` and `mail`) and keeps the ones in use in the
   account's `enabledCapabilities`, so the natural place for `launchpadSync` is a new shared
-  `Capability` value. Sync's own state stays in its slice (section 2).
+  `Capability` value, which D7 chose. Sync's own state stays in its slice (section 2).
 - **Offered only where it can run.** The service is offered when this page's data lives in the
   browser (the `launchpadSync` capability, section 9). On a server-backend page and in the
   server build it shows as unavailable, with a one-line reason.
@@ -180,7 +209,7 @@ every other widget, and screens differ from PC to PC (columns, icon size, list o
 gives every row a new id. So a launch pad set to show chosen groups keeps working on every PC.
 A group deleted elsewhere just disappears from it (`visibleGroups()` skips unknown ids), and a
 new group shows on a launch pad set to "all", which is the default. Syncing layouts would need
-per-PC overrides and is an open question.
+per-PC overrides; D8 keeps layouts per PC.
 
 ## 6. Merging
 
@@ -231,9 +260,14 @@ minutes. Sync needs the lasting version:
   - a config import or a backup restore, which replace every group and bookmark.
 
   A test lists these paths, so a new one can't be added without tombstones.
-- **A tombstone beats a row whose two timestamps are both older.** A bookmark edited on another
-  PC *after* the delete survives. If its group was deleted, it moves to the "No group" group,
-  which is created if needed.
+- **A tombstone beats a row whose two timestamps are both older** (or equal). A bookmark edited on
+  another PC *after* the delete survives. If its group was deleted, the browser that applies the
+  file shows it under the "No group" group, creating that group if needed (section 6.8).
+- **The file keeps a removed row's last content next to its tombstone** until the tombstone
+  expires. Without it, a removed row's newer placement could be lost in one merge order and kept
+  in another; with it, the merge is a join of last-writer-wins parts and every order of syncing
+  gives the same file (built in 6.4: `shared/src/launchpadSync.ts`). A browser's own data keeps
+  only the tombstone.
 - **Tombstones are kept for 90 days**, then dropped. The file records the time of the newest
   dropped one as its `horizon`.
 - **A browser that hasn't synced since before the horizon** can't rely on tombstones. It keeps
@@ -249,9 +283,14 @@ minutes. Sync needs the lasting version:
 - **Limit:** reordering the same group on two PCs between syncs gives a mix of both orders, the
   same on every PC. One more drag fixes it. Fractional sort keys would avoid the mix, but they
   change `sort` from an integer in the shared and export schemas. Not for v1.
-- **Two "No group" groups** (two browsers each made one before they first synced): the one whose
-  id sorts first stays, and the other's bookmarks move into it. The same applies to the default
-  group.
+- **The two settings that name a group** (`defaultGroupId`, `ungroupedGroupId`) each sync as one
+  last-writer-wins value with its own stamp.
+- **Limit: two "No group" groups.** Since the first sync replaces one side (D8), two only happen
+  when two browsers each create one between syncs. The later pointer wins and the other stays as
+  an ordinary group named "No group"; deleting it or moving its bookmarks fixes it. The proposal
+  here was to fold the two together automatically, but a fold the merge makes on its own (moving
+  rows without a stamp) can come out differently depending on the order browsers sync in, so the
+  merge does not do it (6.4).
 
 ### 6.5 Writing the file: eTag and If-Match
 
@@ -301,17 +340,18 @@ that is more than 30 days old.
 
 - **Nothing to choose** when either side is empty. An empty browser takes the file, and a
   browser with no file uploads its own launch pad.
-- **Both have data:** a dialog with three choices. This matters because two browsers filled by
+- **Both have data:** a dialog with two choices. This matters because two browsers filled by
   export/import hold the same bookmarks under different ids, so a plain merge would double
   everything.
-  1. **Use the synced launch pad** (recommended): this browser's groups and bookmarks are
+  1. **Use the synced launch pad** (the default, D8): this browser's groups and bookmarks are
      replaced, after a backup.
-  2. **Combine both:** groups with the same name become one, and bookmarks with the same URL in
-     the same group become one (the synced ids win). Everything else is added.
-  3. **Replace the synced launch pad with this browser's:** the file is rewritten with a new
+  2. **Replace the synced launch pad with this browser's:** the file is rewritten with a new
      `epoch`. Other browsers see the new epoch, take a backup, and handle it like a browser past
      the horizon (6.3). Rows they changed since their last sync stay; everything else follows
      the new file.
+
+  A **Combine both** choice (groups matched by name, bookmarks by URL) was considered and left
+  out (D8).
 - **The file disappeared** (the user deleted the folder) after this browser had synced: it is
   treated as empty, never as "everything was deleted". The browser uploads its launch pad again
   and the service's status line says so.
@@ -324,8 +364,90 @@ that is more than 30 days old.
   this browser's launch pad on first sync takes a backup first.** It uses the existing backup
   store: the `backups` slice and `backup:<id>` documents, listed in Settings → Import & export
   and imported like any export file. `BackupEntry` gains an optional `reason`
-  (`import` | `sync`), so the list can say "Before sync". There are 3 backups in all
-  (`MAX_BACKUPS`); whether sync gets its own slot is an open question.
+  (`import` | `sync`), so the list can say "Before sync". Sync keeps one backup slot of its own
+  (D8): a new sync backup replaces the previous sync backup, never an import's, and the import
+  backups keep their 3 slots (`MAX_BACKUPS`).
+
+### 6.8 The file format and applying it
+
+`launchpad.json` (built in 6.4, `shared/src/launchpadSync.ts`):
+
+```
+{ "format": "portly-sync", "version": 1, "epoch": "<id>", "horizon": <stamp or 0>,
+  "groups":    [{id, name, sort, color, collapsed, updatedAt, placedAt}],
+  "bookmarks": [{id, groupId, title, url, sort, iconMode, iconId, letterColor, updatedAt, placedAt}],
+  "deleted":   [{kind: "group" | "bookmark", id, at}],
+  "icons":     [{id: <UUIDv4>, contentType, sha256, width}],
+  "pointers":  {"defaultGroupId": {value, at}, "ungroupedGroupId": {value, at}} }
+```
+
+- Rows, tombstones and icons are sorted by id and keys by name (canonical JSON), so the same
+  launch pad always gives the same text, and "the merged result differs from the file" (6.5) is
+  a text comparison.
+- `iconId` is set only for a `custom` icon. Automatic icons are not synced (section 5).
+- Caps: groups `MAX_BOOKMARK_GROUPS × 4` and bookmarks `MAX_BOOKMARKS × 4` (removed rows
+  included), tombstones the two together, icons `MAX_BOOKMARKS`. Before writing, the writer drops
+  tombstones older than 90 days with the rows they removed (raising the horizon), and more of
+  the oldest when the file would pass a cap.
+- **The merge is pure** (no clock, storage or network): per row the later content and the later
+  placement, the newest tombstone, every icon, the later pointer, the higher horizon. It never
+  renumbers, creates rows or repairs references.
+- **Applying the merged file** to a browser repairs references for that browser only, without
+  stamping, so a repair never goes back up: a bookmark whose group is gone shows under "No
+  group"; a custom icon that is not listed or failed its checks shows as automatic; a pointer to
+  a missing group reads as none (6.5 builds it).
+
+### 6.9 As built (6.5)
+
+- **The store interface.** The engine talks to storage only through `SyncStore`
+  (`web/src/static/sync/store.ts`: read and write the main file with a version, read, write and
+  delete icons). OneDrive (`providers/graphDrive.ts`) is one implementation, where the version is
+  the item's `eTag`; a private GitHub repository (`providers/githubRepo.ts`,
+  [launchpad-sync-github.md](launchpad-sync-github.md)) is the other, where it is the blob `sha`.
+  The merge, the format and the engine know nothing of either.
+- **The quick check uses the `eTag`, not the `cTag`.** The store keeps the text it last read or
+  wrote per page and account, and when the metadata shows the same `eTag` it does not download
+  again. An `eTag` also changes when only metadata changes (a rename in OneDrive), which costs one
+  download and a merge that changes nothing.
+- **Download hosts.** Only `my.microsoftpersonalcontent.com`, the host the spike saw, is allowed
+  (store and CSP). `*.files.1drv.com` stays out until a real second sign-in shows it (ROADMAP
+  6.5). Whether the download's own `ETag`/`cTag` headers equal Graph's is still unchecked; the
+  engine does not rely on them.
+- **The "changes waiting" flag** is set by a commit hook in `StaticState`, which also stamps the
+  two synced settings when they change. A local change that comes in during a round makes the
+  round start again before it applies anything, so the change is never overwritten.
+- **Old icon files** are deleted 30 days after the file stopped naming them, by the browser that
+  noticed (the store has no listing, so a file nobody noticed stays).
+
+### 6.10 One sync connection per browser (2026-10-27)
+
+D8's "one Microsoft connection per browser" now covers GitHub too: a browser syncs with exactly
+one **sync connection**, either a Microsoft connection with the Launch pad sync service switched
+on or the GitHub repository and token (`syncSources()` in `sync/scheduler.ts`).
+
+- **None:** sync is off.
+- **More than one** (two Microsoft connections with the service, or one and GitHub): nothing
+  syncs, the status is `several_sources`, and no store is opened, until only one is left. Sync
+  never guesses which file the user meant: merging a launch pad into the wrong file would spread
+  it to every browser on that file. Since 6.6 a second one can't be set up: the account route
+  refuses to switch the service on (`409 conflict`) and a sign-in that grants it leaves it off,
+  the GitHub route refuses to save, and the page says which connection syncs today (the Manage
+  switch offers to move the service between Microsoft connections). Two can still meet when two
+  tabs race, or from data set up before 6.6; then the Accounts page says so.
+- **The source id** in the sync state is `microsoft:<account id>` or `github:<SHA-256 of
+  owner/name, lowercased>`; the repository name itself stays in the GitHub settings slice. Another
+  id means a first sync (section 6.6): switching source asks again when both sides have a
+  launch pad. A new token for the same repository is the same source and carries on.
+- **One store per page load and source.** The GitHub store keeps the file's `ETag` (a `304` costs no
+  rate limit) and checks once that the repository is private; it is dropped when the GitHub
+  settings change (their `generation`) or the source changes. Removing the token stops sync at the
+  next check, and the store with it.
+- **A refused token** (GitHub's `401`, a public or missing repository: `reauth_required`) pauses
+  scheduled checks for those settings until new ones are saved; **Sync now** tries again. A
+  Microsoft connection's own Reconnect state does this for OneDrive.
+- **One request at a time.** GitHub refuses simultaneous writes to a branch (`409`). The Web Lock
+  and each page's own queue run one round at a time, and a round sends its requests one after the
+  other.
 
 ## 7. When it runs
 
@@ -458,6 +580,31 @@ adds these pieces to it:
   - section 17: the `sync` events.
 - README: one line under the browser-only build.
 
+### 10.1 As built (6.6)
+
+- **The page's view of sync** is `GET /api/sync/launchpad` of the in-browser backend
+  (`handlers/launchpadSync.ts`): the one connection in use (a Microsoft account's id and name, or
+  GitHub without its repository), how many are set up, the status, whether a round is running on
+  this page, the changes waiting, and when the last sync, change in and change out happened.
+  `POST /api/sync/launchpad/now {choice?}` is **Sync now**, and answers the first-sync question.
+  The query refreshes when the `launchpad-sync` slice changes, in this tab (the scheduler tells
+  the page when a round starts and ends) and in others.
+- **Accounts:** the status line and **Details** on the card of the connection that syncs
+  (Microsoft or GitHub), the first-sync dialog (opened by itself, again from **Choose…**), a
+  warning when sync is set up twice, the move offer, and the permission note before a sign-in that
+  asks for the app folder (the connect dialog's last step, and **Add** under Manage). The
+  statuses read: *Up to date*, *Syncing…*, *Changes waiting to upload*, *Not synced yet*,
+  *Waiting for your choice*, *Paused* (reconnect, or GitHub refused the token or repository),
+  *Set up twice*, *Stopped* (newer Portly, or a file that can't be read), *Trying again later*
+  and *Error*. **Open Diagnostics** is under Details when it stopped or failed.
+- **Elsewhere:** Settings → Bookmarks says "Synced through …" or "Not synced" with a link to
+  Accounts; the import preview warns when sync is on; Import & export offers the newest backup of
+  each kind, *Backup before the last import* and *Backup before sync*.
+- **Diagnostics:** the `sync` category, one event per round (ARCHITECTURE section 17). Debug
+  events are not stored, so a check that changed nothing leaves no trace after the page closes.
+  Store failures carry their `SyncStoreError` code; Graph's own error code and the HTTP status
+  are not added (the store keeps them as `provider` events).
+
 ## 11. Alternatives
 
 | Option | How it works | Why it is not the first choice |
@@ -570,17 +717,9 @@ What this means for the design:
 
 ## Open questions
 
-- **Is OneDrive through an Outlook.com account acceptable as the only sync for now?** Browsers
-  without one keep export and import.
-- **Should layouts and the launch pad's display settings sync later,** or stay per PC as
-  proposed?
-- **Encrypt the file with a passphrase?** As proposed, bookmark titles and URLs sit unencrypted
-  in OneDrive, where Microsoft can read them. Encryption in the browser (Web Crypto) is possible,
-  but every browser then needs the passphrase, and a lost passphrase means starting again.
+Answered on 2026-10-20 (section 0): OneDrive through an Outlook.com account, layouts per PC, no
+passphrase encryption, *Use the synced launch pad* with no *Combine both*, tombstones kept 90 days,
+one connection per browser, and a backup slot of its own. Still open:
+
 - **Should Portly on a PC join the sync later** (section 9), or is the browser-only site enough?
-- **The first-sync default:** "Use the synced launch pad", and is "Combine both" with matching
-  by group name and URL worth having?
-- **Tombstones kept 90 days:** long enough for a PC that is rarely used?
-- **One connection per browser for sync** (section 3), or should a browser be able to sync with
-  two Microsoft accounts? Two would mean two launch pads to merge into one.
-- **Safety backups:** share the 3 backup slots with imports, or keep one slot for sync?
+- **The custom domain** (D9): decided again before the sync engine ships.

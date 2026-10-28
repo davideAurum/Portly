@@ -20,6 +20,7 @@ import {
   HexColor,
   IcsCreateSchema,
   LayoutSchema,
+  CAPABILITIES,
   OAUTH_PROVIDER_CAPABILITIES,
   OAuthStartSchema,
   SEARCH_ENGINE_PRESETS,
@@ -390,9 +391,17 @@ describe('accounts & oauth payloads', () => {
     expect(OAuthStartSchema.safeParse({ capabilities: ['contacts'] }).success).toBe(false);
     expect(OAuthStartSchema.safeParse({ capabilities: 'calendar' }).success).toBe(false);
     expect(OAuthStartSchema.safeParse({ capabilities: ['calendar', 'mail', 'calendar'] }).success).toBe(false);
+    expect(OAuthStartSchema.safeParse({ capabilities: ['calendar', 'calendar'] }).success).toBe(false);
+    // Launch pad sync is a known service (D7); which sign-in offers it is the provider's business.
+    expect(OAuthStartSchema.parse({ capabilities: ['calendar', 'launchpadSync'] }).capabilities).toEqual(['calendar', 'launchpadSync']);
+  });
+
+  it('lists every service, launch pad sync last', () => {
+    expect(CAPABILITIES).toEqual(['calendar', 'mail', 'launchpadSync']);
   });
 
   it('lists the services each OAuth provider offers', () => {
+    // The server's sign-ins: launch pad sync is the browser-only build's alone.
     expect(OAUTH_PROVIDER_CAPABILITIES).toEqual({ google: ['calendar', 'mail'], microsoft: ['calendar', 'mail'] });
     expect(Object.isFrozen(OAUTH_PROVIDER_CAPABILITIES)).toBe(true);
   });

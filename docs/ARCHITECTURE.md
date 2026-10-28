@@ -379,9 +379,13 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
   static hosts send no headers. It matches the HTML CSP except: `img-src` also allows `https://icons.duckduckgo.com`
   (favicons as `<img>`); `connect-src` is `'self'` plus the hosts the in-browser backend calls directly,
   `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://nominatim.openstreetmap.org`,
-  `https://api.todoist.com`,
+  `https://api.todoist.com`, `https://api.github.com` (launch pad sync through a private repository,
+  docs/design/launchpad-sync-github.md; one of the two sync connections, design/launchpad-sync.md 6.10; the repository and token are kept
+  like the Todoist token, in the never-exported `github-sync` slice),
   `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://login.microsoftonline.com` and
-  `https://graph.microsoft.com` (Outlook.com sign-in and calendar), and in hybrid mode the local server origin
+  `https://graph.microsoft.com` (Outlook.com sign-in and calendar, and launch pad sync's OneDrive metadata and
+  uploads), `https://my.microsoftpersonalcontent.com` (launch pad sync's OneDrive downloads: the only download host
+  seen for a personal account; [design](design/launchpad-sync.md) section 4), and in hybrid mode the local server origin
   (`PORTLY_STATIC_SERVER`, §16); there is no `frame-ancestors` (a meta tag cannot set it). The `script-src` invariant
   applies here too.
 - **`/api` JSON:** `Cache-Control: no-store`.
@@ -900,7 +904,9 @@ disconnects itself; its cookie cleared). Every other route except those listed `
   image** offer: it prepares the stored bytes the same way with the target fixed at 3840 (so a copy made while the
   window is on a small monitor still suits a 4K one), uploads the copy and switches `uploadId`, keeping blur and dim.
   The old upload becomes an orphan and is collected after 24 h.
-- **accounts.ts** — `AccountKind`, `Capability = 'calendar'|'mail'`, `Account {id, kind, label, email|null, color|null,
+- **accounts.ts** — `AccountKind`, `Capability = 'calendar'|'mail'|'launchpadSync'` (`launchpadSync`: OneDrive sync of
+  the launch pad, a Microsoft service of the browser-only build only; no server sign-in offers it, so the server answers
+  it with 422), `Account {id, kind, label, email|null, color|null,
   capabilities, enabledCapabilities, status: 'ok'|'error'|'reauth', statusMessage|null, createdAt, updatedAt}`,
   per-kind config types, create payloads, `OAuthProvider = 'google'|'microsoft'`, `OAuthResult`.
 - **bookmarks.ts** — `Bookmark {id, groupId, title, url, sort, iconMode, iconId|null, letterColor|null}`,
@@ -936,6 +942,12 @@ disconnects itself; its cookie cleared). Every other route except those listed `
   `'homebase-export'`, §19); the strict `ExportSchema` of §7 Core (uploads and custom icons embedded as base64, each
   ≤ 10 MB decoded; ≤ 100 uploads); `MAX_IMPORT_BYTES` (25 MB); `ImportSummary`, `ImportPreviewResponse`,
   `ImportCommitSchema {previewId}`.
+- **launchpadSync.ts** (launch pad sync, [design](design/launchpad-sync.md)) — the synced file's strict schema
+  (`SYNC_FILE_FORMAT = 'portly-sync'`, `SYNC_FILE_VERSION = 1`: groups and bookmarks from the export schemas plus
+  `updatedAt`/`placedAt` stamps, tombstones, custom icons by UUIDv4 and SHA-256, the two group pointers, `epoch`,
+  `horizon`) and the pure merge: `mergeLaunchpads` (a join of last-writer-wins parts: commutative, associative,
+  idempotent), `liveLaunchpad`, `pruneLaunchpad` (90-day tombstones, caps, horizon), `forgetUnsynced`,
+  `serializeSyncFile` (canonical JSON).
 - **pairing.ts** (hybrid mode) — `PORTLY_API_VERSION` (core.ts; bumped on any change the other side cannot
   ignore), `PAIRING_TOKEN_HEADER = 'X-Portly-Token'`, `MAX_PAIRINGS`, token/nonce schemas (43-char base64url),
   `InstanceIdSchema`, the request/response schemas of §7 Pairing, and the URL helpers `buildPairingRequestUrl` /
@@ -1172,8 +1184,9 @@ then choose what it is used for":
   unticked are switched off after creation. *App registrations* under the tiles shows each provider's status (Ready /
   Setup needed / Credentials locked) with **Edit**.
 - The vault-locked banner with **Reset credentials** (server vault only).
-- What a page load offers follows `getCapabilities()`: on the in-browser backend only Microsoft (calendar only, browser
-  sign-in with a single-page-app redirect) and Todoist, with a line saying the others need the Portly server.
+- What a page load offers follows `getCapabilities()`: on the in-browser backend only Microsoft (calendar, and launch
+  pad sync, never ticked for the user; browser sign-in with a single-page-app redirect) and Todoist, with a line saying
+  the others need the Portly server. Launch pad sync is offered nowhere else (`launchpadSync`, §16).
 The app reads `?oauth=<result>` on load, shows a toast, and strips it from the URL.
 Hybrid mode (§16): About in the server build ends with **Paired browsers** (`PairedBrowsersCard`: the configured Pages
 address or how to set it, every pairing with label, created and last used, "Old address" when not made for the
@@ -1545,8 +1558,10 @@ and never reloads for this.
 and `calendar` (every backend: on the browser backend Outlook.com signs in and its calendars sync from Microsoft Graph
 in the page, `web/src/static/handlers/accounts.ts`, `calendar.ts`), `appPasswordAccounts|icsSubscriptions|mail|feeds|
 vault|siteMetaFetch|serverSearchSuggestions` (server backend), `googleAccounts` and `browserBookmarkImport` (server
-backend on the main PC only: off when `remoteClient` is on), `browserBackups` (browser backend), `iconPolling` (server
-backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
+backend on the main PC only: off when `remoteClient` is on), `browserBackups` and `launchpadSync` (browser backend: the
+launch pad sync service is offered on Microsoft connections only where the launch pad lives in this browser,
+[design/launchpad-sync.md](design/launchpad-sync.md); its state and **Sync now** are `GET`/`POST /api/sync/launchpad[/now]` of the
+in-browser backend, one sync connection per browser, design 6.10), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
 `backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
 feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
 browser / Switch now / Check again). Without `serverSearchSuggestions` an engine whose suggestions only the server can
@@ -1850,6 +1865,7 @@ through `scrub`/`scrubFields`:
 | `provider` | the in-browser backend's upstream failures (never URLs or queries) | `provider, host, status, code, errName, ms` |
 | `widget` | the mail widget when an account's error changes | `accountId, code, status, widget` |
 | `app` | `window` `error`/`unhandledrejection`, the error boundary | `errName, errMessage, source, stack (≤ 5 frames, file names only)` |
+| `sync` | launch pad sync (`web/src/static/sync/scheduler.ts`), one event per round on the browser backend: debug for a check that changed nothing, info when something moved or a first-sync choice is needed, warn when it stopped or failed; never names, titles or addresses | `trigger, outcome, source (onedrive \| github), code, ms, received, sent, groups, bookmarks, icons, removed, bytesUp` |
 
 - **Kept:** a ring of the last 300 events mirrored to localStorage (`portly:diagnostics:events`, Pages build
   `…:<base>`; merged across tabs, ≤ 256 KB, entries older than 7 days dropped; when another tab rewrites it, only

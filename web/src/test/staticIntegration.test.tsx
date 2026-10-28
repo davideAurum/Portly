@@ -206,10 +206,10 @@ describe('static build: launch pad', () => {
         seed: async (c) => {
           const ts = c.now();
           const store = getBookmarks(c);
-          store.groups.push({ id: 'g1', name: 'Work', sort: 0, color: null, collapsed: false, createdAt: ts, updatedAt: ts });
+          store.groups.push({ id: 'g1', name: 'Work', sort: 0, color: null, collapsed: false, createdAt: ts, updatedAt: ts, placedAt: ts });
           store.bookmarks.push(
-            { id: 'b1', groupId: 'g1', title: 'Github', url: 'https://github.com/', sort: 0, iconMode: 'auto', iconId: 'fav:github.com', letterColor: null, createdAt: ts, updatedAt: ts },
-            { id: 'b2', groupId: 'g1', title: 'Nas', url: 'http://nas/', sort: 1, iconMode: 'auto', iconId: null, letterColor: null, createdAt: ts, updatedAt: ts },
+            { id: 'b1', groupId: 'g1', title: 'Github', url: 'https://github.com/', sort: 0, iconMode: 'auto', iconId: 'fav:github.com', letterColor: null, createdAt: ts, updatedAt: ts, placedAt: ts },
+            { id: 'b2', groupId: 'g1', title: 'Nas', url: 'http://nas/', sort: 1, iconMode: 'auto', iconId: null, letterColor: null, createdAt: ts, updatedAt: ts, placedAt: ts },
           );
           await c.state.commit(SLICE.bookmarks);
         },
@@ -415,14 +415,14 @@ describe('static build: server-only features', () => {
     expect(screen.queryByText("Can't reach the Portly server")).not.toBeInTheDocument();
   });
 
-  it('offers Microsoft (calendar only) and Todoist on the Accounts page, with this site as the single-page-app redirect URI', async () => {
+  it('offers Microsoft (calendar and launch pad sync) and Todoist on the Accounts page, with this site as the single-page-app redirect URI', async () => {
     const user = userEvent.setup();
     const { requestsTo } = await renderWithStaticBackend(<Shell />, { route: '#/settings/accounts' });
     expect(await screen.findByText('No accounts yet')).toBeInTheDocument();
     expect(screen.getByText('Connect Microsoft (Outlook.com) or Todoist below to see your calendars and tasks.')).toBeInTheDocument();
     const tiles = within(screen.getByRole('list', { name: 'Add a connection' })).getAllByRole('button');
-    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Microsoft', 'Connect Todoist']);
-    expect(within(tiles[0]!).getByText('Outlook.com calendar')).toBeInTheDocument();
+    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Microsoft', 'Connect Todoist', 'Connect GitHub']);
+    expect(within(tiles[0]!).getByText('Outlook.com calendar and launch pad sync')).toBeInTheDocument();
     expect(screen.getByText('Google, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.')).toBeInTheDocument();
     expect(screen.queryByText("Saved credentials can't be unlocked")).not.toBeInTheDocument();
     expect(within(screen.getByRole('list', { name: 'App registrations' })).getAllByRole('listitem')).toHaveLength(1);

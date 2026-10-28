@@ -18,7 +18,7 @@
  * embedded images are re-sniffed, dangling references are cleared, and a summary with the
  * server's exact note strings is returned (plans live 10 minutes, at most 3). Commit snapshots the
  * current export JSON as a pre-import backup (its document under a `backup:<id>` key outside the
- * slices, a small entry in the `backups` index slice; newest {@link MAX_BACKUPS} kept), then
+ * slices, a small entry in the `backups` index slice; the newest kept, see `keepBackups`), then
  * REPLACES profiles, bookmark groups, bookmarks, uploads, custom icons and every settings
  * namespace — all of it, old images deleted and new ones written included, in ONE storage
  * transaction, so a failure changes nothing. There is no favicon store: automatic bookmarks get
@@ -72,7 +72,7 @@ import { json, readFormData, StaticApiError, validationIssues } from '../respond
 import type { StaticRouter } from '../router.ts';
 import {
   BACKUP_KEY_PREFIX,
-  MAX_BACKUPS,
+  keepBackups,
   SLICE,
   backupKey,
   getBackups,
@@ -81,12 +81,15 @@ import {
   getUploads,
   setSettings,
   type BackupEntry,
+  type BackupReason,
   type BookmarksSlice,
   type StoredIconMeta,
   type StoredProfile,
   type StoredUploadMeta,
 } from '../slices.ts';
 import { blobOf, type StoredBlob } from '../storage/types.ts';
+import { LAUNCHPAD_SLICES, nextStamp } from '../sync/clock.ts';
+import { withTombstones } from '../sync/tombstones.ts';
 import { MAX_WIDGET_CONFIG_BYTES, listProfiles } from './profiles.ts';
 
 /** Room kept free for everything but embedded images when budgeting an export. */
@@ -543,15 +546,39 @@ export function previewsFor(ctx: StaticContext): PreviewStore {
  * untouched and `commitWith` has put the slices back in memory, so nothing changed. Object URLs
  * are swapped only after it succeeded.
  */
+/** A backup to commit: the backups index after it, and the documents to write (the new one) and delete (evicted ones). */
+export interface PreparedBackup {
+  entries: BackupEntry[];
+  documents: Map<string, unknown>;
+}
+
+/**
+ * Takes the current export JSON as a backup before an import (`reason: 'import'`) or a sync
+ * (`'sync'`) replaces data, and works out which older backups go (`keepBackups`: three import
+ * backups and one sync backup). Nothing is written: commit `SLICE.backups` with `entries` set and
+ * `documents` as extra JSON, in the same transaction as the change. Throws when the export fails.
+ */
+export async function prepareBackup(ctx: StaticContext, reason: BackupReason): Promise<PreparedBackup> {
+  const snapshot = JSON.stringify(await buildExport(ctx));
+  const backup: BackupEntry = { id: newToken(16), at: ctx.now(), bytes: snapshot.length, reason };
+  const { kept: entries, evicted } = keepBackups([backup, ...getBackups(ctx).entries]);
+  const documents = new Map<string, unknown>([[backupKey(backup.id), snapshot], ...evicted.map((e): [string, undefined] => [backupKey(e.id), undefined])]);
+  return { entries, documents };
+}
+
 export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promise<void> {
   const ts = ctx.now();
 
-  let snapshot: string;
+  let backup: PreparedBackup;
   try {
-    snapshot = JSON.stringify(await buildExport(ctx));
+    backup = await prepareBackup(ctx, 'import');
   } catch {
     throw new StaticApiError('internal', 'Could not back up the current data; nothing was imported');
   }
+  // The launch pad's rows are stamped by its clock; every old row gets a tombstone, so with sync on
+  // the import replaces the launch pad in every synced browser (design section 6.7).
+  const stamp = nextStamp(ctx);
+  const old = getBookmarks(ctx);
 
   // Everything new is computed before anything is touched.
   const refs = new Set(plan.engineIconRefs);
@@ -560,7 +587,16 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
   const autoIcons = settings.bookmarks.autoFetchIcons;
   const profiles: StoredProfile[] = plan.profiles.map((p) => ({ id: p.id, name: p.name, sort: p.sort, layout: p.layout, createdAt: ts, updatedAt: ts }));
   const bookmarks: BookmarksSlice = {
-    groups: plan.groups.map((g) => ({ id: g.id, name: g.name, sort: g.sort, color: g.color, collapsed: g.collapsed, createdAt: ts, updatedAt: ts })),
+    groups: plan.groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      sort: g.sort,
+      color: g.color,
+      collapsed: g.collapsed,
+      createdAt: ts,
+      updatedAt: stamp,
+      placedAt: stamp,
+    })),
     bookmarks: plan.bookmarks.map((b) => ({
       id: b.id,
       groupId: b.groupId,
@@ -571,8 +607,10 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
       iconId: b.iconMode === 'auto' ? (autoIcons ? faviconIdFor(b.url) : null) : b.iconId,
       letterColor: b.letterColor,
       createdAt: ts,
-      updatedAt: ts,
+      updatedAt: stamp,
+      placedAt: stamp,
     })),
+    deleted: withTombstones(old.deleted, { groups: old.groups, bookmarks: old.bookmarks }, stamp, ts),
   };
   const uploads: StoredUploadMeta[] = plan.uploads.map((u) => ({ id: u.id, type: u.contentType, createdAt: ts }));
   const icons: StoredIconMeta[] = plan.customIcons.map((i) => ({ id: i.id, type: i.contentType, width: i.width, createdAt: ts, orphanedAt: null }));
@@ -585,21 +623,16 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
     ...plan.customIcons.map((i): StoredBlob => ({ id: i.id, kind: 'icon', type: i.contentType, bytes: i.bytes, width: i.width, createdAt: ts })),
   ];
 
-  // The backup: its document outside the slices (never loaded at startup), an entry in the index.
-  const backup: BackupEntry = { id: newToken(16), at: ts, bytes: snapshot.length };
-  const entries = [backup, ...getBackups(ctx).entries];
-  const evicted = entries.splice(MAX_BACKUPS);
-  const documents = new Map<string, unknown>([[backupKey(backup.id), snapshot], ...evicted.map((e): [string, undefined] => [backupKey(e.id), undefined])]);
-
   // No await between replacing the slices in memory and the commit, which snapshots them.
-  ctx.state.set(SLICE.backups, { entries });
+  // The backup: its document outside the slices (never loaded at startup), an entry in the index.
+  ctx.state.set(SLICE.backups, { entries: backup.entries });
   ctx.state.set(SLICE.profiles, profiles);
   ctx.state.set(SLICE.bookmarks, bookmarks);
   ctx.state.set(SLICE.uploads, uploads);
   ctx.state.set(SLICE.icons, icons);
   setSettings(ctx, settings);
-  await ctx.state.commitWith([SLICE.backups, SLICE.profiles, SLICE.bookmarks, SLICE.uploads, SLICE.icons, SLICE.settings], {
-    json: documents,
+  await ctx.state.commitWith([SLICE.backups, SLICE.profiles, ...LAUNCHPAD_SLICES, SLICE.uploads, SLICE.icons, SLICE.settings], {
+    json: backup.documents,
     deleteBlobs: previous,
     putBlobs,
   });
@@ -619,10 +652,12 @@ export async function commitImport(ctx: StaticContext, plan: ImportPlan): Promis
 /** What `GET /api/backups` lists (newest first). */
 export interface BackupInfo {
   id: string;
-  /** ISO timestamp of the import that replaced the data. */
+  /** ISO timestamp of the import or sync that replaced the data. */
   at: string;
   /** Size of the export document (characters). */
   bytes: number;
+  /** What it was taken before: an import, or a launch pad sync that replaced or removed a lot. */
+  reason: 'import' | 'sync';
 }
 
 /** The stored export document of a backup, or null. */
@@ -642,7 +677,7 @@ export async function ready(ctx: StaticContext): Promise<void> {
   const keys = new Set(await ctx.state.storage.listJsonKeys());
   const stored = ctx.state.has(SLICE.backups) ? ctx.state.get<unknown>(SLICE.backups, () => undefined) : undefined;
   const index = getBackups(ctx);
-  const entries = index.entries.filter((e) => keys.has(backupKey(e.id))).slice(0, MAX_BACKUPS);
+  const entries = keepBackups(index.entries.filter((e) => keys.has(backupKey(e.id)))).kept;
   const live = new Set(entries.map((e) => backupKey(e.id)));
   const stray = [...keys].filter((key) => key.startsWith(BACKUP_KEY_PREFIX) && !live.has(key));
   const rewrite = stored !== undefined && (stored !== index || entries.length !== index.entries.length);
@@ -681,7 +716,7 @@ export function register(router: StaticRouter): void {
   });
 
   router.get('/api/backups', (ctx) => {
-    const list: BackupInfo[] = getBackups(ctx).entries.map((e) => ({ id: e.id, at: new Date(e.at).toISOString(), bytes: e.bytes }));
+    const list: BackupInfo[] = getBackups(ctx).entries.map((e) => ({ id: e.id, at: new Date(e.at).toISOString(), bytes: e.bytes, reason: e.reason ?? 'import' }));
     return json(list);
   });
 

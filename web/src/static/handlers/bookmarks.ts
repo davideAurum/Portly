@@ -59,6 +59,7 @@ import {
   getBookmarks,
   getIcons,
   getSettings,
+  getUpgrades,
   ORPHAN_GRACE_MS,
   setSettings,
   SLICE,
@@ -67,6 +68,8 @@ import {
   type StoredBookmarkGroup,
 } from '../slices.ts';
 import { blobOf, type StoredBlob } from '../storage/types.ts';
+import { LAUNCHPAD_SLICES, nextStamp } from '../sync/clock.ts';
+import { withTombstones } from '../sync/tombstones.ts';
 import { compareOrder, writeImport } from './bookmarkImport.ts';
 
 /** Largest custom icon accepted (the server's MAX_UPLOAD_ICON_BYTES / multipart('upload') limit). */
@@ -106,12 +109,16 @@ function groupBookmarks(slice: BookmarksSlice, groupId: string): StoredBookmark[
   return slice.bookmarks.filter((b) => b.groupId === groupId).sort(compareOrder);
 }
 
-/** Writes sort = position for every row whose sort differs (the server's renumbering). */
+/**
+ * Writes sort = position for every row whose sort differs (the server's renumbering). A placement
+ * change: it stamps `placedAt`, never `updatedAt`, so a reorder here cannot undo a rename synced
+ * from another PC.
+ */
 function renumber(rows: readonly (StoredBookmark | StoredBookmarkGroup)[], ts: number): void {
   rows.forEach((row, index) => {
     if (row.sort !== index) {
       row.sort = index;
-      row.updatedAt = ts;
+      row.placedAt = ts;
     }
   });
 }
@@ -234,8 +241,9 @@ export function listGroups(ctx: StaticContext): BookmarkGroup[] {
   return orderedGroups(slice).map((group) => toGroup(group, (byGroup.get(group.id) ?? []).sort(compareOrder), view));
 }
 
+/** The slices a launch pad change commits: the rows and their clock, the icons when they changed. */
 function commitNames(iconsChanged: boolean, ...more: string[]): string[] {
-  return iconsChanged ? [SLICE.bookmarks, SLICE.icons, ...more] : [SLICE.bookmarks, ...more];
+  return iconsChanged ? [...LAUNCHPAD_SLICES, SLICE.icons, ...more] : [...LAUNCHPAD_SLICES, ...more];
 }
 
 // ---------------------------------------------------------------------------
@@ -302,8 +310,8 @@ export function register(router: StaticRouter): void {
     }
     // Groups the client did not mention (e.g. created elsewhere meanwhile) keep their relative order at the end.
     for (const group of current) if (!seen.has(group.id)) order.push(group);
-    renumber(order, ctx.now());
-    await ctx.state.commit(SLICE.bookmarks);
+    renumber(order, nextStamp(ctx));
+    await ctx.state.commit(...commitNames(false));
     return json({ groups: listGroups(ctx) } satisfies BookmarksResponse);
   });
 
@@ -313,18 +321,19 @@ export function register(router: StaticRouter): void {
     if (slice.groups.length >= MAX_BOOKMARK_GROUPS) {
       throw new StaticApiError('conflict', `You can have at most ${MAX_BOOKMARK_GROUPS} bookmark groups`);
     }
-    const ts = ctx.now();
+    const ts = nextStamp(ctx);
     const group: StoredBookmarkGroup = {
       id: ctx.newId(),
       name: input.name,
       sort: slice.groups.reduce((max, g) => Math.max(max, g.sort), -1) + 1,
       color: normalizeHexColor(input.color ?? null),
       collapsed: input.collapsed === true,
-      createdAt: ts,
+      createdAt: ctx.now(),
       updatedAt: ts,
+      placedAt: ts,
     };
     slice.groups.push(group);
-    await ctx.state.commit(SLICE.bookmarks);
+    await ctx.state.commit(...commitNames(false));
     return json(projectGroup(ctx, slice, group), 201);
   });
 
@@ -333,24 +342,24 @@ export function register(router: StaticRouter): void {
     const id = idParam(request);
     const slice = getBookmarks(ctx);
     const group = requireGroup(slice, id);
-    const ts = ctx.now();
     // Static field allowlist; sort never changes here.
     if (input.name !== undefined) group.name = input.name;
     if (input.color !== undefined) group.color = normalizeHexColor(input.color);
     if (input.collapsed !== undefined) group.collapsed = input.collapsed;
-    if (input.name !== undefined || input.color !== undefined || input.collapsed !== undefined) group.updatedAt = ts;
-    await ctx.state.commit(SLICE.bookmarks);
+    if (input.name !== undefined || input.color !== undefined || input.collapsed !== undefined) group.updatedAt = nextStamp(ctx);
+    await ctx.state.commit(...commitNames(false));
     return json(projectGroup(ctx, slice, group));
   });
 
   router.delete('/api/bookmark-groups/:id', async (ctx, request) => {
     const id = idParam(request);
     const slice = getBookmarks(ctx);
-    requireGroup(slice, id);
-    const ts = ctx.now();
+    const group = requireGroup(slice, id);
+    const ts = nextStamp(ctx);
     const removed = slice.bookmarks.filter((b) => b.groupId === id);
     slice.bookmarks = slice.bookmarks.filter((b) => b.groupId !== id); // cascade
     slice.groups = slice.groups.filter((g) => g.id !== id);
+    slice.deleted = withTombstones(slice.deleted, { groups: [group], bookmarks: removed }, ts, ctx.now());
     renumber(orderedGroups(slice), ts);
     let iconsChanged = false;
     for (const bookmark of removed) {
@@ -382,7 +391,7 @@ export function register(router: StaticRouter): void {
     const slice = getBookmarks(ctx);
     if (!slice.groups.some((g) => g.id === input.groupId)) throw new StaticApiError('validation_failed', 'The bookmark group does not exist');
     if (slice.bookmarks.length >= MAX_BOOKMARKS) throw new StaticApiError('conflict', `You can have at most ${MAX_BOOKMARKS} bookmarks`);
-    const ts = ctx.now();
+    const ts = nextStamp(ctx);
     const icon = iconColumns(ctx, input.iconMode ?? 'auto', input.iconId, input.url);
     const bookmark: StoredBookmark = {
       id: ctx.newId(),
@@ -393,8 +402,9 @@ export function register(router: StaticRouter): void {
       iconMode: icon.mode,
       iconId: icon.iconId,
       letterColor: normalizeHexColor(input.letterColor ?? null),
-      createdAt: ts,
+      createdAt: ctx.now(),
       updatedAt: ts,
+      placedAt: ts,
     };
     slice.bookmarks.push(bookmark);
     const iconsChanged = icon.mode === 'custom' && icon.iconId !== null && markReferenced(ctx, icon.iconId);
@@ -407,7 +417,7 @@ export function register(router: StaticRouter): void {
     const id = idParam(request);
     const slice = getBookmarks(ctx);
     const bookmark = requireBookmark(slice, id);
-    const ts = ctx.now();
+    const ts = nextStamp(ctx);
     const previousUrl = bookmark.url;
     const url = input.url ?? previousUrl;
     // Static field allowlist.
@@ -439,8 +449,10 @@ export function register(router: StaticRouter): void {
     const id = idParam(request);
     const slice = getBookmarks(ctx);
     const bookmark = requireBookmark(slice, id);
+    const ts = nextStamp(ctx);
     slice.bookmarks = slice.bookmarks.filter((b) => b.id !== id);
-    renumber(groupBookmarks(slice, bookmark.groupId), ctx.now());
+    slice.deleted = withTombstones(slice.deleted, { bookmarks: [bookmark] }, ts, ctx.now());
+    renumber(groupBookmarks(slice, bookmark.groupId), ts);
     const iconsChanged = iconModeOf(bookmark.iconMode) === 'custom' && bookmark.iconId !== null && markOrphaned(ctx, bookmark.iconId);
     await ctx.state.commit(...commitNames(iconsChanged));
     return noContent();
@@ -452,18 +464,18 @@ export function register(router: StaticRouter): void {
     const slice = getBookmarks(ctx);
     const bookmark = requireBookmark(slice, id);
     if (!slice.groups.some((g) => g.id === input.groupId)) throw new StaticApiError('validation_failed', 'The target group does not exist');
-    const ts = ctx.now();
+    const ts = nextStamp(ctx);
     const target = groupBookmarks(slice, input.groupId).filter((b) => b.id !== id);
     const index = Math.max(0, Math.min(input.index, target.length));
     target.splice(index, 0, bookmark);
     if (bookmark.groupId !== input.groupId) {
       const sourceId = bookmark.groupId;
       bookmark.groupId = input.groupId;
-      bookmark.updatedAt = ts;
+      bookmark.placedAt = ts;
       renumber(groupBookmarks(slice, sourceId), ts);
     }
     renumber(target, ts);
-    await ctx.state.commit(SLICE.bookmarks);
+    await ctx.state.commit(...commitNames(false));
     return json({ groups: listGroups(ctx) } satisfies BookmarksResponse);
   });
 
@@ -531,7 +543,7 @@ function setIcon(ctx: StaticContext, bookmark: StoredBookmark, mode: 'auto' | 'c
   const previousIconId = bookmark.iconId;
   bookmark.iconMode = mode;
   bookmark.iconId = iconId;
-  bookmark.updatedAt = ctx.now();
+  bookmark.updatedAt = nextStamp(ctx);
   let iconsChanged = false;
   if (previousMode === 'custom' && previousIconId && previousIconId !== iconId) iconsChanged = markOrphaned(ctx, previousIconId) || iconsChanged;
   if (mode === 'custom' && iconId) iconsChanged = markReferenced(ctx, iconId) || iconsChanged;
@@ -541,6 +553,19 @@ function setIcon(ctx: StaticContext, bookmark: StoredBookmark, mode: 'auto' | 'c
 // ---------------------------------------------------------------------------
 // Startup
 // ---------------------------------------------------------------------------
+
+/** Marker in the upgrades slice: the bookmarks slice has `placedAt` on every row and `deleted`. */
+export const SYNC_FIELDS_UPGRADE = 'bookmarks-sync-fields';
+
+/** Stores, once, the sync fields older rows get when read: `placedAt = updatedAt`, no tombstones. */
+async function upgradeSyncFields(ctx: StaticContext): Promise<void> {
+  const upgrades = getUpgrades(ctx);
+  if (upgrades.includes(SYNC_FIELDS_UPGRADE)) return;
+  const stored = ctx.state.has(SLICE.bookmarks);
+  getBookmarks(ctx); // fills the fields in memory
+  upgrades.push(SYNC_FIELDS_UPGRADE);
+  await ctx.state.commit(...(stored ? [SLICE.bookmarks] : []), SLICE.upgrades);
+}
 
 /**
  * Registers every stored custom icon as an object URL and runs the server's icon garbage
@@ -552,6 +577,7 @@ function setIcon(ctx: StaticContext, bookmark: StoredBookmark, mode: 'auto' | 'c
  * tab is finishing. Idempotent: safe to call again after an import replaced the slices.
  */
 export async function ready(ctx: StaticContext): Promise<void> {
+  await upgradeSyncFields(ctx);
   const now = ctx.now();
   const blobs = new Map<string, StoredBlob>();
   for (const blob of await ctx.state.listBlobs()) if (blob.kind === 'icon') blobs.set(blob.id, blob);

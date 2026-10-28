@@ -9,8 +9,9 @@
  *   URI is this site's own address; register it as a *Single-page application*)
  * - `PUT  /api/oauth-clients/microsoft {clientId}` (a secret is refused: public client)
  * - `POST /api/oauth/microsoft/start {accountId?, returnTo?, capabilities?}` → `{authorizeUrl}`; the
- *   services are checked against what the static build offers (the calendar) and mapped to their
- *   scopes as on the server (a reconnect asks for the granted services plus the ones named)
+ *   services are checked against what the static build offers (the calendar and launch pad sync)
+ *   and mapped to their scopes as on the server (a reconnect asks for the account's services plus
+ *   the ones named, which is how a service is added: incremental consent)
  * - `GET /api/accounts`, `PATCH /api/accounts/:id`, `DELETE /api/accounts/:id` (its calendars and
  *   their events go with it), `POST /api/accounts/:id/test` (forces a token refresh)
  * Google answers `409 not_configured`; app-password accounts stay in handlers/unavailable.ts. The
@@ -31,6 +32,12 @@
  * ends 24 hours after it was made; {@link planSilentReauth} renews it at page load with
  * `prompt=none` before (or once) it runs out, and when that cannot work the account shows
  * "Reconnect needed" as on the server.
+ *
+ * Scopes: an account keeps the scopes its last sign-in asked for (`requestedScopes`), and its
+ * services are those asked for and granted. Refreshes and automatic re-sign-ins ask for no more
+ * ({@link signInCapabilities}): Microsoft's `scope` answer lists every permission the account ever
+ * gave the registration, from any browser, and a refresh asking for one its sign-in did not ask
+ * for fails with `invalid_grant`. Adding a service is a new interactive sign-in.
  */
 import {
   AccountUpdateSchema,
@@ -61,6 +68,7 @@ import {
   MICROSOFT_DEFAULT_LABEL,
   MICROSOFT_DISPLAY_NAME,
   MICROSOFT_STATIC_CAPABILITIES,
+  MICROSOFT_STATIC_DEFAULT_CAPABILITIES,
   MICROSOFT_TOKEN_ENDPOINT,
   SPA_SESSION_MS,
   authorizeUrl,
@@ -68,6 +76,7 @@ import {
   decodeJwtClaims,
   grantedScopes,
   microsoftIdentity,
+  normalizeScopes,
   pkceChallenge,
   requestToken,
   scopesFor,
@@ -77,6 +86,7 @@ import {
 import { errorName, hostOf, recordProviderFailure } from '../providers/diagnostics.ts';
 import { StaticApiError, json, noContent } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';
+import { otherSyncConnection, secondSyncConnection } from '../sync/connections.ts';
 import {
   SLICE,
   getAccountTokens,
@@ -84,6 +94,7 @@ import {
   getCalendarSync,
   getOAuthClients,
   getOAuthStates,
+  getUpgrades,
   type StoredAccount,
   type StoredAccountTokens,
 } from '../slices.ts';
@@ -110,7 +121,7 @@ export const MESSAGES = Object.freeze({
 
 const NOT_IN_STATIC = 'Google accounts are not available in the browser-only build.';
 
-const CAPABILITY_NAMES: Readonly<Record<Capability, string>> = { calendar: 'Calendar', mail: 'Mail' };
+const CAPABILITY_NAMES: Readonly<Record<Capability, string>> = { calendar: 'Calendar', mail: 'Mail', launchpadSync: 'Launch pad sync' };
 
 // ---------------------------------------------------------------------------
 // Rows
@@ -145,6 +156,27 @@ function orderedAccounts(ctx: StaticContext): StoredAccount[] {
 /** Accounts whose calendars are synced: they offer the capability and the user switched it on (the server's `list({capability: 'calendar'})`). */
 export function calendarAccounts(ctx: StaticContext): StoredAccount[] {
   return orderedAccounts(ctx).filter((a) => a.capabilities.includes('calendar') && a.enabledCapabilities.includes('calendar'));
+}
+
+/** What a sign-in asked for before the requested scopes were recorded: the calendar was the only service. */
+const LEGACY_SIGN_IN_CAPABILITIES: readonly Capability[] = Object.freeze(['calendar']);
+
+/** Marker in the upgrades slice: every account row has its {@link StoredAccount.requestedScopes}. */
+export const REQUESTED_SCOPES_UPGRADE = 'account-requested-scopes';
+
+/** The scopes the account's last sign-in asked for (for an older row: what every sign-in then asked for). */
+function requestedScopesOf(row: StoredAccount): string[] {
+  return row.requestedScopes ?? normalizeScopes(scopesFor(row.capabilities.filter((c) => LEGACY_SIGN_IN_CAPABILITIES.includes(c))));
+}
+
+/**
+ * The services a refresh or a reconnect of this account may ask for: those its last sign-in asked
+ * for that are also in its grant. Never Microsoft's reported grants on their own (they list every
+ * permission the account ever gave the registration, from any browser), because a refresh asking
+ * for a scope its sign-in did not ask for fails with `invalid_grant`.
+ */
+export function signInCapabilities(row: StoredAccount): Capability[] {
+  return capabilitiesOf(requestedScopesOf(row)).filter((c) => row.capabilities.includes(c));
 }
 
 function findAccount(ctx: StaticContext, id: string): StoredAccount | undefined {
@@ -229,13 +261,14 @@ function checkCapabilities(named: readonly Capability[] | undefined): void {
 }
 
 /**
- * The services a sign-in asks for (the server's rule): a reconnect the account's granted ones plus
- * `named`; a new connection `named`, or everything offered when nothing is named. Never empty.
+ * The services a sign-in asks for (the server's rule): a reconnect the account's own ones
+ * ({@link signInCapabilities}) plus `named`; a new connection `named`. When that is nothing, the
+ * calendar: launch pad sync is asked for only when it was picked. Never empty.
  */
 function requestedCapabilities(named: readonly Capability[] | undefined, granted: readonly Capability[] | null): Capability[] {
   const wanted = [...(granted ?? []), ...(named ?? [])];
   const requested = MICROSOFT_STATIC_CAPABILITIES.filter((c) => wanted.includes(c));
-  return requested.length > 0 ? requested : [...MICROSOFT_STATIC_CAPABILITIES];
+  return requested.length > 0 ? requested : [...MICROSOFT_STATIC_DEFAULT_CAPABILITIES];
 }
 
 /** Stores a pending authorization (PKCE verifier, account, route, services) and returns Microsoft's sign-in URL. */
@@ -248,7 +281,7 @@ export async function startAuthorization(ctx: StaticContext, input: StartInput):
     const account = findAccount(ctx, input.accountId);
     if (!account) throw accountNotFound();
     accountId = input.accountId;
-    granted = account.capabilities;
+    granted = signInCapabilities(account);
   }
   const capabilities = requestedCapabilities(input.capabilities, granted);
   const codeVerifier = newToken(32);
@@ -346,8 +379,8 @@ export async function completeAuthorization(ctx: StaticContext, query: CallbackQ
   if (typeof query.code !== 'string' || query.code.length === 0 || query.code.length > MAX_CODE_LENGTH) return quiet('error');
 
   try {
-    // A sign-in started before the services were recorded asked for everything offered.
-    const requested = consumed.capabilities ?? [...MICROSOFT_STATIC_CAPABILITIES];
+    // A sign-in started before the services were recorded asked for the calendar's scopes.
+    const requested = consumed.capabilities ?? [...LEGACY_SIGN_IN_CAPABILITIES];
     const result = await connect(ctx, { code: query.code, codeVerifier: consumed.codeVerifier, reconnectId: consumed.accountId, requested });
     // A quiet renewal of the same account needs no message; anything else is worth one.
     return consumed.silent && result === 'reconnected' ? { result: null, returnTo } : { result, returnTo };
@@ -399,12 +432,14 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
     return 'error';
   }
   const granted = grantedScopes(tokens.scope, requestedScopes);
-  const capabilities = capabilitiesOf(granted);
+  // Only what this sign-in asked for: the grant also lists permissions given elsewhere.
+  const asked = normalizeScopes(requestedScopes);
+  const capabilities = capabilitiesOf(granted.filter((scope) => asked.includes(scope)));
   if (capabilities.length === 0) return 'denied';
   if (tokens.refreshToken === null) return 'error';
 
   // Another tab may have changed accounts since this page loaded.
-  await ctx.state.reload([SLICE.accounts, SLICE.accountTokens]);
+  await ctx.state.reload([SLICE.accounts, SLICE.accountTokens, SLICE.githubSync]);
   const accounts = getAccounts(ctx);
   const { identity } = verdict;
   const target = reconnectId === null ? undefined : accounts.find((a) => a.id === reconnectId);
@@ -417,9 +452,15 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
     existing.email = identity.email ?? existing.email;
     // Services granted for the first time start switched on when the sign-in asked for them.
     const offered = capabilities.filter((c) => existing.capabilities.includes(c) || requested.includes(c));
+    const wasSyncing = existing.enabledCapabilities.includes('launchpadSync');
     existing.enabledCapabilities = mergeEnabledCapabilities(existing.capabilities, existing.enabledCapabilities, offered);
+    // One sync connection per browser: newly granted sync stays off while another connection syncs.
+    if (!wasSyncing && otherSyncConnection(ctx, { accountId: existing.id }) !== null) {
+      existing.enabledCapabilities = existing.enabledCapabilities.filter((c) => c !== 'launchpadSync');
+    }
     existing.capabilities = capabilities;
     existing.grantedScopes = granted;
+    existing.requestedScopes = asked;
     existing.status = 'ok';
     existing.statusMessage = null;
     existing.updatedAt = now;
@@ -427,8 +468,10 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
     result = !reconnecting || existing.id === target.id ? 'reconnected' : 'different_account';
   } else {
     // Services granted to Portly earlier but not asked for now are listed, switched off.
-    const enabled = capabilities.filter((c) => requested.includes(c));
-    if (enabled.length === 0) return 'denied';
+    // One sync connection per browser: sync stays off while another connection syncs.
+    const syncTaken = otherSyncConnection(ctx, {}) !== null;
+    const enabled = capabilities.filter((c) => requested.includes(c) && !(c === 'launchpadSync' && syncTaken));
+    if (enabled.length === 0 && !capabilities.some((c) => requested.includes(c))) return 'denied';
     accountId = ctx.newId();
     accounts.push({
       id: accountId,
@@ -440,6 +483,7 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
       capabilities,
       enabledCapabilities: enabled,
       grantedScopes: granted,
+      requestedScopes: asked,
       status: 'ok',
       statusMessage: null,
       sort: accounts.reduce((max, a) => Math.max(max, a.sort + 1), 0),
@@ -585,8 +629,8 @@ async function refresh(ctx: StaticContext, account: StoredAccount, record: Store
     client_id: clientId,
     grant_type: 'refresh_token',
     refresh_token: used,
-    // Only the granted services' scopes: Microsoft refuses a refresh for more than was consented to.
-    scope: scopesFor(account.capabilities).join(' '),
+    // Only what the last sign-in asked for: Microsoft refuses a refresh for more (invalid_grant).
+    scope: scopesFor(signInCapabilities(account)).join(' '),
   });
   // Re-read after the request: a reload (another tab's change) replaces the slice objects.
   const now = ctx.now();
@@ -664,6 +708,20 @@ async function refreshFailure(ctx: StaticContext, account: StoredAccount, record
 }
 
 // ---------------------------------------------------------------------------
+// One-time upgrade
+// ---------------------------------------------------------------------------
+
+/** Records, once, the scopes older account rows asked for (the calendar's: the only service then). */
+export async function ready(ctx: StaticContext): Promise<void> {
+  const upgrades = getUpgrades(ctx);
+  if (upgrades.includes(REQUESTED_SCOPES_UPGRADE)) return;
+  const accounts = getAccounts(ctx);
+  for (const row of accounts) row.requestedScopes = requestedScopesOf(row);
+  upgrades.push(REQUESTED_SCOPES_UPGRADE);
+  await ctx.state.commit(...(accounts.length > 0 ? [SLICE.accounts] : []), SLICE.upgrades);
+}
+
+// ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
 
@@ -713,7 +771,7 @@ export function register(router: StaticRouter): void {
       if (unsupported.length > 0) {
         const issues: ValidationIssue[] = unsupported.map((c) => ({
           path: 'enabledCapabilities',
-          message: `${c === 'calendar' ? 'Calendar' : 'Mail'} is not available for this account`,
+          message: `${CAPABILITY_NAMES[c]} is not available for this account`,
           code: 'custom',
         }));
         throw new StaticApiError('validation_failed', 'Capabilities not available for this account', issues);
@@ -727,6 +785,10 @@ export function register(router: StaticRouter): void {
     if (patch.color !== undefined) {
       row.color = patch.color === null ? null : normalizeHexColor(patch.color);
       changed = true;
+    }
+    if (patch.enabledCapabilities?.includes('launchpadSync') && !row.enabledCapabilities.includes('launchpadSync')) {
+      const other = otherSyncConnection(ctx, { accountId: row.id });
+      if (other !== null) throw secondSyncConnection(other);
     }
     let syncChanged = false;
     if (patch.enabledCapabilities !== undefined) {
