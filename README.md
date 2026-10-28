@@ -90,8 +90,7 @@ client that refuses private-network addresses. Details: [ARCHITECTURE §4](docs/
 
 ## Install
 
-No release is published yet, so until the first one, use the
-[quick start from the source code](#quick-start-from-the-source-code) below. Once a release is out:
+In PowerShell:
 
 ```powershell
 irm https://davideaurum.github.io/install.ps1 | iex

@@ -6,8 +6,7 @@ on Windows without Git, Node.js, npm or administrator rights. People install it 
 PC) and update it with `portly --update`. A Git checkout
 ([SETUP.md](../SETUP.md#from-the-source-code)) is for developing Portly.
 
-No release is published yet. The repository is still private, and `publish-release.ps1` refuses
-to publish from a private repository.
+Published releases: [github.com/davideAurum/Portly/releases](https://github.com/davideAurum/Portly/releases).
 
 ## What the package holds
 
@@ -133,8 +132,9 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    empty one, and warns while the heading still says "not released yet". `-Notes "<Markdown>"`
    replaces them.
 
-5. **Publish the Pages site** as usual (`scripts\publish-static.ps1`) so its `install.ps1` is the
-   current one.
+5. **Publish the Pages site** (`scripts\publish-static.ps1`) from the checkout the release was
+   built from, still at its tag, so the site's `install.ps1` and `setup.ps1` are the released
+   ones.
 
 Or let GitHub Actions do 2–4: **Actions → Release → Run workflow** builds, checks and keeps the
 package as an artifact; tick **publish** and a second job publishes it with the workflow's own token

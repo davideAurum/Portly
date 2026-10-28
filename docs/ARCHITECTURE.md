@@ -1477,7 +1477,8 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   handling, Todoist mapping.
 - The production build runs without CSP violations. No automated step covers this: it is checked by hand before
   every release, for both `web/dist` and `web/dist-static` ([Releases](setup/releases.md#cutting-a-release), step 3).
-  Last checked 2026-10-25 at 5d1a4df, in Chromium: zero violations in both builds.
+  Last checked 2026-10-28 on the 0.2.0-alpha.1 release branch (b32a114, and 8ac94dc's Add widget text), in
+  Chromium and Edge: zero violations in both builds.
 
 ---
 

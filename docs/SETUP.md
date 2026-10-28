@@ -17,9 +17,6 @@ Setup takes three parts — the first is enough to try it out:
 
 ## Install
 
-> No release is published yet, so this method does not work yet. Until the first release, install
-> [from the source code](#from-the-source-code).
-
 The release package carries everything Portly needs, its own Node.js included: no Git, Node.js,
 npm or administrator rights. In PowerShell:
 
@@ -126,10 +123,6 @@ PowerShell:
 ```powershell
 irm https://davideaurum.github.io/setup.ps1 | iex
 ```
-
-> Until the repository is public ([roadmap](ROADMAP.md) phase 5), this command and the
-> [quick start](#quick-start) below work only for the repository's owner, because both need a
-> clone of a private repository.
 
 The script comes from the Pages site: the static build adds a copy, so every publish updates it.
 To pass options:

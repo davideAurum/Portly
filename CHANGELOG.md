@@ -4,7 +4,7 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
-## 0.2.0-alpha.1 (not released yet)
+## 0.2.0-alpha.1 (2026-10-28)
 
 The first alpha of Portly, the new name of Homebase. Ships with new-tab extension 0.5.3.
 
@@ -18,6 +18,9 @@ The first alpha of Portly, the new name of Homebase. Ships with new-tab extensio
   background job, with the server log and a downloadable report.
 - **Two ways to run it:** Portly on your PC (a local server started by the new-tab extension or at
   sign-in), or the browser-only site on GitHub Pages, which can pair with Portly on your PC.
+- **Other PCs:** one Portly can serve your other PCs and phones through Tailscale Serve, inside
+  your own tailnet. You approve each device once on the main PC
+  ([Other PCs](docs/setup/other-pcs.md)).
 - **Install from a release package** with `install.ps1`, which needs no Git, Node.js or npm.
   `portly --update` installs newer releases. When an update fails, the previous version and your
   database are put back.
@@ -32,4 +35,5 @@ The first alpha of Portly, the new name of Homebase. Ships with new-tab extensio
 - The new-tab extension is loaded unpacked. It is not in the Chrome Web Store or Edge Add-ons yet.
 - Connecting a Google or Microsoft account needs your own app registration
   ([Google](docs/setup/google.md), [Outlook.com](docs/setup/microsoft.md)).
-- Windows 11 only. One server per PC, reachable from that PC only.
+- Windows 11 (x64) only. One Portly server per PC, listening on that PC only; other devices reach
+  it only through Tailscale Serve on the main PC, once you approve them.
