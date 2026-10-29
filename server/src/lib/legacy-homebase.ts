@@ -3,7 +3,8 @@
  * Homebase's database and vault key into its own data folder only when asked to: a request file
  * `copy-from-homebase.json` in Portly's data folder, written by `scripts/install-autostart.ps1` (the
  * switch-over) or `portly --copy-from-homebase`. A plain first start (`npm start`, a dev server)
- * never copies, so it cannot freeze an early snapshot. Homebase's folder is left exactly as it was.
+ * never copies, so it cannot freeze an early snapshot. Homebase's database file is never changed
+ * (SQLite may leave an empty `-wal` and a `-shm` file beside it: see `vacuumInto`).
  *
  * - Where: `homebase.db` in Portly's data folder itself (PORTLY_DATA_DIR naming a folder Homebase
  *   used, as an earlier installer set it up), else in Homebase's own folder: the one
@@ -26,7 +27,8 @@
  *   rather than starting with an empty database that would hide Homebase's for good. A missing or
  *   unreadable Homebase database is a permanent failure; `portly --copy-from-homebase --cancel`
  *   withdraws the request.
- * - Never: delete Portly's database or key, change Homebase's files, or leave a partial `portly.db`.
+ * - Never: delete Portly's database or key, change Homebase's database or key, or leave a partial
+ *   `portly.db`.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -129,7 +131,11 @@ function isFile(file: string): boolean {
   }
 }
 
-/** `VACUUM INTO target` from `source`: read-only first, so nothing is written next to Homebase's file. */
+/**
+ * `VACUUM INTO target` from `source`: read-only first, so Homebase's database is never written. On a
+ * WAL database with no `-wal`/`-shm` beside it (a cleanly stopped Homebase) SQLite still creates an
+ * empty `-wal` and a `-shm` there, which a read-only connection cannot remove; they are harmless.
+ */
 function vacuumInto(source: string, target: string): void {
   const attempt = (readOnly: boolean): void => {
     const db = new DatabaseSync(source, { readOnly });
@@ -143,8 +149,8 @@ function vacuumInto(source: string, target: string): void {
   try {
     attempt(true);
   } catch {
-    // A read-only connection cannot open a WAL database whose -shm file is missing; a normal one can
-    // (it reads only: VACUUM INTO writes nothing but the target).
+    // If the read-only connection fails, a normal one is tried; it still only reads, since
+    // VACUUM INTO writes nothing but the target.
     fs.rmSync(target, { force: true });
     attempt(false);
   }

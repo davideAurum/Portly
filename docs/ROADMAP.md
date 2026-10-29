@@ -5,7 +5,7 @@ the next one starts. Anything that makes something public (pushing, releases, th
 consent pages) or touches another PC waits for an explicit go-ahead, asked at the moment it is
 reached.
 
-Status as of 2026-10-28.
+Status as of 2026-10-29.
 
 This plan comes from a full review of the code, the docs, the git history and the work sessions on
 2026-10-20, with everything CI runs green at cd547e3 (3,691 tests, 317 script checks, 27 release
@@ -15,11 +15,11 @@ checks).
 | --- | --- | --- |
 | 0 | Make the move from Homebase safe | Done ([details](#done-before-this-plan)) |
 | 1 | Baseline and a truthful public surface | Done (1.8's real run waits for the next `portly --update`, see the checks table) |
-| 2 | Prove what is built, on this PC | In progress: 2.1, 2.3 and 2.5 done |
-| 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
+| 2 | Prove what is built, on this PC | In progress: 2.1, 2.3 and 2.5 done; 2.4's built-in-browser checks done 2026-10-29, its Edge and Firefox checks open |
+| 3 | Every PC on Portly, Homebase retired | In progress: 3.1 done 2026-10-29 in scratch folders; 3.5 written. Since 2026-10-29 the other PCs connect to this PC's Portly instead of running their own (F11), so 3.2 to 3.4 were rewritten |
 | 4 | Release rehearsal in private | Done (4.3 found and fixed an update bug; 4.4's second run-through, in 5.2 and 5.5, found nothing missing) |
-| 5 | Go public and publish 0.2.0-alpha.1 | Done 2026-10-28: the repository is public and 0.2.0-alpha.1 [published](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.1); 5.6 skipped (its portal steps stay open) |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress, the next slice. On main since 2026-10-28: 6.1 to 6.6 built for OneDrive and GitHub; the real checks of 6.5 and 6.6 and D9 wait for you |
+| 5 | Go public and publish 0.2.0-alpha.1 | Done 2026-10-28: the repository is public and 0.2.0-alpha.1 [published](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.1); 5.6 done 2026-10-29 |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress, the next slice. On main since 2026-10-28: 6.1 to 6.6 built for OneDrive and GitHub; D9 decided 2026-10-29 (the site stays where it is); the real checks of 6.5 and 6.6 wait for you |
 
 ## How this roadmap is used
 
@@ -77,14 +77,20 @@ checks).
   Microsoft connection per browser" became one sync connection per browser, Microsoft or GitHub
   (design section 6.10).
 - **D9 Custom domain.** Accept and document the shared-origin risk of the Pages site now; decide
-  again before the sync engine (6.5) ships.
+  again before the sync engine (6.5) ships. *Decided again 2026-10-29:* the site stays at
+  `https://davideaurum.github.io/` for 0.2.0-alpha.2, risk accepted. Only the owner's own
+  repositories publish there. Moving the app under a path such as `/portly-site/` would not help:
+  a browser shares storage per origin (scheme, host and port), not per path. Revisit when anyone
+  else uses the site.
 - **D10 Multi-PC.** One server with an approve-from-the-main-PC login over Tailscale Serve is built
   only after the first public release and an explicit go; fact-finding only when Tailscale and a
   second tailnet device exist.
 - **F11 Other PCs.** One or more still run Homebase, so phase 3 stays as written, for each other
-  PC.
+  PC. *Changed 2026-10-29:* the other PCs stop running a server of their own. Each removes Homebase
+  and connects to this PC's Portly through Tailscale Serve (Track B), so 3.2 to 3.4 were rewritten.
 - **F12 Yahoo.** No Yahoo account is connected on this PC's installed Portly: 2.6 adds the Yahoo
-  preset with an app password.
+  preset with an app password. *2026-10-29:* the owner has a Yahoo account and makes the app
+  password during 2.6.
 - **F13 Tailscale.** Not installed, and there is no second tailnet device: the multi-PC probes are
   parked until both exist.
 - **F14 Extension privacy text.** A section on `site/privacy.html`, at the URL the consent screens
@@ -483,7 +489,9 @@ Items:
     the server restarted with `http://localhost:5174/`: its own Settings > About listed the
     pairing as **Old address**, the site went to **Reconnecting…**, the log had `health check
     from another site (no CORS answer)`, and **Revoke** removed the pairing. **Approve** did not
-    act while the pane was hidden, as the arming intends.
+    act while the pane was hidden, as the arming intends. (On 2026-10-29 one click into the
+    approval page while the pane was hidden did arm it after a second: the embedded pane then
+    reports the page as visible and focused. Only a page nobody has clicked into stays unarmed.)
 
   Refusals in the installed server's log during the run: only the one `token_revoked`, which the
   revoke step is meant to produce. `pairing_required` and `local_only` never appeared: the site
@@ -510,6 +518,28 @@ Items:
 
   *Done when:* one dated line per item with its criterion met; defects become fixes with tests or
   parked lines with a reason.
+
+  *Status:* the checks the desktop app's Chromium browser pane can make passed on 2026-10-29,
+  against scratch servers at 8e98986; no defect found. The Wikipedia suggestions passed on
+  2026-10-28 in the pre-release CSP check (checks table).
+  - **Set location:** focus reached the location field 1.1 s after the click (the pane was hidden,
+    so animation frames ran about once a second); when focus was already inside the dialog, the
+    field was never focused in the next 12 s.
+  - **Settings > Bookmarks:** Groups, Preferences, then Import & export, on the server's page and
+    on the static build.
+  - **Add widget's Calendar card** on a scratch static build paired with a scratch server: the
+    Outlook.com-only text while browser only, then Google, Outlook.com, Yahoo, CalDAV and ICS once
+    paired, the same as the server's own page.
+  - **A hidden tab** (the pane hides a background tab 30 s after the last tool call on it): the
+    local server probe went from about 30 s to 61 s apart, the clock stopped and caught up on
+    return, the diagnostics upload stopped and restarted 15 s after the tab came back, and the
+    query cache was saved once when the tab was hidden. Chrome's intensive throttling (over
+    5 minutes hidden) was not reached.
+
+  Still open, all in the owner's browsers: the Weather location prompt flow, frosted glass and
+  the baked blur in a visible window (DevTools Layers), the EXIF, GIF and SVG backgrounds in Edge
+  and Firefox, the lighthouse as the extension's New Tab page and in Firefox, and a Firefox smoke
+  run of the browser-only site.
 
 - **2.5 Production builds without CSP violations** (S; after 1.1).
   Serve `web/dist` from a scratch server (scratch `PORTLY_PORT` and `PORTLY_DATA_DIR`,
@@ -563,18 +593,20 @@ Items:
 
 ## Phase 3: Every PC on Portly, Homebase retired
 
-Prove the switch-over fixes with a real DPAPI key in scratch folders, then switch each other PC
-from a checklist and archive the Homebase repository. One or more other PCs still run Homebase, so
-the phase stays as written. This phase does not gate the release: another PC is touched only after
-3.1 and 2.2, and nothing here holds phase 5 back. The release package and the failed-update
+Prove the switch-over fixes with a real DPAPI key in scratch folders, then move each other PC off
+Homebase and archive the Homebase repository. Since 2026-10-29 (F11) the other PCs do not run a
+server of their own: each removes Homebase and uses this PC's Portly through Tailscale Serve
+([Using Portly from your other PCs](setup/other-pcs.md), Track B). This phase does not gate a
+release: another PC is touched only after 3.1 and 2.2. The release package and the failed-update
 rehearsal live in 4.3, where a real scheduled task exists on a clean account.
 
 Done when:
 - The scratch rehearsal passed with a real DPAPI-protected key and the real data folder untouched.
-- Each other PC: `portly --status` green, Settings > About shows the vault unlocked, every account
-  green without reconnecting, the extension starts the server, the Pages site is paired.
-- `docs/setup/add-a-pc.md` was followed verbatim at least once and corrected where a step was
-  missing.
+- Each other PC: Homebase's task, server and New Tab extension gone, an export of its Homebase
+  data kept; its browser connected to this PC's Portly through Serve and approved here; the
+  widgets load there; Settings > Devices on this PC lists it.
+- `docs/setup/other-pcs.md` was followed verbatim at least once, including a new part for a PC
+  that ran Homebase, and corrected where a step was missing.
 - The browser-side `-NoHomebaseCopy` behaviour is documented (or the opt-out is tested).
 - davideAurum/Homebase is archived; the phase 3 row of the status table reads Done with the PC
   count and the date.
@@ -599,6 +631,34 @@ Items:
   decrypts (the Todoist token answers `/api/todoist`, not just "vault unlocked"); the real data
   folder's timestamps unchanged; dated line.
 
+  *Status:* done 2026-10-29 at 8e98986, in scratch folders on ports 5810 to 5812, with the
+  installed Portly on 5757 never sent a request. Every Done-when point passed:
+  - **The copy.** The second folder's `migrated-from-homebase.json` says `copied` from the scratch
+    Homebase folder, with `homebase.db -> portly.db` and `vault.key`; the log has the same list,
+    then `vault: ready`. No `vault.key.unreadable-*` file. The server reports Homebase's instance
+    id, so pairings keyed by it carry over.
+  - **The secret decrypts.** The Todoist route is `GET /api/todoist/tasks` (there is no
+    `/api/todoist`). It answered `token_rejected` after Todoist's 401 for the fake token, not
+    `reauth_required` or "not connected". Saving a token needs a live Todoist account (the server
+    checks it with Todoist first), so the fake token was written with the server's own vault code
+    while the server was stopped. A fake Google OAuth client saved through the API also decrypted
+    (the sign-in start built its URL).
+  - **The key swap** (`"replace": true` over a folder with its own database and key): both moved
+    aside with one time stamp, Homebase's key in place, and the moved-aside pair still opened.
+  - **In the browser** (a scratch static build with hybrid mode off): the `homebase:` settings
+    copied once behind `portly:migrated-from-homebase`, with an existing Portly value kept; the
+    IndexedDB copy made to fail part-way tried on three loads and then gave up, and a copy that
+    failed once succeeded on the next load.
+  - **The real data folder** had the same timestamps before and after.
+
+  Not run, as planned: the extension and host refusing a Homebase health answer (b5f5cc5) and the
+  one-time `HOMEBASE_*` variable copy, which need a real Homebase PC and the installer. Two
+  findings, both fixed in the same commit's comments and docs: copying leaves an empty
+  `homebase.db-wal` and a `-shm` beside a cleanly stopped Homebase's database (the database itself
+  unchanged), which three comments in `legacy-homebase.ts` and ARCHITECTURE section 19 denied;
+  and a copy that gives up after three loads is reported only in the browser's console, not in
+  Diagnostics (parked under *Revisit after phase 6*).
+
 - **3.2 Per-PC checklist page** (S).
   `docs/setup/add-a-pc.md` (not `other-pcs.md`, which multi-pc.md reserves for the Tailscale
   guide): `setup.ps1` or the release installer, what `-NoHomebaseCopy` does and that browsers
@@ -618,26 +678,33 @@ Items:
   Homebase. Every step was checked against the scripts and the guides it links, not yet against a
   PC: that is 3.3.
 
-- **3.3 Switch the first other PC over** (M; go-ahead; after 3.1, 3.2).
-  You run the checklist on the PC you use most after this one, with Claude in the session. Confirm
-  the vault unlocked with the key copied from Homebase, accounts work without reconnecting, the
-  extension starts the server through the native host (and, if Homebase's server is still running
-  when Portly's extension first loads, that the extension refuses its health answer and starts
-  Portly, b5f5cc5), and the new tab is the Pages site paired with that PC. This run confirms 3.1
-  on a real Homebase PC; it is not the first test.
+  *Changed 2026-10-29 (F11):* the other PCs connect instead of installing, so Adding a PC is no
+  longer followed in this phase; it stays for anyone who wants a second server. This item now
+  adds a part to [Using Portly from your other PCs](setup/other-pcs.md) for a PC that ran
+  Homebase: export its Homebase data to a file and keep it (this PC's Portly already holds the
+  accounts; import only what is missing, after a backup here); stop Homebase's server and remove
+  its `\Homebase Server` task and `com.homebase.launcher` keys, the steps Portly's installer takes
+  (`Remove-HbLegacyInstall`), as commands that need no Portly on that PC; remove its New Tab
+  extension; delete
+  `%LOCALAPPDATA%\Homebase` once Portly works there; and what that PC's New Tab shows now, since
+  the extension cannot open another PC's Portly yet (B.6). Checked against Homebase's scripts,
+  then followed verbatim in 3.3.
 
-  *Done when:* `portly --status` green; Settings > About shows the vault unlocked and the paired
-  browser; every account's health subject green; a diagnostics report saved; dated line.
+- **3.3 Move the first other PC off Homebase** (S; go-ahead; after 3.1, 3.2, and 2.2 for the
+  accounts this PC serves).
+  On the PC you use most after this one, with Claude in the session: the new part of other-pcs.md
+  verbatim, then connect that PC's browser through Serve and approve it from Portly's own page
+  on this PC (checks table: the approval from this PC's own page and the name the connect screen
+  fills in).
 
-- **3.4 Switch the remaining PCs** (S; go-ahead; after 3.3).
-  The same checklist on each remaining PC; fix anything the first switch exposed before the next
-  one. Use `-Trigger Logon` on any PC that should start Portly at sign-in rather than from the
-  extension (only dry runs have covered it): sign out and in;
-  `schtasks /query /tn "\Portly Server" /v` must show the logon trigger, and `/api/health` must
-  answer without opening a tab.
+  *Done when:* Homebase's task and extension are gone there and the export file kept; Settings >
+  Devices here lists the PC; its widgets load through Serve; dated line; other-pcs.md corrected
+  where a step was missing.
 
-  *Done when:* the same four checks per PC plus the named Logon-trigger check where used; the
-  phase 3 row names the count and the date.
+- **3.4 The remaining PCs** (S; go-ahead; after 3.3).
+  The same on each remaining PC; fix anything the first one exposed before the next.
+
+  *Done when:* the same checks per PC; the phase 3 row names the count and the date.
 
 - **3.5 Browser-side -NoHomebaseCopy behaviour** (S; after 3.2).
   Document plainly in SETUP that browsers copy `homebase:` localStorage keys and the IndexedDB
@@ -1288,7 +1355,8 @@ Items:
   `ETag`/`cTag` compared with Graph's; `*.files.1drv.com` stays out of the allowlist until then;
   (2) the CSP check on `preview:static`, which needs a connected account with sync on to make the
   new requests (6.6 adds the switch; for now `enabledCapabilities` would have to be set by hand);
-  (3) the D9 custom-domain decision before this ships.
+  (3) the D9 custom-domain decision before this ships (decided 2026-10-29: the site stays at
+  davideaurum.github.io).
 
 - **6.6 Accounts and UI for sync (design phase 4)** (M; after 6.5).
   The service checkbox and status line on the Microsoft connection card, the incremental-consent
@@ -1497,7 +1565,7 @@ date and the outcome once a row has been run for real.
 | The Weather widget's place name from a real browser location (the browser pane blocks location, so the check faked the position; the server's real Nominatim lookup did answer with the expected city) | this commit, 2026-10-25 | owner's next use with *Use this device's location* | not yet |
 | The place name on the browser-only build (Pages): the browser calling Nominatim directly under its CSP; only unit tests and the built CSP were checked | this commit, 2026-10-25 | 2.5 (CSP check before a release) | 2026-10-25 (2.5): on `preview:static`, *Use my location* with a faked position called nominatim.openstreetmap.org (200) with no CSP violation and named the place; a real browser location prompt is still the row above |
 | A whole failed update (`install.ps1` putting the previous version and its database back); only the database restore step was tried on a temporary folder, because the whole path needs the real scheduled task | 1b8005b, 2026-10-20 | 4.3 | 2026-10-27 (4.3): failed before the rollback was reached. A Portly tab restarted the server mid-update and `Move-Item` split `app` in two (4.3's status). Fixed in b75af65. 2026-10-27 (4.3 rerun): passed. A package that exits at start-up was rolled back, the database copy was put back with `portly-failed-*` kept, and the old version served 0.2.0-alpha.1 again |
-| The settings dialog's focus change (it keeps looking for the requested field for 10 s and stops once focus has moved inside the dialog), by hand in a browser; only the new tests cover it | 29347b8, 2026-10-19 | 2.4 | not yet |
+| The settings dialog's focus change (it keeps looking for the requested field for 10 s and stops once focus has moved inside the dialog), by hand in a browser; only the new tests cover it | 29347b8, 2026-10-19 | 2.4 | 2026-10-29 (2.4, built-in browser, scratch server): focus reached the location field 1.1 s after **Set location**; with focus already inside the dialog, the field was never focused within 12 s |
 | The browser-only build's Outlook.com sign-in on the published Pages address itself: the same sign-in and sync check, the automatic 24-hour renewal and writing an event (the localhost copy passed) | 3b3edd7, 2026-10-19 | 2.1 | 2026-10-26 (2.1): passed on the published site with a real account, reported by the owner: connect, sync, an event created, edited and deleted and seen in Outlook, the renewal after more than 24 hours |
 | The OneDrive spike (sign-in, app folder reads and writes, cross-origin download URLs) in Firefox and Safari; only the desktop app's Chromium-based browser pane was used | 3b3edd7, 2026-10-19 | 6.7 (Firefox smoke run); Safari stays unsupported | not yet |
 | The browser-only build's own automatic token renewal (`planSilentReauth`) against a real Outlook.com account; the spike only sent the same `prompt=none` request by hand | 3b3edd7, 2026-10-19 | 2.1 | 2026-10-26 (2.1): reopening the site more than 24 hours after the connect renewed the sign-in with no "Reconnect needed", and after consent was withdrawn it fell back to Reconnect (reported by the owner) |
@@ -1506,14 +1574,14 @@ date and the outcome once a row has been run for real.
 | A real Google or Microsoft sign-in through the new Accounts flow (connect, choose services, Manage adding a service by incremental consent); the tests and the hand check used fakes | 9cce15e, 2026-10-19 | 2.2 | not yet |
 | Whether Microsoft's consent screen shows only the requested services' scopes on a sign-in through Portly's own flow (the spike saw the incremental-consent screen list only the added permission, but from a scratch page) | 9cce15e, 2026-10-19 | 2.2 | not yet |
 | The **Wikipedia suggestions instead** switch (Settings > Search in the browser-only build) and the search wording it changes, in a real browser; 8bb97b1's localhost check covered the earlier always-on fallback only | 65dae13, 2026-10-19 | 2.4 | 2026-10-28 (pre-release CSP check): on `preview:static` in the desktop app's Chromium pane, Google had no suggestions until the switch was on, then "mount rainier" listed six Wikipedia titles, with no CSP violation |
-| The reordered Settings > Bookmarks page (Groups, Preferences, then Import & export) in a browser; only the earlier order (0b63e51) was looked at | 0f23788, 2026-10-19 | 2.4 | not yet |
+| The reordered Settings > Bookmarks page (Groups, Preferences, then Import & export) in a browser; only the earlier order (0b63e51) was looked at | 0f23788, 2026-10-19 | 2.4 | 2026-10-29 (2.4): Groups, Preferences, then Import & export, on the server's page and on the static build |
 | The browser-only site on a PC where Portly is running but not paired (the footer label and the Diagnostics link in that case); unit tests only | 8bb97b1, 2026-10-19 | 2.3; the Diagnostics link 2.4 | 2026-10-26 (2.3): the footer read **Found, not paired** in Chrome on the published site; the Diagnostics link in that state was not looked at |
-| The Calendar card's text in **Add widget** on a Pages site paired with Portly (it should read like the server's own page: Google, Outlook.com, Yahoo, CalDAV and ICS); only the unit test, the server build and the unpaired browser-only build were looked at | Calendar card commit, 2026-10-28 | the next hybrid pairing check in a browser | not yet |
-| The retried copy of Homebase's IndexedDB database in a real browser (a copy that fails part-way, then the next load trying again and giving up after three loads); unit tests only | f0d5331, 2026-10-19 | 3.1 | not yet |
-| The vault key swap during a Homebase copy (Homebase's key moved in, Portly's kept beside its old database) with a real DPAPI-protected key; the tests use plain files | 1860efe, 2026-10-19 | 3.1 | not yet |
-| The 2026-10-19 switch-over fixes on a real Homebase PC: the extension and native host refusing a Homebase health answer (b5f5cc5), `HOMEBASE_DATA_DIR` read as the copy source (d14862a) and the one-time `HOMEBASE_*` variable copy (7eaee9c); fakes and temporary folders only | b5f5cc5, 2026-10-19 | 3.1 (scratch folders), 3.3 (a real Homebase PC) | not yet |
+| The Calendar card's text in **Add widget** on a Pages site paired with Portly (it should read like the server's own page: Google, Outlook.com, Yahoo, CalDAV and ICS); only the unit test, the server build and the unpaired browser-only build were looked at | Calendar card commit, 2026-10-28 | the next hybrid pairing check in a browser | 2026-10-29 (2.4, a scratch static build paired with a scratch server): the Outlook.com-only text while browser only; Google, Outlook.com, Yahoo, CalDAV and ICS once paired, as on the server's own page |
+| The retried copy of Homebase's IndexedDB database in a real browser (a copy that fails part-way, then the next load trying again and giving up after three loads); unit tests only | f0d5331, 2026-10-19 | 3.1 | 2026-10-29 (3.1, built-in browser, scratch static build): a copy failing part-way left `copy:homebase-pending` at 1, 2, then 3 attempts with a console warning on each load, then gave up (a repaired source was not copied on the fourth load); a copy that failed once succeeded on the next load. The give-up shows only in the console, not in Diagnostics |
+| The vault key swap during a Homebase copy (Homebase's key moved in, Portly's kept beside its old database) with a real DPAPI-protected key; the tests use plain files | 1860efe, 2026-10-19 | 3.1 | 2026-10-29 (3.1, scratch folders, real DPAPI keys): the folder's own `portly.db` and `vault.key` moved to `.before-homebase-<time>` with one stamp and Homebase's key put in place, vault ready; the moved-aside pair still opened, and Homebase's key did not decrypt it |
+| The 2026-10-19 switch-over fixes on a real Homebase PC: the extension and native host refusing a Homebase health answer (b5f5cc5), `HOMEBASE_DATA_DIR` read as the copy source (d14862a) and the one-time `HOMEBASE_*` variable copy (7eaee9c); fakes and temporary folders only | b5f5cc5, 2026-10-19 | 3.1 (scratch folders); the real-Homebase-PC parts: none planned, since the other PCs no longer install Portly (F11, 2026-10-29) | 2026-10-29 (3.1): `HOMEBASE_DATA_DIR` read as the copy source, Portly keeping its own folder (d14862a). Not run: b5f5cc5 and the one-time `HOMEBASE_*` variable copy (7eaee9c), which need a real Homebase PC and the installer |
 | The retry when setting a fresh program copy's modification time hits a sharing violation during a real install or update (the holder never reproduced in 110 runs; Defender real-time protection is the likely one) | 8f5fe93, 2026-10-19 | 4.3 and 5.5 (watch for it) | 2026-10-27 (4.3, first run): not seen in the install, the switch to Logon mode or `portly --start`; the updates stopped before they refreshed the copies, so keep watching. 2026-10-27 (4.3 rerun): not seen in two updates and a rollback, but the copies were already up to date each time (same Node.js), so the refresh itself still has not run in an update. 2026-10-28 (5.2, 5.5): not seen in two installs, three updates and a rollback on a fresh account |
-| Hidden-tab behaviour (stopped clock and upload timers, the once-a-minute local server probe, the throttled cache save) with a real hidden tab instead of simulated visibility events | 3407dfc, 2026-10-18 | 2.4 (2.3 checked only the reload) | not yet |
+| Hidden-tab behaviour (stopped clock and upload timers, the once-a-minute local server probe, the throttled cache save) with a real hidden tab instead of simulated visibility events | 3407dfc, 2026-10-18 | 2.4 (2.3 checked only the reload) | 2026-10-29 (2.4, built-in browser, 231 s hidden): the local server probe about every 61 s instead of 30 s, the clock stopped and caught up on return, the diagnostics upload stopped and restarted 15 s after return, the query cache saved once on hide. Chrome's intensive throttling (over 5 minutes hidden) not reached |
 | The hybrid pairing check in a real browser: a pairing change reloads each background tab only when you switch to it, after one more probe | 3407dfc, 2026-10-18 | 2.3 | 2026-10-26 (2.3): in Chrome, a background tab across a server stop and restart reloaded only when switched to, and its Diagnostics > This browser showed the switch deferred, then performed (reported by the owner; the server log has the restarts) |
 | Pairing in Edge (Local network access prompt, approval, **Connected**); 2.3 ran in Chrome only, the Edge pairing deferred by the owner | 5d45cda, 2026-10-26 | the owner's next Edge use (4.3 used Chrome only) | not yet |
 | An update with a Portly tab open on a real account after the fix: the task disabled during the swap and enabled again, the rollback with the task disabled, and the Reload notice. `check-release.ps1` covers only the all-or-nothing rename, because it has no real task | b75af65, 2026-10-27 | 4.3 (the rerun) | 2026-10-27 (4.3 rerun): with a Portly tab open, both updates moved their folders the first time and the task was enabled again before `install-autostart.ps1` ran; the rollback and the Reload notice worked. Whether the disabled task actually turned away a launcher request was not observed, because nobody watched the tab during the swap |
@@ -1525,20 +1593,20 @@ date and the outcome once a row has been run for real.
 | The Weather widget's location prompt flow in a real browser (permission already granted, *Use my location*, a one-time *Allow this time*); the browser APIs are faked in the tests | 82fb2f8, 2026-10-13 | 2.4 | not yet |
 | The animated lighthouse logo in Firefox and as the extension's New Tab page; frames were checked by eye in Chromium only | 7657e96, 2026-10-13 | 2.4 | not yet |
 | A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | not yet |
-| A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | 3.5 documents the browser side; a real run only if a PC in 3.4 starts from scratch | not yet |
+| A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | none: the other PCs connect instead of installing (F11, 2026-10-29); 3.5 documents the browser side | not yet |
 | The next real `portly --update`: the dirty-tree refusal and the fetch/fast-forward messages for real, and a publish that writes `.gitattributes` to the live Pages clone (which makes the live `install.ps1` byte-equal to the built one) | 1.8, 2026-10-21 | 5.4, or the next republish of the Pages site | 2026-10-28 (5.4, `publish-static.ps1`): `.gitattributes` written and the live `install.ps1` byte-equal to the built one; the clone was level with its origin, so no fast-forward message. The dirty-tree refusal and the fast-forward still wait for a real `portly --update` from a checkout |
-| `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: it must install Node 24 (today winget's `OpenJS.NodeJS.LTS`, later `OpenJS.NodeJS.24`) and stop on another major; checked only with `node.exe` hidden from PATH on this PC | 1.11, 2026-10-21 | 3.3 (the first other PC); 4.3 installed a release package, which needs no Node.js | not yet |
+| `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: it must install Node 24 (today winget's `OpenJS.NodeJS.LTS`, later `OpenJS.NodeJS.24`) and stop on another major; checked only with `node.exe` hidden from PATH on this PC | 1.11, 2026-10-21 | none planned: the other PCs connect instead (F11, 2026-10-29); the next PC that installs Portly with `setup.ps1` | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | 2026-10-25 (2.5, at 749ec2f): zero violations in both builds in Chromium; 2026-10-28 (before 0.2.0-alpha.1, at 6ac3731): zero in both builds in Chromium and Edge; repeat before every release (releases.md step 3) |
 | The CSP check with a search-suggestion request, a feed with a real URL, and in Edge and Firefox; the 2026-10-25 run had suggestions off, no feed, and only the desktop app's Chromium-based browser pane | 2.5, 2026-10-25 | the pre-release CSP check before 5.3 | 2026-10-28 (at 6ac3731): no violation with Google suggestions on the server build, Wikipedia suggestions on the browser-only build, and an RSS feed with a real URL (hnrss.org) in the Chromium pane; the owner's pass in Edge (settings, every widget, a search) showed none either. Firefox not run (not installed; Chromium is the supported browser for the alpha) |
 | The "Other PCs: not set" lines of `status.ps1` on a PC without `PORTLY_REMOTE_ORIGIN`, in a checkout and in a release install: only their strings; the checks ran with the variable set on this PC | B.5 commit, 2026-10-21 | the next PC without the variable (3.3); 4.3 ran only `portly --status`, whose summary leaves the line out | 2026-10-28 (5.2): `portly --settings` on a release install without the variable showed "Other PCs : not set (PORTLY_REMOTE_ORIGIN: this PC only; ...)"; a checkout without the variable is still unchecked |
-| Approving another PC from Portly's own page on a main PC that has a Pages site (`#/settings/devices` now stays there, and the Pages site links to it): only the forward's and the page's unit tests; the first real approve went through the local API | B.5 approve commit, 2026-10-21 | the owner's next approve from this PC | not yet |
-| The connect screen's name filled in on the second PC through Serve (its computer name): only `curl` with a forwarded address against a scratch server on this PC, which asked the real Tailscale, and the web tests with a mocked answer | B.6 name commit, 2026-10-21 | the owner's next connect from the second PC (the row above) | not yet |
+| Approving another PC from Portly's own page on a main PC that has a Pages site (`#/settings/devices` now stays there, and the Pages site links to it): only the forward's and the page's unit tests; the first real approve went through the local API | B.5 approve commit, 2026-10-21 | 3.3 (the owner's next approve from this PC) | not yet |
+| The connect screen's name filled in on the second PC through Serve (its computer name): only `curl` with a forwarded address against a scratch server on this PC, which asked the real Tailscale, and the web tests with a mocked answer | B.6 name commit, 2026-10-21 | 3.3 (the owner's next connect from another PC) | not yet |
 | The name suggestion on a main PC without Tailscale installed (every lookup null, nothing spawned, one log line at start): only the executable rule with a fake environment and the test stub; this PC has Tailscale | B.6 name commit, 2026-10-21 | none yet: Tailscale is installed for every account on this PC, so 4.3 could not try it; a PC without Tailscale | not yet |
 | The name lookup's in-flight cap (four processes at most) against real `tailscale.exe` processes: six addresses at once finished too fast to hit it on this PC; the unit test pins it | B.6 name commit, 2026-10-21 | a later check with a slow or stalled Tailscale | not yet |
 | Connecting an Android phone through Tailscale Serve (the connect screen, the code, the `__Host-` cookie in Chrome on Android, the stacked layout below 768 px, the name Tailscale suggests for a phone): documented from the code only; every real check used a second Windows PC | phone docs commit, 2026-10-25 | the owner's first connect from a phone | not yet |
 | The Reload notice as the last lines of a real update in a visible PowerShell window (`install.ps1` now prints it after "Updated Portly"); only `check-release.ps1`'s temporary install, whose captured output the console wraps | 4.4 commit, 2026-10-27 | 5.2, or the first release that changes the extension version | 2026-10-28 (5.2): an update to a copy with extension 0.5.4, run in a visible window, ended with the yellow warning as its last line |
-| [Adding a PC](setup/add-a-pc.md) followed verbatim on a real PC, from the install to green Diagnostics; written from the scripts and guides only | 4.4 commit, 2026-10-27 | 3.3 | not yet |
-| A fresh browser profile on a PC that ran Homebase: the browser-side copy with `-NoHomebaseCopy`, and deleting the site's data after the first visit leaving it empty, as SETUP and Adding a PC now say | 4.4 commit, 2026-10-27 | 3.3 (3.5's check) | not yet |
+| [Adding a PC](setup/add-a-pc.md) followed verbatim on a real PC, from the install to green Diagnostics; written from the scripts and guides only | 4.4 commit, 2026-10-27 | none planned: the other PCs connect instead (F11, 2026-10-29); 3.3 follows other-pcs.md | not yet |
+| A fresh browser profile on a PC that ran Homebase: the browser-side copy with `-NoHomebaseCopy`, and deleting the site's data after the first visit leaving it empty, as SETUP and Adding a PC now say | 4.4 commit, 2026-10-27 | 3.3, if that PC's browser opens the Pages site | not yet |
 | Browser-only accounts remembering the scopes their last sign-in asked for, against a real Outlook.com account whose grant lists more (refresh, renewal and Reconnect with no `invalid_grant` loop); only static tests with a faked token endpoint | 6.1 commit, 2026-10-27 | 6.6 | not yet |
 | The Microsoft tile's **Launch pad sync** checkbox in a real browser on the browser backend, and its absence on a paired (server-backend) page; only the settings tests with mocked answers | 6.2 commit, 2026-10-27 | 6.6 | not yet |
 | The `bookmarks-sync-fields` upgrade on a real browser's existing launch pad (IndexedDB data from before 6.3) and the stamps after real edits across two tabs; only static tests over memory storage | 6.3 commit, 2026-10-27 | 6.7 | not yet |
@@ -1589,6 +1657,11 @@ date and the outcome once a row has been run for real.
   finding the port; a remote port and Tailscale Serve HTTPS port per user, with device cookies
   named per server (`__Host-portly_device` is shared by every port of one host); a two-account
   rehearsal like 4.3 with both installs running. Asked about on 2026-10-28; no need yet.
+- **Tell the user when a browser's Homebase copy gives up.** After three failed loads
+  `copyLegacyStaticDatabase` (`web/src/static/storage/idb.ts`) stops trying and says so only in
+  the console; Diagnostics shows nothing, and the user is never told Homebase's in-browser data
+  was not copied (3.1). A client diagnostics event, or a line in the guides, would do. Low
+  priority: the case ends once no browser has Homebase data left.
 - **Multi-PC** moved to [Track B](#track-b-multi-pc) on 2026-10-21, on the explicit go D10 asked
   for; the loopback-only contract is kept (the listener never changes, other PCs arrive through an
   HTTPS proxy on the main PC), the two login questions are answered in design/multi-pc.md, and the
@@ -1623,7 +1696,8 @@ date and the outcome once a row has been run for real.
   domain changes `PORTLY_PAGES_URL`, the Single-page application redirect, the CSP `pagesOrigin`
   and the docs, and repeats 2.1 and 2.3. Hybrid mode's trust of the whole Pages origin and
   `frame-ancestors` on GitHub Pages are the same question (ARCHITECTURE 4.1, static-build.md);
-  the mitigations in place are write-only secrets and no probing while framed.
+  the mitigations in place are write-only secrets and no probing while framed. *Decided again
+  2026-10-29 (D9):* kept for 0.2.0-alpha.2; revisit when anyone else uses the site.
 - **The published release on a secondary PC.** A release install can only update from
   GitHub releases, so a test package would freeze that PC until 5.3 or force a reinstall; the
   rollback and Reload-notice checks moved to 4.3, which has the real scheduled task. After 5.3,

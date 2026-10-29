@@ -2002,8 +2002,10 @@ over, never moved or deleted:
   start never copies. Source: the first of `<data dir>/homebase.db` and the `homebase.db` in Homebase's own folder: the
   one HOMEBASE_DATA_DIR names (resolved like PORTLY_DATA_DIR), else — only with PORTLY_DATA_DIR unset too — Homebase's
   default folder. HOMEBASE_DATA_DIR is only read as that source; Portly keeps its own folder. `VACUUM INTO` a temporary
-  file (consistent while an old server still has it open; read-only connection first, a normal one when WAL needs it;
-  SQLITE_BUSY/LOCKED, EBUSY, EPERM and EACCES retried, 3 attempts), then the rename to `portly.db`. An existing
+  file (consistent while an old server still has it open; read-only connection first, a normal one if that fails;
+  SQLITE_BUSY/LOCKED, EBUSY, EPERM and EACCES retried, 3 attempts), then the rename to `portly.db`. `homebase.db` itself
+  is never written, but SQLite leaves an empty `homebase.db-wal` and a `-shm` beside a WAL database that had none
+  (seen in 3.1's rehearsal, 2026-10-29). An existing
   `portly.db` is kept (marker `kept-portly-database`, request dropped, warning) unless `replace`, which first moves it
   and its `-wal`/`-shm` to `portly.db.before-homebase-<time>`. The vault key travels with the database it encrypts: when
   the database comes from another folder, Homebase's `vault.key` takes the place of Portly's (DPAPI is per user, not per
