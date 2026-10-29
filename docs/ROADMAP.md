@@ -1688,6 +1688,17 @@ date and the outcome once a row has been run for real.
 - **A *Combine both* first-sync option matching by group name and URL.** The first sync defaults
   to *Use the synced launch pad* with *Replace* as the alternative; combine is the only expensive
   option with no proven need.
+- **How the installer looks in the terminal** (the owner's note, 2026-10-29, after installing
+  0.2.0-alpha.1 on the main PC with `irm .../install.ps1 | iex`). The run prints
+  `install-autostart.ps1`'s developer summary (repository, Node.js and supervisor paths, the
+  native host's extension ID, "checked with server\src\config.ts"), the full text of the
+  `portly.cmd` and `portly` shims, Task Manager notes and a stale "its ID is now fixed ... if you
+  loaded it before this version" line. It names checkout paths that mean nothing in a release
+  install (`scripts\status.ps1`, `scripts\uninstall-autostart.ps1`, `docs\setup\extension.md`
+  rather than `portly --status` and the online docs), and says "open a new terminal" and
+  "Portly is installed" twice each. Aim: a few numbered steps and one result line, the details
+  behind `-Verbose` or in a log. `check-scripts.ps1` reads some of this output, so its checks
+  change in the same commit.
 - **ARCHITECTURE sections 14 and 15.** Correctly retired; nothing to do.
 
 ## Done before this plan
