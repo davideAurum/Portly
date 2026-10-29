@@ -1090,8 +1090,8 @@ Items:
   name Portly, the three portly-site links and the same redirect URI. Its client went from
   1Password straight into the installed Portly (`PUT /api/oauth-clients/google`, the secret in
   neither a command nor its output), and the one Google account was reconnected: status `ok`,
-  Portly's account test ok for calendar and mail. Left: shut down the old project once nothing
-  needs it, and the Azure name.
+  Portly's account test ok for calendar and mail. The owner shut the old project down the same
+  day (Google deletes it after 30 days). Left: the Azure name.
 
 - **5.7 Close the loop** (S; after 5.5).
   Roadmap statuses, an "Unreleased" CHANGELOG section, the memory note, and Known limits still true
