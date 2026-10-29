@@ -83,6 +83,8 @@ Homebase; see "Renamed from Homebase".
   enforces this). Prefer releases older than 7 days.
 - In `pwsh` steps use one command per step, because only the last exit code counts.
 - `release.yml` and `static-pages.yml` are manual and publish publicly.
+- Pushes to main start no CI run in this repository (a fault on GitHub's side, ROADMAP 5.7).
+  After pushing, start one with `gh workflow run ci.yml --ref main` and check that it passes.
 
 ## Docs and commits
 - Update README, `docs/SETUP.md`, `docs/setup/*.md`, ARCHITECTURE and the README of the folder
