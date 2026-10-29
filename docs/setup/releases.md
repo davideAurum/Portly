@@ -13,6 +13,7 @@ Published releases: [github.com/davideAurum/Portly/releases](https://github.com/
 | Path | What |
 | --- | --- |
 | `release.json` | Name, version, platform, Node.js version, extension version, commit, build time, and the repository it updates from |
+| `LICENSE`, `THIRD_PARTY_NOTICES.md` | Portly's MIT License and the notices of the data it carries from other projects (the Unicode CLDR time zone table) |
 | `runtime\node.exe`, `runtime\LICENSE` | The Node.js runtime pinned in `scripts\release\node-runtime.json` (downloaded from nodejs.org and checked against its SHA-256) |
 | `server\`, `shared\` | The server's TypeScript sources, without tests, fixtures and test helpers (Node runs them directly, as in a checkout) |
 | `node_modules\` | The production dependencies of the server only (`npm ci --omit=dev` for the server and shared workspaces): no web, build or test packages |
