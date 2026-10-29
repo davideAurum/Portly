@@ -1564,7 +1564,7 @@ try {
                 Assert-That -Name 'publish-static.ps1 refuses to plan a push when the target has no remote' -Condition (
                     $publishNoRemote.ExitCode -eq 1 -and $publishNoRemote.Text.Contains('nothing to push to')) -Detail $publishNoRemote.Text
 
-                # Another site's repository (homebase-site, <user>.github.io): never emptied without -ReplaceEverything.
+                # Another site's repository (portly-site, <user>.github.io): never emptied without -ReplaceEverything.
                 $foreignRepo = & $newPagesRepo 'publish-foreign' @{ 'index.html' = '<html>my site</html>'; 'privacy.html' = 'privacy'; 'README.md' = 'readme' }
                 $publishForeign = & $run 'publish-static.ps1' @('-PublicRepoPath', $foreignRepo, '-DryRun', '-NoPush')
                 $foreignText = & $flat $publishForeign.Text

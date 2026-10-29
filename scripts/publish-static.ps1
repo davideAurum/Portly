@@ -22,7 +22,7 @@
 
     It DELETES EVERY TRACKED FILE (except CNAME and README.md) of the repository it is given. Use a
     new, empty public repository created for this site; never point it at a repository that holds
-    other pages (such as homebase-site or <user>.github.io with its own files).
+    other pages (such as portly-site or <user>.github.io with its own files).
 
     Safety rails: the folder must be the root of a git repository with a branch checked out and a
     clean working tree (no uncommitted changes, no untracked files), and it must not be this

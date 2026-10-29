@@ -41,8 +41,8 @@ listing assets and developer accounts. The details are in
 [Releases](../docs/setup/releases.md#the-new-tab-extension-load-unpacked-no-store-listings).
 
 The extension's privacy statement is the "The new-tab extension" section of
-[`site/privacy.html`](../site/privacy.html), published at the kept homebase-site address
-`https://davideaurum.github.io/homebase-site/privacy.html`.
+[`site/privacy.html`](../site/privacy.html), published at
+`https://davideaurum.github.io/portly-site/privacy.html`.
 
 ## How it works
 

@@ -1990,9 +1990,11 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
 
 User guide: `docs/SETUP.md` (Coming from Homebase). Everything was renamed (PORTLY_* variables, `@portly/*`,
 `X-Portly` headers, `app: 'portly'` in health, the **Portly Server** task, `com.portly.launcher`,
-`%LOCALAPPDATA%\Portly` with `portly.db`, `portly:` browser keys, `portly-export`) except three literals existing
-data depends on: the vault canary `homebase-vault-canary-v1`, the bookmark import source seed and the published
-`homebase-site` URL. What an existing Homebase install wrote is carried over, never moved or deleted:
+`%LOCALAPPDATA%\Portly` with `portly.db`, `portly:` browser keys, `portly-export`) except two literals existing
+data depends on: the vault canary `homebase-vault-canary-v1` and the bookmark import source seed. The public pages
+(`site/`) moved from `davideAurum/homebase-site` to `davideAurum/portly-site` in October 2026; the old repository keeps
+redirect pages, because the 0.2.0-alpha.1 footer links there. What an existing Homebase install wrote is carried
+over, never moved or deleted:
 
 - **Data** (`server/src/lib/legacy-homebase.ts`, start-up phase `legacy` between `port-probe` and `db`): only on an
   explicit request, `<data dir>/copy-from-homebase.json` (`{requestedAt, replace}`), written by `install-autostart.ps1`

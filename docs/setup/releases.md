@@ -193,8 +193,8 @@ What a store listing would need first (parked in [ROADMAP](../ROADMAP.md#parked-
   privacy answers.
 
 **The extension's privacy statement** is the "The new-tab extension" section of
-`site/privacy.html`, published at the kept homebase-site address,
-`https://davideaurum.github.io/homebase-site/privacy.html`. A store listing would link there.
+`site/privacy.html`, published at
+`https://davideaurum.github.io/portly-site/privacy.html`. A store listing would link there.
 
 ## Limits of the alpha packages
 

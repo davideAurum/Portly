@@ -26,6 +26,9 @@ the release ([ROADMAP](docs/ROADMAP.md#phase-6-launch-pad-sync-shipped-as-020-al
   [Browser-only build](docs/setup/static-build.md).
 - **Outlook.com on the browser-only site** remembers which permissions its last sign-in asked for,
   so turning on a second service later doesn't break the automatic renewal.
+- **New address for the public pages:** the footer's **Privacy** and **Terms** links go to
+  `https://davideaurum.github.io/portly-site/`. The old homebase-site addresses, which
+  0.2.0-alpha.1 links to, redirect there.
 
 ## 0.2.0-alpha.1 (2026-10-28)
 

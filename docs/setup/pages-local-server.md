@@ -281,9 +281,10 @@ the connection events above, are.
 ## Security: one site, every page on it
 
 Browsers trust per **origin** (scheme + host), not per page. `https://<user>.github.io` is one
-origin for **every** GitHub Pages site of that account — the Portly site, `/homebase-site/` and
-any other project you publish there. In a paired browser, any script running on any page of that
-origin can read the pairing and use Portly on this PC just like the Portly site can:
+origin for **every** GitHub Pages site of that account — the Portly site, `/portly-site/` (and
+the redirect pages left at `/homebase-site/`) and any other project you publish there. In a
+paired browser, any script running on any page of that origin can read the pairing and use Portly
+on this PC just like the Portly site can:
 
 - read and change your dashboards, settings, bookmarks and uploads, your Todoist tasks, calendars
   and mail; connect and remove accounts, set the OAuth clients, reset the vault, and list or revoke

@@ -27,7 +27,7 @@ describe('Footer', () => {
     expect(nav).toContainElement(screen.getByRole('link', { name: 'Settings' }));
     expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '#/settings/about');
     const privacy = screen.getByRole('link', { name: 'Privacy' });
-    expect(privacy).toHaveAttribute('href', 'https://davideaurum.github.io/homebase-site/privacy.html');
+    expect(privacy).toHaveAttribute('href', 'https://davideaurum.github.io/portly-site/privacy.html');
     expect(privacy).toHaveAttribute('target', '_blank');
     expect(privacy).toHaveAttribute('rel', 'noopener noreferrer');
   });

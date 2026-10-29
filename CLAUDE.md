@@ -21,7 +21,7 @@ Homebase; see "Renamed from Homebase".
 | `extension/` | MV3 new-tab extension, plain JS, no build step |
 | `native-host/` | `com.portly.launcher` (`launcher.mjs` + `launcher.cmd` template) |
 | `scripts/` | PowerShell install/start/status/release/publish scripts; helpers in `scripts/lib/Common.ps1` |
-| `site/` | Static home/privacy/terms pages for OAuth consent screens |
+| `site/` | Static home/privacy/terms pages for OAuth consent screens, published to `davideAurum/portly-site` |
 | `docs/` | `ARCHITECTURE.md`, `SETUP.md`, `setup/*.md` |
 
 ## Commands
@@ -113,12 +113,13 @@ install over:
 - `copyLegacyStaticDatabase` in `web/src/static/storage/idb.ts`;
 - `Get-HbLegacyPlan`, `Invoke-HbLegacyEnvCopy`, `Suspend-`/`Resume-HbLegacyServer`,
   `Remove-HbLegacyInstall` and the `*HomebaseCopy*` helpers in `scripts/lib/Common.ps1`;
-- import of `homebase-export` files and acceptance of `homebase-build` publishes.
+- import of `homebase-export` files and acceptance of `homebase-build` publishes;
+- the redirect pages in `davideAurum/homebase-site`. The 0.2.0-alpha.1 footer and old consent
+  screens link there, so keep that repository and its Pages site up.
 
 Do not rename:
 - the vault canary `homebase-vault-canary-v1`;
 - the bookmark import source seed;
-- the published `homebase-site` URLs;
 - the `--hb-*` CSS custom properties and `hb-*` classes in `web/src`. They keep the old prefix
   on purpose, like the PowerShell `Hb` helpers;
 - the legacy code above.

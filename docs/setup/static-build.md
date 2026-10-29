@@ -170,7 +170,7 @@ the built files — no source code, and never your data, which stays in your bro
 **Create a NEW, EMPTY public repository just for this site** (`portly-pages` in the examples).
 Publishing deletes every tracked file of the repository it is given — only `CNAME` and
 `README.md` survive — so never point it at a repository that already serves other pages, such as
-`homebase-site` or your `<user>.github.io`. For a user site, `<user>.github.io` must be a
+`portly-site` or your `<user>.github.io`. For a user site, `<user>.github.io` must be a
 repository you do not use for anything else yet.
 
 One-time setup:
@@ -239,7 +239,7 @@ pushes `web\dist-static` to the public repository's `gh-pages` branch with
 [peaceiris/actions-gh-pages](https://github.com/peaceiris/actions-gh-pages) (set that
 repository's Pages source to `gh-pages` / root). Like the script, it replaces that branch
 completely on every run (`force_orphan`), so `public_repo` must be the new, empty repository made
-for this site, never `homebase-site`, `<user>.github.io` with its own pages, or Portly itself
+for this site, never `portly-site`, `<user>.github.io` with its own pages, or Portly itself
 (the workflow refuses its own repository).
 
 The actions are pinned to full commit SHAs on purpose (`actions/checkout@<sha> # v5.1.0`): a tag

@@ -26,7 +26,7 @@
 # The build output already contains .nojekyll (web/public/.nojekyll); peaceiris adds one anyway.
 #
 # Every run REPLACES the whole gh-pages branch of public_repo (force_orphan), so public_repo must be
-# the repository created for this site - never one with other pages (homebase-site,
+# the repository created for this site - never one with other pages (portly-site,
 # <user>.github.io) and never this repository (refused by the first step).
 #
 # The actions are pinned to full commit SHAs on purpose: a tag such as @v4 can be moved to other

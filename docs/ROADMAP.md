@@ -58,7 +58,9 @@ checks).
   shell-quote via concurrently, source-map-js), drop `@tanstack/query-sync-storage-persister`, pin
   engines to `>=24 <25` in the root `package.json`.
 - **D4 Consent pages.** Republish the privacy and terms pages now, with true Portly text and a new
-  effective date, at the existing homebase-site URLs (1.5, 1.6).
+  effective date, at the existing homebase-site URLs (1.5, 1.6). Superseded on 2026-10-29: the
+  pages moved to `https://davideaurum.github.io/portly-site/` and homebase-site keeps redirect
+  pages (5.7).
 - **D5 Pages redirect.** Register `https://davideaurum.github.io/` as a *Single-page application*
   redirect in the Azure app registration now (1.4), the same day as the Pages republish (1.3).
 - **D6 What gates what.** Other PCs (phase 3) wait for 3.1 (the scratch DPAPI rehearsal) and 2.2
@@ -240,7 +242,8 @@ Items:
   finished within a minute. The live privacy and terms pages say Portly with "Effective October
   21, 2026", the home page names the browser-only site, "Homebase" appears once (the "formerly"
   line), the three consent-screen URLs answer 200, and the new font file is served. The clone
-  gained `*.woff2 binary` in its `.gitattributes`.
+  gained `*.woff2 binary` in its `.gitattributes`. On 2026-10-29 the pages moved to
+  davideAurum/portly-site and homebase-site became redirect pages (5.7).
 
 - **1.7 One hygiene commit: advisories, persister, engine pin** (S; go-ahead; after 1.1).
   One commit that clears the open advisories, drops the unused persister and pins the Node major,
@@ -654,8 +657,8 @@ Items:
 
 - **3.6 Archive the Homebase repository** (S; go-ahead; after 3.4).
   After every PC is switched: delete its leftover branches and archive davideAurum/Homebase (it
-  stays private). homebase-site is not archived: the consent screens link to it and CLAUDE.md
-  keeps its URLs.
+  stays private). homebase-site is not archived: since 2026-10-29 it holds redirect pages to
+  portly-site, which the 0.2.0-alpha.1 footer and old consent-screen links reach (5.7).
 
   *Done when:* `gh repo view davideAurum/Homebase --json isArchived` is true; the phase 3 row reads
   Done.
@@ -1114,8 +1117,16 @@ Items:
     deletion) and "Protect release tags" (`v*`: no move, no deletion), with no bypass. Approval for
     outside contributors' runs stays at GitHub's default (first-time contributors), the owner's
     choice.
-  - **The privacy page** is not republished: the owner asked why it still lives at the
-    homebase-site address, so where the consent pages live is decided first.
+  - **The consent pages moved** (the owner's choice and go-ahead, 2026-10-29). The owner asked
+    why they still lived at the homebase-site address. They now live in a new public repository,
+    davideAurum/portly-site, served at `https://davideaurum.github.io/portly-site/` (Pages from
+    main, root; a3e1892, a copy of `site/` at 61e589f). homebase-site kept its name and history
+    and got redirect pages (79c351d): `index.html`, `privacy.html` and `terms.html` each refresh
+    to the same page at the new address and link to it, and a `404.html` sends anything else to
+    the new home page. A new repository rather than a rename, because reusing a renamed-away
+    name is the likely cause of the missing push CI runs above. The footer (`SITE_URL`),
+    google.md and the other docs name the new address. The Google console's Branding links are
+    the owner's to change (checks table).
 
 ## Phase 6: Launch pad sync, shipped as 0.2.0-alpha.2
 
@@ -1298,7 +1309,7 @@ Items:
 - **6.7 Docs, republish and the two-browser test (design phase 5)** (M; go-ahead; after 6.6).
   static-build.md, microsoft.md, ARCHITECTURE sections 1, 4.1, 10.5, 16 and 17, a README line;
   `site/privacy.html` (it names neither the OneDrive app folder nor the GitHub repository yet) and
-  its republish, wherever the consent pages live by then (5.7's status);
+  its republish to davideAurum/portly-site (5.7's status);
   `portly --update` (with 1.8's dirty-tree refusal in place); then Chrome and Edge (and a second
   PC) on one account: add, rename, move, delete and reorder on each side, an offline edit, a
   forced conflict, a first sync on a fresh browser, consent withdrawal; record the download host
@@ -1528,7 +1539,8 @@ date and the outcome once a row has been run for real.
 | Launch pad sync through the owner's private repository end to end: two browsers converging, a forced race, the `304` check, the first file in the empty repository, a revoked token pausing sync and a new one resuming it, GitHub plus a Microsoft connection giving `several_sources`; only the engine and scheduler against the in-memory GitHub (`sync/github.test.ts`) | G.3 hookup commit, 2026-10-27 | 6.6, G.3 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | 2026-10-28 (5.5): the footer said **Not checked** until **Look for Portly on this PC** (the docs now say so); seven widgets; Outlook.com with the owner's registration showed events; export then import worked |
 | A push to main starting CI in the new repository: neither the first push nor 59fff7c's push started a run; `workflow_dispatch` runs did | 5.1, 2026-10-28 | GitHub Support, if you want it fixed; meanwhile CI is started by hand after each push (CLAUDE.md) | 2026-10-28 (5.7): 3b0e9f9's push started none either. GitHub got all three pushes (the `cursor` and `claude` apps created check suites on each), but Actions created none and `actions/runs?event=push` counts 0. Ruled out: workflow state (all three active), Actions permissions, skip markers, push options, rulesets or webhooks (none then), settings against the old repository, a GitHub incident. Likely GitHub-side state from reusing the renamed repository's name. 084dee4's push started none. The CI workflow was disabled and enabled again, and f6a5152's push (2026-10-29 04:47Z) started none either: the fault is GitHub's. `workflow_dispatch` on f6a5152 was green (40820053201) |
-| The live privacy page republished from `site/` (the copy at the homebase-site address, linked from every install and the consent screens, is the 2026-10-21 text without the Nominatim place lookup and the other-PC device records) | 5.3 review, 2026-10-28 | the owner's go-ahead (1.6's procedure) | 2026-10-28 (5.7): not republished. The owner asked why the pages still live at the homebase-site address; decide where the consent pages live first (`site/` on main equals the tagged one) |
+| The live privacy page republished from `site/` (the copy at the homebase-site address, linked from every install and the consent screens, is the 2026-10-21 text without the Nominatim place lookup and the other-PC device records) | 5.3 review, 2026-10-28 | the owner's go-ahead (1.6's procedure) | 2026-10-28 (5.7): not republished; the owner asked why the pages still lived at the homebase-site address. 2026-10-29 (5.7, the owner's go-ahead): published to davideAurum/portly-site. `curl` got 200 and the same bytes as `site/` for all nine files at `https://davideaurum.github.io/portly-site/`; the privacy page says "Effective October 25, 2026" and has the Nominatim place lookup and the other-PC records. The homebase-site home, privacy and terms URLs answer 200 with a refresh to the same page there (the built-in browser landed on each); a missing page or an old asset answers 404 with a refresh to the new home page |
+| The Google Cloud console's Branding links (home page, privacy policy, terms) changed to `https://davideaurum.github.io/portly-site/` and saved, and the consent screen linking there; until then they reach the new pages through the homebase-site redirects | portly-site commit, 2026-10-29 | the owner, in the console; the next real Google sign-in (6.6 or 6.7) | not yet |
 | The settings GitHub offers only public repositories: private vulnerability reporting, secret scanning and push protection, approval for outside contributors' pull request runs, rulesets for main and the `v*` tags | 5.1 review, 2026-10-28 | the owner's go-ahead | 2026-10-28 (5.7, the owner's go-ahead): vulnerability reporting, secret scanning and push protection on; rulesets "Protect main" (no force push or deletion) and "Protect release tags" (`v*`, no move or deletion) active with no bypass, all read back through the API. Outside contributors' runs: kept at first-time contributors, the owner's choice |
 | The new rulesets and push protection in action: a force push to main, a moved or deleted `v*` tag and a push carrying a token all refused, and the next release still creating its tag; only the settings were read back through the API | 5.7 commit, 2026-10-28 | 6.8 (the tag); the refusals only if one happens | not yet |
 | The repository store against GitHub itself with the owner's private repository and a fine-grained token: creating `launchpad.json` in the empty repository, a `304` on the next check, a read over 1 MB through the blob API, an icon written, read and deleted, a 401 after revoking, a 403 with a Contents: Read only token; only an in-memory GitHub in the tests | G.2 commit, 2026-10-27 | G.3 | not yet |
@@ -1586,8 +1598,8 @@ date and the outcome once a row has been run for real.
     and the extension's `PINNED_EXTENSION_ID` check accepting them;
   - an ID per browser, recorded once the Chrome Web Store and Edge Add-ons have assigned them;
   - listing assets (store icons, screenshots, description, privacy answers) and developer
-    accounts. The privacy statement is the extension section of `site/privacy.html` at the kept
-    homebase-site URL.
+    accounts. The privacy statement is the extension section of `site/privacy.html` at
+    `https://davideaurum.github.io/portly-site/privacy.html`.
 - **CalDAV writes** (ARCHITECTURE v1.1) and the "read-only in this version" wording: gated by
   section 1 on the Yahoo read test that 2.6 finally records; the `WriteProvider` split keeps the
   path open and the wording stays honest. Reopen if 2.6 passed and you edit Yahoo events from

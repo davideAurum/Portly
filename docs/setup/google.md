@@ -64,10 +64,13 @@ GitHub Pages does not serve private repositories), which gives URLs like these:
 
 | Field | Value |
 | --- | --- |
-| Application home page | `https://<user>.github.io/homebase-site/` |
-| Application privacy policy link | `https://<user>.github.io/homebase-site/privacy.html` |
-| Application terms of service link | `https://<user>.github.io/homebase-site/terms.html` |
+| Application home page | `https://<user>.github.io/portly-site/` |
+| Application privacy policy link | `https://<user>.github.io/portly-site/privacy.html` |
+| Application terms of service link | `https://<user>.github.io/portly-site/terms.html` |
 | Authorized domains | `<user>.github.io` |
+
+The repository name is only part of the address. If you published the pages earlier under the old
+name `homebase-site`, those links keep working and need no change.
 
 1. Open **Branding** (<https://console.cloud.google.com/auth/branding>).
 2. Under **Authorized domains**, click **Add domain** and enter the domain *first* (Google checks
