@@ -7,6 +7,10 @@ settings, layouts, bookmarks, icons and uploads, Todoist, weather, calendars, ma
 accounts — and every change goes to the server. When Portly isn't running, the site falls back to
 the copy it keeps in this browser. This is called *hybrid mode*.
 
+Pair Portly only with a Pages site you publish and control yourself. A paired site can use your
+Portly's data and accounts, and so can any script that site ever publishes:
+`https://davideaurum.github.io/` is the developer's own site, not one to pair with.
+
 - **Two separate sets of data, no syncing.** What you change while the site uses Portly on this
   PC is saved on the server; what you change while it uses this browser's copy stays in this
   browser. Neither is copied into the other. (Export / import moves data between them when you want

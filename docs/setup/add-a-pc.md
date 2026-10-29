@@ -24,7 +24,7 @@ note, so this page can be corrected.
 
 Pick one:
 
-- **From a release** (once one is published): in PowerShell,
+- **From a release**: in PowerShell,
   `irm https://davideaurum.github.io/install.ps1 | iex`. Add a Pages site with
   `& ([scriptblock]::Create((irm https://davideaurum.github.io/install.ps1))) -PagesUrl https://<user>.github.io/`.
   [Install](../SETUP.md#install).
@@ -32,8 +32,7 @@ Pick one:
   Node.js 24 when missing, clones into `%USERPROFILE%\Coding\Portly`, builds, and turns on
   autostart and the `portly` command. Options go in the same way as above, for example
   `-PagesUrl https://<user>.github.io/` or `-NoHomebaseCopy`; add `-DryRun` first to see the plan.
-  [One-command setup](../SETUP.md#one-command-setup-on-a-new-pc). Until the repository is public
-  this works only for its owner.
+  [One-command setup](../SETUP.md#one-command-setup-on-a-new-pc).
 
 The script ends by opening the browser's extensions page.
 

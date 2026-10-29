@@ -11,7 +11,8 @@
        --omit=dev) in a scratch copy of the manifests: no web or development packages.
     4. Gets the Node.js runtime pinned in scripts\release\node-runtime.json: downloaded from
        nodejs.org once into <OutDir>\cache and checked against its SHA-256 (or -NodeExe).
-    5. Stages the package: package.json and README.md; server\ and shared\ without tests, fixtures
+    5. Stages the package: package.json, README.md, LICENSE and THIRD_PARTY_NOTICES.md; server\
+       and shared\ without tests, fixtures
        and test helpers; web\dist; extension\ without tests and tools; native-host\; the scripts an
        installed copy uses (install, autostart, status, start, the portly command) with
        scripts\lib; docs\; node_modules\; runtime\node.exe with Node's LICENSE; and release.json.
@@ -208,7 +209,7 @@ function Invoke-BuildRelease {
     Remove-ReleaseFolder -Path $deps
 
     Write-HbStep 'Staging the package'
-    foreach ($file in @('package.json', 'README.md')) { Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination (Join-Path $stage $file) }
+    foreach ($file in @('package.json', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination (Join-Path $stage $file) }
     $sourceOnly = {
         param($relative)
         $relative -notmatch '\.test\.tsx?$' -and $relative -notmatch '(^|\\)__fixtures__\\' -and $relative -notmatch '^src\\testing\\'

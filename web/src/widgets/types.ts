@@ -6,6 +6,7 @@
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { z } from 'zod';
+import type { Capabilities } from '../capabilities.ts';
 
 export interface WidgetSize {
   w: number;
@@ -34,7 +35,8 @@ export interface WidgetSettingsProps<C> {
 export interface WidgetDefinition<C> {
   type: string;
   title: string;
-  description: string;
+  /** "Add widget" text; a function when it depends on this page load's backend (read with `widgetDescription`). */
+  description: string | ((caps: Capabilities) => string);
   icon: LucideIcon;
   defaultSize: WidgetSize;
   /** zod schema with every field defaulted. */

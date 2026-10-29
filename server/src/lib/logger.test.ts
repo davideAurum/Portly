@@ -426,9 +426,9 @@ describe('records', () => {
   });
 
   it('maskHomeDir handles every spelling and ignores root-like homes', () => {
-    expect(maskHomeDir('a /home/dg/x b', '/home/dg')).toBe('a ~/x b');
-    expect(maskHomeDir('C:\\Users\\dg and c:/users/DG/x and C:\\\\Users\\\\dg', 'C:\\Users\\dg')).toBe('~ and ~/x and ~');
-    expect(maskHomeDir('C:\\Users\\dgx\\y', 'C:\\Users\\dg')).toBe('C:\\Users\\dgx\\y');
+    expect(maskHomeDir('a /home/rl/x b', '/home/rl')).toBe('a ~/x b');
+    expect(maskHomeDir('C:\\Users\\rl and c:/users/RL/x and C:\\\\Users\\\\rl', 'C:\\Users\\rl')).toBe('~ and ~/x and ~');
+    expect(maskHomeDir('C:\\Users\\rlx\\y', 'C:\\Users\\rl')).toBe('C:\\Users\\rlx\\y');
     expect(maskHomeDir('/x/y', '/')).toBe('/x/y');
   });
 

@@ -151,8 +151,9 @@ try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
     try { $entries = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') }) } finally { $archive.Dispose() }
-    Assert-That -Name 'the package holds release.json, the runtime, server, web build, extension and scripts' -Condition (
-        ($entries -contains 'release.json') -and ($entries -contains 'runtime/node.exe') -and ($entries -contains 'server/src/index.ts') -and
+    Assert-That -Name 'the package holds release.json, the licenses, the runtime, server, web build, extension and scripts' -Condition (
+        ($entries -contains 'release.json') -and ($entries -contains 'LICENSE') -and ($entries -contains 'THIRD_PARTY_NOTICES.md') -and
+        ($entries -contains 'runtime/node.exe') -and ($entries -contains 'server/src/index.ts') -and
         ($entries -contains 'web/dist/index.html') -and ($entries -contains 'extension/manifest.json') -and ($entries -contains 'scripts/install.ps1') -and
         ($entries -contains 'node_modules/hono/package.json'))
     # Our own sources only: third-party packages may ship their tests, as npm installs them.

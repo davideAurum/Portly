@@ -50,6 +50,12 @@ export function availableWidgetDefinitions(caps: Capabilities = getCapabilities(
   return definitions;
 }
 
+/** A widget's "Add widget" text for these capabilities (default: this page load's). */
+export function widgetDescription(definition: AnyWidgetDefinition, caps: Capabilities = getCapabilities()): string {
+  const { description } = definition;
+  return typeof description === 'function' ? description(caps) : description;
+}
+
 export function getWidgetDefinition(type: string): AnyWidgetDefinition | undefined {
   return byType.get(type);
 }
