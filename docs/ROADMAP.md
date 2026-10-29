@@ -18,8 +18,8 @@ checks).
 | 2 | Prove what is built, on this PC | In progress: 2.1, 2.3 and 2.5 done |
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.2 drafted and 3.5 written, both confirmed on the first other PC (3.3) |
 | 4 | Release rehearsal in private | Done (4.3 found and fixed an update bug; 4.4's second run-through, in 5.2 and 5.5, found nothing missing) |
-| 5 | Go public and publish 0.2.0-alpha.1 | In progress: 5.1 to 5.5 done 2026-10-28 (0.2.0-alpha.1 [published](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.1)); 5.6 optional, 5.7 next |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress on main (merged 2026-10-28): 6.1 to 6.6 built for OneDrive and GitHub; the real checks of 6.5 and 6.6 and D9 wait for you |
+| 5 | Go public and publish 0.2.0-alpha.1 | Done 2026-10-28: the repository is public and 0.2.0-alpha.1 [published](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.1); 5.6 skipped (its portal steps stay open) |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress, the next slice. On main since 2026-10-28: 6.1 to 6.6 built for OneDrive and GitHub; the real checks of 6.5 and 6.6 and D9 wait for you |
 
 ## How this roadmap is used
 
@@ -1078,6 +1078,10 @@ Items:
 
   2.2's sign-ins then confirm both.
 
+  *Skipped for phase 5* on 2026-10-28 (5.7): it is optional and nothing in the release depends on
+  it. The two portal steps above stay open; do them whenever you like, and 2.2's sign-ins confirm
+  them.
+
 - **5.7 Close the loop** (S; after 5.5).
   Roadmap statuses, an "Unreleased" CHANGELOG section, the memory note, and Known limits still true
   (unsigned packages, unpacked extension, own app registrations, Windows 11 x64). The next slice is
@@ -1087,6 +1091,28 @@ Items:
   phase 6 ships. Announcing anywhere is your call and not part of this plan.
 
   *Done when:* docs on main; CI green; the phase 5 row reads Done and the phase 6 row In progress.
+
+  *Status:* done 2026-10-28. The status table reads Done for phase 5 and In progress for phase 6;
+  the CHANGELOG has an "Unreleased" section for the sync code on main ([releases.md](setup/releases.md)
+  says how it becomes the next version's); the Known limits are still true on main (no signing step
+  in the build, Load unpacked, own app registrations, `win-x64` only); 5.6 is recorded as skipped;
+  the memory note is current. The three rows the release left in the checks table:
+  - **Pushes to main start no CI run.** Not caused by anything in the repository: GitHub received
+    every push (other apps got their checks), the workflows are registered and active, Actions is
+    on with all actions allowed, no commit carries a skip marker, the settings match the old
+    repository's apart from visibility, and GitHub reported no incident at the time. GitHub
+    Actions simply created no run, not even a skipped one. The likely cause is state on GitHub's
+    side from creating the repository under a name that had been renamed away minutes before.
+    Another session's push (084dee4, after the rulesets went on) started none either. The CI
+    workflow was then disabled and enabled again at 04:47Z on 2026-10-29 (23:47 local), in case
+    GitHub's record of it was stale; this commit's push is the test (checks table).
+  - **Public-repository settings** (the owner's go-ahead, 2026-10-28): private vulnerability
+    reporting, secret scanning and push protection on; rulesets "Protect main" (no force push, no
+    deletion) and "Protect release tags" (`v*`: no move, no deletion), with no bypass. Approval for
+    outside contributors' runs stays at GitHub's default (first-time contributors), the owner's
+    choice.
+  - **The privacy page** is not republished: the owner asked why it still lives at the
+    homebase-site address, so where the consent pages live is decided first.
 
 ## Phase 6: Launch pad sync, shipped as 0.2.0-alpha.2
 
@@ -1268,6 +1294,8 @@ Items:
 
 - **6.7 Docs, republish and the two-browser test (design phase 5)** (M; go-ahead; after 6.6).
   static-build.md, microsoft.md, ARCHITECTURE sections 1, 4.1, 10.5, 16 and 17, a README line;
+  `site/privacy.html` (it names neither the OneDrive app folder nor the GitHub repository yet) and
+  its republish, wherever the consent pages live by then (5.7's status);
   `portly --update` (with 1.8's dirty-tree refusal in place); then Chrome and Edge (and a second
   PC) on one account: add, rename, move, delete and reorder on each side, an offline edit, a
   forced conflict, a first sync on a fresh browser, consent withdrawal; record the download host
@@ -1277,8 +1305,10 @@ Items:
   safety copy; no busy loop in Diagnostics; the hosts seen recorded; dated line.
 
 - **6.8 Release 0.2.0-alpha.2** (S; go-ahead; after 6.7).
-  A CHANGELOG entry for sync; the candidate installed on the clean account as in 5.2; publish as in
-  5.3; the Pages site republished as in 5.4; the memory note and the docs updated.
+  The CHANGELOG's "Unreleased" section becomes the 0.2.0-alpha.2 entry; the candidate installed on
+  the clean account as in 5.2; publish as in 5.3 (the `v*` tag ruleset does not restrict creating
+  a tag, so the release can still create its own); the Pages site republished as in 5.4; the
+  memory note and the docs updated.
 
   *Done when:* `gh release view v0.2.0-alpha.2` lists the zip and `portly-release.json` with
   matching SHA-256; the tag points at the built commit; the live site's footer reads
@@ -1494,9 +1524,10 @@ date and the outcome once a row has been run for real.
 | One sync connection per browser against real accounts: the 409 refusals, the move between two Microsoft connections, the GitHub form blocked while OneDrive syncs, a sign-in that grants sync while GitHub syncs leaving it off; only static and web tests | 6.6 commit, 2026-10-27 | 6.6 | not yet |
 | Launch pad sync through the owner's private repository end to end: two browsers converging, a forced race, the `304` check, the first file in the empty repository, a revoked token pausing sync and a new one resuming it, GitHub plus a Microsoft connection giving `several_sources`; only the engine and scheduler against the in-memory GitHub (`sync/github.test.ts`) | G.3 hookup commit, 2026-10-27 | 6.6, G.3 | not yet |
 | The published site opened on an account that never ran Portly (the **Browser only** footer, every widget, Outlook.com with the newcomer's own registration, export and import) | 4.4 commit, 2026-10-27 | 5.5 (its new first step) | 2026-10-28 (5.5): the footer said **Not checked** until **Look for Portly on this PC** (the docs now say so); seven widgets; Outlook.com with the owner's registration showed events; export then import worked |
-| A push to main starting CI in the new repository: neither the first push nor 59fff7c's push started a run; `workflow_dispatch` runs did | 5.1, 2026-10-28 | the next push to main | not yet |
-| The live privacy page republished from `site/` (the copy at the homebase-site address, linked from every install and the consent screens, is the 2026-10-21 text without the Nominatim place lookup and the other-PC device records) | 5.3 review, 2026-10-28 | the owner's go-ahead (1.6's procedure) | not yet |
-| The settings GitHub offers only public repositories: private vulnerability reporting, secret scanning and push protection, approval for outside contributors' pull request runs, rulesets for main and the `v*` tags | 5.1 review, 2026-10-28 | the owner's go-ahead | not yet |
+| A push to main starting CI in the new repository: neither the first push nor 59fff7c's push started a run; `workflow_dispatch` runs did | 5.1, 2026-10-28 | the next push to main | 2026-10-28 (5.7): 3b0e9f9's push started none either. GitHub got all three pushes (the `cursor` and `claude` apps created check suites on each), but Actions created none and `actions/runs?event=push` counts 0. Ruled out: workflow state (all three active), Actions permissions, skip markers, push options, rulesets or webhooks (none then), settings against the old repository, a GitHub incident. Likely GitHub-side state from reusing the renamed repository's name. 084dee4's push started none. The CI workflow was disabled and enabled again; the 5.7 commit's push is the next test (5.7's status) |
+| The live privacy page republished from `site/` (the copy at the homebase-site address, linked from every install and the consent screens, is the 2026-10-21 text without the Nominatim place lookup and the other-PC device records) | 5.3 review, 2026-10-28 | the owner's go-ahead (1.6's procedure) | 2026-10-28 (5.7): not republished. The owner asked why the pages still live at the homebase-site address; decide where the consent pages live first (`site/` on main equals the tagged one) |
+| The settings GitHub offers only public repositories: private vulnerability reporting, secret scanning and push protection, approval for outside contributors' pull request runs, rulesets for main and the `v*` tags | 5.1 review, 2026-10-28 | the owner's go-ahead | 2026-10-28 (5.7, the owner's go-ahead): vulnerability reporting, secret scanning and push protection on; rulesets "Protect main" (no force push or deletion) and "Protect release tags" (`v*`, no move or deletion) active with no bypass, all read back through the API. Outside contributors' runs: kept at first-time contributors, the owner's choice |
+| The new rulesets and push protection in action: a force push to main, a moved or deleted `v*` tag and a push carrying a token all refused, and the next release still creating its tag; only the settings were read back through the API | 5.7 commit, 2026-10-28 | 6.8 (the tag); the refusals only if one happens | not yet |
 | The repository store against GitHub itself with the owner's private repository and a fine-grained token: creating `launchpad.json` in the empty repository, a `304` on the next check, a read over 1 MB through the blob API, an icon written, read and deleted, a 401 after revoking, a 403 with a Contents: Read only token; only an in-memory GitHub in the tests | G.2 commit, 2026-10-27 | G.3 | not yet |
 | GitHub's answers to a refused contents write: `409` for a stale `sha`, `422` for a missing one, what a `sha` on a missing file gets (the store assumes `422`, handles `404`), and a `409` for two writes to the branch at once; only GitHub's docs and the in-memory GitHub | G.2 commit, 2026-10-27 | G.3 | not yet |
 | Saving the repository and token in Settings → Accounts on the published site (the check with GitHub, the refusal of a public repository and of a classic token), and the CSP with `api.github.com` alone (the preflight with `If-None-Match`) in a real browser; only unit tests, the built CSP and an unauthenticated `curl` of the preflight | G.2 commit, 2026-10-27 | G.3, and 2.5's CSP check before the release that ships it | not yet |

@@ -77,7 +77,9 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    releases use a pre-release version. Add the release's entry to
    [CHANGELOG.md](../../CHANGELOG.md), naming the new-tab extension version it ships with. Its
    heading is `## <version>` followed by anything (a date, or "(not released yet)" until release
-   day): the text under it becomes the release notes in step 4.
+   day): the text under it becomes the release notes in step 4. Changes on main since the last
+   release collect under `## Unreleased` at the top; on release day that heading becomes the
+   version's.
 
    The extension keeps its own version in `extension/manifest.json`. Raise it only when the
    extension's code changes. Chrome accepts only plain numbers there (no `-alpha.1`), and the
@@ -124,7 +126,9 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    is already published, and publishes the zip and `portly-release.json` as release `v<version>`
    of `davideAurum/Portly` (the `releaseRepo` in the package),
    marked **latest** (GitHub never marks a pre-release as latest, so alpha versions go out as normal
-   releases with a pre-release version number).
+   releases with a pre-release version number). The repository keeps published releases immutable,
+   and a ruleset stops anyone moving or deleting a `v*` tag, so a version is published once: fix a
+   mistake with a new version.
 
    The release notes are the version's section of `CHANGELOG.md` as committed in the package's
    commit (not your working copy), with links to files of the repository pointed at that commit on
