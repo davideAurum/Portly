@@ -108,7 +108,9 @@ When the Portly server also runs on the PC you browse from, the published site c
 you have paired the browser with it (a one-time approval on Portly's own page), every page load
 that finds Portly running uses Portly's data and everything the server adds — calendars, mail,
 feeds, accounts, page titles and icons, all search suggestions. When Portly isn't running, the
-site uses this browser's copy as described above, and the footer says **Browser only**;
+site uses this browser's copy as described above, and the footer says **Browser only** (in a
+browser that has not looked for Portly yet, **Not checked**, until you click it and choose **Look
+for Portly on this PC**);
 **Settings → Diagnostics** then shows this site and this browser, and offers **Open diagnostics on
 this PC** only once Portly answers there. The two are separate sets of data; nothing is
 copied between them. Setting it up (the server's `PORTLY_PAGES_URL`, pairing, the browser's
