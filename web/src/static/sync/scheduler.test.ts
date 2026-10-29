@@ -69,6 +69,15 @@ function memoryStore(fail?: () => SyncStoreError | null): SyncStore & { reads: n
   return store;
 }
 
+/**
+ * Lets started rounds finish. They wait only on promises (the store and the storage are in
+ * memory), so a few event-loop turns are enough. `setImmediate`, not `setTimeout(0)`: a timer waits
+ * for the system clock tick (about 15 ms on Windows), which made this file take seconds.
+ */
+async function settled() {
+  for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve));
+}
+
 /** Timers driven by hand. */
 function manualTimers() {
   let now = 0;
@@ -110,9 +119,6 @@ async function setup(options: { account?: StoredAccount | null; store?: SyncStor
     },
     window: { addEventListener: (type: string, fn: () => void) => listeners.set(type, fn), removeEventListener: (type: string) => listeners.delete(type) },
   } as unknown as NonNullable<Parameters<typeof startLaunchpadSync>[1]>['page'];
-  const settled = async () => {
-    for (let i = 0; i < 20; i++) await new Promise((resolve) => setTimeout(resolve, 0));
-  };
   controller = startLaunchpadSync(t.ctx, {
     storeFor: () => store,
     timers,
@@ -191,20 +197,30 @@ describe('the scheduler', () => {
   });
 
   it('syncs 5 s after the last local change, at most 30 s after the first', async () => {
-    const { store, timers, settled } = await setup();
-    const group = await t.json<{ id: string }>('POST', '/api/bookmark-groups', { name: 'Work' });
-    for (let i = 0; i < 8; i++) {
-      t.tick(4000);
-      timers.advance(4000);
-      await t.json('PATCH', `/api/bookmark-groups/${group.body.id}`, { name: `Work ${i}` });
+    const { store, timers } = await setup();
+    expect([CHANGE_DELAY_MS, CHANGE_MAX_DELAY_MS]).toEqual([5_000, 30_000]);
+    const wait = async (ms: number) => {
+      t.tick(ms);
+      timers.advance(ms);
       await settled();
-    }
+    };
+    const group = await t.json<{ id: string }>('POST', '/api/bookmark-groups', { name: 'Work' });
+    const rename = (name: string) => t.json('PATCH', `/api/bookmark-groups/${group.body.id}`, { name });
     // Changes every 4 s keep pushing it back, but not past 30 s after the first.
+    for (let i = 1; i <= 7; i++) {
+      await wait(4000);
+      await rename(`Work ${i}`);
+    }
+    await wait(1999);
+    expect(store.reads).toBe(1);
+    await wait(1);
     expect(store.reads).toBe(2);
-    expect(CHANGE_MAX_DELAY_MS).toBe(30_000);
-    t.tick(CHANGE_DELAY_MS);
-    timers.advance(CHANGE_DELAY_MS);
-    await settled();
+    // A lone change syncs 5 s later.
+    await wait(2000);
+    await rename('Home');
+    await wait(CHANGE_DELAY_MS - 1);
+    expect(store.reads).toBe(2);
+    await wait(1);
     expect(store.reads).toBe(3);
   });
 
@@ -271,7 +287,7 @@ describe('the scheduler', () => {
     const store = memoryStore();
     const request = vi.fn((_name: string, options: LockOptions, fn: (lock: Lock | null) => unknown) => Promise.resolve(fn(options.ifAvailable ? null : ({ name: 'x', mode: 'exclusive' } as Lock))));
     controller = startLaunchpadSync(t.ctx, { storeFor: () => store, timers: manualTimers(), locks: { request } as unknown as LockManager, page: null });
-    for (let i = 0; i < 20; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    await settled();
     expect(request).toHaveBeenCalledWith(expect.stringMatching(/:launchpad-sync$/), { ifAvailable: true }, expect.any(Function));
     expect(store.reads).toBe(0);
     await controller.syncNow();
