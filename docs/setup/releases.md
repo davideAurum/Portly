@@ -114,6 +114,12 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    background, and export then import. The console must show no "Content Security Policy"
    errors. Write the date in [ARCHITECTURE](../ARCHITECTURE.md) section 13.
 
+   Then check the providers on the installed Portly with your real accounts: open every widget
+   (both calendars, both mail services, Todoist, weather, sports, feeds, search with suggestions
+   on) and confirm that Settings → Diagnostics shows every health subject healthy. Write the date
+   into the title of ARCHITECTURE section 8 (*Provider notes*), so it is re-dated at every
+   release.
+
 4. **Publish** (public: anyone can download it). Push the release commit first — the release tags
    exactly the commit the package was built from:
 

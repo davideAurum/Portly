@@ -10,6 +10,10 @@ Yahoo has no public API for personal accounts, so Portly uses the standard proto
 
 Your normal Yahoo password never goes into Portly.
 
+Checked with a real Yahoo account on 2026-10-29: the calendar list and an event made in Yahoo's
+web app came through CalDAV, and IMAP listed the recent messages (sender, subject and date only)
+with archive and trash offered.
+
 ## 1. Generate an app password
 
 1. Sign in at <https://login.yahoo.com/account/security> (**Account Security**).

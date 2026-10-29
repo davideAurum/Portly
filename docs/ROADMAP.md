@@ -15,7 +15,7 @@ checks).
 | --- | --- | --- |
 | 0 | Make the move from Homebase safe | Done ([details](#done-before-this-plan)) |
 | 1 | Baseline and a truthful public surface | Done (1.8's real run waits for the next `portly --update`, see the checks table) |
-| 2 | Prove what is built, on this PC | In progress: 2.1, 2.3 and 2.5 done; 2.4's built-in-browser checks done 2026-10-29, its Edge and Firefox checks open |
+| 2 | Prove what is built, on this PC | In progress: 2.1, 2.2, 2.3 (Chrome), 2.5, 2.6 and 2.7 done; 2.4 done in the built-in browser. Open: pairing in Edge (2.3) and 2.4's Edge and Firefox checks |
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.1 done 2026-10-29 in scratch folders; 3.5 written. Since 2026-10-29 the other PCs connect to this PC's Portly instead of running their own (F11), so 3.2 to 3.4 were rewritten |
 | 4 | Release rehearsal in private | Done (4.3 found and fixed an update bug; 4.4's second run-through, in 5.2 and 5.5, found nothing missing) |
 | 5 | Go public and publish 0.2.0-alpha.1 | Done 2026-10-28: the repository is public and 0.2.0-alpha.1 [published](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.1); 5.6 done 2026-10-29 |
@@ -446,6 +446,32 @@ Items:
   services enabled; Diagnostics > Connections healthy; a dated line per flow; any fix lands with a
   fake-provider test; the consent-screen answers and the rule decision recorded here.
 
+  *Status:* done 2026-10-29 on the installed 0.2.0-alpha.1, run by the owner from the paired Pages
+  site, each step confirmed in `server.log` and the accounts API. First a consistent copy of the
+  database and the day's backup outside the data folder, and an export.
+  - **Restart:** Portly's processes stopped and `portly --start`; the vault was ready and the
+    Microsoft account copied from Homebase (2026-10-06) and the Google account both passed Test
+    for calendar and mail.
+  - **Google** (the new Cloud project of 5.6): Remove deleted the account and revoked the token
+    at `oauth2.googleapis.com`; a calendar-only connect asked for the two calendar permissions;
+    Manage > Mail asked for the Gmail permission only; with every box unticked, `oauth grant
+    covers no capability` and no account saved; Reconnect and Test passed. The consent screen
+    names Portly, says the app is not verified by Google, and links the portly-site privacy
+    policy and terms.
+  - **Microsoft:** after the owner withdrew Portly's consent at account.live.com, Cancel gave
+    `denied` and no account; the calendar-only consent screen listed only the calendar
+    permissions; Manage > Mail reconnected with both; Test passed. Remove deletes the account
+    without a revocation: Microsoft keeps the consent until it is withdrawn there.
+  - **The rule** "only requested services start enabled" stays: both providers asked for only
+    what was ticked.
+
+  Both accounts end connected with calendar and mail, and Diagnostics showed every health subject
+  ok. Two findings for later, neither a failure of these flows: the new-event dialog lists the
+  writable calendars by name only, so Google's "Calendar" and Outlook's "Calendar" look alike
+  and Google's seemed missing; and the owner suggested that each provider's app registration sit
+  with its connected accounts in Settings > Accounts rather than in a section of its own (both
+  under *Revisit after phase 6* unless fixed sooner).
+
 - **2.3 Hybrid pairing and hidden tabs in a real browser** (S; after 1.3).
   From the published site in Chrome, then pairing once in Edge, produce each status in
   [pages-local-server.md](setup/pages-local-server.md)'s table:
@@ -579,6 +605,14 @@ Items:
   Diagnostics; the result and date written into ARCHITECTURE section 1 and
   [Yahoo](setup/yahoo.md).
 
+  *Status:* done 2026-10-29 on the installed Portly with the owner's Yahoo account and a new app
+  password, typed in by the owner. The account saved with calendar and mail and passed Test.
+  CalDAV found one calendar (read-only, synced, no error), and an event the owner made in Yahoo's
+  web app arrived after a sync, not editable, as read-only intends. IMAP listed ten recent
+  messages with sender, subject and date and no snippets, with archive and trash offered. The
+  account, calendar-list and mail health subjects were ok. Written into ARCHITECTURE section 1
+  and yahoo.md. Not tried: archiving or trashing a Yahoo message for real.
+
 - **2.7 Provider-drift sweep and section 8 re-date** (S; after 2.2, 2.6).
   With the real accounts connected, open every widget (Gmail, Graph mail, both calendars, Todoist,
   ESPN, Open-Meteo, feeds, the five suggestion providers) and read Diagnostics; the bar is "every
@@ -590,6 +624,14 @@ Items:
 
   *Done when:* the Diagnostics overview shows every subject healthy; section 8 carries today's
   date; releases.md names the cadence; fixture changes come with passing tests.
+
+  *Status:* done 2026-10-29, right after 2.2 and 2.6, on the installed Portly: all 44 health
+  subjects ok. That covers the Google, Outlook.com and Yahoo accounts with their 13 calendars and
+  three mailboxes, Todoist, Open-Meteo weather and its place name, five ESPN leagues, the feed,
+  every scheduled job, and the five suggestion providers, each of which answered eight
+  suggestions for one word. No field-level comparison of live answers was made (the bar is
+  health), so no fixture changed. Section 8 now reads "verified 2026-10-29", and releases.md's
+  *Cutting a release* step 3 names the re-date for every release.
 
 ## Phase 3: Every PC on Portly, Homebase retired
 
@@ -1586,8 +1628,8 @@ date and the outcome once a row has been run for real.
 | The browser-only build's own automatic token renewal (`planSilentReauth`) against a real Outlook.com account; the spike only sent the same `prompt=none` request by hand | 3b3edd7, 2026-10-19 | 2.1 | 2026-10-26 (2.1): reopening the site more than 24 hours after the connect renewed the sign-in with no "Reconnect needed", and after consent was withdrawn it fell back to Reconnect (reported by the owner) |
 | The 6-hour retry guard after Reconnect on the published site (at most one further `prompt=none` attempt): 2.1 saw the fallback to Reconnect, but nobody counted the redirects or read Diagnostics > This browser | this commit, 2026-10-26 | 6.7 (the two-browser test signs in on Pages again) | not yet |
 | The `*.files.1drv.com` download host kept in the sync CSP table: never seen in the spike and its CORS behaviour unverified (launchpad-sync.md section 4) | 3b3edd7, 2026-10-19 | 6.5 | not yet |
-| A real Google or Microsoft sign-in through the new Accounts flow (connect, choose services, Manage adding a service by incremental consent); the tests and the hand check used fakes | 9cce15e, 2026-10-19 | 2.2 | not yet |
-| Whether Microsoft's consent screen shows only the requested services' scopes on a sign-in through Portly's own flow (the spike saw the incremental-consent screen list only the added permission, but from a scratch page) | 9cce15e, 2026-10-19 | 2.2 | not yet |
+| A real Google or Microsoft sign-in through the new Accounts flow (connect, choose services, Manage adding a service by incremental consent); the tests and the hand check used fakes | 9cce15e, 2026-10-19 | 2.2 | 2026-10-29 (2.2, installed Portly): Google and Microsoft each connected calendar-only, added mail through Manage (incremental consent), refused (Google: every box unticked, `oauth grant covers no capability`; Microsoft: Cancel, `denied`) with no account saved, reconnected and passed Test; Google Remove revoked the token |
+| Whether Microsoft's consent screen shows only the requested services' scopes on a sign-in through Portly's own flow (the spike saw the incremental-consent screen list only the added permission, but from a scratch page) | 9cce15e, 2026-10-19 | 2.2 | 2026-10-29 (2.2): yes. After the consent was withdrawn at account.live.com, the calendar-only screen listed only the calendar permissions, and Manage > Mail asked for mail; the "only requested services start enabled" rule stays |
 | The **Wikipedia suggestions instead** switch (Settings > Search in the browser-only build) and the search wording it changes, in a real browser; 8bb97b1's localhost check covered the earlier always-on fallback only | 65dae13, 2026-10-19 | 2.4 | 2026-10-28 (pre-release CSP check): on `preview:static` in the desktop app's Chromium pane, Google had no suggestions until the switch was on, then "mount rainier" listed six Wikipedia titles, with no CSP violation |
 | The reordered Settings > Bookmarks page (Groups, Preferences, then Import & export) in a browser; only the earlier order (0b63e51) was looked at | 0f23788, 2026-10-19 | 2.4 | 2026-10-29 (2.4): Groups, Preferences, then Import & export, on the server's page and on the static build |
 | The browser-only site on a PC where Portly is running but not paired (the footer label and the Diagnostics link in that case); unit tests only | 8bb97b1, 2026-10-19 | 2.3; the Diagnostics link 2.4 | 2026-10-26 (2.3): the footer read **Found, not paired** in Chrome on the published site; the Diagnostics link in that state was not looked at |
@@ -1644,6 +1686,8 @@ date and the outcome once a row has been run for real.
 | Saving the repository and token in Settings → Accounts on the published site (the check with GitHub, the refusal of a public repository and of a classic token), and the CSP with `api.github.com` alone (the preflight with `If-None-Match`) in a real browser; only unit tests, the built CSP and an unauthenticated `curl` of the preflight | G.2 commit, 2026-10-27 | G.3, and 2.5's CSP check before the release that ships it | not yet |
 | The guide's GitHub token steps against GitHub's own pages: the **Read and write** and **No access** choices and Metadata added by itself; only Portly's in-app steps and GitHub's docs were compared | 6.7 docs commit, 2026-10-29 | G.3 (the owner makes the repository and token) | not yet |
 | [A PC that ran Homebase](setup/other-pcs.md#a-pc-that-ran-homebase) followed verbatim on a real PC: the task saved and removed, the `com.homebase.launcher` keys removed, the port free, the extension gone; only read-only runs in Windows PowerShell 5.1 | 3.2 commit, 2026-10-29 | 3.3 | not yet |
+| Archiving and trashing a Yahoo message over IMAP for real (2.6 saw both offered, with only fakes behind them) | 2.6 commit, 2026-10-29 | the owner's next Yahoo archive or trash | not yet |
+| A field-by-field comparison of each provider's live answer with the fields its mapper reads (drift that keeps health green); 2.7 checked health only | 2.7 commit, 2026-10-29 | the next provider sweep with the verbose Diagnostics log, if wanted | not yet |
 
 ### Closed
 
@@ -1674,6 +1718,14 @@ date and the outcome once a row has been run for real.
   finding the port; a remote port and Tailscale Serve HTTPS port per user, with device cookies
   named per server (`__Host-portly_device` is shared by every port of one host); a two-account
   rehearsal like 4.3 with both installs running. Asked about on 2026-10-28; no need yet.
+- **Name the account in the new-event calendar list.** The Calendar widget's event dialog
+  (`web/src/widgets/calendar/EventDialog.tsx`) lists every writable calendar by name only, so
+  Google's "Calendar" and Outlook's "Calendar" look the same and the owner took Google's for
+  missing (2.2). Grouping the options by account (provider and account name) would fix it.
+- **App registrations next to their accounts.** The owner's suggestion during 2.2: Settings >
+  Accounts shows *App registrations* as a section of its own; each provider's registration (the
+  Google client, the Microsoft client ID) would read better beside that provider's connected
+  accounts and its *Add a connection* tile.
 - **Tell the user when a browser's Homebase copy gives up.** After three failed loads
   `copyLegacyStaticDatabase` (`web/src/static/storage/idb.ts`) stops trying and says so only in
   the console; Diagnostics shows nothing, and the user is never told Homebase's in-browser data

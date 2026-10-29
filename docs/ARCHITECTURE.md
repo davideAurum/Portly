@@ -17,7 +17,7 @@ choice, provided it respects §4.
 - [5. Data model](#5-data-model)
 - [6. Server structure](#6-server-structure)
 - [7. API contract](#7-api-contract)
-- [8. Provider notes](#8-provider-notes-verified-2026-09-25)
+- [8. Provider notes](#8-provider-notes-verified-2026-10-29)
 - [9. Sync](#9-sync)
 - [10. Web app](#10-web-app)
 - [11. Extension](#11-extension-chromium-mv3-chrome--edge)
@@ -63,7 +63,8 @@ choice, provided it respects §4.
 - Release packages that install and update Portly without a Git checkout (§18).
 
 **Deferred (design must not preclude):** CalDAV writes (v1.1, after testing reads against the user's
-Yahoo account), multi-device access (one server used from several PCs, with a login: `docs/design/multi-pc.md`;
+Yahoo account; that read test passed on 2026-10-29: the calendar list and an event made in Yahoo's web
+app over CalDAV, and the IMAP listing with archive and trash, ROADMAP 2.6), multi-device access (one server used from several PCs, with a login: `docs/design/multi-pc.md`;
 satisfied in v1 only by deriving bind address, origin and port from `config.ts` everywhere), a fantasy sports
 widget, automatic profile switching (location / network / time), per-profile themes (`profiles.theme` column
 reserved), sending mail, launch pad sync for Portly on a PC and for layouts, the theme and other settings
@@ -1000,7 +1001,7 @@ disconnects itself; its cookie cleared). Every other route except those listed `
 
 ---
 
-## 8. Provider notes (verified 2026-09-25)
+## 8. Provider notes (verified 2026-10-29)
 
 **Google** — OAuth client type *Web application*; redirect `http://localhost:5757/api/oauth/google/callback`
 (from config). Scopes (all services; a sign-in asks for `openid email profile` plus those of the services picked,
