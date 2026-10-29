@@ -42,3 +42,4 @@ desktop.ini
 
 # Private keys (the extension's pinned ID only needs the public key in manifest.json)
 *.pem
+/key/
