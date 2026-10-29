@@ -141,7 +141,9 @@ If you use a Portly Pages site ([hybrid mode](setup/pages-local-server.md)), add
 `-PagesUrl https://<user>.github.io/`: setup saves it as `PORTLY_PAGES_URL` before it starts
 Portly, and new tabs then open that site (the extension follows Portly on this PC). Without it,
 new tabs open Portly itself at `http://localhost:5757`. `-PagesUrl off` turns the Pages site off
-again.
+again. Use a site you publish yourself: `https://davideaurum.github.io/` is the developer's own,
+and a Portly paired with a site trusts whatever that site publishes, so never point `-PagesUrl` at
+a site you don't control.
 
 To use this Portly from your other PCs ([Using Portly from your other PCs](setup/other-pcs.md)),
 first run `tailscale serve --bg 5758` on this PC (it prints the address, like

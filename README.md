@@ -3,7 +3,9 @@
 Portly is a single-user, highly customizable browser home page — a "portal to the internet" that
 runs entirely on your own Windows 11 PC. A small Node.js server bound to loopback serves the
 dashboard and holds every credential; a tiny browser extension makes it the New Tab page in Chrome
-and Edge. There is no cloud service: the only outside traffic is to the providers you connect.
+and Edge. There is no Portly cloud service: besides the accounts you connect, Portly only contacts the
+public services its features use (search suggestions, site icons, weather, sports scores and the
+place name of your location), as the [privacy policy](site/privacy.html) lists.
 
 **Get started: [docs/SETUP.md](docs/SETUP.md)** · What changed: [CHANGELOG.md](CHANGELOG.md)
 
