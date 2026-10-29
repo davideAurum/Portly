@@ -904,7 +904,7 @@ installer, as a repeat of the phase 4 rehearsal on the actual release candidate.
 after phase 4, as decided on 2026-10-20; launch pad sync (phase 6) follows and ships as
 0.2.0-alpha.2.
 
-The release is built from the branch `release/0.2.0-alpha.1`, cut from main at b32a114 on
+The release is built from the branch `release/0.2.0-alpha.1`, cut from main at 6ac3731 on
 2026-10-28 by the owner's decision, so that the sync code of phase 6 could merge to main before
 the release while the first alpha still ships without it. A fix that must be in 0.2.0-alpha.1
 goes on that branch as well as on main. Until 5.4, `portly --update` on this PC runs with
