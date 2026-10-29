@@ -123,7 +123,10 @@ Portly can also be built as plain files that run entirely in the browser — no 
 GitHub Pages — with search, bookmarks, clock, weather, Todoist, sports scores, themes, profiles and
 export/import, and Outlook.com calendars (the browser signs in to Microsoft and syncs them itself).
 Mail, feeds, Google and app-password accounts, and ICS links need the server and are left out. Your
-data lives in that browser's storage (IndexedDB), moved between computers with export/import.
+data lives in that browser's storage (IndexedDB), moved between computers with export/import. The
+launch pad (groups, bookmarks and custom icons) can also sync between browsers through your
+OneDrive or a private GitHub repository
+([launch pad sync](docs/setup/static-build.md#launch-pad-sync)).
 
 Supported browsers for the alpha: Chromium ones, that is **Chrome** and **Edge**. Firefox is
 checked by hand at most (a smoke run: the page loads and its widgets work), never with the full

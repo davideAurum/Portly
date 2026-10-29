@@ -22,8 +22,9 @@ the release ([ROADMAP](docs/ROADMAP.md#phase-6-launch-pad-sync-shipped-as-020-al
   The connection's card shows the sync status and **Sync now**. The first sync asks which launch
   pad to keep when two differ, and a sync that would remove much of it keeps a backup first.
   Layouts, widgets, the theme and other settings stay per browser. Portly's own page and a page
-  paired with it don't offer sync. See
-  [Browser-only build](docs/setup/static-build.md).
+  paired with it don't offer sync. How to set it up, the GitHub repository and token included:
+  [Launch pad sync](docs/setup/static-build.md#launch-pad-sync). The
+  [privacy policy](site/privacy.html) says what sync sends where.
 - **Outlook.com on the browser-only site** remembers which permissions its last sign-in asked for,
   so turning on a second service later doesn't break the automatic renewal.
 - **New address for the public pages:** the footer's **Privacy** and **Terms** links go to

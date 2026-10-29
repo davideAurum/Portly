@@ -18,7 +18,7 @@
   </header>
 
   <h1>Privacy policy</h1>
-  <p class="updated">Effective October 25, 2026</p>
+  <p class="updated">Effective October 29, 2026</p>
 
   <p>Portly is a self-hosted browser home page. It runs either as a small server on your own
     Windows PC, listening only on that computer (<code>localhost</code>; your other PCs can reach it
@@ -64,7 +64,12 @@
       messages, the sender, subject, date and preview. Portly uses this permission only to mark
       messages read or unread, archive them, or move them to the trash when you ask it to. It
       never sends mail and never permanently deletes mail. Mail is available only in Portly on
-      your PC; the browser-only site asks for calendar access only.</li>
+      your PC; the browser-only site never asks for it.</li>
+    <li><strong>Launch pad sync</strong> (<code>Files.ReadWrite.AppFolder</code>), on the
+      browser-only site only, when you tick it: a folder of Portly's own in your OneDrive (under
+      Apps, named after your app registration), and nothing else in your OneDrive. Portly keeps
+      your launch pad there, as described under <a href="#launch-pad-sync">Launch pad
+      sync</a>.</li>
   </ul>
 
   <h2>Other accounts and addresses you add</h2>
@@ -75,6 +80,11 @@
       summary and actions as described for Microsoft above.</li>
     <li><strong>Todoist</strong> (<code>api.todoist.com</code>), with a personal API token: your
       tasks and projects, and the tasks you add, edit, complete or reopen.</li>
+    <li><strong>GitHub</strong> (<code>api.github.com</code>), on the browser-only site, for
+      launch pad sync: a private repository you create and a fine-grained personal access token
+      you limit to it. Portly uses them only for that repository: it checks that the repository
+      is private, and reads, writes and removes its own files there (see
+      <a href="#launch-pad-sync">Launch pad sync</a>).</li>
     <li><strong>Calendar subscriptions</strong> (ICS or webcal links) and <strong>RSS or Atom
       feeds</strong>: Portly on your PC fetches the addresses you add; the browser-only site does
       not offer them.</li>
@@ -107,18 +117,44 @@
   <p><strong>The browser-only site:</strong></p>
   <ul>
     <li>Settings, layouts, bookmarks, uploaded images, the Todoist token, the tokens of your
-      Microsoft sign-in and a copy of your Outlook.com calendars are stored by the browser, in its
-      storage for the site's address (IndexedDB), on that device. Portly does not encrypt them;
-      they are as safe as the browser profile they live in.</li>
+      Microsoft sign-in, the GitHub repository name and token for launch pad sync and a copy of
+      your Outlook.com calendars are stored by the browser, in its storage for the site's address
+      (IndexedDB), on that device. Portly does not encrypt them; they are as safe as the browser
+      profile they live in.</li>
     <li>The browser keeps the same kind of snapshot for the site, including the calendar events on
       screen, dropped after 24 hours or when Portly is updated.</li>
-    <li>None of it is sent to GitHub, which only serves the page, or to Portly's developer. Data
-      moves to another browser or device only when you export it and import it there.</li>
+    <li>None of it is sent to Portly's developer, and none to GitHub, which serves the page,
+      except what launch pad sync writes to your own repository if you choose GitHub for it.
+      Data moves to another browser or device only when you export it and import it there, or,
+      for the launch pad, through launch pad sync.</li>
   </ul>
   <p>If you pair the browser-only site with Portly on your PC (hybrid mode, described below), the
     site shows and changes the data on your PC instead, under the rules for Portly on your PC
     above, and the browser keeps a snapshot of what the site last showed (never accounts or mail)
     for up to 7 days, next to the pairing token, in its local storage for the site.</p>
+
+  <h2 id="launch-pad-sync">Launch pad sync</h2>
+  <p>The browser-only site can keep its launch pad the same in several browsers. It is off until
+    you set it up, and each browser syncs through one connection:</p>
+  <ul>
+    <li><strong>OneDrive</strong>, through an Outlook.com connection with Launch pad sync ticked:
+      the browser talks directly to Microsoft Graph (<code>graph.microsoft.com</code>) with the
+      account's access token, and downloads the files from OneDrive's download host
+      (<code>my.microsoftpersonalcontent.com</code>) without it. The files are kept in your
+      OneDrive under Apps, in the folder named after your app registration.</li>
+    <li><strong>GitHub</strong>, through a private repository you create: the browser talks
+      directly to <code>api.github.com</code>, with your token and the repository name in every
+      request. The files are kept in that repository. Every change is a commit, so its history
+      keeps earlier versions, removed bookmarks included, until you delete the repository.</li>
+  </ul>
+  <p>The synced files hold your bookmark groups (names, colors, order), your bookmarks (titles,
+    addresses, their group and order, icon choice), the custom icon images you picked, which group
+    is the default, and, for 90 days, a record of each group or bookmark you removed, with its
+    last content, so that other browsers remove it too. Layouts, the theme, other settings,
+    accounts, tokens and calendars are never synced. The browser checks the files when the page
+    loads, when it gets focus and every 5 minutes while it is visible, and writes them after
+    changes. Nothing goes to a Portly service: Microsoft or GitHub keeps the files, like your
+    other files there, and Portly does not encrypt them.</p>
 
   <h2>Sharing</h2>
   <p>Portly does not sell, share or transfer Google user data, or any other data from the accounts
@@ -198,6 +234,10 @@
       <a href="https://myaccount.google.com/connections">myaccount.google.com/connections</a> or,
       for Microsoft, at
       <a href="https://account.live.com/consent/Manage">account.live.com/consent/Manage</a>.</li>
+    <li>Turning launch pad sync off, or removing its connection, stops it in that browser and
+      leaves the synced files where they are, in your OneDrive (under Apps) or your GitHub
+      repository, until you delete them there. Removing GitHub in Settings → Accounts deletes the
+      repository name and token from the browser; revoke the token in your GitHub settings.</li>
     <li>Uninstalling Portly and deleting its data folder removes everything it stored on your PC;
       clearing the browser's data for Portly's address removes the browser's snapshot. Clearing
       the browser's data for the site removes everything the browser-only site stored, the

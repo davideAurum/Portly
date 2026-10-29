@@ -690,6 +690,11 @@ Items:
   the extension cannot open another PC's Portly yet (B.6). Checked against Homebase's scripts,
   then followed verbatim in 3.3.
 
+  *Status:* written 2026-10-29 as [A PC that ran Homebase](setup/other-pcs.md#a-pc-that-ran-homebase),
+  linked from SETUP and Adding a PC; each command was checked against Homebase's and Portly's
+  scripts and run read-only in Windows PowerShell 5.1 where it changes nothing. Not yet followed
+  on a PC: that is 3.3.
+
 - **3.3 Move the first other PC off Homebase** (S; go-ahead; after 3.1, 3.2, and 2.2 for the
   accounts this PC serves).
   On the PC you use most after this one, with Claude in the session: the new part of other-pcs.md
@@ -1398,6 +1403,16 @@ Items:
   *Done when:* both browsers converge within the trigger cadence; `backups\` holds the pre-sync
   safety copy; no busy loop in Diagnostics; the hosts seen recorded; dated line.
 
+  *Status:* the docs part written 2026-10-29: static-build.md's *Launch pad sync* (OneDrive and
+  GitHub, the repository and fine-grained token steps, the first-sync choice, what is not
+  synced), microsoft.md, ARCHITECTURE sections 1, 4.1 (D9's decision), 10.5, 16 and 17, a README
+  line, the CHANGELOG's Unreleased entry, and `site/privacy.html` (the app folder, GitHub, what
+  the synced files hold; effective October 29, 2026). Every sentence was checked against the
+  code by a second pass. GitHub's own page labels for the token (**Read and write**, **No
+  access**, Metadata added by itself) could not be checked in the code; G.3's real check settles
+  them. Still open: the republish of the site and the privacy page, `portly --update`, and the
+  two-browser test.
+
 - **6.8 Release 0.2.0-alpha.2** (S; go-ahead; after 6.7).
   The CHANGELOG's "Unreleased" section becomes the 0.2.0-alpha.2 entry; the candidate installed on
   the clean account as in 5.2; publish as in 5.3 (the `v*` tag ruleset does not restrict creating
@@ -1627,6 +1642,8 @@ date and the outcome once a row has been run for real.
 | The repository store against GitHub itself with the owner's private repository and a fine-grained token: creating `launchpad.json` in the empty repository, a `304` on the next check, a read over 1 MB through the blob API, an icon written, read and deleted, a 401 after revoking, a 403 with a Contents: Read only token; only an in-memory GitHub in the tests | G.2 commit, 2026-10-27 | G.3 | not yet |
 | GitHub's answers to a refused contents write: `409` for a stale `sha`, `422` for a missing one, what a `sha` on a missing file gets (the store assumes `422`, handles `404`), and a `409` for two writes to the branch at once; only GitHub's docs and the in-memory GitHub | G.2 commit, 2026-10-27 | G.3 | not yet |
 | Saving the repository and token in Settings → Accounts on the published site (the check with GitHub, the refusal of a public repository and of a classic token), and the CSP with `api.github.com` alone (the preflight with `If-None-Match`) in a real browser; only unit tests, the built CSP and an unauthenticated `curl` of the preflight | G.2 commit, 2026-10-27 | G.3, and 2.5's CSP check before the release that ships it | not yet |
+| The guide's GitHub token steps against GitHub's own pages: the **Read and write** and **No access** choices and Metadata added by itself; only Portly's in-app steps and GitHub's docs were compared | 6.7 docs commit, 2026-10-29 | G.3 (the owner makes the repository and token) | not yet |
+| [A PC that ran Homebase](setup/other-pcs.md#a-pc-that-ran-homebase) followed verbatim on a real PC: the task saved and removed, the `com.homebase.launcher` keys removed, the port free, the extension gone; only read-only runs in Windows PowerShell 5.1 | 3.2 commit, 2026-10-29 | 3.3 | not yet |
 
 ### Closed
 
