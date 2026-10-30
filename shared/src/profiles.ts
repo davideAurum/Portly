@@ -12,7 +12,7 @@ export const MAX_WIDGETS_PER_PROFILE = 50;
 export const MAX_PROFILES = 50;
 
 /** The widget types this build ships (the registry may contain only these). */
-export const WIDGET_TYPES = ['search', 'launchpad', 'calendar', 'mail', 'todoist', 'weather', 'clock', 'feeds', 'sports'] as const;
+export const WIDGET_TYPES = ['search', 'launchpad', 'calendar', 'mail', 'todoist', 'weather', 'clock', 'feeds', 'sports', 'notes'] as const;
 export type KnownWidgetType = (typeof WIDGET_TYPES)[number];
 
 export function isKnownWidgetType(value: unknown): value is KnownWidgetType {

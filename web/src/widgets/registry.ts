@@ -8,6 +8,7 @@ import { definition as clock } from './clock/index.ts';
 import { definition as feeds } from './feeds/index.ts';
 import { definition as launchpad } from './launchpad/index.ts';
 import { definition as mail } from './mail/index.ts';
+import { definition as notes } from './notes/index.ts';
 import { definition as search } from './search/index.ts';
 import { definition as sports } from './sports/index.ts';
 import { definition as todoist } from './todoist/index.ts';
@@ -21,6 +22,7 @@ export const WIDGET_DEFINITIONS: readonly AnyWidgetDefinition[] = Object.freeze(
   calendar,
   mail,
   todoist,
+  notes,
   weather,
   feeds,
   sports,

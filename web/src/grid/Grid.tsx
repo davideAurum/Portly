@@ -14,7 +14,7 @@ import { Check, Plus } from 'lucide-react';
 import type { Layout, WidgetInstance, WidgetPosition } from '@portly/shared';
 import { qk } from '../api/keys.ts';
 import { getCapabilities } from '../capabilities.ts';
-import { applyPositions, saveWidget, savePositions, updateCachedLayout, useAddWidget, useRemoveWidget } from '../api/profiles.ts';
+import { applyPositions, getCachedWidget, saveWidget, savePositions, updateCachedLayout, useAddWidget, useRemoveWidget } from '../api/profiles.ts';
 import { useDebouncedCallback } from '../lib/useDebouncedCallback.ts';
 import { useIsNarrow } from '../lib/useMediaQuery.ts';
 import { Button } from '../ui/Button.tsx';
@@ -27,7 +27,7 @@ import { AddWidgetDialog } from './AddWidgetDialog.tsx';
 import { useEditMode } from './editMode.tsx';
 import { GRID_GAP, ROW_HEIGHT, keyboardEdit, positionsChanged, stackOrder, toGridItems, toPositions, type MoveKey } from './layout.ts';
 import { DRAG_HANDLE_CLASS, WidgetFrame } from './WidgetFrame.tsx';
-import { WidgetSettingsDialog, type WidgetDraft } from './WidgetSettingsDialog.tsx';
+import { WidgetSettingsDialog, withConfigChanges, type ConfigChanges, type WidgetDraft } from './WidgetSettingsDialog.tsx';
 import styles from './Grid.module.css';
 
 /** How long a newly added widget is highlighted. */
@@ -192,10 +192,12 @@ export function Grid({ layout, profileId }: GridProps) {
   );
 
   const onSaveSettings = useCallback(
-    async (draft: WidgetDraft) => {
+    async (draft: WidgetDraft, changes: ConfigChanges) => {
       if (profileId === null || !settingsFor) return;
+      const latest = getCachedWidget(client, profileId, settingsFor);
+      const definition = latest ? getWidgetDefinition(latest.type) : undefined;
       await saveWidget(client, profileId, settingsFor, {
-        config: draft.config,
+        config: definition ? withConfigChanges(definition, latest?.config, draft.config, changes) : draft.config,
         frame: { title: draft.frame.title ?? null, showHeader: draft.frame.showHeader, transparent: draft.frame.transparent },
       });
     },

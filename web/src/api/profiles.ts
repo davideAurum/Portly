@@ -264,13 +264,15 @@ export function mergeFrame(frame: WidgetInstance['frame'], patch: WidgetUpdate['
 
 /**
  * `PATCH /widgets/:instanceId {config?, frame?}`: config replaces, frame merges. Optimistic; the
- * cache is rolled back and a toast shown if the server refuses.
+ * cache is rolled back and a toast with `failureMessage` shown if the server refuses (null: no
+ * toast, the caller reports it).
  */
 export async function saveWidget(
   client: QueryClient,
   profileId: string,
   instanceId: string,
   body: WidgetUpdate,
+  failureMessage: string | null = 'The widget settings could not be saved.',
 ): Promise<void> {
   await client.cancelQueries({ queryKey: qk.profiles() });
   const previous = updateCachedLayout(client, profileId, (layout) => ({
@@ -285,7 +287,7 @@ export async function saveWidget(
     await updateWidget(profileId, instanceId, body);
   } catch (error) {
     if (previous) client.setQueryData(qk.profiles(), previous);
-    toastError(error, 'The widget settings could not be saved.');
+    if (failureMessage !== null) toastError(error, failureMessage);
     throw error;
   } finally {
     void invalidateProfiles(client);

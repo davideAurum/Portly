@@ -27,7 +27,7 @@ describe('first-run seeding', () => {
     await waitFor(() => expect(requestsTo('POST /api/profiles')).toHaveLength(1));
     const body = requestsTo('POST /api/profiles')[0]!.body as { name: string; layout: Layout };
     expect(body.name).toBe('Home');
-    expect(body.layout.items.map((i) => i.type).sort()).toEqual(WIDGET_TYPES.filter((t) => t !== 'feeds' && t !== 'sports').sort());
+    expect(body.layout.items.map((i) => i.type).sort()).toEqual(WIDGET_TYPES.filter((t) => t !== 'feeds' && t !== 'sports' && t !== 'notes').sort());
     // Positions/frames come from defaultLayout.ts; ids are fresh UUIDs.
     const defaults = createDefaultLayout().items;
     for (const item of body.layout.items) {

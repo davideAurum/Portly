@@ -4,6 +4,25 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## Unreleased
+
+On main, not in a release yet. New-tab extension 0.5.3 (unchanged).
+
+### What's new
+- **Notes widget.** A plain-text note, saved as you type (**Edit layout → Add widget → Notes**; add
+  one per topic). It goes wherever your layout goes: export and import, copied profiles, the
+  browser-only site and your other PCs. Its settings pick the text size, a monospace font and spell
+  checking.
+  - When the same note is open in two tabs or on two PCs, a save never overwrites the other copy
+    blindly: if it changed since you started typing, the note asks whether to **Keep mine** or
+    **Use saved**.
+  - Text that could not be saved yet (Portly stopped, the tab closed mid-save) is kept in the
+    browser and comes back on the next page load. The header says **Not saved** until it is;
+    click it to try again.
+- **Widget settings no longer undo a widget's own changes.** Saving a widget's settings applies
+  only the fields changed in the dialog to the widget's latest settings, so a note typed just before
+  opening the dialog is kept.
+
 ## 0.2.0-alpha.3 (2026-10-30)
 
 The third alpha: small fixes found while using alpha.2. Ships with new-tab extension 0.5.3
