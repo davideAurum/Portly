@@ -16,7 +16,7 @@ checks).
 | 0 | Make the move from Homebase safe | Done ([details](#done-before-this-plan)) |
 | 1 | Baseline and a truthful public surface | Done (1.8's real run waits for the next `portly --update`, see the checks table) |
 | 2 | Prove what is built, on this PC | Done 2026-10-29: 2.1 to 2.7 with real accounts and browsers (Chrome, Edge, Firefox); the open checks rows are re-planned to 6.7 or later |
-| 3 | Every PC on Portly, Homebase retired | In progress: 3.1 done 2026-10-29 in scratch folders; 3.5 written. Since 2026-10-29 the other PCs connect to this PC's Portly instead of running their own (F11), so 3.2 to 3.4 were rewritten |
+| 3 | Every PC on Portly, Homebase retired | In progress: 3.1, 3.5 and 3.6 done 2026-10-29 (no PC runs Homebase; davideAurum/Homebase archived). Left: 3.3 and 3.4, the other PCs connected to this one (DG-SURFACE approved since 2026-10-22), on a later day |
 | 4 | Release rehearsal in private | Done (4.3 found and fixed an update bug; 4.4's second run-through, in 5.2 and 5.5, found nothing missing) |
 | 5 | Go public and publish 0.2.0-alpha.1 | Done 2026-10-28: the repository is public and 0.2.0-alpha.1 [published](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.1); 5.6 done 2026-10-29 |
 | 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Done 2026-10-29: [v0.2.0-alpha.2](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.2) published, the site and privacy page from its tag, this PC updated, sync checked on a local preview and on the published site; the rest of its checks rows are re-planned |
@@ -783,6 +783,13 @@ Items:
 
   *Done when:* `gh repo view davideAurum/Homebase --json isArchived` is true; the phase 3 row reads
   Done.
+
+  *Status:* done 2026-10-29, ahead of 3.4 because no PC runs Homebase any more (F11), with the
+  owner's go-ahead. Its four leftover branches had nothing main lacked (GitHub's compare: 0 ahead)
+  and were deleted; their tips, for recovery: `claude/email-account-setup-nav-e9b2e9` 66109dd,
+  `claude/local-server-setup-b2d229` 61e10ac, `claude/rss-widget-62f007` 65ccc76,
+  `claude/server-calendar-static-page-49085a` 79a2485. `gh repo view` reports it archived and
+  private.
 
 ## Phase 4: Release rehearsal in private
 
