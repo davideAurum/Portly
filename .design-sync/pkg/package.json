@@ -1,0 +1,9 @@
+{
+  "name": "@portly/ui",
+  "version": "0.2.0-alpha.1",
+  "private": true,
+  "description": "Design-sync wrapper around web/src/ui (the Portly UI kit). Not a real package.",
+  "type": "module",
+  "module": "index.ts",
+  "types": "../.cache/types/ui/index.d.ts"
+}

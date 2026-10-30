@@ -43,3 +43,10 @@ desktop.ini
 # Private keys (the extension's pinned ID only needs the public key in manifest.json)
 *.pem
 /key/
+
+# Claude Design sync (staged converter, build output, machine state)
+/.ds-sync/
+/ds-bundle/
+/.design-sync/.cache/
+/.design-sync/learnings/
+/.design-sync/node_modules

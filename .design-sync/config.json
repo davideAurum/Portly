@@ -1,0 +1,71 @@
+{
+  "projectId": "e2a4c871-f427-4e55-8d2b-4c17ebfc01e1",
+  "shape": "package",
+  "pkg": "@portly/ui",
+  "globalName": "PortlyUI",
+  "entry": ".design-sync/pkg/index.ts",
+  "srcDir": "../../web/src/ui",
+  "buildCmd": "node .design-sync/pkg/prepare.mjs",
+  "extraFonts": [
+    "../.cache/fonts/cascadia.css"
+  ],
+  "overrides": {
+    "Menu": {
+      "cardMode": "single",
+      "viewport": "480x320"
+    },
+    "Dialog": {
+      "cardMode": "single",
+      "viewport": "560x380"
+    },
+    "ConfirmDialog": {
+      "cardMode": "single",
+      "viewport": "560x320"
+    },
+    "Popover": {
+      "cardMode": "single",
+      "viewport": "480x320"
+    },
+    "Tooltip": {
+      "cardMode": "single",
+      "viewport": "420x200"
+    },
+    "Checkbox": {
+      "cardMode": "column"
+    },
+    "Field": {
+      "cardMode": "column"
+    },
+    "IconButton": {
+      "cardMode": "column"
+    },
+    "Input": {
+      "cardMode": "column"
+    },
+    "SegmentedControl": {
+      "cardMode": "column"
+    },
+    "Select": {
+      "cardMode": "column"
+    },
+    "SettingsCard": {
+      "cardMode": "column"
+    },
+    "Slider": {
+      "cardMode": "column"
+    },
+    "Spinner": {
+      "cardMode": "column"
+    },
+    "Switch": {
+      "cardMode": "column"
+    },
+    "Tabs": {
+      "cardMode": "column"
+    },
+    "TextArea": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}

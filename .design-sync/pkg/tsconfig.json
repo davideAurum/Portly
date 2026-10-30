@@ -1,0 +1,11 @@
+{
+  "extends": "../../web/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "../.cache/types",
+    "rootDir": "../../web/src"
+  },
+  "include": ["../../web/src/ui/index.ts", "../../web/src/vite-env.d.ts"]
+}
