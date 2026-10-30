@@ -1,0 +1,6 @@
+/* Notes widget settings. */
+
+.stack {
+  display: grid;
+  gap: var(--hb-space-4);
+}

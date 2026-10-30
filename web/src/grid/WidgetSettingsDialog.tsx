@@ -24,14 +24,43 @@ export interface WidgetDraft {
   frame: WidgetFrame;
 }
 
+/** The top-level config fields changed in the dialog, or null when the configs are not objects. */
+export type ConfigChanges = Record<string, unknown> | null;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function configChanges(initial: unknown, next: unknown): ConfigChanges {
+  if (!isRecord(initial) || !isRecord(next)) return null;
+  const changes: Record<string, unknown> = {};
+  for (const key of new Set([...Object.keys(initial), ...Object.keys(next)])) {
+    if (JSON.stringify(initial[key]) !== JSON.stringify(next[key])) changes[key] = next[key];
+  }
+  return changes;
+}
+
+/**
+ * The dialog's changes on top of the widget's latest config: the widget may have saved its own
+ * config while the dialog was open (a note typed just before opening it), and the snapshot the
+ * dialog started from must not undo that. The whole draft when the merge is not valid.
+ */
+export function withConfigChanges(definition: AnyWidgetDefinition, latest: unknown, draft: unknown, changes: ConfigChanges): unknown {
+  if (changes === null) return draft;
+  const base: unknown = parseWidgetConfig(definition, latest);
+  if (!isRecord(base)) return draft;
+  const merged = definition.configSchema.safeParse({ ...base, ...changes });
+  return merged.success ? merged.data : draft;
+}
+
 export interface WidgetSettingsDialogProps {
   instance: WidgetInstance;
   definition: AnyWidgetDefinition;
   onClose(): void;
   /** Live preview of the draft (null clears it). */
   onPreview(draft: WidgetDraft | null): void;
-  /** Persists the draft; the dialog closes when it resolves. */
-  onSave(draft: WidgetDraft): Promise<void>;
+  /** Persists the draft (`changes`: the config fields changed here); the dialog closes when it resolves. */
+  onSave(draft: WidgetDraft, changes: ConfigChanges): Promise<void>;
   /** Field to start in (see `openSettings({focus})`), e.g. the weather widget's location search. */
   focus?: string | null;
 }
@@ -57,7 +86,8 @@ function focusSettingsField(container: HTMLElement | null, focus: string, deadli
 }
 
 export function WidgetSettingsDialog({ instance, definition, onClose, onPreview, onSave, focus = null }: WidgetSettingsDialogProps) {
-  const [config, setConfig] = useState<unknown>(() => parseWidgetConfig(definition, instance.config));
+  const [initialConfig] = useState<unknown>(() => parseWidgetConfig(definition, instance.config));
+  const [config, setConfig] = useState<unknown>(initialConfig);
   const [title, setTitle] = useState(instance.frame.title ?? '');
   const [showHeader, setShowHeader] = useState(instance.frame.showHeader);
   const [transparent, setTransparent] = useState(instance.frame.transparent);
@@ -90,7 +120,7 @@ export function WidgetSettingsDialog({ instance, definition, onClose, onPreview,
     setError(null);
     setSaving(true);
     try {
-      await onSave({ config: parsed.data, frame });
+      await onSave({ config: parsed.data, frame }, configChanges(initialConfig, parsed.data));
       onClose();
     } catch {
       // saveWidget already showed a toast; keep the dialog open.

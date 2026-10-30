@@ -1817,6 +1817,7 @@ date and the outcome once a row has been run for real.
 | The Portly UI design system inside Claude Design: the preview cards in the project's Design System pane, and a design built there with `window.PortlyUI` (styles, Cascadia fonts, `PortlyQueryProvider`); only headless Chrome screenshots of the local cards before upload | design-sync commit, 2026-10-29 | the owner's first look at the project | not yet |
 | A re-sync from a fresh clone (`prepare.mjs`, then the converter with `--remote` against the uploaded `_ds_sync.json`); only first-sync builds in this checkout | design-sync commit, 2026-10-29 | the next design sync | not yet |
 | The dimmed disabled Slider and tab in the running app (a settings page with a disabled slider or tab, in light and dark themes); only headless Chrome screenshots of the design-sync preview cards | disabled-style commit, 2026-10-29 | the owner's next use of such a setting | not yet |
+| The notes widget on two real PCs editing one note (through the main PC's server), on the published Pages site and in hybrid mode, and in Edge or Chrome themselves; checked only in the desktop app's browser pane on a scratch server build (add, autosave, a conflict made by a direct `PATCH`, *Keep mine*, the draft restored after a reload, *Not saved* with the server stopped and the retry, the settings dialog, light theme at 2 × 2) and on `preview:static` in two tabs (a save showing in the other tab, a real two-tab conflict, *Use saved*) | notes commit, 2026-10-30 | the owner's first use of the notes widget | not yet |
 
 ### Closed
 

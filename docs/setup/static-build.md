@@ -18,7 +18,7 @@ browser you have paired with it uses Portly's own data and features while it run
 | --- | --- |
 | **Search** — engines and keywords, URL detection, bookmark matches, suggestions from Wikipedia (the one suggestion provider that allows requests from a browser). An engine whose own suggestions need Portly (Google, DuckDuckGo, Bing, YouTube) shows none, unless you turn on **Settings → Search → Wikipedia suggestions instead** (off by default, a setting of this browser): it then shows Wikipedia's, under the heading *Wikipedia suggestions* | Suggestions from Google, DuckDuckGo, Bing or YouTube |
 | **Launch pad** — bookmark groups, drag-and-drop ordering, import from an HTML bookmarks file, custom icons; site icons come from DuckDuckGo's icon service; optional **launch pad sync** between browsers through your OneDrive or a private GitHub repository ([Launch pad sync](#launch-pad-sync)) | Import straight from the Chrome/Edge profile files; fetching a page's title and icon |
-| **Clock**, **Weather** (Open-Meteo, no key) | — |
+| **Clock**, **Weather** (Open-Meteo, no key), **Notes** (kept with the layout in this browser, so export/import carries them) | — |
 | **Sports scores** — scores, results and schedules straight from ESPN's public feeds | — |
 | **Todoist** — tasks, quick add, complete with undo (token stored in the browser, see below) | — |
 | **Calendar** — your **Outlook.com** calendars, read and written straight from the browser through Microsoft Graph (an app registration you own, see [Outlook.com](microsoft.md#browser-only-build-github-pages)); they sync while the page is open | Google, Yahoo and CalDAV calendars, ICS / webcal subscriptions |

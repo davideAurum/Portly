@@ -6,7 +6,7 @@ import { settings, widget } from '../test/fixtures.ts';
 import { renderWithProviders } from '../test/render.tsx';
 import { getWidgetDefinition } from '../widgets/registry.ts';
 import type { AnyWidgetDefinition } from '../widgets/types.ts';
-import { WidgetSettingsDialog } from './WidgetSettingsDialog.tsx';
+import { WidgetSettingsDialog, configChanges, withConfigChanges } from './WidgetSettingsDialog.tsx';
 
 async function renderDialog(focus: string | null, definition: AnyWidgetDefinition = getWidgetDefinition('weather')!) {
   // The weather settings are lazily loaded: load their code first, so that on a busy machine their
@@ -76,5 +76,27 @@ describe('widget settings focus target', () => {
     await nextFrame();
     await nextFrame();
     expect(title).toHaveFocus();
+  });
+});
+
+describe('saving only what the dialog changed', () => {
+  const notes = getWidgetDefinition('notes')!;
+
+  it('lists the top-level config fields that changed', () => {
+    expect(configChanges({ text: 'a', textSize: 'md' }, { text: 'a', textSize: 'lg' })).toEqual({ textSize: 'lg' });
+    expect(configChanges({ zones: [{ tz: 'UTC' }] }, { zones: [{ tz: 'UTC' }] })).toEqual({});
+    expect(configChanges(null, { a: 1 })).toBeNull();
+  });
+
+  it('applies them over the latest config, so a note saved while the dialog was open stays', () => {
+    const opened = notes.configSchema.parse({ text: 'Old' });
+    const draft = { ...opened, textSize: 'lg' };
+    const latest = { ...opened, text: 'Typed just before' };
+    expect(withConfigChanges(notes, latest, draft, configChanges(opened, draft))).toEqual({ ...latest, textSize: 'lg' });
+  });
+
+  it('falls back to the whole draft when the changes cannot be applied', () => {
+    const draft = notes.configSchema.parse({ text: 'Draft' });
+    expect(withConfigChanges(notes, { text: 'Latest' }, draft, null)).toBe(draft);
   });
 });

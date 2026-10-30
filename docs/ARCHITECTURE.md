@@ -49,6 +49,7 @@ choice, provided it respects §4.
 - RSS feeds: RSS and Atom feeds merged newest first (server only).
 - Sports scores: favorite teams' live, upcoming and final games from ESPN's public API.
 - Clock / greeting widget.
+- Notes: plain-text notes saved as you type, kept in the widget's config.
 - Customization: widget grid (add / remove / move / resize, multiple instances per type), per-widget
   settings, global theme, profiles (named layouts, manual switching), config export/import.
 - New Tab extension that starts Portly when the browser opens (§11, §12).
@@ -1133,12 +1134,14 @@ Radix primitives; sonner toasts. Vite dev proxy: `/api` → `PORTLY_PORT`, `chan
 cancel: 'input,textarea,select,button,a,[data-no-grid-drag]'}}`, `resizeConfig={{enabled: editMode, handles: [all four corners and edges]}}`; import
 `react-grid-layout/css/styles.css` and `react-resizable/css/styles.css`. Edit mode: drag handle in each frame header,
 Add Widget dialog, remove, per-widget settings dialog (frame options + widget Settings component). Positions saved
-via `PUT /positions` (debounced); config via `PATCH /widgets/:instanceId` — never whole-layout overwrites.
+via `PUT /positions` (debounced); config via `PATCH /widgets/:instanceId` — never whole-layout overwrites. The
+settings dialog saves the config fields changed in it over the widget's latest cached config, not over the copy it
+opened with (`withConfigChanges`), so config the widget saved itself meanwhile (a note) is kept.
 Below 768 px: widgets stacked full-width in (y, x) order, edit mode disabled; lists (launch pad, agenda, Todoist,
 mail) size to their content up to 70 vh, other widgets keep their row height (`WidgetDefinition.stackSizing`).
 First run seeds a "Home" profile from `web/src/grid/defaultLayout.ts`: on the server backend seven widgets (search,
 clock, launch pad, weather, calendar, Todoist, mail), on the browser backend five (no mail, and the calendar, which
-needs Outlook.com set up first, is left to Add widget). Feeds and sports start empty, so they are never seeded.
+needs Outlook.com set up first, is left to Add widget). Feeds, sports and notes start empty, so they are never seeded.
 
 ### 10.3 Widget registry
 Each `web/src/widgets/<type>/index.ts` exports
@@ -1147,8 +1150,8 @@ configSchema /* zod, every field defaulted */, Component: lazyWithPreload(() => 
 (`lazyWithPreload` is `React.lazy` plus `preload()`; once preloaded it renders without suspending).
 `description` is the "Add widget" text, a string or `(caps: Capabilities) => string` when it depends on the page
 load's backend (the calendar names Outlook.com alone on the in-browser backend); read it with `widgetDescription()`.
-`web/src/widgets/registry.ts` lists all nine definitions in "Add widget" order (search, launch pad, calendar, mail,
-Todoist, weather, feeds, sports, clock) and throws at load when they differ from `WIDGET_TYPES`
+`web/src/widgets/registry.ts` lists all ten definitions in "Add widget" order (search, launch pad, calendar, mail,
+Todoist, notes, weather, feeds, sports, clock) and throws at load when they differ from `WIDGET_TYPES`
 (`shared/src/profiles.ts`); `availableWidgetDefinitions()` leaves out the types this page load's backend cannot run
 (§16 Capabilities).
 `WidgetProps<C> = {instanceId, config: C, setConfig(patch: Partial<C>): Promise<void>, size: {w, h}, editMode: boolean}`;
@@ -1328,6 +1331,21 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   game shared by two favorites shown once; a row opens the box score (the preview before the start); live and upcoming
   games have a "Where to watch" popover mapping broadcasters to official streaming services (`model.ts`). Works in the
   static build. Not in the default layout (it starts empty).
+- **Notes** (`notes`) — config `{text: string (≤ 10,000 UTF-16 units, so even all-escaped JSON stays under the 64 KB
+  config limit), textSize: 'sm'|'md'|'lg', font: 'sans'|'mono', spellcheck}`; defaults `''`, `md`, `sans`, on. Each field
+  falls back to its default on its own (`.catch`), so an invalid field never shows the note empty for the next
+  keystroke to overwrite. One plain-text note per widget (a textarea filling the card; several widgets for several
+  notes), so it goes wherever the layout goes: export/import, profile copies, the in-browser backend, other PCs.
+  Saved 600 ms after typing stops, at once on blur, Ctrl+S, `visibilitychange` to hidden and `pagehide`, as
+  `PATCH /widgets/:instanceId` with the whole config (`saveWidget`, not the frame's `setConfig`). Several tabs or PCs
+  can show one note, so a save first reads `GET /api/profiles` fresh and writes only when the stored text is still the
+  one the edits started from (`base`); otherwise nothing is written and the card asks *Keep mine* (saves this text)
+  or *Use saved* (drops it). Until a save succeeds the text and its base are also kept in localStorage
+  (`portly:notes-draft:<instanceId>`, `widgets/notes/model.ts`); a page load with such a draft shows it and saves it,
+  or asks when the note changed since. Focusing the note or coming back to the tab refetches the profiles when nothing
+  is unsaved. A failed save shows *Not saved* in the header (click to retry; one toast until a save succeeds). The
+  character count shows from 90 % of the limit. Default size 4 × 4 (what both backends give a type without a size
+  entry), min 2 × 2. Works in the static build. Not in the default layout (it starts empty).
 
 ---
 

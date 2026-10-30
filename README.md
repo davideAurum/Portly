@@ -24,6 +24,8 @@ place name of your location), as the [privacy policy](site/privacy.html) lists.
 - **Sports scores** — live scores, recent results and upcoming games for your teams, with box scores
   and where to watch.
 - **Weather** (Open-Meteo, no key) and a **clock** with greeting and extra time zones.
+- **Notes** — plain-text notes saved as you type, one per widget. A note edited in two tabs or on
+  two PCs is never silently overwritten: Portly asks which version to keep.
 - **Customization** — a 12-column widget grid (add, remove, move, resize, several instances of any
   widget), per-widget settings, themes (light/dark, accent, gradient or image background, fonts,
   density, optional frosted glass), named profiles, and config export/import. The page is kept
@@ -120,8 +122,8 @@ and [connect your accounts](docs/SETUP.md#connect-your-accounts).
 ## Browser-only build
 
 Portly can also be built as plain files that run entirely in the browser — no server, hosted on
-GitHub Pages — with search, bookmarks, clock, weather, Todoist, sports scores, themes, profiles and
-export/import, and Outlook.com calendars (the browser signs in to Microsoft and syncs them itself).
+GitHub Pages — with search, bookmarks, clock, weather, notes, Todoist, sports scores, themes, profiles
+and export/import, and Outlook.com calendars (the browser signs in to Microsoft and syncs them itself).
 Mail, feeds, Google and app-password accounts, and ICS links need the server and are left out. Your
 data lives in that browser's storage (IndexedDB), moved between computers with export/import. The
 launch pad (groups, bookmarks and custom icons) can also sync between browsers through your

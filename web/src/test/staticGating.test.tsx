@@ -26,7 +26,7 @@ describe('static build gating (Pages build, in-browser backend)', () => {
   it('hides mail and feeds from the catalog and the default layout, but keeps the registry whole', () => {
     expect(WIDGET_DEFINITIONS.map((d) => d.type)).toContain('mail');
     expect(WIDGET_DEFINITIONS.map((d) => d.type)).toContain('feeds');
-    expect(availableWidgetDefinitions().map((d) => d.type)).toEqual(['search', 'launchpad', 'calendar', 'todoist', 'weather', 'sports', 'clock']);
+    expect(availableWidgetDefinitions().map((d) => d.type)).toEqual(['search', 'launchpad', 'calendar', 'todoist', 'notes', 'weather', 'sports', 'clock']);
     // The calendar needs an Outlook.com app registration first: it is offered, not placed.
     const types = createDefaultLayout().items.map((i) => i.type);
     expect(types).toEqual(['search', 'clock', 'launchpad', 'weather', 'todoist']);
