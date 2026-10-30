@@ -4,11 +4,19 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
-## Unreleased
+## 0.2.0-alpha.4 (2026-10-30)
 
-On main, not in a release yet. New-tab extension 0.5.3 (unchanged).
+The fourth alpha: one address for every PC, and a Notes widget. Ships with new-tab extension 0.5.3
+(unchanged, so no reload of the extension is needed).
 
 ### What's new
+- **One address for every PC.** Your other PCs can open the same Pages site as the main PC and
+  use the main PC's Portly through it: click the Portly status in the footer, choose **Use Portly
+  on another PC**, type the main PC's Tailscale address once, and approve the PC in **Settings →
+  Devices** on the main PC ([how](docs/setup/other-pcs.md#connecting-another-pc)). It needs a
+  Pages site set on the main PC (`PORTLY_PAGES_URL`) and Tailscale on both. The published site
+  names no PC and no tailnet: each browser is told the address once. The Tailscale address itself
+  keeps working as before.
 - **Notes widget.** A plain-text note, saved as you type (**Edit layout → Add widget → Notes**; add
   one per topic). It goes wherever your layout goes: export and import, copied profiles, the
   browser-only site and your other PCs. Its settings pick the text size, a monospace font and spell
