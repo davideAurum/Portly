@@ -1024,7 +1024,7 @@ disconnects itself; its cookie cleared). Every other route except those listed `
 
 ---
 
-## 8. Provider notes (verified 2026-10-29)
+## 8. Provider notes (verified 2026-10-30)
 
 **Google** — OAuth client type *Web application*; redirect `http://localhost:5757/api/oauth/google/callback`
 (from config). Scopes (all services; a sign-in asks for `openid email profile` plus those of the services picked,
@@ -1580,8 +1580,11 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   handling, Todoist mapping.
 - The production build runs without CSP violations. No automated step covers this: it is checked by hand before
   every release, for both `web/dist` and `web/dist-static` ([Releases](setup/releases.md#cutting-a-release), step 3).
-  Last checked 2026-10-28 on the 0.2.0-alpha.1 release branch (6ac3731, and 9240123's Add widget text), in
-  Chromium and Edge: zero violations in both builds.
+  Last checked 2026-10-30 on 0.2.0-alpha.4 (d5f75f3), in the desktop app's browser pane (Chromium): zero
+  violations in both builds, over every settings section and the dashboard (the server build with a Notes widget
+  added; the Pages build with its connect page asking a made-up `*.ts.net` address, which the CSP let through to a
+  failed DNS lookup). The diagnostic report download, a background upload and export/import were last checked
+  2026-10-28 on the 0.2.0-alpha.1 release branch (6ac3731), in Chromium and Edge.
 
 ---
 

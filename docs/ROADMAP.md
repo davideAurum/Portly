@@ -1741,7 +1741,11 @@ Items:
   *Done when:* the second PC opens the published site, connects to the main PC there, is
   approved, and uses the main PC's data; a removal on the main PC sends it back to its own copy.
   Needs a release on the main PC and a publish of the site (the owner's go). *Status:* built and
-  tested with fakes 2026-10-30; the real check is the rows below.
+  tested with fakes 2026-10-30, then released the same day as 0.2.0-alpha.4 (d5f75f3, zip
+  SHA-256 d323b306…10ba), installed as an update on the owner's install and published to the
+  Pages site (f03b8a3). Through the Serve address the installed Portly answers the Pages origin
+  (`remote: true`, CORS and the `X-Portly-Device` preflight). The real check from the second PC
+  is the rows below.
 
 ## Checks never run for real
 
