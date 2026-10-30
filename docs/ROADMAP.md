@@ -88,6 +88,8 @@ checks).
 - **F11 Other PCs.** One or more still run Homebase, so phase 3 stays as written, for each other
   PC. *Changed 2026-10-29:* the other PCs stop running a server of their own. Each removes Homebase
   and connects to this PC's Portly through Tailscale Serve (Track B), so 3.2 to 3.4 were rewritten.
+  *Later the same day:* the owner reports that no PC runs Homebase any more, so 3.3 and 3.4 only
+  connect each other PC, and 3.6 can archive Homebase's repository.
 - **F12 Yahoo.** No Yahoo account is connected on this PC's installed Portly: 2.6 adds the Yahoo
   preset with an app password. *2026-10-29:* the owner has a Yahoo account and makes the app
   password during 2.6.
@@ -1490,6 +1492,12 @@ Items:
   them. Still open: the republish of the site and the privacy page, `portly --update`, and the
   two-browser test.
 
+  *Changed 2026-10-29 (the owner's choice):* the Pages site and the privacy page are published
+  together from the 0.2.0-alpha.2 tag in 6.8, not from main before it, so the public site gets
+  sync with the release that ships it. The published-site test follows the release. This PC now
+  runs a release install, so its `portly --update` installs 0.2.0-alpha.2 (the checkout's
+  dirty-tree refusal stays a row in the checks table).
+
 - **6.8 Release 0.2.0-alpha.2** (S; go-ahead; after 6.7).
   The CHANGELOG's "Unreleased" section becomes the 0.2.0-alpha.2 entry; the candidate installed on
   the clean account as in 5.2; publish as in 5.3 (the `v*` tag ruleset does not restrict creating
@@ -1499,6 +1507,12 @@ Items:
   *Done when:* `gh release view v0.2.0-alpha.2` lists the zip and `portly-release.json` with
   matching SHA-256; the tag points at the built commit; the live site's footer reads
   0.2.0-alpha.2; the phase 6 row reads Done with the date.
+
+  *Status:* release-day commit on main 2026-10-29 (version 0.2.0-alpha.2, the CHANGELOG's entry
+  dated, extension 0.5.3 unchanged); built from main, not a release branch, since main holds
+  exactly what ships. The parked fixes found on 2026-10-29 (the calendar list by account, the
+  first-sync wording, app registrations beside their accounts) wait for 0.2.0-alpha.3, the
+  owner's choice.
 
 ## Launch pad sync through GitHub (beside phase 6)
 
@@ -1757,29 +1771,31 @@ date and the outcome once a row has been run for real.
   finding the port; a remote port and Tailscale Serve HTTPS port per user, with device cookies
   named per server (`__Host-portly_device` is shared by every port of one host); a two-account
   rehearsal like 4.3 with both installs running. Asked about on 2026-10-28; no need yet.
-- **Name the account in the new-event calendar list.** The Calendar widget's event dialog
-  (`web/src/widgets/calendar/EventDialog.tsx`) lists every writable calendar by name only, so
-  Google's "Calendar" and Outlook's "Calendar" look the same and the owner took Google's for
-  missing (2.2). Grouping the options by account (provider and account name) would fix it.
-- **The first-sync question claims a difference it never checked.** Its description says this
-  browser and the synced file "both have a launch pad, and they are different", but the engine
-  asks whenever both have rows on a first sync (`web/src/static/sync/engine.ts`, the
-  `firstSync && hasRows` branch), as after a reconnect with identical bookmarks (6.6). Either
-  compare them first and skip the question when they match, or drop "and they are different".
+- **Name the account in the new-event calendar list** (*planned for 0.2.0-alpha.3*). The
+  Calendar widget's event dialog (`web/src/widgets/calendar/EventDialog.tsx`) lists every
+  writable calendar by name only, so Google's "Calendar" and Outlook's "Calendar" look the same
+  and the owner took Google's for missing (2.2). Grouping the options by account (provider and
+  account name) would fix it.
+- **The first-sync question claims a difference it never checked** (*planned for
+  0.2.0-alpha.3*). Its description says this browser and the synced file "both have a launch
+  pad, and they are different", but the engine asks whenever both have rows on a first sync
+  (`web/src/static/sync/engine.ts`, the `firstSync && hasRows` branch), as after a reconnect with
+  identical bookmarks (6.6). Either compare them first and skip the question when they match, or
+  drop "and they are different".
 - **Terms and privacy addresses on the Microsoft registration.** Microsoft's consent screen says
   "The publisher has not provided links to their terms" (6.6): in the Azure portal, Portly's
   **Branding & properties** take the portly-site terms and privacy addresses, as Google's
   Branding did in 5.6. An owner's portal step; "unverified" stays without publisher
   verification.
-- **App registrations next to their accounts.** The owner's suggestion during 2.2: Settings >
-  Accounts shows *App registrations* as a section of its own; each provider's registration (the
-  Google client, the Microsoft client ID) would read better beside that provider's connected
-  accounts and its *Add a connection* tile.
+- **App registrations next to their accounts** (*planned for 0.2.0-alpha.3*). The owner's
+  suggestion during 2.2: Settings > Accounts shows *App registrations* as a section of its own;
+  each provider's registration (the Google client, the Microsoft client ID) would read better
+  beside that provider's connected accounts and its *Add a connection* tile. On 2026-10-29 the
+  owner first looked for the Microsoft client ID on the Microsoft card (6.6).
 - **Tell the user when a browser's Homebase copy gives up.** After three failed loads
   `copyLegacyStaticDatabase` (`web/src/static/storage/idb.ts`) stops trying and says so only in
-  the console; Diagnostics shows nothing, and the user is never told Homebase's in-browser data
-  was not copied (3.1). A client diagnostics event, or a line in the guides, would do. Low
-  priority: the case ends once no browser has Homebase data left.
+  the console; Diagnostics shows nothing (3.1). *Dropped 2026-10-29:* no PC runs Homebase any
+  more (F11).
 - **Multi-PC** moved to [Track B](#track-b-multi-pc) on 2026-10-21, on the explicit go D10 asked
   for; the loopback-only contract is kept (the listener never changes, other PCs arrive through an
   HTTPS proxy on the main PC), the two login questions are answered in design/multi-pc.md, and the

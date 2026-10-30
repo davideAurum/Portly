@@ -1,6 +1,6 @@
 {
   "name": "portly",
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.0-alpha.2",
   "private": true,
   "description": "Single-user, customizable browser home page served from a local Node server.",
   "license": "MIT",
