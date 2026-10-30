@@ -4,11 +4,11 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
-## Unreleased
+## 0.2.0-alpha.2 (2026-10-29)
 
-On main, not in a release yet. Planned as 0.2.0-alpha.2, with new-tab extension 0.5.3
-(unchanged). Sync has not yet run against a real OneDrive or GitHub account; that is checked before
-the release ([ROADMAP](docs/ROADMAP.md#phase-6-launch-pad-sync-shipped-as-020-alpha2)).
+The second alpha: launch pad sync for the browser-only site. Ships with new-tab extension 0.5.3
+(unchanged, so no reload of the extension is needed). Before the release, sync ran between two
+browsers through a real OneDrive and a private GitHub repository.
 
 ### What's new
 - **Launch pad sync on the browser-only site (optional):** the launch pad (groups, bookmarks, their
@@ -22,13 +22,20 @@ the release ([ROADMAP](docs/ROADMAP.md#phase-6-launch-pad-sync-shipped-as-020-al
   The connection's card shows the sync status and **Sync now**. The first sync asks which launch
   pad to keep when two differ, and a sync that would remove much of it keeps a backup first.
   Layouts, widgets, the theme and other settings stay per browser. Portly's own page and a page
-  paired with it don't offer sync. See
-  [Browser-only build](docs/setup/static-build.md).
+  paired with it don't offer sync. How to set it up, the GitHub repository and token included:
+  [Launch pad sync](docs/setup/static-build.md#launch-pad-sync). The
+  [privacy policy](site/privacy.html) says what sync sends where.
 - **Outlook.com on the browser-only site** remembers which permissions its last sign-in asked for,
   so turning on a second service later doesn't break the automatic renewal.
 - **New address for the public pages:** the footer's **Privacy** and **Terms** links go to
   `https://davideaurum.github.io/portly-site/`. The old homebase-site addresses, which
   0.2.0-alpha.1 links to, redirect there.
+
+### Known limits
+- The same as 0.2.0-alpha.1's: alpha, packages not code-signed, the new-tab extension loaded
+  unpacked, your own app registrations, Windows 11 (x64) only.
+- Launch pad sync is for the browser-only site only. Layouts, the theme and other settings are not
+  synced, and Portly on your PC keeps its own launch pad.
 
 ## 0.2.0-alpha.1 (2026-10-28)
 

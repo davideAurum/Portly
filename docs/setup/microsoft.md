@@ -141,18 +141,27 @@ part of it. The steps above apply, with these differences:
   **Microsoft** tile has no Mail service. The site asks for **Calendars.ReadWrite** (plus the
   sign-in ones), never **Mail.ReadWrite**, and **Files.ReadWrite.AppFolder** (your OneDrive's
   folder for this app, nothing else) only for **Launch pad sync**.
-- **Launch pad sync.** Tick **Launch pad sync** when you connect, or **Add** it later under the
-  account's **Manage** (Microsoft then asks for the one new permission, or for nothing if you
-  allowed it in another browser). Your groups, bookmarks and custom icons are kept in your
-  OneDrive under **Apps**, in a folder named after your app registration: use the same
-  Application (client) ID in every browser that should share a launch pad. The account's card
-  shows the status, **Sync now** and **Details**. The first time a browser that already has a
-  launch pad syncs with a file that has a different one, Portly asks which to keep (*Use the
-  synced launch pad*, the default, keeps a backup of this browser's first). A browser syncs
-  through one connection: Portly offers to move the service from another Microsoft connection,
-  and refuses while GitHub syncs. Switching it off stops sync in this browser and keeps both the
-  launch pad here and the files in OneDrive; to withdraw the permission itself, remove Portly at
-  <https://account.live.com/consent/Manage>.
+- **Launch pad sync.** Tick **Launch pad sync** when you connect (it is never ticked for you), or
+  **Add** it later under the account's **Manage**. Before the sign-in Portly says what Microsoft
+  will ask for: Portly's own folder in your OneDrive, and nothing else of your OneDrive. Microsoft
+  then asks for that one new permission, or for nothing if you allowed it in another browser. Your
+  groups, bookmarks and custom icons are kept in your OneDrive under **Apps**, in a folder named
+  after your app registration (the name it had when the folder was first made; renaming the
+  registration later doesn't rename the folder): use the same Application (client) ID in every
+  browser that should share a launch pad. Layouts, widgets, the theme and the other settings stay
+  per browser.
+- **Using launch pad sync.** The account's card shows the status, **Sync now** and **Details**.
+  The first time a browser that already has a launch pad syncs with a file that has one too,
+  Portly asks which to keep: *Use the synced launch pad* (the default; a backup of this browser's
+  is kept first, offered as *Backup before sync* under **Settings → Import & export**) or
+  *Replace the synced launch pad* with this browser's. A browser syncs through one connection:
+  Portly offers to move the service from another Microsoft connection, and refuses while GitHub
+  syncs. Switching it off stops sync in this browser and keeps both the launch pad here and the
+  files in OneDrive; to withdraw the permission itself, remove Portly at
+  <https://account.live.com/consent/Manage>. A page that uses Portly on this PC
+  ([hybrid mode](pages-local-server.md)) doesn't offer the service: it shows Portly's launch pad,
+  which isn't synced. The whole story, GitHub included:
+  [Launch pad sync](static-build.md#launch-pad-sync).
 - **The sign-in lasts 24 hours.** Microsoft limits sign-ins made from a web page to a day. The
   site renews it by itself when you open it while you are still signed in to Microsoft in that
   browser; otherwise the account shows **Reconnect**. Checked with a real Outlook.com account on

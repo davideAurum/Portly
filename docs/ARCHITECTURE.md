@@ -17,7 +17,7 @@ choice, provided it respects §4.
 - [5. Data model](#5-data-model)
 - [6. Server structure](#6-server-structure)
 - [7. API contract](#7-api-contract)
-- [8. Provider notes](#8-provider-notes-verified-2026-09-25)
+- [8. Provider notes](#8-provider-notes-verified-2026-10-29)
 - [9. Sync](#9-sync)
 - [10. Web app](#10-web-app)
 - [11. Extension](#11-extension-chromium-mv3-chrome--edge)
@@ -54,14 +54,21 @@ choice, provided it respects §4.
 - New Tab extension that starts Portly when the browser opens (§11, §12).
 - Browser-only build for GitHub Pages with its data in the browser, and hybrid mode, where a paired
   Pages site uses the server on this PC (§16).
+- Launch pad sync for the browser-only build: groups, bookmarks and custom icons kept the same in every browser
+  that turns it on, through one sync connection per browser, the OneDrive app folder of an Outlook.com connection
+  or a private GitHub repository with a fine-grained token. Browser backend only (§16); layouts, the theme and the
+  other settings stay per browser, and the server's launch pad is not synced ([design](design/launchpad-sync.md),
+  [GitHub](design/launchpad-sync-github.md)).
 - Diagnostics: the health of every connection and sync, logs, and a shareable report (§17).
 - Release packages that install and update Portly without a Git checkout (§18).
 
 **Deferred (design must not preclude):** CalDAV writes (v1.1, after testing reads against the user's
-Yahoo account), multi-device access (one server used from several PCs, with a login: `docs/design/multi-pc.md`;
+Yahoo account; that read test passed on 2026-10-29: the calendar list and an event made in Yahoo's web
+app over CalDAV, and the IMAP listing with archive and trash, ROADMAP 2.6), multi-device access (one server used from several PCs, with a login: `docs/design/multi-pc.md`;
 satisfied in v1 only by deriving bind address, origin and port from `config.ts` everywhere), a fantasy sports
 widget, automatic profile switching (location / network / time), per-profile themes (`profiles.theme` column
-reserved), sending mail.
+reserved), sending mail, launch pad sync for Portly on a PC and for layouts, the theme and other settings
+(design/launchpad-sync.md sections 9 and 12).
 
 **Not planned:** Proton Mail (any form); Microsoft work/school accounts (the app is registered for
 personal Microsoft accounts only and the `/consumers` authority is hard-coded).
@@ -295,6 +302,28 @@ used only for the site removes the risk (docs/setup/pages-local-server.md). The 
 `127.0.0.1:<port>` as untrusted input (it may be a squatter): responses are parsed with the shared schemas, the
 reported `appUrl` is only used when it is a loopback root page, and the server's `instanceId` is a guard against using
 the wrong server, not authentication — the token is.
+
+**Launch pad sync (browser backend, §16) puts two more grants on that shared origin.** In the site's IndexedDB,
+unencrypted: the sign-in of a Microsoft connection with the Launch pad sync service, whose tokens then also reach the
+OneDrive app folder (`Files.ReadWrite.AppFolder`, nothing else of the drive; a web sign-in lasts 24 hours and is
+renewed at page load), and the GitHub repository and fine-grained token (the `github-sync` slice), which reaches what
+the user limited it to (Portly can't check that it is one repository) until it expires or is revoked. Any script on
+any page of `https://<user>.github.io`, and any extension with access to the site, can read them, and with them the
+launch pad and its history. *Decided 2026-10-29 (ROADMAP D9):* the site stays at `https://davideaurum.github.io/` for
+0.2.0-alpha.2 and the risk is accepted, since only the owner's own repositories publish there; revisit when anyone
+else uses the site. Moving the app under a path such as `/portly-site/` would not isolate it: browsers keep storage
+per origin (scheme, host, port), not per path; only a custom domain used only for the site (or a separate account)
+would. Mitigations: classic GitHub tokens are refused (the only classic scope that reaches a private repository
+reaches all of them); the repository must be private when saved and when each page load's store first uses it; the
+repository and token are write-only (`{configured}`), never exported, and sent only to `api.github.com`
+(`credentials: 'omit'`, `redirect: 'error'`, no download URLs); OneDrive downloads come only from allowlisted hosts with
+no credentials; **Remove** in Settings → Accounts deletes them from that browser, and revoking at GitHub or
+account.live.com ends access everywhere.
+**The synced files are hostile input** (anything that can write to the app folder or the repository can change them):
+checked like an import file (byte caps, `assertSafeJson`, the strict versioned `portly-sync` schema, ids kept but
+validated, icon bytes sniffed and matched against the listed SHA-256), references repaired in this browser only, and a
+refused file is never merged or overwritten (`web/src/static/sync/format.ts`; design/launchpad-sync.md section 8,
+launchpad-sync-github.md sections 9 and 11).
 
 **Other PCs (§20) add trusted devices:** with `PORTLY_REMOTE_ORIGIN` set, a PC approved once from Portly's own page
 (its device cookie) may call the routes declared `paired()` through the remote port, as a paired browser may. Each
@@ -972,7 +1001,7 @@ disconnects itself; its cookie cleared). Every other route except those listed `
 
 ---
 
-## 8. Provider notes (verified 2026-09-25)
+## 8. Provider notes (verified 2026-10-29)
 
 **Google** — OAuth client type *Web application*; redirect `http://localhost:5757/api/oauth/google/callback`
 (from config). Scopes (all services; a sign-in asks for `openid email profile` plus those of the services picked,
@@ -1176,19 +1205,39 @@ then choose what it is used for":
   an `accounts` row: the token stays write-only in the vault (server) or the browser slice (in-browser backend).
   **Manage** renames, recolors and switches services (`PATCH enabledCapabilities`); for Google/Microsoft it offers
   **Add** for a service the account was not granted (start with `{accountId, capabilities: [service]}`, §4.7). Todoist's
-  Manage holds Replace token and the default filter.
-- *Add a connection*: tiles Google, Microsoft, Yahoo, Todoist, Other (`accounts/connections.ts`, data-driven: per
+  Manage holds Replace token and the default filter. On the in-browser backend, GitHub (launch pad sync through a
+  private repository, `accounts/GitHubSync.tsx`) has a row too while its repository and token are saved
+  (`GET /api/sync/github` → `{configured}`): *Token saved*, the Launch pad sync chip, Manage (replace both) and Remove
+  (deletes both from the browser; the repository stays on GitHub).
+- *Add a connection*: tiles Google, Microsoft, Yahoo, Todoist, GitHub, Other (`accounts/connections.ts`, data-driven: per
   connection the services it offers with a one-line description; a new service is one entry plus its scopes). A tile
   opens a connect dialog: **App registration** (Google/Microsoft, only while the client is not configured; console
   link, steps, exact redirect URI, client ID/secret) → **Services** (checkboxes; only built services) → **Sign in**
   (start with the services ticked; disabled while the vault is locked) or the credential form (Yahoo app password;
-  Other: CalDAV calendar or IMAP mail) with per-service probe results, or the Todoist token. Yahoo services left
-  unticked are switched off after creation. *App registrations* under the tiles shows each provider's status (Ready /
-  Setup needed / Credentials locked) with **Edit**.
+  Other: CalDAV calendar or IMAP mail) with per-service probe results, the Todoist token, or GitHub's repository
+  (`owner/name`) and fine-grained token (`PUT /api/sync/github`, checked with GitHub before saving: private
+  repository, contents readable, classic tokens refused). Yahoo services left unticked are switched off after
+  creation. *App registrations* under the tiles shows each provider's status (Ready / Setup needed / Credentials
+  locked) with **Edit**.
 - The vault-locked banner with **Reset credentials** (server vault only).
 - What a page load offers follows `getCapabilities()`: on the in-browser backend only Microsoft (calendar, and launch
-  pad sync, never ticked for the user; browser sign-in with a single-page-app redirect) and Todoist, with a line saying
-  the others need the Portly server. Launch pad sync is offered nowhere else (`launchpadSync`, §16).
+  pad sync, never ticked for the user; browser sign-in with a single-page-app redirect), Todoist and GitHub, with a line
+  saying the others need the Portly server. Launch pad sync is offered nowhere else (`launchpadSync`, §16).
+- *Launch pad sync* (in-browser backend; `accounts/LaunchpadSync.tsx`, state from `GET /api/sync/launchpad`): the card
+  of the one connection that syncs (a Microsoft account with the service on, or the GitHub row) shows the status line
+  (*Up to date*, *Syncing…*, *Changes waiting to upload*, *Not synced yet*, *Waiting for your choice*, *Paused*, *Set up
+  twice*, *Stopped*, *Trying again later*, *Error*), when it last synced, **Sync now** (`POST /api/sync/launchpad/now`)
+  and Details (last synced, last change received and sent, next try, where the files are, **Open Diagnostics** when it
+  stopped or failed). The first-sync dialog asks when both this browser and the synced file have a launch pad (*Use the
+  synced launch pad*, the default, or *Replace the synced launch pad*; `{choice}` on the same POST), and **Choose…** asks
+  again after it was closed. One sync connection per browser: the connect dialog's Launch pad sync box and Manage's
+  switch say which connection syncs, Manage offers to move the service between Microsoft connections, the GitHub form
+  does not save while a Microsoft connection syncs (the routes answer `409 conflict` too), and a banner says when sync
+  is set up twice. Before a sign-in that asks for the app folder (the connect dialog's last step, **Add** under Manage)
+  the page says what Microsoft will ask for; removing a syncing Microsoft account says that sync stops.
+  **Settings → Bookmarks** says "Synced through …" or "Not synced" with a link to Accounts (`SyncPointer.tsx`), and
+  **Import & export** warns in the import preview that an import replaces the launch pad in every synced browser and
+  offers the newest backup of each kind, *Backup before the last import* and *Backup before sync*.
 The app reads `?oauth=<result>` on load, shows a toast, and strips it from the URL.
 Hybrid mode (§16): About in the server build ends with **Paired browsers** (`PairedBrowsersCard`: the configured Pages
 address or how to set it, every pairing with label, created and last used, "Old address" when not made for the
@@ -1577,6 +1626,18 @@ Settings → Search says which applies). The browser backend's first-run layout 
 still fills its 12 × 15 cells: the weather runs down the right-hand side, Todoist sits under the launch pad. Account
 setup works the same on the server backend from either build (one page).
 
+**Launch pad sync is browser-backend only** ([design](design/launchpad-sync.md) section 9). Its scheduler
+(`static/sync/scheduler.ts`) is started by the page's own in-browser backend (`startPageBackend()` in
+`static/backend.ts`) and talks to OneDrive (`static/providers/graphDrive.ts`) or GitHub
+(`static/providers/githubRepo.ts`) straight from the page, so a server-backend page, which never opens the browser's
+dataset, never syncs, and the server's launch pad is never synced: hybrid mode's two datasets stay separate. A paired
+page (server backend) therefore shows none of it: `launchpadSync` is false, so the Microsoft tile and Manage offer no
+Launch pad sync service (the server's sign-in refuses the capability anyway, §7a), there is no GitHub tile, no sync
+status line, no Settings → Bookmarks pointer, no import warning and no *Backup before sync*. Changes waiting from an
+earlier browser-backend load stay flagged in the `launchpad-sync` slice and go up at the next browser-backend load, and
+a switch back to the browser backend syncs like any page load. Tabs take turns with the Web Lock
+`portly-static:<base>:launchpad-sync`.
+
 **Controller (`localServer/controller.ts`, every side effect injected, unit-tested under fake timers).** State
 `{backend, status, server: {version, instanceId, appUrl, apiVersion, vault}|null, paired, checkedAt, pendingSwitch,
 permission, manual}`; the UI reads it through `localServer/store.ts` (`useLocalServer()`, `localServerActions`:
@@ -1653,7 +1714,7 @@ needs nothing more for them (`blob:` and `data:`, §4.3); `connect-src` gains th
 | localStorage | `portly:query-cache:local-server:<base>` | server backend snapshot, buster `<version>+local-server:<instanceId>`, 7 days; never `accounts`, `oauth-clients` or mail |
 | sessionStorage | `portly:pairing-nonce` | the nonce of this tab's pairing request (one use) |
 | sessionStorage | `portly:mode-switch-toast` | the switch to announce after the reload |
-| IndexedDB | `portly-static:<base>` | the browser backend's data (never opened by a server-backend page) |
+| IndexedDB | `portly-static:<base>` | the browser backend's data (never opened by a server-backend page), launch pad sync's state among it: the `launchpad-sync` slice (clock, source id, file epoch and version, status, backoff; never a token, a URL or file content beyond the icon list) and the `github-sync` slice (repository and token, write-only), neither exported |
 | localStorage | `portly:diagnostics:events:<base>` | this browser's diagnostic events (§17; the server build: `portly:diagnostics:events`) |
 | localStorage | `portly:diagnostics:events:<base>:upload-pacing` | the event uploads of the last minute, shared by every tab |
 
@@ -1870,6 +1931,13 @@ through `scrub`/`scrubFields`:
 | `app` | `window` `error`/`unhandledrejection`, the error boundary | `errName, errMessage, source, stack (≤ 5 frames, file names only)` |
 | `sync` | launch pad sync (`web/src/static/sync/scheduler.ts`), one event per round on the browser backend: debug for a check that changed nothing, info when something moved or a first-sync choice is needed, warn when it stopped or failed; never names, titles or addresses | `trigger, outcome, source (onedrive \| github), code, ms, received, sent, groups, bookmarks, icons, removed, bytesUp` |
 
+Launch pad sync also records `provider` events: OneDrive's failed requests (`provider: microsoft`, the host, the status
+and Graph's error code, `providers/graphDrive.ts`) and a refused synced file or icon (`provider: onedrive|github` with
+the problem code, `sync/engine.ts`). GitHub's requests record none of their own: a failure reaches the `sync` event as
+its `SyncStoreError` code. A round that fails with anything but a store error is a `backend` error `launch pad sync
+failed {op, errName}`. Recorded on the browser backend, these events stay in this browser (Diagnostics → **This
+browser**; the status line's **Open Diagnostics** opens Settings → Diagnostics).
+
 - **Kept:** a ring of the last 300 events mirrored to localStorage (`portly:diagnostics:events`, Pages build
   `…:<base>`; merged across tabs, ≤ 256 KB, entries older than 7 days dropped; when another tab rewrites it, only
   the entries this tab has not read before are validated). **Debug events are never stored**
@@ -2002,8 +2070,10 @@ over, never moved or deleted:
   start never copies. Source: the first of `<data dir>/homebase.db` and the `homebase.db` in Homebase's own folder: the
   one HOMEBASE_DATA_DIR names (resolved like PORTLY_DATA_DIR), else — only with PORTLY_DATA_DIR unset too — Homebase's
   default folder. HOMEBASE_DATA_DIR is only read as that source; Portly keeps its own folder. `VACUUM INTO` a temporary
-  file (consistent while an old server still has it open; read-only connection first, a normal one when WAL needs it;
-  SQLITE_BUSY/LOCKED, EBUSY, EPERM and EACCES retried, 3 attempts), then the rename to `portly.db`. An existing
+  file (consistent while an old server still has it open; read-only connection first, a normal one if that fails;
+  SQLITE_BUSY/LOCKED, EBUSY, EPERM and EACCES retried, 3 attempts), then the rename to `portly.db`. `homebase.db` itself
+  is never written, but SQLite leaves an empty `homebase.db-wal` and a `-shm` beside a WAL database that had none
+  (seen in 3.1's rehearsal, 2026-10-29). An existing
   `portly.db` is kept (marker `kept-portly-database`, request dropped, warning) unless `replace`, which first moves it
   and its `-wal`/`-shm` to `portly.db.before-homebase-<time>`. The vault key travels with the database it encrypts: when
   the database comes from another folder, Homebase's `vault.key` takes the place of Portly's (DPAPI is per user, not per

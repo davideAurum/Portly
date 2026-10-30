@@ -76,6 +76,145 @@ If the other PC's page shows **This address reaches Portly the wrong way**, the 
 Portly's main port instead of its port for other PCs: run the `tailscale serve` command above
 with the right port.
 
+## A PC that ran Homebase
+
+Homebase is Portly's old name. A PC that runs Homebase today can use the main PC's Portly
+instead, with nothing of Portly installed on it: keep Homebase's data, remove Homebase, then
+connect the browser. Set up the main PC first (above), and work down these steps in order on the
+PC that ran Homebase.
+
+### 1. Keep Homebase's data
+
+1. Open a new tab, so that Homebase New Tab starts Homebase, then open Homebase's own page at
+   `http://localhost:5757/#/settings/diagnostics` (or the port you gave Homebase). Homebase may
+   forward its other pages to a Pages site, but never that one. Choose **Import & export**, then
+   **Download export**, and keep the `homebase-export-<date>.json` file somewhere this clean-up
+   does not reach, such as the main PC.
+2. If that PC's launch pad has bookmarks the main PC lacks, also choose **Bookmarks** →
+   **Export bookmarks** there, and keep that HTML file too.
+
+The main PC's Portly already holds your accounts, and they work from every PC. Neither file
+carries accounts, passwords or calendar subscriptions. Bring over only what is missing, on the
+main PC, and only after a backup:
+
+- **The backup first:** Settings → Import & export → **Download export** on the main PC.
+  Importing that file puts the main PC's set-up back.
+- **Bookmarks:** Settings → Bookmarks, *Put imported bookmarks into* **One group per folder**,
+  **Choose file…** with the HTML file, then **Import file**. This only adds: a group with the same
+  name is reused, and an address already in it is skipped. Icons and group colors are not in that
+  file.
+- **The export file does not merge.** Importing it (Settings → Import & export → **Choose export
+  file…**) replaces the main PC's settings, profiles and widgets, its whole launch pad (every
+  bookmark group and bookmark), background images and custom icons with that PC's, on every PC
+  that uses the main PC's Portly. Accounts are not affected, and Portly copies its database to
+  `backups\` first. Import it only if that PC's set-up should replace the main PC's.
+- **An account or calendar that only that PC's Homebase had:** set it up again on the main PC.
+
+### 2. Stop Homebase and remove what it registered
+
+These are the steps Portly's installer takes on a PC that ran Homebase, as commands that need no
+Portly. Open PowerShell, signed in as the Windows user that ran Homebase, and type them one at a
+time:
+
+1. Show the Homebase checkout that Homebase's task runs, and note the folder it prints (like
+   `C:\Users\you\Coding\Homebase`; part 6 deletes it):
+
+   ```powershell
+   (Get-ScheduledTask -TaskName 'Homebase Server' -TaskPath '\').Actions[0].WorkingDirectory
+   ```
+
+   If it says no such task was found, the task is already gone: skip to the `Remove-Item`
+   commands below.
+2. Save the task's definition to a file, so it can be restored:
+
+   ```powershell
+   Export-ScheduledTask -TaskName 'Homebase Server' -TaskPath '\' | Out-File -Encoding Unicode "$env:USERPROFILE\homebase-task-backup.xml"
+   ```
+
+3. Remove the task, so that nothing starts Homebase again:
+
+   ```powershell
+   Unregister-ScheduledTask -TaskName 'Homebase Server' -TaskPath '\' -Confirm:$false
+   ```
+
+   To bring it back while the checkout still exists:
+
+   ```powershell
+   Register-ScheduledTask -TaskName 'Homebase Server' -Xml (Get-Content -Raw "$env:USERPROFILE\homebase-task-backup.xml")
+   ```
+
+4. Remove Homebase's launcher (`com.homebase.launcher`, which Homebase New Tab asked to start the
+   task) from Chrome, then from Edge. An error that the path does not exist means that browser
+   had none:
+
+   ```powershell
+   Remove-Item 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.homebase.launcher' -Recurse
+   ```
+
+   ```powershell
+   Remove-Item 'HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.homebase.launcher' -Recurse
+   ```
+
+5. Stop Homebase's supervisor, the `node.exe` that runs the checkout's
+   `server\src\supervisor.ts`. The server it started stops with it:
+
+   ```powershell
+   Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object CommandLine -like '*\server\src\supervisor.ts*' | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+   ```
+
+6. Check that nothing listens on Homebase's port any more (`5757`; if you set `HOMEBASE_PORT`,
+   put that port in the command instead). No output means it is free:
+
+   ```powershell
+   Get-NetTCPConnection -LocalPort 5757 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress, LocalPort, OwningProcess
+   ```
+
+   If it lists a line, stop that process with `Stop-Process -Id <id> -Force`, where `<id>` is the
+   number under `OwningProcess`, and check again.
+
+### 3. Remove the Homebase New Tab extension
+
+In each browser on that PC (and each browser profile you use), open `chrome://extensions` or
+`edge://extensions` and choose **Remove** on *Homebase New Tab*. New tabs then show the
+browser's own page.
+
+### 4. Connect the browser to the main PC's Portly
+
+Install Tailscale on that PC, signed in to the same tailnet as the main PC
+([Setting it up on the main PC](#setting-it-up-on-the-main-pc), step 1). Then follow
+[Connecting another PC](#connecting-another-pc) in each browser (and browser profile) you use
+there: the login cookie belongs to one of them, so each one asks and is approved on its own.
+
+### 5. What a new tab shows now
+
+Portly's New Tab extension is not made for this yet: it checks and starts Portly on its own PC
+(`http://localhost`), and that PC runs none. So new tabs keep the browser's own page. To reach
+Portly in one click instead, use the address (`https://<pc>.<tailnet>.ts.net`):
+
+- as the page the browser opens when it starts: in Chrome, Settings → **On startup** → **Open a
+  specific page or set of pages**; in Edge, Settings → **Start, home, and new tabs** → **When Edge
+  starts** → **Open these pages**;
+- as the Home button's page: in Chrome, Settings → **Appearance** → **Show home button**; in
+  Edge, Settings → **Start, home, and new tabs** → **Home button**;
+- in a pinned tab (right-click the tab and pin it), or as a bookmark.
+
+### 6. When it all works
+
+- Delete `%LOCALAPPDATA%\Homebase`: Homebase's database and credential vault (gone for good; the
+  export file is what you keep), its launcher's files and its `homebase` command. If you had set
+  `HOMEBASE_DATA_DIR`, delete the folder it names too.
+- Delete the Homebase checkout (the folder that part 2, step 1 showed) and
+  `homebase-task-backup.xml` in your user folder: the saved task only starts that checkout, so it
+  is of no use once the checkout is gone.
+- Remove Homebase's settings from your user environment: run
+  `rundll32 sysdm.cpl,EditEnvironmentVariables`, and under *User variables* delete the variables
+  whose names start with `HOMEBASE_` and, in **Path**, the entry that ends in `\Homebase\bin`.
+
+A browser on that PC that opens your Pages site uses it on its own there, since a Pages site pairs
+only with a Portly on the same PC. On its first visit it copies the Homebase data it kept for that
+site to Portly's names once
+([Browsers keep their Homebase data](add-a-pc.md#browsers-keep-their-homebase-data)).
+
 ## Using Portly on a phone or tablet
 
 An Android phone or tablet (or any other device with a current browser) connects the same way as

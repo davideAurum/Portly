@@ -53,7 +53,9 @@ and how releases are built and published: [Releases](setup/releases.md).
 ## Coming from Homebase
 
 Portly is Homebase's new name. Installing Portly on a PC that ran Homebase carries everything over;
-Homebase's own folders are left as they were, so you can go back until you delete them.
+Homebase's own folders are left as they were, so you can go back until you delete them. To use
+your main PC's Portly from such a PC instead of installing it there, see
+[A PC that ran Homebase](setup/other-pcs.md#a-pc-that-ran-homebase).
 
 - **Your data and accounts:** `install-autostart.ps1` (which `install.ps1` and `setup.ps1` run)
   asks Portly to copy `%LOCALAPPDATA%\Homebase\homebase.db` (or the `homebase.db` in the folder

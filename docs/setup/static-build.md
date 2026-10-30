@@ -17,7 +17,7 @@ browser you have paired with it uses Portly's own data and features while it run
 | Works | Not available |
 | --- | --- |
 | **Search** — engines and keywords, URL detection, bookmark matches, suggestions from Wikipedia (the one suggestion provider that allows requests from a browser). An engine whose own suggestions need Portly (Google, DuckDuckGo, Bing, YouTube) shows none, unless you turn on **Settings → Search → Wikipedia suggestions instead** (off by default, a setting of this browser): it then shows Wikipedia's, under the heading *Wikipedia suggestions* | Suggestions from Google, DuckDuckGo, Bing or YouTube |
-| **Launch pad** — bookmark groups, drag-and-drop ordering, import from an HTML bookmarks file, custom icons; site icons come from DuckDuckGo's icon service; optional **launch pad sync** between browsers through your OneDrive or a private GitHub repository (see below) | Import straight from the Chrome/Edge profile files; fetching a page's title and icon |
+| **Launch pad** — bookmark groups, drag-and-drop ordering, import from an HTML bookmarks file, custom icons; site icons come from DuckDuckGo's icon service; optional **launch pad sync** between browsers through your OneDrive or a private GitHub repository ([Launch pad sync](#launch-pad-sync)) | Import straight from the Chrome/Edge profile files; fetching a page's title and icon |
 | **Clock**, **Weather** (Open-Meteo, no key) | — |
 | **Sports scores** — scores, results and schedules straight from ESPN's public feeds | — |
 | **Todoist** — tasks, quick add, complete with undo (token stored in the browser, see below) | — |
@@ -49,8 +49,10 @@ with it. The server build's new-tab extension is for Chrome and Edge as well
 - **In this browser, on this device.** Settings, layouts, bookmarks, uploaded images, the
   Todoist token, the Outlook.com sign-in and a copy of your Outlook.com calendars (30 days back, a
   year ahead) are stored in the browser's IndexedDB for the site's address. Nothing is sent to
-  GitHub or to any Portly server (there is none). Another browser, another device, another
-  browser profile — or the same site at a different address — starts empty.
+  any Portly server (there is none), and nothing to GitHub except what
+  [launch pad sync](#launch-pad-sync) writes to your own private repository, if you choose it.
+  Another browser, another device, another browser profile — or the same site at a different
+  address — starts empty.
 - **A quick-start copy, too.** So the page can show itself at once, it also keeps a snapshot of
   what it last showed, including the calendar events on screen (titles, places, notes), in the
   browser's local storage for the site. The snapshot is dropped after 24 hours or when Portly is
@@ -81,13 +83,8 @@ with it. The server build's new-tab extension is for Chrome and Edge as well
   their order, custom icons, and which group is the default) the same in every browser where you
   turn it on, through **one** sync connection per browser: a Microsoft connection with **Launch
   pad sync** ticked, or GitHub. Layouts, widgets, the theme and the other settings stay per
-  browser. It runs while a Portly page is open (at page load, on focus, every 5 minutes, a few
-  seconds after a change); the connection's card in **Settings → Accounts** shows its status,
-  **Sync now** and **Details**, and **Settings → Bookmarks** says whether the launch pad syncs.
-  The first time a browser that already has a launch pad meets a synced one that differs, Portly
-  asks which to keep. A sync that would replace or remove much of the launch pad keeps a backup
-  first (**Settings → Import & export**, *Backup before sync*), and an import replaces the launch
-  pad in every synced browser (the preview says so).
+  browser. How to turn it on, the first-sync question and the backups:
+  [Launch pad sync](#launch-pad-sync).
 - **Launch pad sync through OneDrive.** The files are kept in your OneDrive under **Apps**, in the
   folder named after your Microsoft app registration, which Microsoft can read. Portly doesn't
   encrypt them, and the permission reaches only that folder
@@ -101,6 +98,148 @@ with it. The server build's new-tab extension is for Chrome and Edge as well
   token are stored unencrypted in this browser and never exported. Portly refuses a public
   repository and classic tokens; **Remove** them in **Settings → Accounts** on a shared PC.
   Design: `docs/design/launchpad-sync-github.md`.
+
+## Launch pad sync
+
+Launch pad sync keeps the launch pad the same in every browser where you turn it on (Chrome and
+Edge, see [Browsers](#browsers)), on this PC or another. It is off until you set it up, and it
+runs only where the site uses this browser's own data: a page paired with Portly on this PC
+([hybrid mode](#hybrid-mode-portly-on-this-pc)) shows Portly's launch pad, which is not synced,
+and offers none of what follows.
+
+- **What syncs:** groups (name, color, collapsed or not, order), bookmarks (title, address,
+  group, order, icon choice and letter color), custom icon images, and which groups are the
+  default one and the *No group* one. A removed group or bookmark is remembered for 90 days, so
+  a browser that still has it doesn't bring it back.
+- **What doesn't:** layouts and widgets (the launch pad widget's own display settings included),
+  the theme and background, profiles, the other settings (whether site icons are fetched
+  automatically included), accounts and tokens, calendars and backups. Each browser keeps its
+  own.
+- **One sync connection per browser:** either a Microsoft connection with **Launch pad sync** on,
+  or GitHub, never both.
+
+### Through OneDrive (an Outlook.com connection)
+
+1. Set up Outlook.com on the site ([Outlook.com](microsoft.md#browser-only-build-github-pages)),
+   with the same Application (client) ID in every browser: the OneDrive folder belongs to the app
+   registration.
+2. In **Settings → Accounts**, click the **Microsoft** tile, tick **Launch pad sync** (it is never
+   ticked for you) and continue to the sign-in. For a connection you already have, open its
+   **Manage** and click **Add** next to **Launch pad sync**.
+3. Before the sign-in Portly says what Microsoft will ask for: Portly's own folder in your
+   OneDrive (under **Apps**, named after your app registration), and nothing else of your
+   OneDrive. Allow it on Microsoft's screen.
+4. Back in **Settings → Accounts**, the account's card shows the launch pad sync line.
+
+### Through a private GitHub repository
+
+For a browser without an Outlook.com account, or when you'd rather keep the launch pad on
+GitHub. You create the repository and the token yourself: Portly never creates, renames or
+deletes repositories. GitHub renames its pages from time to time; what matters is one
+**private** repository and a **fine-grained** token that reaches only that repository, with
+**Contents: Read and write**.
+
+1. **Create a private repository.** On GitHub, create a new repository (Portly's GitHub form
+   links straight to `https://github.com/new?name=portly-sync&visibility=private`). Name it, for
+   example, `portly-sync`, choose **Private**, and leave it empty: Portly writes its own files
+   into it, `launchpad.json` and a `launchpad-icons` folder.
+2. **Create a fine-grained personal access token** for it: GitHub → **Settings** → **Developer
+   settings** → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**
+   (Portly's form also links to `https://github.com/settings/personal-access-tokens/new`):
+   - **Token name** of your choice, and an **Expiration** date (recommended; you paste a new
+     token when it ends). **Resource owner**: your account.
+   - **Repository access**: **Only select repositories**, and pick the sync repository alone.
+   - **Repository permissions**: **Contents** → **Read and write**. GitHub adds **Metadata**
+     (read-only) by itself. That is all Portly needs: it reads the repository's details to check
+     that it is private, and reads, writes and deletes its own files. Leave every other
+     permission at **No access**.
+   - Generate the token and copy it (it starts with `github_pat_`). Classic tokens (`ghp_…`)
+     are refused: the only classic scope that reaches a private repository reaches every
+     repository of your account.
+3. **Keep the token in your password manager.** GitHub shows it only once, Portly never shows
+   it back after saving, and every other browser needs it.
+4. **Enter both on the site.** In **Settings → Accounts**, click the **GitHub** tile (*Launch pad
+   sync (private repository)*). Enter **Repository (owner/name)** as `<user>/portly-sync` (the
+   two names only, not a URL), paste the **Fine-grained token** and click **Save**. Portly checks
+   them with GitHub first: the repository must exist for that token and be private, and the token
+   must be allowed to read it. A public repository is refused. Write access shows only when sync
+   first writes: a token with Contents read-only then makes sync pause and ask for a new one.
+5. **GitHub** then shows under **Connected accounts** with *Token saved*, the *Launch pad sync*
+   chip and the sync line, and the first sync starts within a few seconds.
+6. **In every other browser,** do step 4 with the same repository (the same token, or another
+   fine-grained token for that repository).
+
+To replace the token (it expired, or you revoked it), open **Manage** on the GitHub row and enter
+the repository and the new token (**Replace**). **Remove** deletes both from this browser and
+stops sync here; the repository stays in your GitHub account with its history: delete it there if
+you no longer want it, and revoke the token in GitHub's settings.
+
+### The first sync in a browser
+
+- **Nothing to choose** when one side is empty: a browser with no groups or bookmarks takes the
+  synced launch pad, and when there is no synced copy yet, this browser's launch pad is uploaded.
+- **When both have a launch pad,** sync waits (*Waiting for your choice*) and asks **Which launch
+  pad should this browser use?**
+  - **Use the synced launch pad** (recommended): this browser's groups and bookmarks are
+    replaced, after a backup.
+  - **Replace the synced launch pad** with this browser's: every other browser that syncs takes
+    it next time; each keeps a backup first, and its own changes since its last sync.
+
+  Closing the dialog leaves the question open: **Choose…** on the sync line asks again.
+- **Switching to another sync connection** (another Microsoft account, or between OneDrive and
+  GitHub) is a first sync with that connection's copy.
+
+### Day to day
+
+- **When it runs.** Only while a Portly tab is open: when the page loads, when the tab gets focus
+  or comes back into view (at most once a minute, whichever tab), every 5 minutes while it is
+  visible, about 5 seconds after you change the launch pad (at most 30 seconds after the first
+  change), and when the network comes back with changes waiting. Tabs take turns. Changes made
+  while no tab could sync go up the next time one does.
+- **The sync line** on the card of the connection that syncs (the Microsoft account, or the GitHub
+  row) shows the status and when the launch pad last synced, **Sync now** and **Details**: last
+  synced, the last change received and sent, the next try after a failure, where the files are,
+  and **Open Diagnostics** when sync stopped or failed. The statuses:
+  - *Up to date*, *Syncing…*, *Changes waiting to upload*, *Not synced yet* (it syncs within a
+    few seconds, or press **Sync now**);
+  - *Waiting for your choice* (the first-sync question above);
+  - *Paused*: reconnect the Microsoft account; for GitHub, save a new token under **Manage**, or
+    make the repository private again, then press **Sync now**;
+  - *Set up twice*: see below;
+  - *Stopped*: the synced copy was written by a newer Portly (reload the page), or it can't be read
+    (it is left as it is);
+  - *Trying again later* (other browsers kept saving at the same moment) and *Error*. After a
+    failure sync waits 15 minutes, doubling up to 6 hours, before it tries by itself; **Sync now**
+    tries at once.
+- **Settings → Bookmarks** says *Synced through …* or *Not synced*, with a link to Accounts.
+- **Settings → Diagnostics → This browser** lists a sync that changed something, needs your
+  choice, stopped or failed: what started it, how it ended and how much moved, never names,
+  titles or addresses.
+
+### One connection, backups and imports
+
+- **One sync connection per browser.** While one syncs, Portly won't set up a second: the
+  **Launch pad sync** box in the Microsoft connect dialog says which connection syncs; on another
+  Microsoft connection, switching it on under **Manage** offers to move sync there (a first sync
+  with that account's OneDrive); while GitHub syncs the switch is blocked; the GitHub form doesn't
+  save while a Microsoft connection syncs; and a sign-in that would add the service leaves it off.
+  If two are set up anyway (two tabs at once), nothing syncs and **Settings → Accounts** says
+  *Launch pad sync is set up twice* until you turn one off or remove GitHub.
+- **The backup before sync.** Before a sync replaces this browser's launch pad (*Use the synced
+  launch pad*, or another browser chose *Replace the synced launch pad*) or removes 10 or more
+  groups and bookmarks (or a quarter of them), Portly keeps a backup of your settings, profiles
+  and bookmarks in this browser. **Settings → Import & export** offers it as *Backup before sync*
+  with **Download backup**; import that file to go back. Only the newest sync backup is kept,
+  apart from the import backups.
+- **An import replaces the launch pad in every browser that syncs.** The import preview says so.
+
+### Turning it off
+
+- **OneDrive:** switch **Launch pad sync** off under the account's **Manage** (or remove the
+  account). Sync stops in this browser; the launch pad stays here and the files stay in your
+  OneDrive. To withdraw Microsoft's permission itself, remove the app at
+  <https://account.live.com/consent/Manage>.
+- **GitHub:** **Remove** on the GitHub row, as above.
 
 ## Hybrid mode: Portly on this PC
 

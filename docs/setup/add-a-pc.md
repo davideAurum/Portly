@@ -2,7 +2,8 @@
 
 A checklist for putting Portly on another of your Windows PCs, whether it runs Homebase today or
 nothing at all. Each PC gets its own Portly: its own server, data and vault. To use one Portly
-from several PCs instead, see [Using Portly from your other PCs](other-pcs.md).
+from several PCs instead, see [Using Portly from your other PCs](other-pcs.md), which has a part
+for [a PC that ran Homebase](other-pcs.md#a-pc-that-ran-homebase).
 
 Work down the list in order and tick each step; a step that doesn't go as described is worth a
 note, so this page can be corrected.
