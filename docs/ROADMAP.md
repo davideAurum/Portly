@@ -19,7 +19,7 @@ checks).
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.1 done 2026-10-29 in scratch folders; 3.5 written. Since 2026-10-29 the other PCs connect to this PC's Portly instead of running their own (F11), so 3.2 to 3.4 were rewritten |
 | 4 | Release rehearsal in private | Done (4.3 found and fixed an update bug; 4.4's second run-through, in 5.2 and 5.5, found nothing missing) |
 | 5 | Go public and publish 0.2.0-alpha.1 | Done 2026-10-28: the repository is public and 0.2.0-alpha.1 [published](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.1); 5.6 done 2026-10-29 |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | In progress, the next slice. On main since 2026-10-28: 6.1 to 6.6 built for OneDrive and GitHub; D9 decided 2026-10-29 (the site stays where it is); the real checks of 6.1, 6.5 and 6.6 passed on 2026-10-29 on a local preview with OneDrive and GitHub; 6.7's docs written, its republish and published-site test next |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Released 2026-10-29: [v0.2.0-alpha.2](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.2), the site and privacy page from its tag, this PC updated. Left: sync on the published site itself (6.7) |
 
 ## How this roadmap is used
 
@@ -1514,6 +1514,37 @@ Items:
   first-sync wording, app registrations beside their accounts) wait for 0.2.0-alpha.3, the
   owner's choice.
 
+  *Published 2026-10-29:* [v0.2.0-alpha.2](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.2).
+  - **Checks before publishing,** all at 94950f1: typecheck, `npm test` (4,421 vitest tests,
+    344 extension, 79 native host, the audit gate), both builds, `check-scripts.ps1` (381),
+    `build-release.ps1` with nodejs.org's 24.21.0, `check-release.ps1` (27, from Windows
+    PowerShell 5.1 and PowerShell 7), the PowerShell 7 install into a scratch folder, the `iex`
+    dry run ("Would update Portly 0.2.0-alpha.1 to 0.2.0-alpha.2"), and the CSP check of both
+    builds in the built-in browser with no violation. CI on the pushed commit was green
+    (40988187199). The audit noted one moderate advisory below its gate (`@hono/node-server`,
+    GHSA-rmxm-3fg6-px4f); Portly's `serveStatic` serves only public files, so it is unaffected,
+    and the upgrade waits for 0.2.0-alpha.3 (dependency changes ask first).
+  - **The candidate on the clean account failed, and rolled back as designed.** On `testing`,
+    the update from 0.2.0-alpha.1 unpacked and backed up the database, then Windows refused to
+    register `\Portly Server` (0x80070005): scheduled task names are per PC, and the owner's
+    account still had its task. The installer put 0.2.0-alpha.1 and its database back and kept
+    the failed copy. Its advice ("Open PowerShell as administrator") is wrong in that case
+    (checks table; *Revisit*). At the owner's choice the candidate was then installed as an
+    update on the owner's own release install: 0.2.0-alpha.2 at 94950f1, the same instance id,
+    vault ready, the Google, Outlook.com and Yahoo accounts passing Test, all 44 health subjects
+    ok.
+  - **Published** with `publish-release.ps1` (over HTTP/1.1): the zip and `portly-release.json`
+    with GitHub's SHA-256 equal to the build's, immutable, marked latest, the tag created by the
+    release at 94950f1 under the `v*` ruleset; `releases/latest/download/portly-release.json`
+    names 0.2.0-alpha.2; `portly --update` reports it already installed.
+  - **The site and the privacy page** published together from the tag (6.7's change): the Pages
+    clone at 51565e6, portly-site at 592177d. The live footer reads "Version 0.2.0-alpha.2 ·
+    Last updated Oct 29, 2026, 7:41 PM", the live `install.ps1` is byte-equal to the tag's, and
+    the privacy page has the launch pad sync section, effective October 29, 2026.
+
+  Left for 6.7: launch pad sync on the published site itself (two browsers there already ran
+  the same build through `preview:static`).
+
 ## Launch pad sync through GitHub (beside phase 6)
 
 On 2026-10-27 the owner asked for a GitHub backend for launch pad sync, built at the same time as
@@ -1733,7 +1764,7 @@ date and the outcome once a row has been run for real.
 | The Google Cloud console's Branding links (home page, privacy policy, terms) changed to `https://davideaurum.github.io/portly-site/` and saved, and the consent screen linking there; until then they reach the new pages through the homebase-site redirects | portly-site commit, 2026-10-29 | the owner, in the console; the next real Google sign-in (6.6 or 6.7) | 2026-10-29 (5.6): done in a new Cloud project with the three portly-site links (and no logo); the Google account reconnected through it, and Portly's account test was ok for calendar and mail |
 | The Microsoft consent screen naming Portly during a real sign-in; only the authorize page's display name was read, without signing in | 5.6 commit, 2026-10-29 | the next real Microsoft sign-in (6.6 or 6.7) | 2026-10-29 (6.6): "Portly needs your permission to", marked unverified, and "The publisher has not provided links to their terms": the registration has no terms or privacy address (parked under *Revisit after phase 6*) |
 | The settings GitHub offers only public repositories: private vulnerability reporting, secret scanning and push protection, approval for outside contributors' pull request runs, rulesets for main and the `v*` tags | 5.1 review, 2026-10-28 | the owner's go-ahead | 2026-10-28 (5.7, the owner's go-ahead): vulnerability reporting, secret scanning and push protection on; rulesets "Protect main" (no force push or deletion) and "Protect release tags" (`v*`, no move or deletion) active with no bypass, all read back through the API. Outside contributors' runs: kept at first-time contributors, the owner's choice |
-| The new rulesets and push protection in action: a force push to main, a moved or deleted `v*` tag and a push carrying a token all refused, and the next release still creating its tag; only the settings were read back through the API | 5.7 commit, 2026-10-28 | 6.8 (the tag); the refusals only if one happens | not yet |
+| The new rulesets and push protection in action: a force push to main, a moved or deleted `v*` tag and a push carrying a token all refused, and the next release still creating its tag; only the settings were read back through the API | 5.7 commit, 2026-10-28 | the refusals, only if one happens | 2026-10-29 (6.8): `gh release create --target` still created `v0.2.0-alpha.2` under the "Protect release tags" ruleset. No force push, tag move or token push was tried |
 | The repository store against GitHub itself with the owner's private repository and a fine-grained token: creating `launchpad.json` in the empty repository, a `304` on the next check, a read over 1 MB through the blob API, an icon written, read and deleted, a 401 after revoking, a 403 with a Contents: Read only token; only an in-memory GitHub in the tests | G.2 commit, 2026-10-27 | G.3 (a read over 1 MB, an icon, a 401, a 403) | 2026-10-29 (partial): creating `launchpad.json` in the empty repository and later updates. Not tried: a read over 1 MB, an icon written and deleted, a 401 after revoking, a 403 with a read-only token; the `304` not observed directly |
 | GitHub's answers to a refused contents write: `409` for a stale `sha`, `422` for a missing one, what a `sha` on a missing file gets (the store assumes `422`, handles `404`), and a `409` for two writes to the branch at once; only GitHub's docs and the in-memory GitHub | G.2 commit, 2026-10-27 | G.3 | not yet |
 | Saving the repository and token in Settings → Accounts on the published site (the check with GitHub, the refusal of a public repository and of a classic token), and the CSP with `api.github.com` alone (the preflight with `If-None-Match`) in a real browser; only unit tests, the built CSP and an unauthenticated `curl` of the preflight | G.2 commit, 2026-10-27 | 6.7 (the published site), a classic token | 2026-10-29 (G.3, on `preview:static`): the save checked the repository with GitHub and refused it while it was public ("This repository is public. Portly syncs only to a private repository"); made private, it saved; no CSP violation. Not tried: a classic token, the published site |
@@ -1741,6 +1772,8 @@ date and the outcome once a row has been run for real.
 | [A PC that ran Homebase](setup/other-pcs.md#a-pc-that-ran-homebase) followed verbatim on a real PC: the task saved and removed, the `com.homebase.launcher` keys removed, the port free, the extension gone; only read-only runs in Windows PowerShell 5.1 | 3.2 commit, 2026-10-29 | 3.3 | not yet |
 | Archiving and trashing a Yahoo message over IMAP for real (2.6 saw both offered, with only fakes behind them) | 2.6 commit, 2026-10-29 | the owner's next Yahoo archive or trash | not yet |
 | A field-by-field comparison of each provider's live answer with the fields its mapper reads (drift that keeps health green); 2.7 checked health only | 2.7 commit, 2026-10-29 | the next provider sweep with the verbose Diagnostics log, if wanted | not yet |
+| An install or update on a PC where another Windows account already has Portly: today Windows refuses the shared `\Portly Server` task name (0x80070005) and the installer advises running as administrator, which does not help; the clearer message is not built yet | 6.8 commit, 2026-10-29 | 0.2.0-alpha.3 (the message), with *Several Windows accounts on one PC* | not yet |
+| Launch pad sync on the published site itself (an unpaired browser there taking the synced launch pad and sending a change); only `preview:static` of the same build ran it | 6.8 commit, 2026-10-29 | 6.7 | not yet |
 
 ### Closed
 
@@ -1787,6 +1820,24 @@ date and the outcome once a row has been run for real.
   **Branding & properties** take the portly-site terms and privacy addresses, as Google's
   Branding did in 5.6. An owner's portal step; "unverified" stays without publisher
   verification.
+- **The installer's advice when another Windows account has Portly** (*planned for
+  0.2.0-alpha.3*). On a PC where another account owns `\Portly Server`, registering the task
+  fails with access denied (0x80070005), the account cannot even see that task ("Existing task:
+  none"), and `install-autostart.ps1` says to run it as administrator (6.8). It should say that
+  another Windows account on this PC may already have Portly, one per PC today (see *Several
+  Windows accounts on one PC*).
+- **Save the current page from a toolbar menu** (requested 2026-10-29; needs a design decision).
+  The owner asked for the extension's toolbar button to open a small menu that saves the page to
+  the launch pad in a chosen group or a new one, without leaving the page. Today the button opens
+  Portly's Add bookmark dialog in a new tab, because the extension cannot reach the launch pad:
+  it lives in the server or in the Pages site's in-browser database. Two ways: the menu asks the
+  server directly (needs the server to accept the extension's origin, a section 4 change), or it
+  hands the page to an open Portly tab (browser-only site, only while one is open). Server first,
+  with today's dialog as the fallback, is the suggestion.
+- **Upgrade `@hono/node-server` to 2.1.5** (*planned for 0.2.0-alpha.3*; a dependency change, so
+  it asks first). GHSA-rmxm-3fg6-px4f (moderate): `serveStatic` decodes a path twice, so
+  middleware on a static prefix can be skipped. Portly serves only its public build there and
+  is unaffected (6.8).
 - **App registrations next to their accounts** (*planned for 0.2.0-alpha.3*). The owner's
   suggestion during 2.2: Settings > Accounts shows *App registrations* as a section of its own;
   each provider's registration (the Google client, the Microsoft client ID) would read better
