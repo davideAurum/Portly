@@ -19,7 +19,7 @@ checks).
 | 3 | Every PC on Portly, Homebase retired | In progress: 3.1 done 2026-10-29 in scratch folders; 3.5 written. Since 2026-10-29 the other PCs connect to this PC's Portly instead of running their own (F11), so 3.2 to 3.4 were rewritten |
 | 4 | Release rehearsal in private | Done (4.3 found and fixed an update bug; 4.4's second run-through, in 5.2 and 5.5, found nothing missing) |
 | 5 | Go public and publish 0.2.0-alpha.1 | Done 2026-10-28: the repository is public and 0.2.0-alpha.1 [published](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.1); 5.6 done 2026-10-29 |
-| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Released 2026-10-29: [v0.2.0-alpha.2](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.2), the site and privacy page from its tag, this PC updated. Left: sync on the published site itself (6.7) |
+| 6 | Launch pad sync, shipped as 0.2.0-alpha.2 | Done 2026-10-29: [v0.2.0-alpha.2](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.2) published, the site and privacy page from its tag, this PC updated, sync checked on a local preview and on the published site; the rest of its checks rows are re-planned |
 
 ## How this roadmap is used
 
@@ -1498,6 +1498,12 @@ Items:
   runs a release install, so its `portly --update` installs 0.2.0-alpha.2 (the checkout's
   dirty-tree refusal stays a row in the checks table).
 
+  *Done 2026-10-29:* after the release, a new and unpaired Chrome profile on the published site
+  connected Outlook.com with Launch pad sync, received the launch pad from OneDrive and sent a new
+  bookmark back. With the two-browser runs on `preview:static` (6.6) and the download host
+  recorded (6.5), the Done-when is met; the pre-sync backup, a busy-loop check in Diagnostics and
+  a forced conflict were not looked at and stay in the checks table.
+
 - **6.8 Release 0.2.0-alpha.2** (S; go-ahead; after 6.7).
   The CHANGELOG's "Unreleased" section becomes the 0.2.0-alpha.2 entry; the candidate installed on
   the clean account as in 5.2; publish as in 5.3 (the `v*` tag ruleset does not restrict creating
@@ -1542,8 +1548,7 @@ Items:
     Last updated Oct 29, 2026, 7:41 PM", the live `install.ps1` is byte-equal to the tag's, and
     the privacy page has the launch pad sync section, effective October 29, 2026.
 
-  Left for 6.7: launch pad sync on the published site itself (two browsers there already ran
-  the same build through `preview:static`).
+  6.7's published-site check followed the same evening (6.7). Phase 6 is done.
 
 ## Launch pad sync through GitHub (beside phase 6)
 
@@ -1773,7 +1778,7 @@ date and the outcome once a row has been run for real.
 | Archiving and trashing a Yahoo message over IMAP for real (2.6 saw both offered, with only fakes behind them) | 2.6 commit, 2026-10-29 | the owner's next Yahoo archive or trash | not yet |
 | A field-by-field comparison of each provider's live answer with the fields its mapper reads (drift that keeps health green); 2.7 checked health only | 2.7 commit, 2026-10-29 | the next provider sweep with the verbose Diagnostics log, if wanted | not yet |
 | An install or update on a PC where another Windows account already has Portly: today Windows refuses the shared `\Portly Server` task name (0x80070005) and the installer advises running as administrator, which does not help; the clearer message is not built yet | 6.8 commit, 2026-10-29 | 0.2.0-alpha.3 (the message), with *Several Windows accounts on one PC* | not yet |
-| Launch pad sync on the published site itself (an unpaired browser there taking the synced launch pad and sending a change); only `preview:static` of the same build ran it | 6.8 commit, 2026-10-29 | 6.7 | not yet |
+| Launch pad sync on the published site itself (an unpaired browser there taking the synced launch pad and sending a change); only `preview:static` of the same build ran it | 6.8 commit, 2026-10-29 | 6.7 | 2026-10-29 (6.7, the owner): a new, unpaired Chrome profile on `https://davideaurum.github.io/` connected Outlook.com with Launch pad sync and received the OneDrive launch pad (last change received 9:46 PM), then sent an added bookmark (9:47 PM). Its console was not read for CSP lines; the same build had none on `preview:static` |
 
 ### Closed
 
@@ -1834,6 +1839,11 @@ date and the outcome once a row has been run for real.
   server directly (needs the server to accept the extension's origin, a section 4 change), or it
   hands the page to an open Portly tab (browser-only site, only while one is open). Server first,
   with today's dialog as the fallback, is the suggestion.
+- **A second icon source on the browser-only site** (an option, the owner's call). DuckDuckGo's
+  icon service has no icon for some big sites (`espn.com` answers 404 with its generic
+  placeholder, seen in 6.7), and `web/src/static/favicon.ts` cannot tell the placeholder from a
+  real icon. A fallback service would send each bookmark's host to one more company and needs a
+  CSP and privacy-page change; today a custom icon on the bookmark is the way round it.
 - **Upgrade `@hono/node-server` to 2.1.5** (*planned for 0.2.0-alpha.3*; a dependency change, so
   it asks first). GHSA-rmxm-3fg6-px4f (moderate): `serveStatic` decodes a path twice, so
   middleware on a static prefix can be skipped. Portly serves only its public build there and
