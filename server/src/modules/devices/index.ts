@@ -33,6 +33,12 @@
  *   the gate attributed to no device, such as a local one with a stray cookie → 409 `not_configured`).
  * - `DELETE /api/device` [paired] → 204: the presenting device disconnects itself (cookie cleared).
  *
+ * The Pages site opened on another PC (`remotePages`, set by the gate) calls the same routes as
+ * CORS requests, where a browser sends no `SameSite=Strict` cookie: it gets the request's secret in
+ * the create answer's `secret` and sends it as `X-Portly-Enroll` while it polls; the approved poll
+ * answers with the device secret in `secret`, which it then sends as `X-Portly-Device`. No cookie
+ * is set or cleared for it.
+ *
  * Logs `info` lines with request and device ids only (`device request created {deviceRequestId}`,
  * `device request approved|denied {deviceRequestId}`, `device removed {deviceId, by}`; the store
  * logs `device connected`): never a label, a code or a cookie (§17).
@@ -40,8 +46,10 @@
 import type { Context, Hono } from 'hono';
 import {
   DEVICE_COOKIE,
+  DEVICE_ENROLL_HEADER,
   DEVICE_IDLE_TTL_MS,
   DEVICE_REQUEST_TTL_MS,
+  DEVICE_TOKEN_HEADER,
   DeviceRequestCreateSchema,
   ENROLL_COOKIE,
   type DeviceApproveResponse,
@@ -114,11 +122,26 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     device: device === null ? null : self(device),
   });
 
-  /** The device cookie the gate verified for this request, or 409 when it attributed no device. */
+  /** The Pages site on another PC: secrets in headers and bodies, no cookies. */
+  const fromPages = (c: Context<AppEnv>): boolean => c.get('remotePages') === true;
+
+  /** The device secret the gate verified for this request (cookie, or the Pages site's header), or 409 when it attributed no device. */
   const presentedSecret = (c: Context<AppEnv>): string => {
-    const secret = readCookie(c, DEVICE_COOKIE);
+    const raw = fromPages(c) ? c.req.header(DEVICE_TOKEN_HEADER) : readCookie(c, DEVICE_COOKIE);
+    const secret = raw === '' ? undefined : raw;
     if (secret === undefined || c.get('deviceId') === undefined) throw HttpError.of('not_configured', 'This request carries no device cookie');
     return secret;
+  };
+
+  /** A pending request's secret: the enrollment cookie, or the Pages site's header. */
+  const enrollmentSecret = (c: Context<AppEnv>): string | undefined => {
+    const raw = fromPages(c) ? c.req.header(DEVICE_ENROLL_HEADER) : readCookie(c, ENROLL_COOKIE);
+    return raw === '' ? undefined : raw;
+  };
+
+  /** Clears the enrollment cookie (never for the Pages site, which has none). */
+  const clearEnrollment = (c: Context<AppEnv>): void => {
+    if (!fromPages(c)) c.header('Set-Cookie', clearCookieHeader(ENROLL_COOKIE), { append: true });
   };
 
   // ---- the other PC asking to be connected ------------------------------------
@@ -133,12 +156,13 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
       throw HttpError.of('rate_limited', 'Too many devices are waiting for approval; approve or deny them on the main PC first');
     }
     log.info('device request created', { deviceRequestId: created.record.id });
-    c.header('Set-Cookie', cookieHeader(ENROLL_COOKIE, created.secret, DEVICE_REQUEST_TTL_MS + REQUEST_RETENTION_MS), { append: true });
     const body: DeviceRequestCreateResponse = {
       id: created.record.id,
       code: created.record.code,
       expiresAt: msToIsoStrict(created.record.expiresAt),
     };
+    if (fromPages(c)) body.secret = created.secret;
+    else c.header('Set-Cookie', cookieHeader(ENROLL_COOKIE, created.secret, DEVICE_REQUEST_TTL_MS + REQUEST_RETENTION_MS), { append: true });
     return c.json(body, 201);
   });
 
@@ -149,26 +173,28 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   });
 
   app.get('/api/devices/requests/current', enrollment(), (c) => {
-    const secret = readCookie(c, ENROLL_COOKIE);
+    const secret = enrollmentSecret(c);
     const request = secret === undefined ? null : devices.requestBySecret(secret);
     if (secret === undefined || request === null) {
-      if (secret !== undefined) c.header('Set-Cookie', clearCookieHeader(ENROLL_COOKIE), { append: true });
+      if (secret !== undefined) clearEnrollment(c);
       throw new HttpError(404, 'not_found', 'No device request to show');
     }
     if (devices.isExpired(request)) {
-      c.header('Set-Cookie', clearCookieHeader(ENROLL_COOKIE), { append: true });
+      clearEnrollment(c);
       return c.json(requestStatus(request, 'expired'));
     }
     if (request.status === 'denied') {
-      c.header('Set-Cookie', clearCookieHeader(ENROLL_COOKIE), { append: true });
+      clearEnrollment(c);
       return c.json(requestStatus(request, 'denied'));
     }
     if (request.status === 'approved' || request.status === 'claimed') {
       const claimed = devices.claim(secret);
       if (claimed === null) throw new HttpError(404, 'not_found', 'No device request to show');
+      const body = requestStatus(request, 'approved', claimed.record);
+      if (fromPages(c)) return c.json({ ...body, secret: claimed.secret });
       c.header('Set-Cookie', cookieHeader(DEVICE_COOKIE, claimed.secret, DEVICE_IDLE_TTL_MS), { append: true });
-      c.header('Set-Cookie', clearCookieHeader(ENROLL_COOKIE), { append: true });
-      return c.json(requestStatus(request, 'approved', claimed.record));
+      clearEnrollment(c);
+      return c.json(body);
     }
     return c.json(requestStatus(request, 'pending'));
   });
@@ -221,7 +247,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     const record = devices.verify(secret);
     if (record === null || !devices.revokeBySecret(secret, 'disconnected')) throw HttpError.of('login_required');
     log.info('device removed', { deviceId: record.id, by: 'disconnected' });
-    c.header('Set-Cookie', clearCookieHeader(DEVICE_COOKIE), { append: true });
+    if (!fromPages(c)) c.header('Set-Cookie', clearCookieHeader(DEVICE_COOKIE), { append: true });
     return c.body(null, 204);
   });
 }

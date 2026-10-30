@@ -3,7 +3,9 @@
  * the local server controller found on this PC, and the next step — look for Portly, check
  * again, pair this browser, open Portly's own page, disconnect this browser or switch now — with
  * how to allow the browser's local network permission and what Portly on this PC adds. It is
- * the footer indicator's popover (`LocalServerStatus`) and a card in Settings → About.
+ * the footer indicator's popover (`LocalServerStatus`) and a card in Settings → About. A browser
+ * that is not paired is also offered the connect page (`#/connect`, Portly on another PC); one
+ * connected to the main PC's Portly reads "your main PC" throughout, and connects again there.
  *
  * State and actions come from the local server store (`useLocalServer`, `localServerActions`).
  * {@link useDisplayedLocalServerStatus} keeps a background re-probe from flashing "Checking…".
@@ -11,7 +13,7 @@
  * without a local server).
  */
 import { useState, type ReactNode } from 'react';
-import { ArrowRightLeft, Link2, RefreshCw, Search, Unplug } from 'lucide-react';
+import { ArrowRightLeft, Globe, Link2, RefreshCw, Search, Unplug } from 'lucide-react';
 import { localServerActions, useLocalServer } from '../localServer/store.ts';
 import type { LocalServerInfo, LocalServerState, LocalServerStatus } from '../localServer/types.ts';
 import { Badge, type BadgeTone } from '../ui/Badge.tsx';
@@ -78,8 +80,44 @@ const SERVER_ADDS: readonly string[] = [
   'Search suggestions from Google, DuckDuckGo and Bing',
 ];
 
+/** Where the server is, for the wording: "this PC", or "your main PC" when this browser is connected to Portly on another PC. */
+export function localServerPlace(state: Pick<LocalServerState, 'remoteOrigin'>): string {
+  return state.remoteOrigin != null ? 'your main PC' : 'this PC';
+}
+
+/** What the status means for a browser connected to Portly on the main PC (ARCHITECTURE §20). */
+function describeRemoteStatus(status: LocalServerStatus, state: LocalServerState): ReactNode {
+  const onServer = state.backend === 'server';
+  switch (status) {
+    case 'idle':
+    case 'checking':
+      return 'Looking for Portly on your main PC…';
+    case 'absent':
+      return "Portly on your main PC can't be reached from here: check that Tailscale runs on this PC and that Portly runs on the main PC. This page uses the copy saved in this browser.";
+    case 'blocked':
+      return 'Your browser blocks this site from reaching devices on your network, so it cannot reach Portly on your main PC. This page uses the copy saved in this browser.';
+    case 'waiting-permission':
+      return 'Your browser is asking whether this site may reach devices on your network. Choose Allow in its prompt next to the address bar.';
+    case 'revoked':
+      return 'Portly on your main PC no longer accepts this browser: it was removed there, or not used for 30 days. Connect this browser again to use it.';
+    case 'other-server':
+      return 'A different Portly answers at your main PC’s address than the one this browser connected to (for example after a reinstall). Connect this browser again to use it.';
+    case 'incompatible':
+      return "Portly on your main PC and this site are versions that can't work together. Update Portly on the main PC, then check again.";
+    case 'connected':
+      return onServer
+        ? 'This page uses Portly on your main PC: your settings, bookmarks, accounts, calendars, mail and feeds come from it. Google and Microsoft accounts are connected on the main PC.'
+        : 'Portly on your main PC is ready. This page switches to it.';
+    case 'reconnecting':
+      return "Portly on your main PC stopped answering. This page shows the last saved data and reconnects when it's back; if it stays away, the page switches to the copy saved in this browser.";
+    default:
+      return describeStatus(status, { ...state, remoteOrigin: null });
+  }
+}
+
 /** What the status means for this page load (the backend decides some of the wording). */
 function describeStatus(status: LocalServerStatus, state: LocalServerState): ReactNode {
+  if (state.remoteOrigin != null) return describeRemoteStatus(status, state);
   const onServer = state.backend === 'server';
   switch (status) {
     case 'disabled':
@@ -136,12 +174,17 @@ export interface DisconnectDialogProps {
 
 /** Confirms "Disconnect this browser" (the controller then reloads on the browser backend). */
 export function DisconnectDialog({ open, onOpenChange }: DisconnectDialogProps) {
+  const remote = useLocalServer().remoteOrigin != null;
   return (
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
       title="Disconnect this browser?"
-      description="This browser forgets its pairing with Portly on this PC (and tells Portly to forget it too), and the page then uses the copy saved in this browser. To use Portly on this PC again, pair this browser again."
+      description={
+        remote
+          ? 'This browser forgets its connection to Portly on your main PC (and tells Portly there to forget it too), and the page then uses the copy saved in this browser. To use the main PC’s Portly again, connect this browser again and approve it there.'
+          : 'This browser forgets its pairing with Portly on this PC (and tells Portly to forget it too), and the page then uses the copy saved in this browser. To use Portly on this PC again, pair this browser again.'
+      }
       confirmLabel="Disconnect"
       destructive
       onConfirm={async () => {
@@ -183,16 +226,17 @@ export function LocalServerPanel({ variant, status: shownStatus, onDisconnect }:
   const body = <PanelBody state={state} status={status} variant={variant} onDisconnect={onDisconnect ?? (() => setConfirming(true))} />;
   const dialog = onDisconnect === undefined ? <DisconnectDialog open={confirming} onOpenChange={setConfirming} /> : null;
 
+  const place = localServerPlace(state);
   if (variant === 'card') {
     return (
       <>
         <SettingsCard
           id="local-server"
-          title="Portly on this PC"
+          title={`Portly on ${place}`}
           description={
             state.backend === 'server'
-              ? "This page's data comes from Portly running on this PC."
-              : 'This site can use Portly running on this PC instead of the copy saved in this browser.'
+              ? `This page's data comes from Portly running on ${place}.`
+              : `This site can use Portly running on ${place} instead of the copy saved in this browser.`
           }
           actions={badge}
         >
@@ -205,7 +249,7 @@ export function LocalServerPanel({ variant, status: shownStatus, onDisconnect }:
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <p className={styles.title}>Portly on this PC</p>
+        <p className={styles.title}>Portly on {place}</p>
         {badge}
       </div>
       {body}
@@ -224,14 +268,18 @@ interface PanelBodyProps {
 function PanelBody({ state, status, variant, onDisconnect }: PanelBodyProps) {
   const pending = state.pendingSwitch;
   const onServer = state.backend === 'server';
-  const pairable = PAIRABLE.has(status);
+  const remote = state.remoteOrigin ?? null;
+  // Portly on another PC is connected again on the connect page, not paired.
+  const pairable = PAIRABLE.has(status) && remote === null;
+  const reconnectable = PAIRABLE.has(status) && remote !== null;
   // The idle state's only action is looking; checking keeps the button (and its focus) in place.
   const canCheck = status !== 'framed' && !(status === 'connected' && onServer);
   const blocked = status === 'blocked' || state.permission === 'denied';
 
   const facts: { label: ReactNode; value: ReactNode }[] = [
-    { label: "This page's data", value: onServer ? 'From Portly on this PC' : 'Saved in this browser' },
+    { label: "This page's data", value: onServer ? `From Portly on ${localServerPlace(state)}` : 'Saved in this browser' },
   ];
+  if (remote !== null) facts.push({ label: 'Address', value: new URL(remote).hostname });
   if (state.server !== null && SERVER_FOUND.has(status)) facts.push({ label: 'Version', value: state.server.version });
   if (state.checkedAt !== null) facts.push({ label: 'Last checked', value: <RelativeTime date={state.checkedAt} /> });
 
@@ -247,7 +295,7 @@ function PanelBody({ state, status, variant, onDisconnect }: PanelBodyProps) {
           (called <strong>Apps on device</strong> in some versions) to <strong>Allow</strong>, then check again.
         </p>
       ) : null}
-      {pending !== null ? <p className={styles.text}>{pendingSwitchText(pending)}</p> : null}
+      {pending !== null ? <p className={styles.text}>{pendingSwitchText(pending, localServerPlace(state))}</p> : null}
       {variant === 'card' ? (
         <FactList items={facts} />
       ) : (
@@ -272,6 +320,11 @@ function PanelBody({ state, status, variant, onDisconnect }: PanelBodyProps) {
               Pair this browser
             </Button>
           ) : null}
+          {reconnectable ? (
+            <Button size="sm" variant={pending === null ? 'primary' : 'secondary'} icon={Link2} onClick={() => (window.location.hash = '#/connect')}>
+              Connect again
+            </Button>
+          ) : null}
           {canCheck ? (
             <Button
               size="sm"
@@ -280,14 +333,19 @@ function PanelBody({ state, status, variant, onDisconnect }: PanelBodyProps) {
               // Unpaired, the permission may not be granted yet: looking is the user's gesture.
               onClick={() => (state.paired ? localServerActions.checkNow() : localServerActions.lookForServer())}
             >
-              {status === 'idle' ? 'Look for Portly on this PC' : 'Check again'}
+              {status === 'idle' && remote === null ? 'Look for Portly on this PC' : 'Check again'}
             </Button>
           ) : null}
           {state.paired ? (
             <Button size="sm" variant="ghost" icon={Unplug} onClick={onDisconnect}>
               Disconnect this browser
             </Button>
-          ) : null}
+          ) : (
+            // Portly runs on another PC: the same site connects to it (ARCHITECTURE §20).
+            <Button size="sm" variant="ghost" icon={Globe} onClick={() => (window.location.hash = '#/connect')}>
+              Use Portly on another PC
+            </Button>
+          )}
         </div>
       )}
       {onServer ? null : <ServerAdds collapsible={variant === 'popover'} />}

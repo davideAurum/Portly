@@ -3,13 +3,15 @@
  * preview instantly), reports `?oauth=<result>` once as a toast (then strips it from the URL,
  * keeping the hash route, §10.5), and renders the shell — or, for `#/pair?nonce=…`, the pairing
  * page on its own (no dashboard around a consent screen; loaded only when that route opens, with a
- * note to reload if its code cannot be loaded).
+ * note to reload if its code cannot be loaded), and in the Pages build, for `#/connect`, the page
+ * that connects this browser to Portly on the main PC.
  */
 import { Suspense, lazy, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { RefreshCw, TriangleAlert } from 'lucide-react';
 import { OAuthResultSchema, type OAuthResult } from '@portly/shared';
 import { invalidateAccountData } from '../api/keys.ts';
+import { getCapabilities } from '../capabilities.ts';
 import { useApplyTheme } from '../theme/useTheme.ts';
 import { Button } from '../ui/Button.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
@@ -19,6 +21,7 @@ import { useRoute } from './router.ts';
 import { Shell } from './Shell.tsx';
 
 const PairPage = lazy(() => import('./PairPage.tsx').then((m) => ({ default: m.PairPage })));
+const RemoteConnectPage = lazy(() => import('./RemoteConnectPage.tsx').then((m) => ({ default: m.RemoteConnectPage })));
 
 export const OAUTH_MESSAGES: Readonly<Record<OAuthResult, { kind: 'success' | 'error' | 'info'; text: string }>> = Object.freeze({
   connected: { kind: 'success', text: 'Account connected.' },
@@ -67,6 +70,15 @@ export function App() {
     }
   }, [queryClient]);
 
+  if (route.name === 'connect' && getCapabilities().pagesBuild) {
+    return (
+      <ErrorBoundary fallback={() => <PairPageUnavailable />}>
+        <Suspense fallback={null}>
+          <RemoteConnectPage />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
   if (route.name !== 'pair') return <Shell />;
   return (
     <ErrorBoundary fallback={() => <PairPageUnavailable />}>

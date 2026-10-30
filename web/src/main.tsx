@@ -248,7 +248,8 @@ async function start(): Promise<void> {
     const staticBackend = staysInBrowser ? import('./static/backend.ts') : null;
     void staticBackend?.catch(() => undefined);
     // Decide this page load's backend before anything reads data, and keep it: the Portly server
-    // on this PC when paired and recently seen (hybrid mode), else this browser's copy. Also drops
+    // on this PC (or on the main PC this browser connected to) when paired and recently seen
+    // (hybrid mode), else this browser's copy. Also drops
     // the server backend's leftovers when this browser is not paired (even with hybrid mode off).
     try {
       const hybrid = await import('./localServer/boot.ts');
@@ -256,7 +257,7 @@ async function start(): Promise<void> {
       backend = boot.backend;
       persist = persistOptionsFor(boot.backend, boot.instanceId);
       startLocalServer = boot.start;
-      notices.modeSwitch = hybrid.takeModeSwitchNotice(boot.backend);
+      notices.modeSwitch = hybrid.takeModeSwitchNotice(boot.backend, undefined, boot.remote);
     } catch (err) {
       // This page load stays on the in-browser backend.
       console.error('[Portly] Could not look for Portly on this PC', err);

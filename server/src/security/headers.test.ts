@@ -240,7 +240,7 @@ describe('security headers: Pages site (hybrid mode)', () => {
     expect(res.status).toBe(204);
     expect(res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
     expect(res.headers.get('access-control-allow-methods')).toBe('PATCH');
-    expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type, X-Portly, X-Portly-Token');
+    expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type, X-Portly, X-Portly-Token, X-Portly-Device, X-Portly-Enroll');
     expect(res.headers.get('access-control-max-age')).toBe('600');
     expect(res.headers.get('access-control-allow-private-network')).toBe('true');
     expect(res.headers.get('vary')).toBe('Origin, Access-Control-Request-Method, Access-Control-Request-Headers');

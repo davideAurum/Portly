@@ -16,8 +16,15 @@
  * (ARCHITECTURE §17). After a failed CORS probe, {@link probeHealthWithoutCors} tells a server
  * that answers without accepting this site from nothing answering at all; it carries nothing (no
  * token, no header, no credentials) and its opaque answer cannot be read.
+ *
+ * Portly on another PC (`remote: true`, ARCHITECTURE §20) is asked the same way at its HTTPS
+ * address, without `targetAddressSpace` (the browser classifies the tailnet address itself and
+ * asks for its local network permission), and the check is `GET /api/device` with the device
+ * secret ({@link checkDeviceDetailed}) instead of the pairing check.
  */
 import {
+  DEVICE_TOKEN_HEADER,
+  DeviceStatusResponseSchema,
   HealthResponseSchema,
   PAIRING_TOKEN_HEADER,
   PairingStatusResponseSchema,
@@ -30,6 +37,7 @@ import { validateAppUrl } from './urls.ts';
 // Tolerant readers of the shared (strict) schemas: a newer server may add optional fields.
 const HealthReader = z.object(HealthResponseSchema.shape);
 const PairingStatusReader = z.object(PairingStatusResponseSchema.shape);
+const DeviceStatusReader = z.object(DeviceStatusResponseSchema.shape);
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -43,6 +51,18 @@ export const LOOPBACK_REQUEST_INIT: Readonly<LoopbackRequestInit> = Object.freez
   referrerPolicy: 'no-referrer',
   targetAddressSpace: 'loopback',
 });
+
+/** The same for Portly on another PC: an https address the browser classifies itself. */
+export const REMOTE_REQUEST_INIT: Readonly<LoopbackRequestInit> = Object.freeze({
+  mode: 'cors',
+  credentials: 'omit',
+  referrerPolicy: 'no-referrer',
+});
+
+/** What every request carries for this PC's Portly (`remote` false) or another PC's (true). */
+export function requestInitFor(remote: boolean): Readonly<LoopbackRequestInit> {
+  return remote ? REMOTE_REQUEST_INIT : LOOPBACK_REQUEST_INIT;
+}
 
 export type HealthProbeResult =
   /** Portly answered; `appUrl` is the validated page URL it reported (null when missing or refused). */
@@ -68,6 +88,8 @@ export interface ProbeOptions {
   signal?: AbortSignal;
   /** Clock for {@link ProbeDetails.ms} (default `Date.now`). */
   now?: () => number;
+  /** Portly on another PC, at its https address (no `targetAddressSpace`). Default false. */
+  remote?: boolean;
 }
 
 function isAbort(err: unknown, signal: AbortSignal | undefined): boolean {
@@ -104,7 +126,7 @@ export async function probeHealthDetailed(origin: string, options: ProbeOptions)
   const finish = (result: HealthProbeResult) => ({ result, details: recorder.details });
   let res: Response;
   try {
-    const init: LoopbackRequestInit = { ...LOOPBACK_REQUEST_INIT, method: 'GET', cache: 'no-store', signal };
+    const init: LoopbackRequestInit = { ...requestInitFor(options.remote === true), method: 'GET', cache: 'no-store', signal };
     res = await options.fetch(`${origin}/api/health`, init);
   } catch (err) {
     recorder.failed(err);
@@ -158,7 +180,7 @@ export async function probeHealthWithoutCors(origin: string, options: ProbeOptio
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
       cache: 'no-store',
-      targetAddressSpace: 'loopback',
+      ...(options.remote === true ? {} : { targetAddressSpace: 'loopback' as const }),
       signal,
     };
     await options.fetch(`${origin}/api/health`, init);
@@ -186,12 +208,24 @@ export function pairedHeaders(token: string, headers?: HeadersInit): Headers {
   return out;
 }
 
-/** True for a 401 whose body is the `pairing_required` error (reads a clone: `res` stays readable). */
+/** The headers of every request to Portly on another PC: the CSRF header and the device secret. */
+export function deviceHeaders(secret: string, headers?: HeadersInit): Headers {
+  const out = new Headers(headers);
+  out.set('X-Portly', '1');
+  out.set(DEVICE_TOKEN_HEADER, secret);
+  return out;
+}
+
+/**
+ * True for a 401 whose body says the server no longer takes this browser: `pairing_required`
+ * (Portly on this PC) or `login_required` (another PC's). Reads a clone: `res` stays readable.
+ */
 export async function isPairingRequired(res: Response): Promise<boolean> {
   if (res.status !== 401) return false;
   try {
     const body = (await res.clone().json()) as { error?: { code?: unknown } } | null;
-    return body?.error?.code === 'pairing_required';
+    const code = body?.error?.code;
+    return code === 'pairing_required' || code === 'login_required';
   } catch {
     return false;
   }
@@ -228,4 +262,34 @@ export async function checkPairingDetailed(origin: string, token: string, option
 /** `GET <origin>/api/pairing` with the token: does the server still accept this browser? */
 export async function checkPairing(origin: string, token: string, options: ProbeOptions): Promise<PairingCheckResult> {
   return (await checkPairingDetailed(origin, token, options)).result;
+}
+
+/**
+ * `GET <origin>/api/device` with the device secret: does Portly on another PC still take this
+ * browser? The same verdicts as {@link checkPairingDetailed} (401 `login_required` → `unpaired`).
+ */
+export async function checkDeviceDetailed(origin: string, secret: string, options: ProbeOptions): Promise<{ result: PairingCheckResult | { kind: 'ok' }; details: ProbeDetails }> {
+  const { signal } = options;
+  const recorder = detailsRecorder(options);
+  const finish = (result: PairingCheckResult | { kind: 'ok' }) => ({ result, details: recorder.details });
+  try {
+    const headers = deviceHeaders(secret, { Accept: 'application/json' });
+    const init: LoopbackRequestInit = { ...REMOTE_REQUEST_INIT, method: 'GET', cache: 'no-store', headers, signal };
+    const res = await options.fetch(`${origin}/api/device`, init);
+    recorder.details.httpStatus = res.status;
+    if (await isPairingRequired(res)) {
+      recorder.done();
+      return finish({ kind: 'unpaired' });
+    }
+    if (!res.ok) {
+      recorder.done();
+      return finish({ kind: 'error' });
+    }
+    const device = DeviceStatusReader.safeParse(await res.json());
+    recorder.done();
+    return finish(device.success ? { kind: 'ok' } : { kind: 'error' });
+  } catch (err) {
+    recorder.failed(err);
+    return finish(isAbort(err, signal) ? { kind: 'aborted' } : { kind: 'error' });
+  }
 }

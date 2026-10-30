@@ -24,4 +24,11 @@ describe('static build CSP', () => {
     expect(directive(staticCsp('http://127.0.0.1:5757'), 'connect-src')).toContain('http://127.0.0.1:5757');
     expect(directive(staticCsp(''), 'img-src').filter((source) => source.includes('github'))).toEqual([]);
   });
+
+  it('allows Portly on another PC through any Tailscale Serve address with hybrid mode on, never one named PC', () => {
+    expect(directive(staticCsp(''), 'connect-src')).not.toContain('https://*.ts.net');
+    const connect = directive(staticCsp('http://127.0.0.1:5757'), 'connect-src');
+    expect(connect).toContain('https://*.ts.net');
+    expect(connect.filter((source) => source.includes('ts.net'))).toEqual(['https://*.ts.net']);
+  });
 });

@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { getCapabilities } from '../capabilities.ts';
 import { useLocalServer } from '../localServer/store.ts';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/Popover.tsx';
-import { DisconnectDialog, LocalServerPanel, localServerStatusView, useDisplayedLocalServerStatus } from './LocalServerPanel.tsx';
+import { DisconnectDialog, LocalServerPanel, localServerPlace, localServerStatusView, useDisplayedLocalServerStatus } from './LocalServerPanel.tsx';
 import styles from './LocalServerStatus.module.css';
 
 export function LocalServerStatus() {
@@ -33,11 +33,12 @@ export function LocalServerStatus() {
     quiet: status === 'checking' && !state.manual,
   }));
   if (announcement.label !== view.label) {
-    setAnnouncement({ label: view.label, text: announcement.quiet ? '' : `Portly on this PC: ${view.label}`, quiet: false });
+    setAnnouncement({ label: view.label, text: announcement.quiet ? '' : `Portly on ${localServerPlace(state)}: ${view.label}`, quiet: false });
   }
 
   if (!getCapabilities().pagesBuild || status === 'disabled' || status === 'framed') return null;
-  const name = view.footerLabel === undefined ? `Portly on this PC: ${view.label}` : `${view.footerLabel} (Portly on this PC: ${view.label})`;
+  const place = localServerPlace(state);
+  const name = view.footerLabel === undefined ? `Portly on ${place}: ${view.label}` : `${view.footerLabel} (Portly on ${place}: ${view.label})`;
   return (
     <span className={styles.root}>
       <Popover open={open} onOpenChange={setOpen}>
@@ -48,7 +49,7 @@ export function LocalServerStatus() {
             <span className={styles.label}>{view.footerLabel ?? view.label}</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent aria-label="Portly on this PC" side="top" align="end">
+        <PopoverContent aria-label={`Portly on ${place}`} side="top" align="end">
           <LocalServerPanel
             variant="popover"
             status={status}

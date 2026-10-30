@@ -12,11 +12,11 @@
  * `Vary: Origin`, `Access-Control-Expose-Headers` (incl. `X-Request-Id`, which the request log
  * middleware in app.ts sets on every answer) and, for preflights, the allowed method and
  * headers, `Max-Age` and Private Network Access when asked. Never `Allow-Credentials` (the page
- * authenticates with its pairing token). With a Pages site configured, every `/api` answer
- * carries `Vary: Origin`.
+ * authenticates with its pairing token on this PC, or its device secret from another PC). With a
+ * Pages site configured, every `/api` answer carries `Vary: Origin`.
  */
 import type { MiddlewareHandler } from 'hono';
-import { PAIRING_TOKEN_HEADER, REQUEST_ID_HEADER } from '@portly/shared';
+import { DEVICE_ENROLL_HEADER, DEVICE_TOKEN_HEADER, PAIRING_TOKEN_HEADER, REQUEST_ID_HEADER } from '@portly/shared';
 import type { AppEnv } from '../context.ts';
 import type { RouteTable } from '../lib/routes.ts';
 import { isApiPath, mediaType } from './gate.ts';
@@ -56,7 +56,7 @@ export const BASE_HEADERS: Readonly<Record<string, string>> = Object.freeze({
 /** Headers the Pages site may read on API answers (`X-Request-Id`: its diagnostics name the server's log lines). */
 export const PAGES_EXPOSE_HEADERS = `Retry-After, Content-Disposition, ${REQUEST_ID_HEADER}`;
 /** Request headers a Pages preflight is allowed (the gate refuses any other). */
-export const PAGES_ALLOW_HEADERS = `Content-Type, X-Portly, ${PAIRING_TOKEN_HEADER}`;
+export const PAGES_ALLOW_HEADERS = `Content-Type, X-Portly, ${PAIRING_TOKEN_HEADER}, ${DEVICE_TOKEN_HEADER}, ${DEVICE_ENROLL_HEADER}`;
 /** Seconds a browser may cache a Pages preflight answer. */
 export const PAGES_PREFLIGHT_MAX_AGE = '600';
 

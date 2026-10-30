@@ -1729,6 +1729,20 @@ Items:
   in"); checked against the real Tailscale from a scratch server, the second PC's own connect is
   the row below.
 
+- **B.7 One address for every PC** (M; the owner's ask of 2026-10-30, decided "type it once"):
+  every PC opens the Pages site (`https://<user>.github.io/#/`), the main PC through hybrid mode
+  and any other PC by connecting the site once to the main PC's Tailscale Serve address
+  (**Use Portly on another PC**, `#/connect`). The remote port answers the Pages origin's CORS
+  requests and takes the device secret in `X-Portly-Device` (no cookie cross-site); the site keeps
+  it as its pairing record with the address; the public site names no PC or tailnet (CSP
+  `https://*.ts.net`, the address typed once per browser). ARCHITECTURE §4.1, §4.2, §16, §20;
+  design/multi-pc.md, "One address for every PC".
+
+  *Done when:* the second PC opens the published site, connects to the main PC there, is
+  approved, and uses the main PC's data; a removal on the main PC sends it back to its own copy.
+  Needs a release on the main PC and a publish of the site (the owner's go). *Status:* built and
+  tested with fakes 2026-10-30; the real check is the rows below.
+
 ## Checks never run for real
 
 One row per *Not tested* note still open from the commit history, with the item that performs it.
@@ -1817,6 +1831,8 @@ date and the outcome once a row has been run for real.
 | The Portly UI design system inside Claude Design: the preview cards in the project's Design System pane, and a design built there with `window.PortlyUI` (styles, Cascadia fonts, `PortlyQueryProvider`); only headless Chrome screenshots of the local cards before upload | design-sync commit, 2026-10-29 | the owner's first look at the project | not yet |
 | A re-sync from a fresh clone (`prepare.mjs`, then the converter with `--remote` against the uploaded `_ds_sync.json`); only first-sync builds in this checkout | design-sync commit, 2026-10-29 | the next design sync | not yet |
 | The dimmed disabled Slider and tab in the running app (a settings page with a disabled slider or tab, in light and dark themes); only headless Chrome screenshots of the design-sync preview cards | disabled-style commit, 2026-10-29 | the owner's next use of such a setting | not yet |
+| The Pages site on another PC connecting to the main PC through Tailscale Serve (B.7): Chrome's local network prompt for the tailnet address, the CORS preflight with `X-Portly-Device` through Serve, the published CSP allowing `https://*.ts.net`, approval on the main PC, the page reloading on the main PC's data, and a removal sending it back; only gate and route tests, controller and connect-page tests with fakes, and both builds | B.7 commit, 2026-10-30 | B.7 (after a release on the main PC and a publish of the site) | not yet |
+| The Pages site connected to the main PC on a phone (Chrome on Android with the Tailscale app); never tried | B.7 commit, 2026-10-30 | the owner's next phone connect | not yet |
 
 ### Closed
 

@@ -31,6 +31,10 @@ Portly's data and accounts, and so can any script that site ever publishes:
   (`#/settings/diagnostics`, see [Finding out why](#finding-out-why)), or when the Pages site
   can't be reached (offline), when it serves the copy on this PC and says so.
 
+- **Other PCs use the same site.** On a PC without Portly the site can connect to Portly on your
+  main PC instead (**Use Portly on another PC**, the Tailscale address typed once), so every PC
+  opens the same address: [Using Portly from your other PCs](other-pcs.md#connecting-another-pc).
+
 You need: Portly installed and running on this PC ([setup](../SETUP.md), ideally with
 [autostart](autostart.md)), a published Pages site ([static-build.md](static-build.md)) and Chrome
 or Edge (current versions ask once whether the site may reach apps on this PC; step 6). The

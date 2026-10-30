@@ -335,6 +335,16 @@ client settings, the OAuth start, the vault reset, the browser bookmark import, 
 only disconnect itself; paths are blanked for it as for the Pages site; requests on the main port never count as another
 PC's and a proxy's forwarding header there is refused. The listener stays loopback-only.
 
+**The Pages site on another PC joins both:** with `PORTLY_REMOTE_ORIGIN` and `PORTLY_PAGES_URL` set, the remote port
+also answers CORS requests from the Pages origin (exactly that origin, as the main port does), and a browser that
+connected from the Pages site keeps its **device secret** in that origin's localStorage (no cookie: a browser sends
+none cross-site). So the Pages-origin risk above now reaches the main PC's Portly from every PC connected that way:
+a script on any page of `https://<user>.github.io`, in such a browser, can read the device secret and call every
+route a device may. Accepted on the same grounds (one user, the user's own site, no third-party script), with the same
+limits: the secret opens only what a device may call, Settings → Devices removes it at once, 30 days unused expire
+it, and the address of the main PC is never published (each browser is told it once; the site's CSP allows only
+`https://*.ts.net`, §4.3).
+
 ### 4.2 Request gate (global middleware, `app.use('*', …)`, in this order)
 1. Reject (400) if the raw request path (the target as received, query and fragment cut off; an absolute-form target
    is reduced to its path) does not start with `/`, or contains `//`, `\`, `%2f`, `%5c` (case-insensitive), `%00` or
@@ -369,7 +379,8 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
    **Pages branch** (only with `PORTLY_PAGES_URL` and a pairing store): an `/api` request whose `Origin` equals the
    configured `pagesOrigin` exactly skips step 4 and is marked for CORS (refusals included, so the page can read them):
    - preflight (`OPTIONS` + `Access-Control-Request-Method`): method ∈ GET/HEAD/POST/PUT/PATCH/DELETE and every
-     requested header ∈ {content-type, x-portly, x-portly-token} → 204, else 403; never passed on;
+     requested header ∈ {content-type, x-portly, x-portly-token, x-portly-device, x-portly-enroll} → 204, else 403;
+     never passed on;
    - `GET /api/health` passes as for anyone (no token);
    - anything else: route access must be `paired` or `same-pc` (else 403 `local_only`), `X-Portly: 1`, `Sec-Fetch-Site`
      `cross-site`/`same-site`/absent (the exact Origin match is the real check), a pairing token
@@ -386,12 +397,20 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
    the sub-reason logged) and a route a device may call (else 403 `local_only`). `enrollment()` routes need no cookie
    (a stale one is ignored, a valid one still noted). The device's last use is recorded (at most every 10 min) and the
    cookie's lifetime renewed then, unless the route set or cleared the cookie itself or stopped the device. Never
-   CORS headers, never preflights.
+   CORS headers, never preflights — except for the Pages site:
+
+   **Remote Pages branch** (§20; a request on the remote port whose `Origin` equals the configured `pagesOrigin`
+   exactly, with `PORTLY_PAGES_URL`, `PORTLY_REMOTE_ORIGIN` and a device store): marked for CORS like the Pages branch
+   (refusals included) and `remotePages`; preflights as in the Pages branch; `GET /api/health` passes; the OAuth
+   callback is refused (403 `local_only`); everything else needs `X-Portly: 1`, `Sec-Fetch-Site`
+   `cross-site`/`same-site`/absent, the Content-Type of step 4, then the device secret in `X-Portly-Device` that
+   verifies (else 401 `login_required`; any cookie is ignored) and a route a device may call (else 403 `local_only`).
+   `enrollment()` routes need no secret. The device's last use is recorded as for a cookie; nothing is renewed.
 4. Non-exempt `/api` requests must have: `X-Portly: 1`; `Origin` absent or in the origin allowlist;
    `Sec-Fetch-Site` absent or `same-origin` (reject `same-site`, `cross-site`, `none`); for bodies,
    `Content-Type: application/json`, except routes declared multipart (uploads, imports).
-   Apart from the configured Pages origin (step 3), the server **never** sends CORS headers and never answers
-   preflights.
+   Apart from the configured Pages origin (step 3, on either port), the server **never** sends CORS headers and
+   never answers preflights.
 5. **Body limits** enforced on streamed bytes (chunked included): JSON 1 MB; uploads/icons 10 MB; import 25 MB.
 
 ### 4.3 Response headers
@@ -415,19 +434,22 @@ PC's and a proxy's forwarding header there is refused. The listener stays loopba
   `https://graph.microsoft.com` (Outlook.com sign-in and calendar, and launch pad sync's OneDrive metadata and
   uploads), `https://my.microsoftpersonalcontent.com` (launch pad sync's OneDrive downloads: the only download host
   seen for a personal account; [design](design/launchpad-sync.md) section 4), and in hybrid mode the local server origin
-  (`PORTLY_STATIC_SERVER`, §16); there is no `frame-ancestors` (a meta tag cannot set it). The `script-src` invariant
+  (`PORTLY_STATIC_SERVER`, §16) and `https://*.ts.net` (Portly on another PC through Tailscale Serve, §20: the site
+  names no PC or tailnet, so the source is the suffix); there is no `frame-ancestors` (a meta tag cannot set it). The `script-src` invariant
   applies here too.
 - **`/api` JSON:** `Cache-Control: no-store`.
 - **`/api/icons/:id`, `/api/uploads/:id`:** `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`,
   `Cache-Control: private, max-age=86400`. IDs are random UUIDv4. Stored content type comes from magic-byte
   sniffing (png, gif, jpeg, webp, avif, ico, bmp; svg only if the root element is `<svg`), never from headers.
 - **CORS (hybrid mode only):** any `Access-Control-*` header a handler sets is stripped. Answers to requests the gate
-  marked as Pages requests get `Access-Control-Allow-Origin: <pagesOrigin>` (from config, never echoed),
+  marked as Pages requests (main port, or remote port for the Pages site on another PC) get
+  `Access-Control-Allow-Origin: <pagesOrigin>` (from config, never echoed),
   `Access-Control-Expose-Headers: Retry-After, Content-Disposition, X-Request-Id` (§17); preflights also `Access-Control-Allow-Methods`
-  (the requested one), `Access-Control-Allow-Headers: Content-Type, X-Portly, X-Portly-Token`,
-  `Access-Control-Max-Age: 600`, `Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers` and
-  `Access-Control-Allow-Private-Network: true` only when requested. **Never** `Access-Control-Allow-Credentials`
-  (the page authenticates with its token; cookies are never involved). With a Pages URL configured every `/api`
+  (the requested one), `Access-Control-Allow-Headers: Content-Type, X-Portly, X-Portly-Token, X-Portly-Device,
+  X-Portly-Enroll`, `Access-Control-Max-Age: 600`, `Vary: Origin, Access-Control-Request-Method,
+  Access-Control-Request-Headers` and `Access-Control-Allow-Private-Network: true` only when requested. **Never**
+  `Access-Control-Allow-Credentials` (the page authenticates with its token or device secret; cookies are never
+  involved). With a Pages URL configured every `/api`
   answer carries `Vary: Origin`. CORP/COOP stay `same-origin` (CORP does not apply to CORS-mode fetches).
 
 ### 4.4 URL & text policy
@@ -1576,6 +1598,20 @@ reached, when it serves the app as the offline
 fallback (`web/src/app/pagesForward.ts`; the HTML CSP's `connect-src` allows the Pages origin for that check). User
 guide: `docs/setup/pages-local-server.md`.
 
+**Or Portly on another PC.** The same site is also how other PCs use the main PC's Portly (§20): a browser that is not
+paired can be **connected** instead, on the site's own connect page (`#/connect`, `app/RemoteConnectPage.tsx`,
+`localServer/remote.ts`), to the main PC's Tailscale Serve address. Its pairing record then carries that address
+(`remoteOrigin`, below), and everything in this section applies to that server: the probe, the backend decision, the
+transport, the images, the grace and the switches. What differs: requests go to the remote origin with the device
+secret (`X-Portly-Device`, from the connect flow) instead of the pairing token, without `targetAddressSpace` (the
+browser classifies the tailnet address, 100.64.0.0/10, as the local network itself); the pairing check is
+`GET /api/device` (401 `login_required` is its refusal); disconnecting sends `DELETE /api/device`; the controller follows
+the `local-network` permission (`local-network-access` in Chrome 142–144) instead of `loopback-network`; a server-backend
+page connected that way is marked `remoteClient` (what only the main PC can do is off, as for the server build opened
+from another PC); `startPairing` does nothing; the wording says "your main PC" (`state.remoteOrigin`), and the
+switch toast carries `:remote` (`<target>:<reason>:remote`) so it can name the main PC after the record is gone. One
+server per browser: a paired browser is told to disconnect first, a connected one is not offered pairing.
+
 **One backend per page load.** In the Pages build each page load picks `browser` or `server` before the first render
 and keeps it, so no request of one dataset can reach the other and capabilities are per-load constants. When the right
 backend changes, the page persists what the next load needs and **reloads**: a hidden tab once it is visible again,
@@ -1690,8 +1726,10 @@ so the server bundle never contains it). Browser backend → `staticFetch`. Serv
 `whenServerReady(signal)` (resolves when connected, waits while checking/reconnecting/waiting for the permission,
 rejects with `ServerModeEndedError extends TypeError` once a switch to the browser is requested — `api()` maps it to
 `network_error`), then `fetch(<origin><path>)` with `mode: 'cors'`, `credentials: 'omit'`, `X-Portly: 1`,
-`X-Portly-Token` and `targetAddressSpace: 'loopback'`, with no extra timeout. Any response reports liveness; a
-`TypeError` from that fetch makes the controller probe; so does 401 `pairing_required`, since another Portly may
+`X-Portly-Token` and `targetAddressSpace: 'loopback'`, with no extra timeout (the origin and the secret come from the
+controller's `link()`: for Portly on another PC its address, `X-Portly-Device` and no `targetAddressSpace`). Any
+response reports liveness; a `TypeError` from that fetch makes the controller probe; so does 401 `pairing_required`
+(another PC: `login_required`), since another Portly may
 answer on the port now: only the paired instance refusing the token (`revoked`) clears the record, another instance
 gives `other-server` and keeps it. `/api/backups*` (the
 browser backend's own pre-import backups) answer 404 without a request.
@@ -1708,7 +1746,9 @@ needs nothing more for them (`blob:` and `data:`, §4.3); `connect-src` gains th
 
 | Where | Key | Content |
 | --- | --- | --- |
-| localStorage | `portly:pairing:<base>` | `{token, instanceId, pairedAt}` |
+| localStorage | `portly:pairing:<base>` | `{token, instanceId, pairedAt}`; for Portly on another PC `{token, instanceId, pairedAt, remoteOrigin}`, `token` being its device secret and `remoteOrigin` an address the connect page accepts (`https://<pc>.<tailnet>.ts.net`, else the record is ignored) |
+| localStorage | `portly:remote-address:<base>` | the last address this browser connected to (prefills the connect page; not a secret) |
+| sessionStorage | `portly:remote-enroll` | `{origin, secret}` of the request this tab waits on at the connect page (one per tab, gone once it ends) |
 | localStorage | `portly:backend-mode:<base>` | `lastMode`: the backend the last decision chose |
 | localStorage | `portly:server-seen:<base>` | `lastServerSeenAt` (epoch ms) |
 | localStorage | `portly:query-cache:static:<base>` | browser backend snapshot, buster `<version>+static`, 24 h |
@@ -1736,14 +1776,17 @@ it does not answer as a foreign origin (`health check from another site (no CORS
 `paired()`, so a paired site shows the full Diagnostics page; `#/settings/diagnostics` on Portly's own page never
 forwards, and the site links to it ("Open diagnostics on this PC", `<LOCAL_SERVER_ORIGIN>/#/settings/diagnostics`)
 once something answers on this PC (a status from `unpaired` to `reconnecting`, or `answers-without-cors`): while
-nothing does, the link would open an error page, so it is not shown.
+nothing does, the link would open an error page, so it is not shown. A browser connected to Portly on another PC gets
+no such link (that page is on the main PC).
 
 **Build.** `PORTLY_STATIC_SERVER` (default `http://127.0.0.1:5757`; `off` disables; only http(s) origins on
 `localhost`, `*.localhost`, `127.0.0.1` or `[::1]`, anything else fails the build) → `__PORTLY_LOCAL_SERVER__`
-(`''` in the server build and in both vitest web projects). The footer indicator shows the status's label ("Not
+(`''` in the server build and in both vitest web projects). With hybrid mode on, the Pages CSP also allows
+`https://*.ts.net` (Portly on another PC, §4.3). The footer indicator shows the status's label ("Not
 checked", "Connected · v0.1.0", …), except "Browser only" for `absent` (the panel's badge still says "Not detected").
-The hybrid-only UI (footer indicator, local server panel,
-pairing page) is loaded on demand, so the server build's main chunk does not carry it.
+The panel offers **Use Portly on another PC** (`#/connect`) while the browser is not paired. The hybrid-only UI
+(footer indicator, local server panel, pairing page, connect page) is loaded on demand, so the server build's main
+chunk does not carry it.
 
 **Extension** (§11): by default new tabs open the Pages site the server reports (`pagesUrl` in `/api/health`) and
 only ask the service worker to warm Portly up; the site finds the server itself. A server without `PORTLY_PAGES_URL`
@@ -2207,6 +2250,27 @@ the setup steps, the requests waiting with Approve and Deny on Portly's own page
 list and a note; the paired Pages site sees the list and a link to Portly's own page's Devices section, which never
 forwards to the Pages site, like `#/pair`), the connected PCs with "This PC" and Remove (a device may only
 "Disconnect this PC"), polled every 5 s while the page is visible, never persisted.
+
+**One address for every PC: the Pages site** (`localServer/remote.ts`, `app/RemoteConnectPage.tsx`, §16 "Or Portly
+on another PC", §4.2 remote Pages branch). With `PORTLY_PAGES_URL` set as well, every PC can open the same address,
+the Pages site: the main PC through hybrid mode, any other PC by connecting the site to the main PC's Serve address
+once. On another PC the site has no server of its own, so its panel offers **Use Portly on another PC**, which opens
+`#/connect`:
+1. the user types the address (Settings → Devices on the main PC shows it); only `https://<pc>.<tailnet>.ts.net` is
+   accepted (`parseRemoteServerAddress`: https, no port, path or credentials, at least two labels before `.ts.net`),
+   matching the site's CSP; the public site itself names no PC or tailnet;
+2. `GET <address>/api/health` must say Portly, this site's API version, an `instanceId` and `remote: true` (`false`:
+   the proxy points at the main port; the page says to run `tailscale serve --bg 5758`); this request is also where
+   the browser asks its local network permission;
+3. the connect screen (`ConnectPage` with the site's client) asks, shows the code and waits, as on the address
+   itself, but as CORS requests: the create answer carries the request's secret (`secret`), which the page keeps in
+   sessionStorage and sends as `X-Portly-Enroll`; the approved poll carries the device secret, saved with the address
+   as the pairing record (`saveRemoteConnection`: seen now, no last decision), and the page reloads on `#/`, whose
+   next load starts on the main PC's Portly.
+
+The server side is the same devices module: `remotePages` (set by the gate) makes it hand the secrets out in bodies and
+read them from headers, and never set or clear a cookie for it. Approving stays on Portly's own page on the main PC.
+Both ways in can be used side by side; a browser keeps one Portly (a paired browser is told to disconnect first).
 
 **Setup** (`setup.ps1 -RemoteOrigin <address>`, `off` removes it; or the user variable by hand, then
 `install-autostart.ps1` so the task carries it: `PortlyEnvNames` in `scripts/lib/Common.ps1` lists both variables)

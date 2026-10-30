@@ -65,6 +65,13 @@
  * this browser last reported (`lastReportedStatus`: earlier page loads, other tabs) — or, with none
  * reported yet, when it needs the user — so opening a tab does not log one event every time.
  *
+ * Portly on another PC (ARCHITECTURE §20): a record with `remoteOrigin` (saved by the connect page,
+ * `remote.ts`) makes every probe, check and request go to that address instead, with the device
+ * secret (`GET /api/device` is its check, 401 `login_required` its refusal) and none of the
+ * loopback request options. The rest is the same state machine: one server per browser, which
+ * the record names; a record that names another server while a probe runs makes that probe
+ * inconclusive (it retries soon).
+ *
  * Every side effect is a dependency ({@link LocalServerControllerDeps}), so the whole state machine
  * runs under fake timers in tests. `boot.ts` builds the page's instance from the browser's.
  */
@@ -82,8 +89,9 @@ import {
 } from './pairing.ts';
 import type { LoopbackPermissionSource } from './permission.ts';
 import {
-  LOOPBACK_REQUEST_INIT,
+  checkDeviceDetailed,
   checkPairingDetailed,
+  deviceHeaders,
   pairedHeaders,
   probeHealth,
   probeHealthDetailed,
@@ -92,6 +100,7 @@ import {
   type HealthProbeResult,
   type LoopbackRequestInit,
   type ProbeDetails,
+  requestInitFor,
 } from './probe.ts';
 import type {
   LocalServerActions,
@@ -231,6 +240,18 @@ export interface HybridController extends LocalServerController {
   reportUnpaired(token: string): void;
   /** The pairing token requests carry, or null when not paired. */
   token(): string | null;
+  /**
+   * Where this browser's requests go and how they authenticate, or null when not paired: Portly on
+   * this PC (`remote` false, the pairing token) or on another PC (`remote` true, the device secret).
+   */
+  link(): ServerLink | null;
+}
+
+/** The server a pairing record names: its origin, whether it is another PC's, and the secret requests carry. */
+export interface ServerLink {
+  origin: string;
+  remote: boolean;
+  token: string;
 }
 
 /**
@@ -252,7 +273,7 @@ type Outcome =
   | { kind: 'unpaired'; info: LocalServerInfo }
   | { kind: 'other-server'; info: LocalServerInfo }
   | { kind: 'connected'; info: LocalServerInfo }
-  | { kind: 'revoked'; info: LocalServerInfo; token: string }
+  | { kind: 'revoked'; info: LocalServerInfo; token: string; remoteOrigin: string | null }
   | { kind: 'pairing-error'; info: LocalServerInfo };
 
 interface Probe {
@@ -318,11 +339,18 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
   /** The server whose data a server-backend page shows (its persisted cache is keyed by it). */
   const bootInstanceId = deps.backend === 'server' ? (record?.instanceId ?? null) : null;
 
+  /** Where probes and requests go for `paired`: Portly on another PC when the record says so, else this PC's. */
+  const targetOf = (paired: PairingRecord | null): { origin: string; remote: boolean } =>
+    paired?.remoteOrigin !== undefined ? { origin: paired.remoteOrigin, remote: true } : { origin: deps.origin, remote: false };
+  /** The state fields that follow the record. */
+  const recordFields = (): Pick<LocalServerState, 'paired' | 'remoteOrigin'> => ({ paired: record !== null, remoteOrigin: record?.remoteOrigin ?? null });
+
   let state: LocalServerState = Object.freeze({
     backend: deps.backend,
     status: deps.origin === '' ? 'disabled' : deps.framed === true ? 'framed' : record !== null ? 'checking' : 'idle',
     server: null,
     paired: record !== null,
+    remoteOrigin: record?.remoteOrigin ?? null,
     checkedAt: null,
     pendingSwitch: null,
     permission: null,
@@ -422,6 +450,8 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     const next: LocalServerState = { ...state, ...patch };
     // The reason explains the status it was found with (a later status change never leaves it behind).
     if (!UNREACHABLE_REASON_STATUSES.has(next.status)) next.unreachableReason = null;
+    // Without a record, another PC's address only explains a `revoked` status (the record just went).
+    if (record === null && next.status !== 'revoked') next.remoteOrigin = null;
     const keys = Object.keys(next) as (keyof LocalServerState)[];
     if (keys.every((key) => Object.is(next[key], state[key]))) return;
     const from = state.status;
@@ -559,7 +589,8 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     const signal = current.abort.signal;
     // A denied permission fails every request at once: nothing to learn from trying.
     if (state.permission === 'denied') return { kind: 'denied' };
-    const probed = await probeHealthDetailed(deps.origin, { fetch: deps.fetch, signal, now });
+    const target = targetOf(record);
+    const probed = await probeHealthDetailed(target.origin, { fetch: deps.fetch, signal, now, remote: target.remote });
     current.details = probed.details;
     const health = probed.result;
     if (health.kind === 'aborted') return { kind: 'aborted' };
@@ -567,23 +598,26 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     if (health.kind === 'unreachable') {
       // The user may just have answered the prompt with Block: a denial looks like any network error.
       const permission = await permissionNow();
-      return permission === 'denied' ? { kind: 'denied' } : withoutCors(current, permission);
+      return permission === 'denied' ? { kind: 'denied' } : withoutCors(current, permission, target);
     }
     if (health.kind === 'not-portly') return { kind: 'unreachable', cause: 'not-portly' };
     const info = serverInfo(health);
     if (info.apiVersion !== PORTLY_API_VERSION) return { kind: 'incompatible', info };
     const paired = record;
+    // The record changed to another server while the health request ran (another tab): ask that one next.
+    if (targetOf(paired).origin !== target.origin) return { kind: 'inconclusive' };
     if (paired === null) return { kind: 'unpaired', info };
     // Another Portly never sees this browser's token.
     if (info.instanceId !== paired.instanceId) return { kind: 'other-server', info };
-    const checked = await checkPairingDetailed(deps.origin, paired.token, { fetch: deps.fetch, signal, now });
+    const options = { fetch: deps.fetch, signal, now };
+    const checked = target.remote ? await checkDeviceDetailed(target.origin, paired.token, options) : await checkPairingDetailed(target.origin, paired.token, options);
     current.details = checked.details;
     const check = checked.result;
     switch (check.kind) {
       case 'ok':
         return { kind: 'connected', info };
       case 'unpaired':
-        return { kind: 'revoked', info, token: paired.token };
+        return { kind: 'revoked', info, token: paired.token, remoteOrigin: paired.remoteOrigin ?? null };
       case 'error':
         return { kind: 'pairing-error', info };
       case 'aborted':
@@ -598,10 +632,10 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
    * within {@link NO_CORS_RECHECK_MS} of one that found nothing (it would most likely fail again,
    * as one more error in the console). One that got an answer is no error: it is always repeated.
    */
-  async function withoutCors(current: Probe, permission: LoopbackPermission): Promise<Outcome> {
+  async function withoutCors(current: Probe, permission: LoopbackPermission, target: { origin: string; remote: boolean }): Promise<Outcome> {
     if (deps.noCorsFallback === false || (permission !== 'granted' && permission !== 'unsupported') || !running()) return { kind: 'unreachable' };
     if (!current.manual && lastSilentNoCorsAt !== null && now() - lastSilentNoCorsAt < NO_CORS_RECHECK_MS) return { kind: 'unreachable' };
-    const answer = await probeHealthWithoutCors(deps.origin, { fetch: deps.fetch, signal: current.abort.signal, now });
+    const answer = await probeHealthWithoutCors(target.origin, { fetch: deps.fetch, signal: current.abort.signal, now, remote: target.remote });
     if (answer.result === 'aborted') return { kind: 'aborted' };
     lastSilentNoCorsAt = answer.result === 'unreachable' ? now() : null;
     return answer.result === 'answers' ? { kind: 'unreachable', cause: 'answers-without-cors' } : { kind: 'unreachable' };
@@ -746,7 +780,8 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
         lastHealthyAt = at;
         store.clear(outcome.token);
         record = store.read();
-        update({ status, paired: record !== null }, cause);
+        // "Removed on your main PC" keeps naming that PC until the status changes (update()).
+        update({ status, paired: record !== null, remoteOrigin: record?.remoteOrigin ?? outcome.remoteOrigin }, cause);
         if (server) requestModeSwitch('browser', 'revoked');
         else dropSwitch('server');
         break;
@@ -919,7 +954,9 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     reloading = true;
     haltTimers();
     probe?.abort.abort();
-    if (persisted) writeItem(deps.sessionStorage, MODE_SWITCH_TOAST_KEY, `${switchRequest.target}:${switchRequest.reason}`);
+    // `:remote`: the toast names the main PC (the record that said so may be gone by then).
+    const where = state.remoteOrigin != null ? ':remote' : '';
+    if (persisted) writeItem(deps.sessionStorage, MODE_SWITCH_TOAST_KEY, `${switchRequest.target}:${switchRequest.reason}${where}`);
     // Recorded (and stored) before the reload: the next page load shows it.
     diag('info', 'backend switch performed', { target: switchRequest.target, reason: switchRequest.reason, kind: user ? 'user' : 'idle' });
     wake();
@@ -968,10 +1005,10 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
   function onPairingChange(): void {
     if (!running()) return;
     const next = store.read();
-    if (next?.token === record?.token && next?.instanceId === record?.instanceId) return;
+    if (next?.token === record?.token && next?.instanceId === record?.instanceId && next?.remoteOrigin === record?.remoteOrigin) return;
     diag('info', 'pairing changed in another tab', { kind: next === null ? 'removed' : record === null ? 'added' : 'replaced' });
     record = next;
-    update({ paired: record !== null });
+    update(recordFields());
     if (deps.backend === 'server') {
       // Another tab disconnected, or paired with another server: this page's data is not the right one.
       if (record === null) {
@@ -996,7 +1033,8 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
   }
 
   async function beginPairing(): Promise<void> {
-    if (!running()) return;
+    // Pairing is with Portly on this PC; another PC's is connected on this site (the connect page).
+    if (!running() || record?.remoteOrigin !== undefined) return;
     if (!healthyRecently() || !PAIRABLE_STATUSES.has(state.status)) await kick('manual');
     if (!running() || !healthyRecently() || !PAIRABLE_STATUSES.has(state.status)) return;
     diag('info', 'pairing started', { from: state.status });
@@ -1014,11 +1052,14 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
   async function forgetOnServer(paired: PairingRecord): Promise<void> {
     const abort = new AbortController();
     const timer = setTimer(() => abort.abort(), DISCONNECT_TIMEOUT_MS);
+    const target = targetOf(paired);
     try {
-      const health = await probeHealth(deps.origin, { fetch: deps.fetch, signal: abort.signal });
+      const health = await probeHealth(target.origin, { fetch: deps.fetch, signal: abort.signal, remote: target.remote });
       if (health.kind !== 'ok' || health.health.instanceId !== paired.instanceId) return;
-      const init: LoopbackRequestInit = { ...LOOPBACK_REQUEST_INIT, method: 'DELETE', cache: 'no-store', headers: pairedHeaders(paired.token), signal: abort.signal };
-      await deps.fetch(`${deps.origin}/api/pairing`, init);
+      // Another PC's Portly forgets this browser as a device (it disconnects itself).
+      const headers = target.remote ? deviceHeaders(paired.token) : pairedHeaders(paired.token);
+      const init: LoopbackRequestInit = { ...requestInitFor(target.remote), method: 'DELETE', cache: 'no-store', headers, signal: abort.signal };
+      await deps.fetch(`${target.origin}${target.remote ? '/api/device' : '/api/pairing'}`, init);
     } catch {
       // Best effort: the server's page lists and revokes pairings too.
     } finally {
@@ -1043,7 +1084,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
     record = store.read();
     removeItem(deps.localStorage, deps.serverCacheKey);
     store.setLastMode('browser');
-    update({ paired: record !== null });
+    update(recordFields());
     if (deps.backend === 'server') {
       // The user asked: reload now, busy or not.
       switchRequest = { target: 'browser', reason: 'disconnected' };
@@ -1163,6 +1204,7 @@ export function createLocalServerController(deps: LocalServerControllerDeps): Hy
       void kick('change');
     },
     token: () => record?.token ?? null,
+    link: () => (record === null ? null : { ...targetOf(record), token: record.token }),
   };
 }
 

@@ -155,7 +155,9 @@ build: `PORTLY_STATIC_SERVER`, default `http://127.0.0.1:5757`, `off` to disable
 Serve, inside your own tailnet) forwards them to a second loopback port, each PC asks to connect once and shows a
 short code, and you approve it in Settings → Devices on the main PC. Accounts connected on the main PC work from
 every PC; what needs the main PC itself stays there: signing in to Google or Microsoft, resetting credentials,
-importing browser bookmarks, approving PCs and paired browsers, the OAuth client settings and the diagnostics report. Set-up:
+importing browser bookmarks, approving PCs and paired browsers, the OAuth client settings and the diagnostics report.
+With a Pages site, every PC opens the same address: on another PC the site connects to the main PC's Portly once
+(**Use Portly on another PC**, with the Tailscale address typed once per browser). Set-up:
 [docs/setup/other-pcs.md](docs/setup/other-pcs.md) (`setup.ps1 -RemoteOrigin`, or `PORTLY_REMOTE_ORIGIN` by hand).
 
 ## Repository layout

@@ -266,6 +266,38 @@ API and ran against a scratch server without a Pages site.
 
 **Still open:** the later items of phase 4.
 
+## One address for every PC (2026-10-30)
+
+The owner's ask: every PC types the same address, the Pages site, whether Portly runs on it or
+on the main PC; the site is the front of whatever server is behind it. Decided with the owner:
+the address of the main PC is typed once per browser, never built into the public site.
+
+- **Why the device cookie cannot do it.** The site and the server are different sites, and a
+  browser sends no `SameSite=Strict` cookie cross-site. So the Pages site gets the same secrets in
+  answer bodies and sends them in headers: the request's secret as `X-Portly-Enroll` while it
+  waits, the device secret as `X-Portly-Device` afterwards. It keeps the device secret in its
+  localStorage, like the pairing token on the main PC (the same accepted risk, §4.1).
+- **The server.** The remote port answers the configured Pages origin's CORS requests (exactly
+  that origin, as the main port does; preflights for those two headers too). Every other rule of
+  the remote branch stays: what a device may call, `login_required`, the touch, no cookie at all
+  for these requests. The devices module serves both: `remotePages` switches cookies for bodies
+  and headers. Approval stays on Portly's own page on the main PC.
+- **The site.** The pairing record gains `remoteOrigin`, and the hybrid controller follows it: the
+  probe, the check (`GET /api/device`), the requests, the images, disconnecting. A page on that
+  server counts as another PC's (`remoteClient`), so Google and Microsoft sign-in, the vault
+  reset and the rest of the main-PC-only actions are off, as on the Tailscale address itself.
+  The connect page (`#/connect`) takes the address, checks that it answers `remote: true`, and
+  shows the server build's connect screen against it.
+- **Privacy.** The site's CSP allows `https://*.ts.net` and the address field accepts only such
+  hosts, so the public site names no PC or tailnet. Another reverse proxy still works through its
+  own address, not through the site.
+- **Local network access.** A tailnet address (100.64.0.0/10) counts as the local network in
+  Chromium, so the browser asks once, on the connect page's first request. The requests carry no
+  `targetAddressSpace` (the address is https, so nothing needs the loopback hint), and the
+  controller follows the `local-network` permission for such a record.
+
+Not tried for real yet: ROADMAP B.7 and its rows in "Checks never run for real".
+
 ## The name the connect screen fills in (2026-10-21)
 
 The first of the later items, asked for by the owner after the real install: the connect screen's

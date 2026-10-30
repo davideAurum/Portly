@@ -21,7 +21,9 @@
  * the first render by `app/remoteClient.ts`, `setRemoteClient`). Such a page load has every
  * server feature except what stays on the main PC: signing in with Google or Microsoft (the OAuth
  * redirect lands on the main PC), the vault reset, importing the main PC's browser bookmarks,
- * approving devices and pairings, and the diagnostics report.
+ * approving devices and pairings, and the diagnostics report. The Pages build on its server
+ * backend counts the same way when that server is Portly on another PC (the browser connected to
+ * it from the Pages site, ARCHITECTURE §20; decided by `localServer/boot.ts`).
  *
  * UI code reads {@link getCapabilities} at render or call time, never at module top level, and
  * "the data lives in this browser" means `backend === 'browser'`, not `STATIC_BUILD`. Tests drive
@@ -41,7 +43,10 @@ export interface Capabilities {
   backend: Backend;
   /** The Pages build talking to the Portly server on this PC (`pagesBuild && backend === 'server'`). */
   remoteServer: boolean;
-  /** The server build opened from another PC through the reverse proxy on the main PC: what only the main PC can do is off. */
+  /**
+   * This page load uses Portly on another PC (the server build opened through the reverse proxy on
+   * the main PC, or the Pages build connected to it): what only the main PC can do is off.
+   */
   remoteClient: boolean;
   /** The Accounts section: every kind on the server, Outlook.com alone on the `browser` backend. */
   accounts: boolean;
@@ -80,7 +85,7 @@ const cache = new Map<string, Capabilities>();
 
 /**
  * The capabilities of a build/backend combination (frozen; the same object for the same
- * combination), `remoteClient` for the server build opened from another PC.
+ * combination), `remoteClient` for a page load that uses Portly on another PC.
  */
 export function capabilitiesFor(pagesBuild: boolean, backend: Backend, remoteClient = false): Capabilities {
   const key = `${pagesBuild ? 'pages' : 'server'}:${backend}:${remoteClient ? 'remote' : 'here'}`;
@@ -116,14 +121,15 @@ export function capabilitiesFor(pagesBuild: boolean, backend: Backend, remoteCli
 
 /** The Pages build's backend for this page load; `browser` until `main.tsx` decides. */
 let pageBackend: Backend = 'browser';
-/** The server build opened from another PC; false until `main.tsx` decides. */
+/** This page load uses Portly on another PC; false until `main.tsx` (or the Pages boot) decides. */
 let remoteClient = false;
 let testOverride: Capabilities | null = null;
 
 /** The capabilities of this page load. Read it at render or call time, never at module top level. */
 export function getCapabilities(): Capabilities {
   if (testOverride !== null) return testOverride;
-  return STATIC_BUILD ? capabilitiesFor(true, pageBackend) : capabilitiesFor(false, 'server', remoteClient);
+  // The Pages build's browser backend uses no server at all, so no other PC's either.
+  return STATIC_BUILD ? capabilitiesFor(true, pageBackend, pageBackend === 'server' && remoteClient) : capabilitiesFor(false, 'server', remoteClient);
 }
 
 /** Sets the Pages build's backend for this page load (`main.tsx`, before the first render). No-op in the server build. */
@@ -132,9 +138,11 @@ export function setPageBackend(backend: Backend): void {
   pageBackend = backend;
 }
 
-/** Marks this page load as another PC's (`main.tsx`, before the first render). No-op in the Pages build. */
+/**
+ * Marks this page load as using Portly on another PC, before the first render: `main.tsx` in the
+ * server build, `localServer/boot.ts` in the Pages build (with its server backend).
+ */
 export function setRemoteClient(remote: boolean): void {
-  if (STATIC_BUILD) return;
   remoteClient = remote;
 }
 

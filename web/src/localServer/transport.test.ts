@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
 import { ORIGIN, TOKEN, jsonResponse, pairingRequired } from './__fixtures__/fakes.ts';
-import { ServerModeEndedError, setAppLocalServerController, type HybridController } from './controller.ts';
+import { ServerModeEndedError, setAppLocalServerController, type HybridController, type ServerLink } from './controller.ts';
 import type { FetchLike } from './probe.ts';
 import { createServerFetch, localServerFetch, pagesFetch } from './transport.ts';
 
@@ -31,6 +31,7 @@ function fakeController(overrides: Partial<HybridController> = {}) {
     reportNetworkFailure: vi.fn(),
     reportUnpaired: vi.fn(),
     token: vi.fn((): string | null => TOKEN),
+    link: vi.fn((): ServerLink | null => ({ origin: ORIGIN, remote: false, token: TOKEN })),
     ...overrides,
   };
   return controller satisfies HybridController;
@@ -38,7 +39,7 @@ function fakeController(overrides: Partial<HybridController> = {}) {
 
 function transport(controller: HybridController | null, answer: FetchLike = async () => jsonResponse({ ok: true })) {
   const fetch = vi.fn<FetchLike>(answer);
-  return { fetch, serverFetch: createServerFetch({ origin: ORIGIN, fetch, controller: () => controller }) };
+  return { fetch, serverFetch: createServerFetch({ fetch, controller: () => controller }) };
 }
 
 describe('server transport', () => {
@@ -72,6 +73,25 @@ describe('server transport', () => {
     expect(headers.get('X-Portly')).toBe('1');
     expect(headers.get('X-Portly-Token')).toBe(TOKEN);
     expect(controller.reportResponse).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends a request for Portly on another PC to its address, with the device secret and no loopback options', async () => {
+    const remote = 'https://desk.tail1234.ts.net';
+    const controller = fakeController({ link: () => ({ origin: remote, remote: true, token: TOKEN }) });
+    const { fetch, serverFetch } = transport(controller, async () =>
+      jsonResponse({ error: { code: 'login_required', message: 'This device is not connected to Portly' } }, 401),
+    );
+    const res = await serverFetch('/api/settings', { method: 'GET' });
+    expect(res.status).toBe(401);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe(`${remote}/api/settings`);
+    expect(init).toMatchObject({ mode: 'cors', credentials: 'omit' });
+    expect((init as { targetAddressSpace?: unknown }).targetAddressSpace).toBeUndefined();
+    const headers = new Headers(init?.headers);
+    expect(headers.get('X-Portly-Device')).toBe(TOKEN);
+    expect(headers.get('X-Portly-Token')).toBeNull();
+    // The device secret refused: the controller probes and decides.
+    expect(controller.reportUnpaired).toHaveBeenCalledWith(TOKEN);
   });
 
   it('adds X-Portly itself (image loads call it directly)', async () => {
@@ -162,7 +182,7 @@ describe('server transport', () => {
 
   it('fails like a network error without a controller or a pairing token', async () => {
     await expect(transport(null).serverFetch('/api/settings')).rejects.toBeInstanceOf(ServerModeEndedError);
-    const unpaired = transport(fakeController({ token: () => null }));
+    const unpaired = transport(fakeController({ token: () => null, link: () => null }));
     await expect(unpaired.serverFetch('/api/settings')).rejects.toBeInstanceOf(ServerModeEndedError);
     expect(unpaired.fetch).not.toHaveBeenCalled();
   });

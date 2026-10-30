@@ -5,7 +5,10 @@
  * 1. Without a pairing record, the server backend's leftovers go: its persisted query cache and
  *    the mode hints (after a revoke or disconnect, including a snapshot the throttled persister
  *    wrote after the reload was requested).
- * 2. This page load's backend is decided ({@link decideBootBackend}) and set for the capabilities.
+ * 2. This page load's backend is decided ({@link decideBootBackend}) and set for the capabilities;
+ *    a server-backend page whose record is a connection to Portly on another PC is marked as
+ *    another PC's (`setRemoteClient`), and its controller follows the local network permission
+ *    instead of the loopback one.
  * 3. The controller is created here, not at module top level, and plugged into the store and
  *    the transport; a server-backend page also gets its image source. Its diagnostic events
  *    become this browser's `hybrid` events (`recordClientEvent`, ARCHITECTURE §17), and so does the
@@ -16,7 +19,7 @@
  * `start()` (after the first render) starts the controller's probing. {@link takeModeSwitchNotice}
  * gives the toast to show after a reload that switched backend.
  */
-import { setPageBackend, type Backend } from '../capabilities.ts';
+import { setPageBackend, setRemoteClient, type Backend } from '../capabilities.ts';
 import { getClientEvents, recordClientEvent } from '../diagnostics/clientLog.ts';
 import { setServerAssetSource } from '../static/assets.ts';
 import { createServerAssetCache } from './assets.ts';
@@ -43,7 +46,7 @@ import {
   type BootDecisionInput,
   type StorageLike,
 } from './pairing.ts';
-import { pageLoopbackPermissionSource } from './permission.ts';
+import { LOCAL_NETWORK_PERMISSION_NAMES, LOOPBACK_PERMISSION_NAMES, pageLoopbackPermissionSource } from './permission.ts';
 import { setLocalServerController } from './store.ts';
 import { localServerFetch } from './transport.ts';
 import type { PendingSwitchReason } from './types.ts';
@@ -72,6 +75,8 @@ export interface PagesBoot {
   backend: Backend;
   /** The paired server's id on a server-backend page (keys its persisted cache), else null. */
   instanceId: string | null;
+  /** This browser's record is a connection to Portly on another PC (the notices name the main PC). */
+  remote: boolean;
   /** Null when hybrid mode is off. */
   controller: HybridController | null;
   /** Starts the controller and, once the page is painted, records the backend decision (after the first render). */
@@ -120,10 +125,13 @@ export function bootPagesBackend(options: PagesBootOptions): PagesBoot {
   };
   const backend = decideBootBackend(decision);
   setPageBackend(backend);
+  // Connected to Portly on another PC: what only the main PC can do is off (capabilities.ts).
+  const remote = record?.remoteOrigin !== undefined;
+  setRemoteClient(backend === 'server' && remote);
   // Not before the first paint: this page load's first event reads and checks the stored ones.
   const chosen = { target: backend, reason: bootDecisionReason(decision) };
   const recordChoice = () => (options.afterFirstPaint ?? whenIdleAfterPaint)(() => recordClientEvent('debug', 'hybrid', 'page backend chosen', chosen));
-  if (!enabled) return { backend, instanceId: null, controller: null, start: recordChoice };
+  if (!enabled) return { backend, instanceId: null, remote: false, controller: null, start: recordChoice };
 
   const controller = createLocalServerController({
     origin,
@@ -134,7 +142,8 @@ export function bootPagesBackend(options: PagesBootOptions): PagesBoot {
     localStorage: local,
     sessionStorage: options.sessionStorage === undefined ? browserSessionStorage() : options.sessionStorage,
     base: options.base,
-    permission: pageLoopbackPermissionSource(window.location.hostname),
+    // Another PC's tailnet address is the local network, not loopback.
+    permission: pageLoopbackPermissionSource(window.location.hostname, undefined, remote ? LOCAL_NETWORK_PERMISSION_NAMES : LOOPBACK_PERMISSION_NAMES),
     page: browserPageSignals(),
     subscribePairing: (listener) => subscribePairingChanges(listener, window, store.keys),
     reload: () => window.location.reload(),
@@ -153,6 +162,7 @@ export function bootPagesBackend(options: PagesBootOptions): PagesBoot {
   return {
     backend,
     instanceId: backend === 'server' ? (record?.instanceId ?? null) : null,
+    remote,
     controller,
     start: () => {
       recordChoice();
@@ -183,15 +193,18 @@ const BROWSER_NOTICES: Readonly<Record<PendingSwitchReason, string>> = Object.fr
  * may have changed between the switch and this load (another tab), and the toast must not claim
  * a switch that did not happen.
  */
-export function takeModeSwitchNotice(backend: Backend, session: StorageLike | null = browserSessionStorage()): ModeSwitchNotice | null {
+export function takeModeSwitchNotice(backend: Backend, session: StorageLike | null = browserSessionStorage(), remote = false): ModeSwitchNotice | null {
   const raw = readItem(session, MODE_SWITCH_TOAST_KEY);
   if (raw === null) return null;
   removeItem(session, MODE_SWITCH_TOAST_KEY);
-  const [target, reason] = raw.split(':', 2);
+  const [target, reason, where] = raw.split(':', 3);
   if (target !== backend) return null;
-  if (target === 'server') return { tone: 'success', message: 'Connected to Portly on this PC' };
+  // The switch was away from (or to) Portly on another PC: name the main PC.
+  const onMainPc = remote || where === 'remote';
+  if (target === 'server') return { tone: 'success', message: onMainPc ? 'Connected to Portly on your main PC' : 'Connected to Portly on this PC' };
   if (target === 'browser' && reason !== undefined && Object.hasOwn(BROWSER_NOTICES, reason)) {
-    return { tone: 'info', message: BROWSER_NOTICES[reason as PendingSwitchReason] };
+    const message = BROWSER_NOTICES[reason as PendingSwitchReason];
+    return { tone: 'info', message: onMainPc ? message.replace('on this PC', 'on your main PC') : message };
   }
   return null;
 }

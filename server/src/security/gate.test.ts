@@ -384,7 +384,7 @@ describe('request gate: Pages site (hybrid mode)', () => {
       expect(await res.text()).toBe('');
       expect(res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
       expect(res.headers.get('access-control-allow-methods')).toBe('POST');
-      expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type, X-Portly, X-Portly-Token');
+      expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type, X-Portly, X-Portly-Token, X-Portly-Device, X-Portly-Enroll');
       expect(res.headers.get('access-control-max-age')).toBe('600');
       expect(res.headers.get('access-control-allow-credentials')).toBeNull();
       expect(res.headers.get('access-control-allow-private-network')).toBeNull();

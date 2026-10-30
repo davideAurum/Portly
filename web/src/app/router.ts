@@ -1,6 +1,7 @@
 /**
- * Hand-rolled hash router (§10.1, §10.5): `#/` (dashboard), `#/settings/<section>` and
- * `#/pair?nonce=…` (the server's page approving a browser for the Pages site, hybrid mode).
+ * Hand-rolled hash router (§10.1, §10.5): `#/` (dashboard), `#/settings/<section>`,
+ * `#/pair?nonce=…` (the server's page approving a browser for the Pages site, hybrid mode) and
+ * `#/connect` (the Pages site connecting to Portly on another PC; the dashboard in the server build).
  * Unknown hashes resolve to the dashboard; unknown settings sections to `general`; a pairing
  * request without a well-formed nonce keeps the `pair` route with `nonce: null` (the page explains).
  * A section that moved (`#/settings/todoist`) resolves to its new home with its `focus`.
@@ -9,7 +10,7 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { PAIRING_REQUEST_ROUTE, parsePairingRequest } from '@portly/shared';
 import { DEFAULT_SETTINGS_SECTION, isSettingsSectionId, movedSettingsSection, type SettingsSectionId } from '../settings/nav.ts';
 
-export type Route = { name: 'home' } | { name: 'settings'; section: SettingsSectionId } | { name: 'pair'; nonce: string | null };
+export type Route = { name: 'home' } | { name: 'settings'; section: SettingsSectionId } | { name: 'pair'; nonce: string | null } | { name: 'connect' };
 
 export function parseHash(hash: string): Route {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -22,6 +23,7 @@ export function parseHash(hash: string): Route {
     return { name: 'settings', section: isSettingsSectionId(section) ? section : DEFAULT_SETTINGS_SECTION };
   }
   if (segments.length === 1 && segments[0] === 'pair') return { name: 'pair', nonce: parsePairingRequest(raw) };
+  if (segments.length === 1 && segments[0] === 'connect') return { name: 'connect' };
   return { name: 'home' };
 }
 
@@ -63,6 +65,8 @@ export function routeHref(route: Route): string {
       return `#/settings/${route.section}`;
     case 'pair':
       return route.nonce === null ? `#${PAIRING_REQUEST_ROUTE}` : `#${PAIRING_REQUEST_ROUTE}?${new URLSearchParams({ nonce: route.nonce }).toString()}`;
+    case 'connect':
+      return '#/connect';
     default:
       return '#/';
   }

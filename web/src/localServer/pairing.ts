@@ -4,7 +4,9 @@
  * localStorage under the Pages base path, because every project site of a `<user>.github.io`
  * origin shares that storage:
  *
- * - `portly:pairing:<base>`: the pairing record `{token, instanceId, pairedAt}`;
+ * - `portly:pairing:<base>`: the pairing record `{token, instanceId, pairedAt}`, or — for Portly on
+ *   another PC, reached through its HTTPS proxy (ARCHITECTURE §20) — `{token, instanceId,
+ *   pairedAt, remoteOrigin}`, where `token` is that PC's device secret (one server per browser);
  * - `portly:backend-mode:<base>`: the backend the last decision chose (`lastMode`);
  * - `portly:server-seen:<base>`: when a probe last reached the paired server (`lastServerSeenAt`).
  *
@@ -17,20 +19,25 @@
  * server's own page (`<appUrl>#/pair?nonce=…`); after the user approves there, the server
  * redirects back to `#/paired?token=…&nonce=…&instance=…`, and `consumePairingReturn` (the first
  * thing `main.tsx` does) checks the nonce (one use), saves the record and strips the token from
- * the address.
+ * the address. Connecting to Portly on another PC happens on this site instead (`remote.ts`), which
+ * saves the record with {@link saveRemoteConnection}.
  */
 import { InstanceIdSchema, PAIRING_RETURN_ROUTE, PairingTokenSchema, buildPairingRequestUrl, parsePairingReturn } from '@portly/shared';
 import type { Backend } from '../capabilities.ts';
 import { safeHref } from '../lib/openUrl.ts';
+import { parseRemoteServerAddress } from './origin.ts';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 /** What this browser keeps of a pairing: the token it sends, and the server it was made with. */
 export interface PairingRecord {
+  /** The pairing token for Portly on this PC; the device secret for Portly on another PC. */
   token: string;
   instanceId: string;
   /** When the pairing was saved (epoch ms). */
   pairedAt: number;
+  /** Set for Portly on another PC: its address (`https://<pc>.<tailnet>.ts.net`). Absent: Portly on this PC. */
+  remoteOrigin?: string;
 }
 
 export interface HybridStorageKeys {
@@ -111,7 +118,11 @@ function parseRecord(raw: string | null): PairingRecord | null {
   const instanceId = InstanceIdSchema.safeParse(fields.instanceId);
   const pairedAt = fields.pairedAt;
   if (!token.success || !instanceId.success || typeof pairedAt !== 'number' || !Number.isFinite(pairedAt)) return null;
-  return { token: token.data, instanceId: instanceId.data, pairedAt };
+  if (fields.remoteOrigin === undefined) return { token: token.data, instanceId: instanceId.data, pairedAt };
+  // Only an address the connect page itself would accept (and the CSP allows).
+  const remoteOrigin = typeof fields.remoteOrigin === 'string' ? parseRemoteServerAddress(fields.remoteOrigin) : null;
+  if (remoteOrigin === null || remoteOrigin !== fields.remoteOrigin) return null;
+  return { token: token.data, instanceId: instanceId.data, pairedAt, remoteOrigin };
 }
 
 /** A paired page load starts on the server when a probe reached it this recently (even if the last decision was not `server`). */
@@ -248,6 +259,18 @@ export function startPairing(appUrl: string, env: StartPairingEnv): boolean {
   const href = safeHref(buildPairingRequestUrl(appUrl, nonce), { allowAppRoutes: false });
   if (href === undefined) return false;
   env.assign(href);
+  return true;
+}
+
+/**
+ * Saves this browser's connection to Portly on another PC (replacing any pairing), marks the
+ * server as just seen and forgets the last decision, so the next page load starts on it (like
+ * {@link consumePairingReturn} for this PC). False when storage refused the record.
+ */
+export function saveRemoteConnection(store: PairingStore, connection: { origin: string; secret: string; instanceId: string }, now: number): boolean {
+  if (!store.save({ token: connection.secret, instanceId: connection.instanceId, pairedAt: now, remoteOrigin: connection.origin })) return false;
+  store.setLastServerSeenAt(now);
+  store.setLastMode(null);
   return true;
 }
 

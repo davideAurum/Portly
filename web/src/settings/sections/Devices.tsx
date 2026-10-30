@@ -15,7 +15,8 @@
  *
  * The list is polled every few seconds while the page is open, so a request shows up by itself.
  * On a page load whose data lives in this browser (the Pages build's browser backend) there is no
- * server to manage: a note says so.
+ * server to manage: a note says so, and links to the connect page (`#/connect`) for Portly on
+ * another PC.
  */
 import { useState, type ReactNode } from 'react';
 import { Check, Laptop, MonitorSmartphone, Trash2, X } from 'lucide-react';
@@ -63,7 +64,10 @@ export function RemoteSetupSteps() {
           and restarts Portly with it. Setting the variable by hand and re-running{' '}
           <code className={pairStyles.code}>scripts\install-autostart.ps1</code> does the same.
         </li>
-        <li>On the other PC, open that address and choose a name; then approve the request here.</li>
+        <li>
+          On the other PC, open your Pages site (it offers <strong>Use Portly on another PC</strong>) or that address directly, and choose a
+          name; then approve the request here.
+        </li>
       </ol>
       <p className={pairStyles.text}>
         The step-by-step guide is <code className={pairStyles.code}>docs/setup/other-pcs.md</code> in the Portly folder.
@@ -82,6 +86,12 @@ export default function DevicesSettings() {
             This page’s data lives in this browser, so there is nothing for another PC to connect to here. Set other PCs up on the main PC, in
             Portly’s own Settings → Devices.
           </p>
+          {caps.pagesBuild ? (
+            <p className={styles.intro}>
+              Is Portly running on another PC of yours? This browser can use it through this same site:{' '}
+              <a href="#/connect">connect to Portly on your main PC</a>.
+            </p>
+          ) : null}
         </SettingsCard>
       </div>
     );
@@ -144,7 +154,8 @@ function DevicesOnServer() {
           </ul>
         )}
         {!canDecide && data.requests.length > 0 ? (
-          caps.remoteServer ? (
+          // The Pages site on the main PC links to Portly's own page there; on another PC there is none to link to.
+          caps.remoteServer && !caps.remoteClient ? (
             <Banner tone="info" title="Approve on Portly’s own page">
               This site may not approve other PCs. Open Portly’s own page on this PC, which keeps its Devices section even when it forwards to
               this site: <ExternalLink href={localServerPageUrl('settings/devices', LOCAL_SERVER_ORIGIN)}>Settings → Devices on this PC</ExternalLink>.

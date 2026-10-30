@@ -28,15 +28,24 @@
  *    `paired()` (else 403 `local_only`). Routes declared `enrollment()` (asking for and polling a
  *    device request) need no cookie; a valid one is still noted. The device's last use is recorded
  *    (at most every 10 min) and the cookie's lifetime renewed then, unless the route set or cleared
- *    the cookie itself or stopped the device. Never CORS headers.
+ *    the cookie itself or stopped the device. No CORS headers, except for the Pages site:
+ *    Pages site on another PC (with a remote origin, a device store and `PORTLY_PAGES_URL`): a
+ *    remote `/api` request whose `Origin` is exactly the configured Pages origin takes its own
+ *    branch, with CORS headers for that origin only, as on the main port. Preflights are answered
+ *    here; health passes; the OAuth callback is refused (403 `local_only`); everything else needs
+ *    `X-Portly: 1`, a cross-site/same-site/absent `Sec-Fetch-Site`, the Content-Type of step 4,
+ *    then the device secret in `X-Portly-Device` (a browser sends no `SameSite=Strict` cookie
+ *    cross-site, and any cookie is ignored here) that verifies (else 401 `login_required`) and a
+ *    route declared `paired()` (else 403 `local_only`). `enrollment()` routes need no secret.
+ *    The device's last use is recorded as for a cookie; there is no cookie to renew.
  * 4. Non-exempt local `/api` requests need `X-Portly: 1`, an absent-or-allowed `Origin`, an
  *    absent-or-`same-origin` `Sec-Fetch-Site`, and for bodies `Content-Type: application/json`
  *    (`multipart/form-data` for routes declared with `multipart(kind)`). `image` routes accept
  *    `Sec-Fetch-Site` same-origin/none/absent; `health` and `oauth-callback` skip step 4.
  * 5. Body limits on streamed bytes (chunked included): JSON 1 MB, uploads 10 MB, imports 25 MB.
  *
- * Apart from the Pages site, the server never sends CORS headers and never answers preflights
- * (an OPTIONS request to the API has no `X-Portly` header and is refused).
+ * Apart from the Pages site (on this PC or another), the server never sends CORS headers and never
+ * answers preflights (an OPTIONS request to the API has no `X-Portly` header and is refused).
  *
  * Diagnostics (§17): every refusal logs `info 'request refused by gate' {method, path, status,
  * reason, origin?, secFetchSite?}` with a machine `reason` (repeat-collapsed per reason and origin);
@@ -52,7 +61,15 @@
  * scheme only (`chrome-extension:`), never its id.
  */
 import type { Context, MiddlewareHandler } from 'hono';
-import { DEVICE_COOKIE, DEVICE_IDLE_TTL_MS, ERROR_STATUS, PAIRING_TOKEN_HEADER, type ErrorCode } from '@portly/shared';
+import {
+  DEVICE_COOKIE,
+  DEVICE_ENROLL_HEADER,
+  DEVICE_IDLE_TTL_MS,
+  DEVICE_TOKEN_HEADER,
+  ERROR_STATUS,
+  PAIRING_TOKEN_HEADER,
+  type ErrorCode,
+} from '@portly/shared';
 import type { Config } from '../config.ts';
 import type { AppEnv, PagesPreflight } from '../context.ts';
 import { PayloadTooLargeError, errorResponse } from '../lib/errors.ts';
@@ -105,8 +122,14 @@ export type GateRefusal =
 
 /** Methods a Pages preflight may ask for. */
 export const PAGES_ALLOWED_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']);
-/** Request headers a Pages preflight may ask for (lower-case). */
-export const PAGES_ALLOWED_HEADERS: ReadonlySet<string> = new Set(['content-type', 'x-portly', PAIRING_TOKEN_HEADER.toLowerCase()]);
+/** Request headers a Pages preflight may ask for (lower-case): the pairing token on this PC, the device secrets from another. */
+export const PAGES_ALLOWED_HEADERS: ReadonlySet<string> = new Set([
+  'content-type',
+  'x-portly',
+  PAIRING_TOKEN_HEADER.toLowerCase(),
+  DEVICE_TOKEN_HEADER.toLowerCase(),
+  DEVICE_ENROLL_HEADER.toLowerCase(),
+]);
 /** `Sec-Fetch-Site` values a Pages request may carry (absent is fine too). Loopback dev origins are same-site. */
 const PAGES_FETCH_SITES: ReadonlySet<string> = new Set(['cross-site', 'same-site']);
 /**
@@ -301,6 +324,8 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
   const remoteOrigin = devices ? (config.remoteOrigin ?? null) : null;
   const remotePort = devices ? (config.remotePort ?? null) : null;
   const remoteHosts: ReadonlySet<string> = devices ? (config.remoteHosts ?? new Set()) : new Set();
+  // The Pages site opened on another PC: only with other PCs on and a Pages site configured.
+  const remotePagesOrigin = remoteOrigin !== null ? configuredPages : null;
 
   /**
    * The request's Origin when it may be logged: ours, the Pages site's, the remote origin, or a
@@ -449,6 +474,41 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
     return null;
   };
 
+  /**
+   * The remote branch for the Pages site opened on another PC: a refusal or the preflight answer,
+   * or null when the request goes on. Like {@link checkPagesRequest} for its headers, like
+   * {@link checkRemoteRequest} for what a device may call; the device secret comes in a header.
+   */
+  const checkRemotePagesRequest = (c: Context<AppEnv>, method: string, meta: RouteMeta): Response | null => {
+    if (method === 'OPTIONS' && c.req.header('access-control-request-method') !== undefined) {
+      const preflight = pagesPreflight(c);
+      if (!preflight) return refuse(c, 'forbidden', 'Preflight asks for a method or header the API does not accept', 'preflight_refused');
+      c.set('pagesPreflight', preflight);
+      return c.body(null, 204);
+    }
+    if (meta.exempt === 'health') return null;
+    if (meta.exempt === 'oauth-callback') return refuse(c, 'local_only', 'Accounts are connected on the main PC', 'local_only');
+
+    if (c.req.header('x-portly') !== '1') return refuse(c, 'forbidden', 'Missing X-Portly header', 'x_portly_missing');
+    const site = c.req.header('sec-fetch-site')?.trim().toLowerCase();
+    if (site !== undefined && !PAGES_FETCH_SITES.has(site)) return refuse(c, 'forbidden', 'Unexpected Sec-Fetch-Site', 'cross_site');
+    const typeProblem = contentTypeProblem(c, method, meta);
+    if (typeProblem) return refuse(c, 'bad_request', typeProblem, 'content_type');
+
+    const header = c.req.header(DEVICE_TOKEN_HEADER);
+    const verdict = checkDevice(header === '' ? undefined : header);
+    if (!('record' in verdict)) {
+      if (meta.access === 'enrollment') return null;
+      return refuse(c, 'login_required', 'This device is not connected to Portly', verdict.reason, verdict.fields);
+    }
+    const { record } = verdict;
+    if (!deviceMayCall(meta)) return refuse(c, 'local_only', 'Only available on the main PC', 'local_only', { deviceId: record.id });
+
+    c.set('deviceId', record.id);
+    devices?.touch(record.id);
+    return null;
+  };
+
   return async function gate(c, next) {
     // 1. Raw path normalization tricks.
     const problem = rawPathProblem(rawPathOf(rawRequestTarget(c)));
@@ -479,7 +539,13 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
       noteForeignOrigin(c, origin, meta);
     }
 
-    if (api && remote) {
+    if (api && remote && remotePagesOrigin !== null && origin === remotePagesOrigin) {
+      // 3/4 for the Pages site on another PC. Set before any refusal so the page can read why.
+      c.set('pagesCors', true);
+      c.set('remotePages', true);
+      const answer = checkRemotePagesRequest(c, method, meta);
+      if (answer) return answer;
+    } else if (api && remote) {
       // 3/4 for another PC.
       const answer = checkRemoteRequest(c, method, meta);
       if (answer) return answer;

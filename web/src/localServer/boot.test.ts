@@ -5,7 +5,7 @@
  * backend, and the diagnostic events (the decision, the controller's `hybrid` events).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { capabilitiesFor, setCapabilitiesForTests } from '../capabilities.ts';
+import { capabilitiesFor, getCapabilities, setCapabilitiesForTests } from '../capabilities.ts';
 import { getClientEvents, recordClientEvent } from '../diagnostics/clientLog.ts';
 import { loadAssetUrl, setServerAssetSource } from '../static/assets.ts';
 import {
@@ -200,17 +200,59 @@ describe('bootPagesBackend', () => {
 
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
-    // The page's transport uses the global fetch and the build's origin ('' in tests).
+    // The page's transport uses the global fetch and the origin the controller's record names.
     const fetch = vi.fn(async (_url: string, _init?: RequestInit) => new Response(svg, { headers: { 'Content-Type': 'image/svg+xml' } }));
     vi.stubGlobal('fetch', fetch);
     expect(await loadAssetUrl('/api/icons/abc')).toBe(`data:image/svg+xml;base64,${btoa(svg)}`);
     const [url, init] = fetch.mock.calls[0]!;
-    expect(url).toBe('/api/icons/abc');
+    expect(url).toBe(`${ORIGIN}/api/icons/abc`);
     expect(new Headers(init?.headers).get('X-Portly-Token')).toBe(TOKEN);
   });
 });
 
+describe('bootPagesBackend: Portly on another PC', () => {
+  let local: MemoryStorage;
+  let session: MemoryStorage;
+
+  beforeEach(() => {
+    local = memoryStorage();
+    session = memoryStorage();
+  });
+
+  afterEach(() => {
+    getAppLocalServerController()?.stop();
+    setAppLocalServerController(null);
+    setServerAssetSource(null);
+    setCapabilitiesForTests(null);
+  });
+
+  it('marks a server-backend page connected to the main PC as another PC’s, and its browser backend not', () => {
+    const store = createPairingStore(local, '/');
+    store.save(pairingRecord({ remoteOrigin: 'https://desk.tail1234.ts.net' }));
+    store.setLastMode('server');
+    const options: PagesBootOptions = { serverCacheKey: SERVER_CACHE_KEY, enabled: true, origin: ORIGIN, framed: false, localStorage: local, sessionStorage: session, now: () => START, base: '/' };
+    const onServer = bootPagesBackend({ ...options, controllerDeps: { fetch: vi.fn(), reload: vi.fn() } });
+    expect(onServer).toMatchObject({ backend: 'server', remote: true });
+    expect(getCapabilities().remoteClient).toBe(true);
+    expect(getCapabilities().googleAccounts).toBe(false);
+    onServer.controller?.stop();
+
+    store.setLastMode('browser');
+    const inBrowser = bootPagesBackend({ ...options, controllerDeps: { fetch: vi.fn(), reload: vi.fn() } });
+    expect(inBrowser).toMatchObject({ backend: 'browser', remote: true });
+    expect(getCapabilities().remoteClient).toBe(false);
+    inBrowser.controller?.stop();
+  });
+});
+
 describe('takeModeSwitchNotice', () => {
+  it('names the main PC for a switch to or from Portly on another PC', () => {
+    const session = memoryStorage({ [MODE_SWITCH_TOAST_KEY]: 'browser:revoked:remote' });
+    expect(takeModeSwitchNotice('browser', session)).toEqual({ tone: 'info', message: 'Portly on your main PC no longer accepts this browser — using this browser’s copy' });
+    session.setItem(MODE_SWITCH_TOAST_KEY, 'server:connected');
+    expect(takeModeSwitchNotice('server', session, true)).toEqual({ tone: 'success', message: 'Connected to Portly on your main PC' });
+  });
+
   it('announces the switch the reload applied, once', () => {
     const session = memoryStorage({ [MODE_SWITCH_TOAST_KEY]: 'server:connected' });
     expect(takeModeSwitchNotice('server', session)).toEqual({ tone: 'success', message: 'Connected to Portly on this PC' });

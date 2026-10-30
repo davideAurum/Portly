@@ -9,6 +9,11 @@
  * local-only route); the other PC, polling `GET /api/devices/requests/current`, then receives the
  * device cookie. The server stores only SHA-256 hashes of both cookies. The code is for comparing
  * by eye on both screens; it is not a secret and opens nothing by itself.
+ *
+ * The Pages site opened on another PC uses the same requests through the same address, as CORS
+ * requests: a browser sends no `SameSite=Strict` cookie to another site, so there the two secrets
+ * travel in answer bodies and request headers instead ({@link DEVICE_ENROLL_HEADER},
+ * {@link DEVICE_TOKEN_HEADER}), and the page keeps the device secret in its storage.
  */
 import { z } from 'zod';
 import { IsoDateTime } from './core.ts';
@@ -20,6 +25,10 @@ export const DEVICE_COOKIE = '__Host-portly_device';
  * outlives the request a little, so the other PC's last poll can still learn that it expired.
  */
 export const ENROLL_COOKIE = '__Host-portly_enroll';
+/** The device secret, as the Pages site on another PC sends it (the cookie's value, in a header). */
+export const DEVICE_TOKEN_HEADER = 'X-Portly-Device';
+/** A pending request's secret, as the Pages site on another PC sends it while it waits. */
+export const DEVICE_ENROLL_HEADER = 'X-Portly-Enroll';
 
 /** A request not approved within this long expires (and so does its enrollment cookie). */
 export const DEVICE_REQUEST_TTL_MS = 10 * 60 * 1000;
@@ -59,6 +68,8 @@ export const DeviceRequestCreateResponseSchema = z
     id: z.string().min(1).max(64),
     code: DeviceCodeSchema,
     expiresAt: IsoDateTime,
+    /** Only for the Pages site (no cookie): the request's secret, sent back as {@link DEVICE_ENROLL_HEADER}. */
+    secret: DeviceSecretSchema.optional(),
   })
   .strict();
 export type DeviceRequestCreateResponse = z.output<typeof DeviceRequestCreateResponseSchema>;
@@ -80,7 +91,8 @@ export type DeviceSelf = z.output<typeof DeviceSelfSchema>;
 /**
  * `GET /api/devices/requests/current` (the enrollment cookie decides which request): `pending`
  * with the code to compare; `approved` once, with the device cookie set and the enrollment cookie
- * cleared; `denied` or `expired` with the enrollment cookie cleared.
+ * cleared; `denied` or `expired` with the enrollment cookie cleared. The Pages site sends the
+ * request's secret as {@link DEVICE_ENROLL_HEADER} instead, and gets the device secret in `secret`.
  */
 export const DeviceRequestStatusResponseSchema = z
   .object({
@@ -89,6 +101,8 @@ export const DeviceRequestStatusResponseSchema = z
     code: DeviceCodeSchema,
     expiresAt: IsoDateTime,
     device: DeviceSelfSchema.nullable(),
+    /** Only `approved`, only for the Pages site: the device secret, sent as {@link DEVICE_TOKEN_HEADER}. */
+    secret: DeviceSecretSchema.optional(),
   })
   .strict();
 export type DeviceRequestStatusResponse = z.output<typeof DeviceRequestStatusResponseSchema>;

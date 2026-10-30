@@ -96,6 +96,15 @@ describe('capabilitiesFor', () => {
     expect(getCapabilities().remoteClient).toBe(false);
   });
 
+  it('setRemoteClient marks a Pages page load on its server backend too (Portly on another PC), never its browser backend', () => {
+    capabilities.setPageBackend('server');
+    capabilities.setRemoteClient(true);
+    expect(getCapabilities().remoteClient).toBe(true);
+    expect(getCapabilities().googleAccounts).toBe(false);
+    capabilities.setPageBackend('browser');
+    expect(getCapabilities().remoteClient).toBe(!STATIC_BUILD);
+  });
+
   it('returns the same frozen object for the same combination', () => {
     const caps = capabilitiesFor(true, 'server');
     expect(capabilitiesFor(true, 'server')).toBe(caps);

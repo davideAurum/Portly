@@ -269,10 +269,12 @@ export function setLoginReloadForTests(reload: (() => void) | null): void {
 /**
  * The server no longer takes this page as a connected device (revoked or expired on the main PC,
  * or the cookie is gone): reload once, into the connect screen (`main.tsx`). Only on another PC's
- * page load; elsewhere the error is the caller's to show.
+ * page load of the server build; elsewhere the error is the caller's to show. (The Pages site
+ * connected to another PC leaves it to its controller, which switches to this browser's copy.)
  */
 function noteLoginRequired(): void {
-  if (loginReloadRequested || !getCapabilities().remoteClient) return;
+  const caps = getCapabilities();
+  if (loginReloadRequested || !caps.remoteClient || caps.pagesBuild) return;
   loginReloadRequested = true;
   loginReload();
 }

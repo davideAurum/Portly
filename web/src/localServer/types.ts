@@ -1,6 +1,7 @@
 /**
  * Types of the local server controller (hybrid mode): the Pages build looks for the Portly
- * server on this PC, pairs with it once, and uses it as this page load's backend while it answers.
+ * server on this PC, pairs with it once, and uses it as this page load's backend while it answers
+ * — or, connected once to Portly on another PC (`remoteOrigin`), uses that one the same way.
  * The controller (`controller.ts`) owns the state; the UI reads it through `store.ts`
  * (`useLocalServer()`) and acts through `localServerActions`.
  */
@@ -79,6 +80,12 @@ export interface LocalServerState {
   server: LocalServerInfo | null;
   /** This browser holds a pairing record. */
   paired: boolean;
+  /**
+   * The address of Portly on another PC when this browser's record is a connection to it
+   * (ARCHITECTURE §20), else null: the status then describes that server, not this PC's.
+   * Optional: states built without it (the store's inert default, tests) mean null.
+   */
+  remoteOrigin?: string | null;
   /** When the last probe finished (epoch ms), or null before the first one. */
   checkedAt: number | null;
   pendingSwitch: PendingSwitch | null;

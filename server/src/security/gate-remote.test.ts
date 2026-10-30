@@ -1,6 +1,7 @@
 /**
  * The gate's remote branch (§4.2): requests from another PC through the HTTPS reverse proxy,
- * told apart by the Host header of `PORTLY_REMOTE_ORIGIN` and let in with a device cookie.
+ * told apart by the port they arrive on and let in with a device cookie, or (the Pages site
+ * opened on another PC) with the device secret in a header.
  */
 import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -26,6 +27,7 @@ import {
   TEST_REMOTE_PORT,
   pagesHeaders,
   remoteHeaders,
+  remotePagesHeaders,
   testRequest,
 } from '../testing/test-request.ts';
 import { TOUCH_INTERVAL_MS } from './devices.ts';
@@ -397,28 +399,136 @@ describe('request gate: other PCs (remote origin)', () => {
   });
 
   describe('with the Pages site configured too', () => {
-    it('keeps the two apart: a Pages token is no device cookie and the Pages origin is foreign on the remote host', async () => {
-      const bothCtx = createTestContext({ env: { ...TEST_PAGES_ENV, ...TEST_REMOTE_ENV } });
-      const bothApp = createApp(bothCtx, { modules: [remoteModule], webDist: null }).app;
-      const device = connectTestDevice(bothCtx);
-      const token = bothCtx.pairing.create({ label: 'Chrome on Windows', origin: TEST_PAGES_ORIGIN }).token;
+    let bothCtx: TestContext;
+    let bothApp: Hono<AppEnv>;
+    let device: { secret: string; record: { id: string } };
+    let token: string;
+
+    beforeEach(() => {
+      bothCtx = createTestContext({ env: { ...TEST_PAGES_ENV, ...TEST_REMOTE_ENV }, log, now: () => now });
+      bothApp = createApp(bothCtx, { modules: [remoteModule], webDist: null }).app;
+      device = connectTestDevice(bothCtx);
+      token = bothCtx.pairing.create({ label: 'Chrome on Windows', origin: TEST_PAGES_ORIGIN }).token;
+    });
+    afterEach(() => bothCtx.close());
+
+    it('keeps the two apart: a Pages token is no device secret, and a device cookie means nothing to the Pages site', async () => {
       expect((await testRequest(bothApp, 'GET', '/api/things', { headers: pagesHeaders(token) })).status).toBe(200);
       expect((await testRequest(bothApp, 'GET', '/api/things', { headers: remoteHeaders(device.secret) })).status).toBe(200);
-      // A Pages request through the remote host: the Origin is not the remote origin.
+      // The Pages site through the remote host with its pairing token and a device cookie: neither counts there.
       const mixed = await testRequest(bothApp, 'GET', '/api/things', { headers: remoteHeaders(device.secret, pagesHeaders(token)) });
-      expect(mixed.status).toBe(403);
-      expect(corsHeaders(mixed)).toEqual([]);
+      expect(mixed.status).toBe(401);
+      expect(await errorCode(mixed)).toBe('login_required');
+      expect(mixed.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
       // A device cookie on a Pages request means nothing there.
       const withCookie = await testRequest(bothApp, 'GET', '/api/things', { headers: pagesHeaders(null, { Cookie: `${DEVICE_COOKIE}=${device.secret}` }) });
       expect(withCookie.status).toBe(401);
       expect(await errorCode(withCookie)).toBe('pairing_required');
-      // Same-PC routes: the Pages site may, another PC may not.
+      // A device secret sent to the main port as the Pages site is no pairing token either.
+      const onMain = await testRequest(bothApp, 'GET', '/api/things', { headers: pagesHeaders(null, { 'X-Portly-Device': device.secret }) });
+      expect(onMain.status).toBe(401);
+      // Same-PC routes: the Pages site on this PC may, another PC may not.
       expect((await testRequest(bothApp, 'POST', '/api/this-pc', { headers: pagesHeaders(token) })).status).toBe(200);
       expect((await testRequest(bothApp, 'POST', '/api/this-pc', { headers: remoteHeaders(device.secret) })).status).toBe(403);
-      // Enrollment routes: another PC may, the Pages site may not.
+      // Enrollment routes: another PC may, the Pages site on this PC may not.
       expect((await testRequest(bothApp, 'POST', '/api/enroll', { headers: remoteHeaders(null) })).status).toBe(200);
       expect((await testRequest(bothApp, 'POST', '/api/enroll', { headers: pagesHeaders(token) })).status).toBe(403);
-      bothCtx.close();
     });
+
+    describe('the Pages site opened on another PC', () => {
+      it('lets in the device secret header, with CORS for the Pages origin and no cookie', async () => {
+        const res = await testRequest(bothApp, 'GET', '/api/things', { headers: remotePagesHeaders(device.secret) });
+        expect(res.status).toBe(200);
+        expect((await res.json()) as unknown).toEqual({ things: [], deviceId: device.record.id, remote: true });
+        expect(res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
+        expect(res.headers.get('access-control-allow-credentials')).toBeNull();
+        expect(res.headers.getSetCookie()).toEqual([]);
+        expect(bothCtx.devices.verify(device.secret)?.lastUsedAt).toBe(now);
+        const posted = await testRequest(bothApp, 'POST', '/api/things', { headers: remotePagesHeaders(device.secret), body: { name: 'a' } });
+        expect(posted.status).toBe(200);
+      });
+
+      it('answers 401 login_required with CORS for a missing, unknown or revoked secret, and ignores a device cookie', async () => {
+        const revoked = connectTestDevice(bothCtx, { label: 'Old laptop' });
+        bothCtx.devices.revoke(revoked.record.id);
+        const candidates: [string | null, string][] = [
+          [null, 'device_missing'],
+          ['', 'device_missing'],
+          ['nope', 'device_malformed'],
+          ['A'.repeat(43), 'device_unknown'],
+          [revoked.secret, 'device_revoked'],
+        ];
+        for (const [value, reason] of candidates) {
+          const res = await testRequest(bothApp, 'GET', '/api/things', { headers: remotePagesHeaders(value) });
+          expect(res.status, reason).toBe(401);
+          expect(await errorCode(res), reason).toBe('login_required');
+          expect(res.headers.get('access-control-allow-origin'), reason).toBe(TEST_PAGES_ORIGIN);
+          expect(refusals().at(-1)?.fields?.reason, reason).toBe(reason);
+        }
+        const cookieOnly = await testRequest(bothApp, 'GET', '/api/things', {
+          headers: remotePagesHeaders(null, { Cookie: `${DEVICE_COOKIE}=${device.secret}` }),
+        });
+        expect(cookieOnly.status).toBe(401);
+      });
+
+      it('answers its preflights on the remote port, for the headers it needs only', async () => {
+        const res = await testRequest(bothApp, 'OPTIONS', '/api/things', {
+          headers: remotePagesHeaders(null, {
+            'X-Portly': null,
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'content-type, x-portly, x-portly-device',
+          }),
+        });
+        expect(res.status).toBe(204);
+        expect(res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
+        expect(res.headers.get('access-control-allow-headers')).toContain('X-Portly-Device');
+        expect(res.headers.get('access-control-allow-headers')).toContain('X-Portly-Enroll');
+        const odd = await testRequest(bothApp, 'OPTIONS', '/api/things', {
+          headers: remotePagesHeaders(null, { 'X-Portly': null, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization' }),
+        });
+        expect(odd.status).toBe(403);
+        // Any other site still gets no preflight answer on the remote port.
+        const foreign = await testRequest(bothApp, 'OPTIONS', '/api/things', {
+          headers: remotePagesHeaders(null, { 'X-Portly': null, Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST' }),
+        });
+        expect(foreign.status).toBe(403);
+        expect(corsHeaders(foreign)).toEqual([]);
+      });
+
+      it('keeps what another PC may call: local-only, same-PC and the OAuth callback stay on the main PC', async () => {
+        for (const path of ['/api/local', '/api/this-pc']) {
+          const res = await testRequest(bothApp, 'POST', path, { headers: remotePagesHeaders(device.secret) });
+          expect(res.status, path).toBe(403);
+          expect(await errorCode(res), path).toBe('local_only');
+        }
+        const callback = await testRequest(bothApp, 'GET', '/api/oauth/google/callback', { headers: remotePagesHeaders(null) });
+        expect(callback.status).toBe(403);
+        // Enrollment needs no secret; health is for anyone, with CORS so the page can read it.
+        const enroll = await testRequest(bothApp, 'POST', '/api/enroll', { headers: remotePagesHeaders(null) });
+        expect((await enroll.json()) as unknown).toEqual({ deviceId: null, remote: true });
+        const health = await testRequest(bothApp, 'GET', '/api/health', { headers: remotePagesHeaders(null, { 'X-Portly': null }) });
+        expect(health.status).toBe(200);
+        expect(health.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
+      });
+
+      it('requires X-Portly, cross-site fetch metadata and the Content-Type rules', async () => {
+        const missing = await testRequest(bothApp, 'GET', '/api/things', { headers: remotePagesHeaders(device.secret, { 'X-Portly': null }) });
+        expect(missing.status).toBe(403);
+        const sameOrigin = await testRequest(bothApp, 'GET', '/api/things', { headers: remotePagesHeaders(device.secret, { 'Sec-Fetch-Site': 'same-origin' }) });
+        expect(sameOrigin.status).toBe(403);
+        const plain = await testRequest(bothApp, 'POST', '/api/things', {
+          headers: remotePagesHeaders(device.secret, { 'Content-Type': 'text/plain' }),
+          body: '{"name":"a"}',
+        });
+        expect(plain.status).toBe(400);
+      });
+    });
+  });
+
+  it('without a Pages site configured, the Pages origin is just another site on the remote host', async () => {
+    const res = await testRequest(app, 'GET', '/api/things', { headers: remotePagesHeaders(secret) });
+    expect(res.status).toBe(403);
+    expect(await errorCode(res)).toBe('forbidden');
+    expect(corsHeaders(res)).toEqual([]);
   });
 });

@@ -48,7 +48,12 @@ export interface AppEnv {
     pairingId: string | undefined;
     /** The request came in with the remote origin's Host (another PC, through the reverse proxy; set by the gate). */
     remoteClient: boolean | undefined;
-    /** The device a remote request's cookie belongs to (set by the gate after verifying it). */
+    /**
+     * A remote request from the configured Pages site (the site opened on another PC): its secrets
+     * travel in headers and answer bodies, never cookies (set by the gate, with `remoteClient`).
+     */
+    remotePages: boolean | undefined;
+    /** The device a remote request's cookie (or the Pages site's device header) belongs to (set by the gate after verifying it). */
     deviceId: string | undefined;
     /** The device cookie to set again on the answer (its lifetime renewed; set by the gate when it recorded a use). */
     deviceCookieRenew: string | undefined;

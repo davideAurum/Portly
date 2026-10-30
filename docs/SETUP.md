@@ -152,7 +152,8 @@ first run `tailscale serve --bg 5758` on this PC (it prints the address, like
 `https://<pc>.<tailnet>.ts.net`), then add `-RemoteOrigin <that address>`: setup saves it as
 `PORTLY_REMOTE_ORIGIN` before it starts Portly, which then also listens for the proxy on the port
 after its own (`5758`). Approve each PC once in **Settings → Devices**. `-RemoteOrigin off` turns
-it off again (and removes `PORTLY_REMOTE_PORT`).
+it off again (and removes `PORTLY_REMOTE_PORT`). With a Pages site set too (`-PagesUrl`), the
+other PCs can open that same site and connect it to this Portly (**Use Portly on another PC**).
 
 For another of your PCs, [Adding a PC](setup/add-a-pc.md) is the whole checklist, from the
 install to green Diagnostics.

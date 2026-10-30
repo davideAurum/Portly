@@ -15,12 +15,16 @@
  * `MisroutedPage` is shown instead when the server answered a page on a non-loopback address as
  * this PC's own: the proxy points at the main port, not the remote one, and nothing here can be
  * trusted until that is fixed (`app/remoteClient.ts`).
+ *
+ * The Pages site's connect page (`RemoteConnectPage.tsx`) shows the same screen with another
+ * {@link ConnectClient}: the same requests, sent to Portly on the main PC from the site.
  */
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Ban, Clock, Laptop, RefreshCw, Send, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Ban, Clock, Laptop, RefreshCw, Send, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { DEVICE_LABEL_MAX, type DeviceRequestStatusResponse } from '@portly/shared';
 import { createDeviceRequest, fetchDeviceNameSuggestion, fetchDeviceRequestStatus } from '../api/devices.ts';
 import { isApiError } from '../api/client.ts';
+import type { ConnectClient } from '../localServer/remote.ts';
 import { Banner } from '../ui/Banner.tsx';
 import { Button } from '../ui/Button.tsx';
 import { Field } from '../ui/Field.tsx';
@@ -40,7 +44,18 @@ export interface ConnectPageDeps {
   defaultLabel?: string;
   /** How often to ask while waiting (default {@link POLL_MS}; tests shorten it). */
   pollMs?: number;
+  /** The requests (default: this server's own, `api/devices.ts`; the Pages site passes the main PC's). */
+  client?: ConnectClient;
+  /** Offered on the form as "Change address" (the Pages site's connect page). */
+  onBack?: () => void;
 }
+
+/** The server build's own requests: the page and the API share the remote origin (cookies). */
+const SERVER_CLIENT: ConnectClient = Object.freeze({
+  status: fetchDeviceRequestStatus,
+  create: createDeviceRequest,
+  suggestion: fetchDeviceNameSuggestion,
+});
 
 type State =
   | { kind: 'checking' }
@@ -50,7 +65,8 @@ type State =
   | { kind: 'ended'; why: 'denied' | 'expired' | 'gone' }
   | { kind: 'unreachable'; message: string; retry: () => void };
 
-function Panel({ icon: Icon, tone, title, children }: { icon: LucideIcon; tone?: 'warning'; title: ReactNode; children: ReactNode }) {
+/** The connect screen's page and panel (the Pages site's connect page uses it too). */
+export function ConnectPanel({ icon: Icon, tone, title, children }: { icon: LucideIcon; tone?: 'warning'; title: ReactNode; children: ReactNode }) {
   const titleId = useId();
   return (
     <main className={styles.page}>
@@ -84,7 +100,13 @@ function stateOf(status: DeviceRequestStatusResponse | null): State {
   }
 }
 
-export function ConnectPage({ reload = () => window.location.reload(), defaultLabel = 'This PC', pollMs = POLL_MS }: ConnectPageDeps = {}) {
+export function ConnectPage({
+  reload = () => window.location.reload(),
+  defaultLabel = 'This PC',
+  pollMs = POLL_MS,
+  client = SERVER_CLIENT,
+  onBack,
+}: ConnectPageDeps = {}) {
   const [state, setState] = useState<State>({ kind: 'checking' });
   const [label, setLabel] = useState(defaultLabel);
   const [sending, setSending] = useState(false);
@@ -104,7 +126,7 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
   // before React has committed it); a server that cannot be reached offers Retry.
   const poll = async (signal?: AbortSignal): Promise<State['kind']> => {
     try {
-      const status = await fetchDeviceRequestStatus(signal);
+      const status = await client.status(signal);
       if (!mounted.current) return 'checking';
       const next = stateOf(status);
       // A request the server no longer knows after we were waiting: say so rather than show the form again.
@@ -131,7 +153,7 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
     if (state.kind !== 'ask' || suggestionAsked.current) return;
     suggestionAsked.current = true;
     const controller = new AbortController();
-    void fetchDeviceNameSuggestion(controller.signal).then((suggested) => {
+    void client.suggestion(controller.signal).then((suggested) => {
       if (suggested !== null && mounted.current && !labelTouched.current) setLabel(suggested);
     });
     return () => controller.abort();
@@ -184,7 +206,7 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
     if (name === '') return;
     setSending(true);
     try {
-      const created = await createDeviceRequest(name);
+      const created = await client.create(name);
       if (mounted.current) setState({ kind: 'waiting', code: created.code, expiresAt: created.expiresAt });
     } catch (error) {
       if (!mounted.current) return;
@@ -202,30 +224,35 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
   switch (state.kind) {
     case 'checking':
       return (
-        <Panel icon={Laptop} title="Connect this PC to Portly">
+        <ConnectPanel icon={Laptop} title="Connect this PC to Portly">
           <SkeletonLines lines={3} />
-        </Panel>
+        </ConnectPanel>
       );
     case 'unreachable':
       return (
-        <Panel icon={TriangleAlert} tone="warning" title="Portly can’t be reached">
+        <ConnectPanel icon={TriangleAlert} tone="warning" title="Portly can’t be reached">
           <p className={styles.text}>{state.message}</p>
           <div className={styles.actions}>
             <Button variant="primary" icon={RefreshCw} onClick={state.retry}>
               Retry
             </Button>
+            {onBack !== undefined ? (
+              <Button variant="ghost" icon={ArrowLeft} onClick={onBack}>
+                Change address
+              </Button>
+            ) : null}
           </div>
-        </Panel>
+        </ConnectPanel>
       );
     case 'approved':
       return (
-        <Panel icon={Laptop} title="Connected">
+        <ConnectPanel icon={Laptop} title="Connected">
           <p className={styles.text}>This PC was approved. Loading Portly…</p>
-        </Panel>
+        </ConnectPanel>
       );
     case 'waiting':
       return (
-        <Panel icon={Clock} title="Waiting for approval on the main PC">
+        <ConnectPanel icon={Clock} title="Waiting for approval on the main PC">
           <p className={styles.text}>
             On the main PC, open <strong>Settings → Devices</strong> in Portly, check that the request shows this code, and choose{' '}
             <strong>Approve</strong>. This page connects by itself once that is done.
@@ -237,22 +264,22 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
             The request expires <RelativeExpiry at={state.expiresAt} /> if nobody answers it. The code is only for comparing by eye: it opens
             nothing by itself.
           </p>
-        </Panel>
+        </ConnectPanel>
       );
     case 'ended':
       return (
-        <Panel icon={state.why === 'denied' ? Ban : Clock} tone="warning" title={ENDED_TITLES[state.why]}>
+        <ConnectPanel icon={state.why === 'denied' ? Ban : Clock} tone="warning" title={ENDED_TITLES[state.why]}>
           <p className={styles.text}>{ENDED_TEXTS[state.why]}</p>
           <div className={styles.actions}>
             <Button variant="primary" icon={Send} onClick={() => setState({ kind: 'ask', error: null })}>
               Ask again
             </Button>
           </div>
-        </Panel>
+        </ConnectPanel>
       );
     default:
       return (
-        <Panel icon={Laptop} title="Connect this PC to Portly">
+        <ConnectPanel icon={Laptop} title="Connect this PC to Portly">
           <p className={styles.text}>
             This PC is not connected to Portly on the main PC yet. Give it a name, ask to connect, and approve the request on the main PC in{' '}
             <strong>Settings → Devices</strong>. Once approved, this PC can use Portly like the main one, except for what needs the main PC
@@ -281,9 +308,14 @@ export function ConnectPage({ reload = () => window.location.reload(), defaultLa
               <Button type="submit" variant="primary" icon={Send} loading={sending} disabled={label.trim() === ''}>
                 Ask to connect
               </Button>
+              {onBack !== undefined ? (
+                <Button variant="ghost" icon={ArrowLeft} onClick={onBack}>
+                  Change address
+                </Button>
+              ) : null}
             </div>
           </form>
-        </Panel>
+        </ConnectPanel>
       );
   }
 }
@@ -315,7 +347,7 @@ function RelativeExpiry({ at }: { at: string }) {
 /** The proxy points at the server's main port: the server would take this PC as the main one. */
 export function MisroutedPage() {
   return (
-    <Panel icon={TriangleAlert} tone="warning" title="This address reaches Portly the wrong way">
+    <ConnectPanel icon={TriangleAlert} tone="warning" title="This address reaches Portly the wrong way">
       <p className={styles.text}>
         Portly on the main PC answered this page as if it were its own, which means the reverse proxy (Tailscale Serve, for example) forwards to
         Portly’s main port instead of its port for other PCs. Nothing can be done here until that is fixed on the main PC: point the proxy at
@@ -324,6 +356,6 @@ export function MisroutedPage() {
       <p className={styles.text}>
         The step-by-step guide is <code className={styles.code}>docs/setup/other-pcs.md</code> in the Portly folder on the main PC.
       </p>
-    </Panel>
+    </ConnectPanel>
   );
 }

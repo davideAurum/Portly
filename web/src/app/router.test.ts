@@ -21,6 +21,9 @@ describe('hash router', () => {
     expect(parseHash(`#/pair?nonce=${NONCE}`)).toEqual({ name: 'pair', nonce: NONCE });
     expect(parseHash(`#/pair?nonce=${NONCE}&extra=1`)).toEqual({ name: 'pair', nonce: NONCE });
     expect(parseHash('#/pair')).toEqual({ name: 'pair', nonce: null });
+    expect(parseHash('#/connect')).toEqual({ name: 'connect' });
+    expect(parseHash('#/connect/more')).toEqual({ name: 'home' });
+    expect(routeHref({ name: 'connect' })).toBe('#/connect');
     expect(parseHash('#/pair?nonce=short')).toEqual({ name: 'pair', nonce: null });
     expect(parseHash(`#/pair?nonce=${NONCE}x`)).toEqual({ name: 'pair', nonce: null });
     expect(parseHash(`#/pair?nonce=${NONCE.slice(0, 42)}!`)).toEqual({ name: 'pair', nonce: null });

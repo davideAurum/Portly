@@ -33,8 +33,8 @@ function ReloadButton() {
  * Why a backend switch waits, and where it goes (this banner and the local server panel). Here,
  * not in the panel: the shell is in the main bundle, the panel loads only in the Pages build.
  */
-export function pendingSwitchText(pending: PendingSwitch): string {
-  const where = pending.target === 'server' ? 'Portly on this PC' : 'the copy saved in this browser';
+export function pendingSwitchText(pending: PendingSwitch, place = 'this PC'): string {
+  const where = pending.target === 'server' ? `Portly on ${place}` : 'the copy saved in this browser';
   return `This page switches to ${where} when you're done: switching reloads the page, so it waits while a dialog is open, you're editing the layout or typing.`;
 }
 
@@ -48,18 +48,23 @@ const SWITCH_TITLES: Readonly<Record<PendingSwitchReason, string>> = Object.free
   disconnected: 'This browser was disconnected from Portly on this PC',
 });
 
-function PendingSwitchBanner({ pending }: { pending: PendingSwitch }) {
+/** "this PC", or "your main PC" for a browser connected to Portly on another PC (ARCHITECTURE §20). */
+function serverPlace(remoteOrigin: string | null | undefined): string {
+  return remoteOrigin != null ? 'your main PC' : 'this PC';
+}
+
+function PendingSwitchBanner({ pending, place }: { pending: PendingSwitch; place: string }) {
   return (
     <Banner
       tone={pending.target === 'server' ? 'info' : 'warning'}
-      title={SWITCH_TITLES[pending.reason]}
+      title={SWITCH_TITLES[pending.reason].replace('this PC', place)}
       actions={
         <Button size="sm" variant="primary" onClick={() => localServerActions.switchNow()}>
           Switch now
         </Button>
       }
     >
-      {pendingSwitchText(pending)}
+      {pendingSwitchText(pending, place)}
     </Banner>
   );
 }
@@ -69,12 +74,13 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
   const health = useHealth();
   const staticBackend = useStaticBackendStatus();
   const localServer = useLocalServer();
+  const place = serverPlace(localServer.remoteOrigin);
 
   const pending = caps.pagesBuild ? localServer.pendingSwitch : null;
   if (pending !== null) {
     return (
       <div className={styles.banners}>
-        <PendingSwitchBanner pending={pending} />
+        <PendingSwitchBanner pending={pending} place={place} />
       </div>
     );
   }
@@ -114,8 +120,8 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
   if (caps.remoteServer && localServer.status === 'reconnecting') {
     return (
       <div className={styles.banners}>
-        <Banner tone="warning" title="Reconnecting to Portly on this PC — showing the last saved data">
-          Portly on this PC stopped answering. If it doesn't come back soon, this page switches to the copy saved in this browser.
+        <Banner tone="warning" title={`Reconnecting to Portly on ${place} — showing the last saved data`}>
+          Portly on {place} stopped answering. If it doesn't come back soon, this page switches to the copy saved in this browser.
         </Banner>
       </div>
     );
@@ -129,8 +135,8 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
             You're seeing the last saved data. Reload the page to try again.
           </Banner>
         ) : caps.remoteServer ? (
-          <Banner tone="warning" title="Can't reach Portly on this PC">
-            You're seeing the last saved data. It will refresh when Portly on this PC is back.
+          <Banner tone="warning" title={`Can't reach Portly on ${place}`}>
+            You're seeing the last saved data. It will refresh when Portly on {place} is back.
           </Banner>
         ) : (
           <Banner tone="warning" title="Can't reach the Portly server">

@@ -157,6 +157,7 @@ callback (`ctx.state.set(...)` + `commit`) or a pre-filled storage.
 `PORTLY_STATIC_SERVER`: default `http://127.0.0.1:5757`, `off` → `''`, loopback origins only —
 `localServer/origin.ts`; the server build always defines `''`), writes to `web/dist-static` and
 injects the Content-Security-Policy `<meta>` (`staticCsp(localServer)`; static hosts send no
-headers; `connect-src` gains the local server origin). `web/public/.nojekyll` ships in the output so GitHub
+headers; `connect-src` gains the local server origin and `https://*.ts.net`, for Portly on another PC through
+Tailscale Serve, `localServer/remote.ts`). `web/public/.nojekyll` ships in the output so GitHub
 Pages never runs Jekyll. Publishing: `scripts/publish-static.ps1` (manual, to a local clone of
 the public repository) or `.github/workflows/static-pages.yml` (manual dispatch, deploy key).

@@ -16,7 +16,7 @@ import type { ReactNode } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { KeyRound, LockKeyhole } from 'lucide-react';
 import type { DiagnosticsSummary } from '@portly/shared';
-import { localServerAnswers, localServerStatusView, useDisplayedLocalServerStatus } from '../../app/LocalServerPanel.tsx';
+import { localServerAnswers, localServerPlace, localServerStatusView, useDisplayedLocalServerStatus } from '../../app/LocalServerPanel.tsx';
 import { APP_VERSION } from '../../app/providers.tsx';
 import { getCapabilities } from '../../capabilities.ts';
 import { useFormatters } from '../../lib/format.ts';
@@ -280,7 +280,9 @@ const PERMISSION_TEXT: Readonly<Record<LoopbackPermission, string>> = {
 };
 
 /** What the "This site" card says about itself: with a summary, without one but with Portly on this PC to open, or with neither. */
-function thisSiteDescription(summary: DiagnosticsSummary | null, answers: boolean): string {
+function thisSiteDescription(summary: DiagnosticsSummary | null, answers: boolean, remote = false): string {
+  // Connected to Portly on another PC: its own page is on that PC, which this one cannot open.
+  if (remote) return 'This site’s version, where its data lives, and how it reaches Portly on your main PC. Full diagnostics are on the main PC.';
   if (summary !== null) return 'Portly’s own page on this PC shows the same diagnostics, and works even when this site can’t reach it.';
   if (answers) return 'Full diagnostics (connections, server log, report) are on Portly’s own page on this PC.';
   return 'This site’s version, where its data lives, and whether Portly runs on this PC.';
@@ -292,15 +294,18 @@ function ThisSiteCard({ summary }: { summary: DiagnosticsSummary | null }) {
   const state = useLocalServer();
   const status = useDisplayedLocalServerStatus(state);
   const view = localServerStatusView(status, state.server);
-  const answers = localServerAnswers(status, state);
+  const remote = state.remoteOrigin != null;
+  const place = localServerPlace(state);
+  // Portly's own page is on this PC only: on another PC there is no page here to link to.
+  const answers = localServerAnswers(status, state) && !remote;
   const events = useClientEvents();
   const now = useNow(60_000);
   const counts = recentBrowserCounts(events, now.getTime());
   const facts: Fact[] = [
     { label: 'This site', value: <span className={styles.mono}>{APP_VERSION}</span> },
-    { label: 'Data', value: caps.backend === 'server' ? 'From Portly on this PC' : 'Saved in this browser' },
+    { label: 'Data', value: caps.backend === 'server' ? `From Portly on ${place}` : 'Saved in this browser' },
     {
-      label: 'Portly on this PC',
+      label: `Portly on ${place}`,
       value: (
         <span className={styles.inlineRow}>
           <Badge tone={view.tone}>{view.label}</Badge>
@@ -333,7 +338,7 @@ function ThisSiteCard({ summary }: { summary: DiagnosticsSummary | null }) {
       <SettingsCard
         id="diagnostics-site"
         title="This site"
-        description={thisSiteDescription(summary, answers)}
+        description={thisSiteDescription(summary, answers, remote)}
         actions={answers ? <LocalDiagnosticsLink /> : null}
       >
         <FactList items={facts} />

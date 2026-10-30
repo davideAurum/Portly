@@ -9,12 +9,18 @@
  * A page that is itself served from a loopback host (the Pages build previewed on `localhost`)
  * reaches a loopback server without that permission, and Chrome reports it as `denied` on any
  * `http:` page; {@link pageLoopbackPermissionSource} therefore answers `granted` there.
+ *
+ * Portly on another PC is reached at a tailnet address (100.64.0.0/10), which Chromium counts as
+ * the local network: that permission is `local-network` (Chrome 142–144: `local-network-access`
+ * for both), {@link LOCAL_NETWORK_PERMISSION_NAMES}.
  */
 import { isLoopbackHost } from './origin.ts';
 import type { LoopbackPermission } from './types.ts';
 
 /** Names to query, newest first. */
-export const LOOPBACK_PERMISSION_NAMES = ['loopback-network', 'local-network-access'] as const;
+export const LOOPBACK_PERMISSION_NAMES: readonly string[] = Object.freeze(['loopback-network', 'local-network-access']);
+/** The same for the local network (Portly on another PC, through its tailnet address). */
+export const LOCAL_NETWORK_PERMISSION_NAMES: readonly string[] = Object.freeze(['local-network', 'local-network-access']);
 
 export interface LoopbackPermissionSource {
   /** The current state (`unsupported` when the browser has no such permission). */
@@ -25,9 +31,9 @@ export interface LoopbackPermissionSource {
 
 type PermissionsLike = Pick<Permissions, 'query'>;
 
-async function queryStatus(permissions: PermissionsLike | undefined): Promise<PermissionStatus | null> {
+async function queryStatus(permissions: PermissionsLike | undefined, names: readonly string[]): Promise<PermissionStatus | null> {
   if (permissions === undefined) return null;
-  for (const name of LOOPBACK_PERMISSION_NAMES) {
+  for (const name of names) {
     try {
       // Not in TypeScript's PermissionName list yet.
       return await permissions.query({ name } as unknown as PermissionDescriptor);
@@ -44,20 +50,26 @@ function stateOf(status: PermissionStatus | null): LoopbackPermission {
 }
 
 /** The permission's current state, once (`unsupported` when the browser has none by either name). */
-export async function queryLoopbackPermission(permissions: PermissionsLike | undefined = browserPermissions()): Promise<LoopbackPermission> {
-  return stateOf(await queryStatus(permissions));
+export async function queryLoopbackPermission(
+  permissions: PermissionsLike | undefined = browserPermissions(),
+  names: readonly string[] = LOOPBACK_PERMISSION_NAMES,
+): Promise<LoopbackPermission> {
+  return stateOf(await queryStatus(permissions, names));
 }
 
 /**
  * A source that queries the permission once, then follows its `change` events. Without such a
  * permission the state stays `unsupported` and listeners are never called.
  */
-export function createLoopbackPermissionSource(permissions: PermissionsLike | undefined = browserPermissions()): LoopbackPermissionSource {
+export function createLoopbackPermissionSource(
+  permissions: PermissionsLike | undefined = browserPermissions(),
+  names: readonly string[] = LOOPBACK_PERMISSION_NAMES,
+): LoopbackPermissionSource {
   const listeners = new Set<(state: LoopbackPermission) => void>();
   let status: Promise<PermissionStatus | null> | null = null;
 
   const watch = (): Promise<PermissionStatus | null> => {
-    status ??= queryStatus(permissions).then((found) => {
+    status ??= queryStatus(permissions, names).then((found) => {
       found?.addEventListener('change', () => {
         const state = stateOf(found);
         for (const listener of [...listeners]) listener(state);
@@ -87,13 +99,15 @@ const ALWAYS_GRANTED: LoopbackPermissionSource = Object.freeze({
 
 /**
  * The permission source for a page on `pageHostname` (as `URL.hostname` spells it): always
- * `granted` when the page itself is on a loopback host, otherwise the browser's permission.
+ * `granted` when the page itself is on a loopback host, otherwise the browser's permission —
+ * the loopback one, or the local network one for Portly on another PC (`names`).
  */
 export function pageLoopbackPermissionSource(
   pageHostname: string,
   permissions: PermissionsLike | undefined = browserPermissions(),
+  names: readonly string[] = LOOPBACK_PERMISSION_NAMES,
 ): LoopbackPermissionSource {
-  return isLoopbackHost(pageHostname) ? ALWAYS_GRANTED : createLoopbackPermissionSource(permissions);
+  return isLoopbackHost(pageHostname) ? ALWAYS_GRANTED : createLoopbackPermissionSource(permissions, names);
 }
 
 function browserPermissions(): PermissionsLike | undefined {

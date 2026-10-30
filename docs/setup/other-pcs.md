@@ -11,12 +11,15 @@ once. Nothing opens a port on your network, and nothing goes through a cloud.
    open the address, with a real certificate and no firewall change.
 2. Portly listens on a second loopback port for that proxy (the main port plus one, so `5758` by
    default). Whatever arrives there is treated as another PC's request, whatever its headers say.
-3. The other PC opens the address and sees **Connect this PC to Portly**: it gives itself a name
-   and shows a short code. On the main PC, Settings → Devices lists the request with the same
-   code. You compare the two and choose **Approve**. The other PC's page connects by itself.
-4. From then on the other PC uses Portly like the main one, with a login cookie that lasts 30 days
-   of inactivity and renews while in use. **Remove** in Settings → Devices on the main PC cuts it
-   off at once.
+3. The other PC opens your Pages site (the same address as on the main PC, such as
+   `https://<user>.github.io/`), chooses **Use Portly on another PC** and types the main PC's
+   Tailscale address once. Or it opens that Tailscale address directly. Either way it sees
+   **Connect this PC to Portly**: it gives itself a name and shows a short code. On the main PC,
+   Settings → Devices lists the request with the same code. You compare the two and choose
+   **Approve**. The other PC's page connects by itself.
+4. From then on the other PC uses Portly like the main one. Its login lasts 30 days of inactivity
+   and renews while in use (a cookie on the Tailscale address; on the Pages site, a secret this
+   browser keeps for the site). **Remove** in Settings → Devices on the main PC cuts it off at once.
 
 What stays on the main PC: signing in to Google and Microsoft accounts (their sign-in comes back
 to the main PC), resetting the credential vault, importing the main PC's browser bookmarks,
@@ -60,6 +63,25 @@ Without `PORTLY_REMOTE_ORIGIN`, Portly behaves exactly as before: one PC, loopba
 
 ## Connecting another PC
 
+There are two ways in, and both reach the same Portly on the main PC.
+
+**Through your Pages site (one address on every PC).** Needs a Pages site set on the main PC
+(`PORTLY_PAGES_URL`, see [Pages site with Portly on this PC](pages-local-server.md)), so that its
+Portly accepts the site.
+
+1. On the other PC, open your Pages site, the same address you use on the main PC (for example
+   `https://<user>.github.io/`). With nothing of Portly on this PC, its footer says **Browser
+   only**.
+2. Click that status in the footer and choose **Use Portly on another PC** (or open
+   `https://<user>.github.io/#/connect`). Type the main PC's Tailscale address, such as
+   `https://<pc>.<tailnet>.ts.net` (Settings → Devices on the main PC shows it), and choose
+   **Continue**. If the browser asks whether the site may reach devices on your network, choose
+   **Allow**. The browser remembers the address for next time.
+3. Give the PC a name and choose **Ask to connect**, then approve it on the main PC (steps 3 and 4
+   below). The page then reloads and uses the main PC's Portly.
+
+**Through the Tailscale address itself.**
+
 1. On the other PC, open the address in the browser. The connect screen appears.
 2. Give the PC a name and choose **Ask to connect**. The screen shows a code such as `K7Q-4MP`.
    With Tailscale Serve the name is filled in for you (the PC's computer name, which Tailscale on
@@ -72,9 +94,18 @@ Without `PORTLY_REMOTE_ORIGIN`, Portly behaves exactly as before: one PC, loopba
 4. The other PC's page loads Portly by itself. A request not answered within 10 minutes expires;
    ask again.
 
-If the other PC's page shows **This address reaches Portly the wrong way**, the proxy forwards to
-Portly's main port instead of its port for other PCs: run the `tailscale serve` command above
-with the right port.
+Each browser (and browser profile) is approved on its own, and a browser that comes in both ways
+is two devices in Settings → Devices.
+
+If the other PC's page shows **This address reaches Portly the wrong way** (or the Pages site says
+Portly took the request as the main PC's own), the proxy forwards to Portly's main port instead
+of its port for other PCs: run the `tailscale serve` command above with the right port.
+
+If the Pages site says **Nothing at that address answered this site**, check that Tailscale runs
+on this PC, that Portly runs on the main PC with your Pages site as its `PORTLY_PAGES_URL`, and
+that the browser may reach devices on your network (the site's settings, next to the address
+bar: **Local network access**, **Allow**). Only Tailscale addresses (`*.ts.net`) work from the
+Pages site; another reverse proxy works through its own address only.
 
 ## A PC that ran Homebase
 
@@ -189,7 +220,8 @@ there: the login cookie belongs to one of them, so each one asks and is approved
 
 Portly's New Tab extension is not made for this yet: it checks and starts Portly on its own PC
 (`http://localhost`), and that PC runs none. So new tabs keep the browser's own page. To reach
-Portly in one click instead, use the address (`https://<pc>.<tailnet>.ts.net`):
+Portly in one click instead, use your Pages site once it is connected (or the Tailscale address,
+`https://<pc>.<tailnet>.ts.net`):
 
 - as the page the browser opens when it starts: in Chrome, Settings → **On startup** → **Open a
   specific page or set of pages**; in Edge, Settings → **Start, home, and new tabs** → **When Edge
@@ -210,10 +242,11 @@ Portly in one click instead, use the address (`https://<pc>.<tailnet>.ts.net`):
   `rundll32 sysdm.cpl,EditEnvironmentVariables`, and under *User variables* delete the variables
   whose names start with `HOMEBASE_` and, in **Path**, the entry that ends in `\Homebase\bin`.
 
-A browser on that PC that opens your Pages site uses it on its own there, since a Pages site pairs
-only with a Portly on the same PC. On its first visit it copies the Homebase data it kept for that
-site to Portly's names once
-([Browsers keep their Homebase data](add-a-pc.md#browsers-keep-their-homebase-data)).
+A browser on that PC that opens your Pages site uses it on its own there until you connect it to
+the main PC (**Use Portly on another PC**, above). On its first visit it copies the Homebase data
+it kept for that site to Portly's names once
+([Browsers keep their Homebase data](add-a-pc.md#browsers-keep-their-homebase-data)); that copy
+stays in the browser, apart from the main PC's data.
 
 ## Using Portly on a phone or tablet
 
@@ -223,9 +256,10 @@ This has not been tried on a phone yet; the real check used a second Windows PC.
 
 1. Set up the main PC as above.
 2. Install the Tailscale app on the phone and sign in to the same tailnet.
-3. In Chrome on the phone, open `https://<pc>.<tailnet>.ts.net`, give the phone a name and tap
-   **Ask to connect**. The name Tailscale fills in may be the phone's model or something generic;
-   change it to one you will recognise.
+3. In Chrome on the phone, open `https://<pc>.<tailnet>.ts.net` (or your Pages site, then **Use
+   Portly on another PC** with that address), give the phone a name and tap **Ask to connect**.
+   The name Tailscale fills in may be the phone's model or something generic; change it to one
+   you will recognise.
 4. Approve it on the main PC in Settings → Devices, as for a PC.
 
 What is different on a phone:
@@ -237,10 +271,9 @@ What is different on a phone:
 - **The same main-PC-only actions** as for any other PC (listed under "How it works"). Accounts
   connected on the main PC work on the phone too.
 - **The screens say "PC".** "Connect this PC to Portly" and "This PC" mean the phone.
-- **The Pages site is not a way in.** A Pages site pairs only with a Portly server on the same
-  device ([Pages site with Portly on this PC](pages-local-server.md)), and a phone runs none. On a
-  phone the Pages site works only on its own, with data kept in that phone's browser, not your
-  main PC's. Use the Tailscale address instead.
+- **The Pages site needs connecting.** A phone runs no Portly, so the Pages site works on its own
+  there (data kept in that phone's browser) until you connect it to the main PC with **Use
+  Portly on another PC**. Not tried on a phone yet.
 
 Never use Tailscale Funnel to reach Portly from a phone away from home: Tailscale on the phone
 already reaches the main PC from anywhere, through your tailnet.
@@ -249,10 +282,11 @@ already reaches the main PC from anywhere, through your tailnet.
 
 - On the main PC: Settings → Devices → **Remove** next to the PC. Its next request is refused and
   its page goes back to the connect screen.
-- On the other PC itself: Settings → Devices → **Disconnect** next to the PC marked **This PC**.
+- On the other PC itself: Settings → Devices → **Disconnect** next to the PC marked **This PC**
+  (on the Pages site: the Portly status in the footer, then **Disconnect this browser**).
 
 A PC not used for 30 days is disconnected by itself. At most 20 PCs can be connected at once.
 
 ## What the main PC's logs record
 
-Device and request ids only: never the name you typed, the code, or the login cookie.
+Device and request ids only: never the name you typed, the code, or the login (cookie or secret).

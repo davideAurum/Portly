@@ -13,8 +13,10 @@
  *   (the remote Host and, unless `secret` is null, the device cookie; the context needs
  *   `env: TEST_REMOTE_ENV`). Such a request arrives on the remote port (`TEST_REMOTE_PORT`, like
  *   the proxy forwards it); `listenerPort` overrides which port any request came in on.
+ * - `remotePagesHeaders(secret)` is the Pages site on another PC: the remote Host with the Pages
+ *   Origin and the device secret in a header (the context needs both environments).
  */
-import { DEVICE_COOKIE, PAIRING_TOKEN_HEADER } from '@portly/shared';
+import { DEVICE_COOKIE, DEVICE_TOKEN_HEADER, PAIRING_TOKEN_HEADER } from '@portly/shared';
 import { TEST_PORT } from './test-context.ts';
 
 export { TEST_PORT };
@@ -67,6 +69,15 @@ export const TEST_REMOTE_ENV: Readonly<Record<string, string>> = Object.freeze({
  */
 export function remoteHeaders(secret: string | null, extra: Record<string, string | null> = {}): Record<string, string | null> {
   return { Host: TEST_REMOTE_HOST, Cookie: secret === null ? null : `${DEVICE_COOKIE}=${secret}`, ...extra };
+}
+
+/**
+ * Headers of a request from the Pages site opened on another PC, through the reverse proxy: the
+ * remote Host, the Pages Origin, cross-site and, unless `secret` is null, the device secret header
+ * (no cookie: a browser sends none cross-site). Needs both `TEST_PAGES_ENV` and `TEST_REMOTE_ENV`.
+ */
+export function remotePagesHeaders(secret: string | null, extra: Record<string, string | null> = {}): Record<string, string | null> {
+  return { Host: TEST_REMOTE_HOST, Origin: TEST_PAGES_ORIGIN, 'Sec-Fetch-Site': 'cross-site', [DEVICE_TOKEN_HEADER]: secret, ...extra };
 }
 
 function isRawBody(body: unknown): boolean {

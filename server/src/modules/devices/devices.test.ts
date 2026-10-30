@@ -30,6 +30,7 @@ import {
   TEST_REMOTE_ORIGIN,
   pagesHeaders,
   remoteHeaders,
+  remotePagesHeaders,
   testRequest,
   type TestRequestOptions,
 } from '../../testing/test-request.ts';
@@ -335,6 +336,67 @@ describe('devices routes', () => {
       expect((await json<DevicesResponse>('GET', '/api/devices', { headers: remoteHeaders(device.secret) })).status).toBe(200);
       expect((await json<DevicesResponse>('GET', '/api/devices', { headers: pagesHeaders(token) })).status).toBe(200);
       expect((await json<ErrorBody>('POST', '/api/devices/requests', { headers: pagesHeaders(token), body: { label: 'x' } })).body.error.code).toBe('local_only');
+    });
+  });
+
+  describe('the Pages site opened on another PC', () => {
+    beforeEach(() => setup({ ...TEST_REMOTE_ENV, ...TEST_PAGES_ENV }));
+
+    it('asks, waits and connects with secrets in bodies and headers, never a cookie', async () => {
+      const asked = await json<DeviceRequestCreateResponse>('POST', '/api/devices/requests', {
+        headers: remotePagesHeaders(null, { 'User-Agent': CHROME_WINDOWS }),
+        body: { label: 'Laptop' },
+      });
+      expect(asked.status).toBe(201);
+      expect(DeviceRequestCreateResponseSchema.parse(asked.body)).toEqual(asked.body);
+      expect(asked.body.secret).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(asked.res.headers.getSetCookie()).toEqual([]);
+      expect(asked.res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
+      const enroll = asked.body.secret ?? '';
+
+      const pollPages = (value: string | null) =>
+        json<DeviceRequestStatusResponse>('GET', '/api/devices/requests/current', { headers: remotePagesHeaders(null, { 'X-Portly-Enroll': value }) });
+      const pending = await pollPages(enroll);
+      expect(pending.body).toMatchObject({ status: 'pending', id: asked.body.id, code: asked.body.code, device: null });
+      expect(pending.body.secret).toBeUndefined();
+      // An enrollment cookie means nothing to the Pages site, and no header finds no request.
+      expect((await json<ErrorBody>('GET', '/api/devices/requests/current', { headers: remotePagesHeaders(null, { Cookie: `${ENROLL_COOKIE}=${enroll}` }) })).status).toBe(404);
+
+      expect((await json<{ approved: true }>('POST', `/api/devices/requests/${asked.body.id}/approve`)).status).toBe(200);
+      const connected = await pollPages(enroll);
+      expect(connected.status).toBe(200);
+      expect(DeviceRequestStatusResponseSchema.parse(connected.body)).toEqual(connected.body);
+      expect(connected.body).toMatchObject({ status: 'approved', device: { label: 'Laptop' } });
+      expect(connected.res.headers.getSetCookie()).toEqual([]);
+      const secret = connected.body.secret ?? '';
+      expect(secret).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(secret).not.toBe(enroll);
+
+      const self = await json<DeviceStatusResponse>('GET', '/api/device', { headers: remotePagesHeaders(secret) });
+      expect(self.status).toBe(200);
+      expect(self.body).toEqual({ device: connected.body.device });
+      const list = await json<DevicesResponse>('GET', '/api/devices', { headers: remotePagesHeaders(secret) });
+      expect(list.body.devices.map((d) => [d.label, d.current])).toEqual([['Laptop', true]]);
+
+      const left = await testRequest(app, 'DELETE', '/api/device', { headers: remotePagesHeaders(secret) });
+      expect(left.status).toBe(204);
+      expect(left.headers.getSetCookie()).toEqual([]);
+      expect((await json<ErrorBody>('GET', '/api/device', { headers: remotePagesHeaders(secret) })).status).toBe(401);
+
+      const logged = JSON.stringify(ctx.logs.query({}).records);
+      expect(logged).not.toContain(secret);
+      expect(logged).not.toContain(enroll);
+      expect(logged).not.toContain('Laptop');
+    });
+
+    it('learns a denial once, without a cookie to clear', async () => {
+      const asked = await json<DeviceRequestCreateResponse>('POST', '/api/devices/requests', { headers: remotePagesHeaders(null), body: { label: 'Laptop' } });
+      expect((await testRequest(app, 'POST', `/api/devices/requests/${asked.body.id}/deny`)).status).toBe(204);
+      const denied = await json<DeviceRequestStatusResponse>('GET', '/api/devices/requests/current', {
+        headers: remotePagesHeaders(null, { 'X-Portly-Enroll': asked.body.secret ?? '' }),
+      });
+      expect(denied.body).toMatchObject({ status: 'denied', device: null });
+      expect(denied.res.headers.getSetCookie()).toEqual([]);
     });
   });
 

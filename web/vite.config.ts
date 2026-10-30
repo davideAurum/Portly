@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { parseLocalServerOrigin } from './src/localServer/origin.ts';
+import { REMOTE_SERVER_CSP_SOURCE, parseLocalServerOrigin } from './src/localServer/origin.ts';
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
 const rootPackage = JSON.parse(readFileSync(path.join(webDir, '..', 'package.json'), 'utf8')) as { version: string };
@@ -44,7 +44,9 @@ export const STATIC_MODE = 'static';
  * Microsoft's token endpoint and Graph (Outlook.com sign-in and calendar on the in-browser
  * backend), GitHub's API (launch pad sync through a private repository), and DuckDuckGo's
  * favicon service used as `<img src>`. In hybrid mode `connect-src` also
- * allows the Portly server on this PC (`localServer`); its images reach the page as
+ * allows the Portly server on this PC (`localServer`) and Portly on another PC through its
+ * Tailscale Serve address (`https://*.ts.net`: the site names no PC or tailnet, each browser is
+ * told the address once, ARCHITECTURE §20); their images reach the page as
  * `blob:`/`data:` URLs, which `img-src` already allows. `frame-ancestors` cannot be expressed in a
  * meta tag.
  */
@@ -64,7 +66,7 @@ export function staticCsp(localServer: string): string {
     // OneDrive download URLs of launch pad sync (the only host seen for a personal account; design section 4).
     'https://my.microsoftpersonalcontent.com',
   ];
-  if (localServer !== '') connect.push(localServer);
+  if (localServer !== '') connect.push(localServer, REMOTE_SERVER_CSP_SOURCE);
   return [
     "default-src 'self'",
     "script-src 'self'",

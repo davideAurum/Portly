@@ -198,6 +198,32 @@ describe('LocalServerPanel', () => {
     expect(screen.getByRole('button', { name: 'Disconnect this browser' })).toBeInTheDocument();
   });
 
+  it('not paired: offers Portly on another PC (the connect page)', async () => {
+    window.location.hash = '#/';
+    renderPanel({ status: 'absent', permission: 'granted', checkedAt: Date.now() });
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Use Portly on another PC' }));
+    expect(window.location.hash).toBe('#/connect');
+    window.location.hash = '';
+  });
+
+  it('connected to Portly on the main PC: names it and its address, and connects again there instead of pairing', async () => {
+    const remote = 'https://desk.tail1234.ts.net';
+    const controller = renderPanel({ backend: 'server', status: 'connected', server: SERVER, paired: true, permission: 'granted', remoteOrigin: remote });
+    const card = screen.getByRole('region', { name: 'Portly on your main PC' });
+    expect(card).toHaveTextContent("This page's data comes from Portly running on your main PC.");
+    expect(card).toHaveTextContent('Addressdesk.tail1234.ts.net');
+    expect(card).toHaveTextContent(/Google and Microsoft accounts are connected on the main PC/);
+    expect(within(card).queryByRole('button', { name: 'Use Portly on another PC' })).not.toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Disconnect this browser' })).toBeInTheDocument();
+    controller.set({ backend: 'browser', status: 'revoked', paired: false });
+    expect(screen.getByText(/no longer accepts this browser: it was removed there, or not used for 30 days/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pair this browser' })).not.toBeInTheDocument();
+    window.location.hash = '#/';
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Connect again' }));
+    expect(window.location.hash).toBe('#/connect');
+    window.location.hash = '';
+  });
+
   it('needs update: explains the version mismatch', () => {
     renderPanel({ status: 'incompatible', server: { ...SERVER, apiVersion: 2 } });
     expect(screen.getByText('Needs update')).toBeInTheDocument();
