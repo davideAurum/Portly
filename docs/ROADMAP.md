@@ -1557,6 +1557,30 @@ Items:
 
   6.7's published-site check followed the same evening (6.7). Phase 6 is done.
 
+## 0.2.0-alpha.3 (beside phase 6)
+
+The four fixes parked after alpha.2 (calendar list by account, first-sync wording, the installer's
+message when another account has Portly, App registration in Manage) and `@hono/node-server`
+2.1.5, released on the owner's go-ahead.
+
+*Published 2026-10-30:* [v0.2.0-alpha.3](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.3),
+built from main 8bcd5c7 (the tag points there), zip SHA-256 dc6251abb6959a27f9a7d2a294d177023e345d172e73973aa7274f04db6b0148,
+extension 0.5.3 unchanged.
+- **Checks before publishing:** typecheck, `npm test` (4,423 vitest tests, the audit clean), both
+  builds; CI on 8bcd5c7 green (41007142530); `check-scripts.ps1` 366 passed and `check-release.ps1`
+  26 passed per PowerShell version, with the health and port-owner checks failing for the
+  `Get-NetTCPConnection` reason in the checks table; the CSP check of both builds on scratch
+  servers (settings pages and home; not every widget) with no violation.
+- **The candidate** was installed as an update on the owner's own release install (0.2.0-alpha.2
+  to 0.2.0-alpha.3, healthy, vault ready), as for alpha.2; the clean-account install still cannot
+  run while the owner's task exists. The provider check with real accounts was not repeated.
+- **Published** as a draft by `publish-release.ps1`: the zip upload stalled again over a slow
+  upload path (about 5 KB/s after 74%); it went up with `curl --http1.1` against the uploads API,
+  GitHub's digest equal to the build's, then `gh release edit --draft=false --latest`.
+- **The Pages site** published from the tag (the clone at 46c3f63); the live `install.ps1` is
+  byte-equal to the tag's and the built app carries 0.2.0-alpha.3. `site/` is unchanged since
+  alpha.2, so portly-site was not republished.
+
 ## Launch pad sync through GitHub (beside phase 6)
 
 On 2026-10-27 the owner asked for a GitHub backend for launch pad sync, built at the same time as
