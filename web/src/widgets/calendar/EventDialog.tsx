@@ -6,7 +6,8 @@
  */
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import { Repeat } from 'lucide-react';
-import type { Calendar, CalendarEvent } from '@portly/shared';
+import type { Account, Calendar, CalendarEvent } from '@portly/shared';
+import { ACCOUNT_KIND_LABELS } from '../../ui/accounts/accountKinds.ts';
 import { Banner } from '../../ui/Banner.tsx';
 import { Button } from '../../ui/Button.tsx';
 import { Dialog } from '../../ui/Dialog.tsx';
@@ -37,6 +38,8 @@ export interface EventDialogProps {
   initial: EventFormValues;
   writableCalendars: readonly Calendar[];
   calendars: ReadonlyMap<string, Calendar>;
+  /** Connected accounts: the calendar list is grouped by account when given. */
+  accounts?: readonly Account[];
   onSubmit(values: EventFormValues): void;
 }
 
@@ -55,7 +58,24 @@ function shiftEnd(prev: EventFormValues, next: EventFormValues): EventFormValues
   return { ...next, endDate: dateKey(end), endTime: `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}` };
 }
 
-export function EventDialog({ open, onOpenChange, event, initial, writableCalendars, calendars, onSubmit }: EventDialogProps) {
+/** Writable calendars grouped by their account ("Google: name"); calendars without an account stay ungrouped. */
+function calendarGroups(calendars: readonly Calendar[], accounts: readonly Account[]): { label: string | null; calendars: Calendar[] }[] {
+  const byAccount = new Map(accounts.map((a) => [a.id, a] as const));
+  const groups = new Map<string, { label: string | null; calendars: Calendar[] }>();
+  for (const calendar of calendars) {
+    const account = calendar.accountId ? byAccount.get(calendar.accountId) : undefined;
+    const key = account ? account.id : '';
+    let group = groups.get(key);
+    if (!group) {
+      group = { label: account ? `${ACCOUNT_KIND_LABELS[account.kind]}: ${account.label}` : null, calendars: [] };
+      groups.set(key, group);
+    }
+    group.calendars.push(calendar);
+  }
+  return [...groups.values()];
+}
+
+export function EventDialog({ open, onOpenChange, event, initial, writableCalendars, calendars, accounts, onSubmit }: EventDialogProps) {
   const formId = useId();
   const [values, setValues] = useState<EventFormValues>(initial);
   const [submitted, setSubmitted] = useState(false);
@@ -70,6 +90,7 @@ export function EventDialog({ open, onOpenChange, event, initial, writableCalend
   const writableIds = useMemo(() => new Set(writableCalendars.map((c) => c.id)), [writableCalendars]);
   const errors: EventFormErrors = submitted ? validateEventForm(values, writableIds) : {};
   const calendar = calendars.get(values.calendarId);
+  const groups = useMemo(() => calendarGroups(writableCalendars, accounts ?? []), [writableCalendars, accounts]);
 
   const set = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) => {
     setValues((prev) => {
@@ -125,11 +146,20 @@ export function EventDialog({ open, onOpenChange, event, initial, writableCalend
         <Field label="Calendar" error={errors.calendarId} help={event ? 'Events stay in their calendar.' : undefined}>
           <Select value={values.calendarId} onChange={(e) => set('calendarId', e.currentTarget.value)} disabled={event !== null}>
             {writableCalendars.length === 0 ? <option value="">No writable calendars</option> : null}
-            {writableCalendars.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            {groups.map((group) => {
+              const options = group.calendars.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ));
+              return group.label ? (
+                <optgroup key={group.label} label={group.label}>
+                  {options}
+                </optgroup>
+              ) : (
+                options
+              );
+            })}
             {calendar && !writableIds.has(calendar.id) ? <option value={calendar.id}>{calendar.name}</option> : null}
           </Select>
         </Field>

@@ -128,7 +128,13 @@ function Write-HbAccessDeniedHint {
     param([Parameter(Mandatory)][string]$ScriptPath, [string]$Arguments = '')
     Write-HbFailure 'Windows denied access (0x80070005) while managing the scheduled task.'
     Write-Host ''
-    Write-Host 'Open PowerShell as administrator (Start > type "PowerShell" > Run as administrator) and run:' -ForegroundColor Yellow
+    Write-Host 'Another Windows account on this PC may already have Portly: scheduled task names are shared' -ForegroundColor Yellow
+    Write-Host 'by the whole PC, so only one account can have the "Portly Server" task today. If so, use that' -ForegroundColor Yellow
+    Write-Host 'account, or remove Portly from it first (scripts\uninstall-autostart.ps1 there); running as administrator' -ForegroundColor Yellow
+    Write-Host 'will not help.' -ForegroundColor Yellow
+    Write-Host ''
+    Write-Host 'If no other account has Portly, open PowerShell as administrator (Start > type "PowerShell" >' -ForegroundColor Yellow
+    Write-Host 'Run as administrator) and run:' -ForegroundColor Yellow
     Write-Host ''
     $command = 'powershell -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $ScriptPath
     if ($Arguments) { $command = "$command $Arguments" }

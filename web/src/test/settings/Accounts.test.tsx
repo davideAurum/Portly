@@ -425,6 +425,16 @@ describe('Accounts settings — connected accounts', () => {
     await waitFor(() => expect(requestsTo('DELETE /api/accounts/acc-1')).toHaveLength(1));
   });
 
+  it('shows the provider’s app registration inside Manage, with Edit', async () => {
+    const { user } = await renderAccounts({ 'GET /api/accounts': [account()] });
+    const list = await screen.findByRole('list', { name: 'Connected accounts' });
+    await user.click(within(list).getByRole('button', { name: 'Manage Personal Gmail' }));
+    const manage = await screen.findByRole('dialog', { name: 'Manage Personal Gmail' });
+    expect(within(manage).getByText('App registration')).toBeInTheDocument();
+    await user.click(await within(manage).findByRole('button', { name: 'Edit the Google app registration' }));
+    expect(await screen.findByRole('dialog', { name: 'Google app registration' })).toBeInTheDocument();
+  });
+
   it('adds a service the account was not granted by signing in again for it (incremental consent)', async () => {
     const assign = trackAssign();
     const outlook = account({ id: 'm1', kind: 'microsoft', label: 'Outlook', capabilities: ['calendar'], enabledCapabilities: ['calendar'] });

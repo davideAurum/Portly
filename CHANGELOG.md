@@ -4,6 +4,29 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## 0.2.0-alpha.3 (2026-10-30)
+
+The third alpha: small fixes found while using alpha.2. Ships with new-tab extension 0.5.3
+(unchanged, so no reload of the extension is needed).
+
+### What's new
+- **The new-event calendar list names the account.** Calendars are grouped under their account
+  (for example "Google: Personal" and "Outlook.com: Work"), so two calendars both called
+  "Calendar" can be told apart.
+- **App registration beside the account.** **Manage** on a Google or Outlook.com account shows
+  that provider's app registration (Ready, Setup needed or Credentials locked) with **Edit**.
+  The list under the tiles stays.
+- **Clearer first-sync question.** It no longer says the two launch pads "are different" (Portly
+  asks whenever both have content, for example after a reconnect with identical bookmarks).
+- **Clearer installer message when another Windows account has Portly.** An access-denied error
+  while registering the `\Portly Server` task now says another account on the PC may already have
+  Portly (one per PC today) before suggesting administrator rights.
+- **Dependency update:** `@hono/node-server` 2.1.5 (fixes a moderate advisory, GHSA-rmxm-3fg6-px4f,
+  that did not affect Portly).
+
+### Known limits
+- The same as 0.2.0-alpha.2's. One Windows account per PC can have Portly installed.
+
 ## 0.2.0-alpha.2 (2026-10-29)
 
 The second alpha: launch pad sync for the browser-only site. Ships with new-tab extension 0.5.3

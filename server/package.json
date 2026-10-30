@@ -5,8 +5,8 @@
   "description": "Portly loopback server (Hono + node:sqlite), run directly from TypeScript source.",
   "type": "module",
   "dependencies": {
+    "@hono/node-server": "^2.1.5",
     "@portly/shared": "0.1.0",
-    "@hono/node-server": "^2.1.1",
     "entities": "^8.1.0",
     "hono": "^4.13.8",
     "ical.js": "^2.2.1",

@@ -242,6 +242,19 @@ export function AppRegistrations({ providers }: { providers: readonly OAuthProvi
   );
 }
 
+/** One provider's registration status with Edit and its editor: shown beside that provider's accounts (Manage). */
+export function ProviderRegistration({ provider }: { provider: OAuthProvider }) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <div className={styles.registrationItem}>
+      <RegistrationItem provider={provider} onEdit={() => setEditing(true)} />
+      <Dialog open={editing} onOpenChange={setEditing} title={`${PROVIDER_INFO[provider].title} app registration`} size="lg">
+        {editing ? <RegistrationEditor provider={provider} onDone={() => setEditing(false)} /> : null}
+      </Dialog>
+    </div>
+  );
+}
+
 function RegistrationItem({ provider, onEdit }: { provider: OAuthProvider; onEdit(): void }) {
   const client = useOAuthClient(provider);
   const title = PROVIDER_INFO[provider].title;

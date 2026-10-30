@@ -291,6 +291,18 @@ describe('CalendarWidget — writes', () => {
     expect(await screen.findByText(/“Lunch with Sam” added/)).toBeInTheDocument();
   });
 
+  it('groups the new-event calendar list by account', async () => {
+    const user = userEvent.setup();
+    const { header } = renderCalendar({});
+    await screen.findByRole('button', { name: /^Dentist, / });
+    await user.click(within(header).getByRole('button', { name: 'New event' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New event' });
+    const select = within(dialog).getByLabelText(/Calendar/);
+    const groups = Array.from(select.querySelectorAll('optgroup'));
+    expect(groups.map((g) => g.label)).toEqual(['Google: Personal Gmail']);
+    expect(within(groups[0]!).getAllByRole('option').length).toBeGreaterThan(0);
+  });
+
   it('edits without re-sending unchanged times (the event keeps its own time zone); Undo restores', async () => {
     const user = userEvent.setup();
     const patches: unknown[] = [];

@@ -1218,7 +1218,8 @@ then choose what it is used for":
   (`owner/name`) and fine-grained token (`PUT /api/sync/github`, checked with GitHub before saving: private
   repository, contents readable, classic tokens refused). Yahoo services left unticked are switched off after
   creation. *App registrations* under the tiles shows each provider's status (Ready / Setup needed / Credentials
-  locked) with **Edit**.
+  locked) with **Edit**; Manage on a Google or Microsoft account shows the same status and Edit for that
+  provider.
 - The vault-locked banner with **Reset credentials** (server vault only).
 - What a page load offers follows `getCapabilities()`: on the in-browser backend only Microsoft (calendar, and launch
   pad sync, never ticked for the user; browser sign-in with a single-page-app redirect), Todoist and GitHub, with a line

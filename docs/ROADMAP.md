@@ -1785,6 +1785,10 @@ date and the outcome once a row has been run for real.
 | Archiving and trashing a Yahoo message over IMAP for real (2.6 saw both offered, with only fakes behind them) | 2.6 commit, 2026-10-29 | the owner's next Yahoo archive or trash | not yet |
 | A field-by-field comparison of each provider's live answer with the fields its mapper reads (drift that keeps health green); 2.7 checked health only | 2.7 commit, 2026-10-29 | the next provider sweep with the verbose Diagnostics log, if wanted | not yet |
 | An install or update on a PC where another Windows account already has Portly: today Windows refuses the shared `\Portly Server` task name (0x80070005) and the installer advises running as administrator, which does not help; the clearer message is not built yet | 6.8 commit, 2026-10-29 | 0.2.0-alpha.3 (the message), with *Several Windows accounts on one PC* | not yet |
+| `check-scripts.ps1` health, port-owner, `status.ps1` and `start.ps1` checks on this Windows build (26300): `Get-NetTCPConnection` returns the fixture's listening socket with an empty State, so `Get-HbPortListeners` sees none and 15 checks fail (366 pass, the rest including the new hint); not a regression from alpha.3 and not fixed | alpha.3 commit, 2026-10-30 | before the release: check on a build where it passes, or fix `Get-HbPortListeners` | not yet |
+| The grouped new-event calendar list with real Google and Outlook.com accounts in a browser; only the widget test with a mocked account | alpha.3 commit, 2026-10-29 | the owner's next new event | not yet |
+| The reworded access-denied message of `install-autostart.ps1` on a PC where another account owns `\Portly Server`; only the text, read through the scripts' self-checks | alpha.3 commit, 2026-10-29 | a second account on a PC (*Several Windows accounts on one PC*) | not yet |
+| Manage's App registration field (status and Edit) in the running app; only the settings test with mocked answers | alpha.3 commit, 2026-10-29 | the owner's next look at Manage | not yet |
 | Launch pad sync on the published site itself (an unpaired browser there taking the synced launch pad and sending a change); only `preview:static` of the same build ran it | 6.8 commit, 2026-10-29 | 6.7 | 2026-10-29 (6.7, the owner): a new, unpaired Chrome profile on `https://davideaurum.github.io/` connected Outlook.com with Launch pad sync and received the OneDrive launch pad (last change received 9:46 PM), then sent an added bookmark (9:47 PM). Its console was not read for CSP lines; the same build had none on `preview:static` |
 | The Portly UI design system inside Claude Design: the preview cards in the project's Design System pane, and a design built there with `window.PortlyUI` (styles, Cascadia fonts, `PortlyQueryProvider`); only headless Chrome screenshots of the local cards before upload | design-sync commit, 2026-10-29 | the owner's first look at the project | not yet |
 | A re-sync from a fresh clone (`prepare.mjs`, then the converter with `--remote` against the uploaded `_ds_sync.json`); only first-sync builds in this checkout | design-sync commit, 2026-10-29 | the next design sync | not yet |
@@ -1819,13 +1823,13 @@ date and the outcome once a row has been run for real.
   finding the port; a remote port and Tailscale Serve HTTPS port per user, with device cookies
   named per server (`__Host-portly_device` is shared by every port of one host); a two-account
   rehearsal like 4.3 with both installs running. Asked about on 2026-10-28; no need yet.
-- **Name the account in the new-event calendar list** (*planned for 0.2.0-alpha.3*). The
+- **Name the account in the new-event calendar list** (*done for 0.2.0-alpha.3, 2026-10-29: the options are grouped by account in `<optgroup>`s*). The
   Calendar widget's event dialog (`web/src/widgets/calendar/EventDialog.tsx`) lists every
   writable calendar by name only, so Google's "Calendar" and Outlook's "Calendar" look the same
   and the owner took Google's for missing (2.2). Grouping the options by account (provider and
   account name) would fix it.
-- **The first-sync question claims a difference it never checked** (*planned for
-  0.2.0-alpha.3*). Its description says this browser and the synced file "both have a launch
+- **The first-sync question claims a difference it never checked** (*done for 0.2.0-alpha.3,
+  2026-10-29: "and they are different" dropped, with the status line's help text*). Its description says this browser and the synced file "both have a launch
   pad, and they are different", but the engine asks whenever both have rows on a first sync
   (`web/src/static/sync/engine.ts`, the `firstSync && hasRows` branch), as after a reconnect with
   identical bookmarks (6.6). Either compare them first and skip the question when they match, or
@@ -1835,8 +1839,8 @@ date and the outcome once a row has been run for real.
   **Branding & properties** take the portly-site terms and privacy addresses, as Google's
   Branding did in 5.6. An owner's portal step; "unverified" stays without publisher
   verification.
-- **The installer's advice when another Windows account has Portly** (*planned for
-  0.2.0-alpha.3*). On a PC where another account owns `\Portly Server`, registering the task
+- **The installer's advice when another Windows account has Portly** (*done for 0.2.0-alpha.3,
+  2026-10-29: `Write-HbAccessDeniedHint` names the other account first, then administrator*). On a PC where another account owns `\Portly Server`, registering the task
   fails with access denied (0x80070005), the account cannot even see that task ("Existing task:
   none"), and `install-autostart.ps1` says to run it as administrator (6.8). It should say that
   another Windows account on this PC may already have Portly, one per PC today (see *Several
@@ -1854,11 +1858,11 @@ date and the outcome once a row has been run for real.
   placeholder, seen in 6.7), and `web/src/static/favicon.ts` cannot tell the placeholder from a
   real icon. A fallback service would send each bookmark's host to one more company and needs a
   CSP and privacy-page change; today a custom icon on the bookmark is the way round it.
-- **Upgrade `@hono/node-server` to 2.1.5** (*planned for 0.2.0-alpha.3*; a dependency change, so
-  it asks first). GHSA-rmxm-3fg6-px4f (moderate): `serveStatic` decodes a path twice, so
+- **Upgrade `@hono/node-server` to 2.1.5** (*done for 0.2.0-alpha.3, 2026-10-29, on the owner's yes*). GHSA-rmxm-3fg6-px4f (moderate): `serveStatic` decodes a path twice, so
   middleware on a static prefix can be skipped. Portly serves only its public build there and
   is unaffected (6.8).
-- **App registrations next to their accounts** (*planned for 0.2.0-alpha.3*). The owner's
+- **App registrations next to their accounts** (*done for 0.2.0-alpha.3, 2026-10-29: Manage on a
+  Google or Outlook.com account shows the registration with Edit; the list under the tiles stays*). The owner's
   suggestion during 2.2: Settings > Accounts shows *App registrations* as a section of its own;
   each provider's registration (the Google client, the Microsoft client ID) would read better
   beside that provider's connected accounts and its *Add a connection* tile. On 2026-10-29 the

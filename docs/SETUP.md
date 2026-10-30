@@ -229,7 +229,8 @@ The page has two parts:
   service later, open **Manage** on the account and click **Add**: you sign in once more and the
   provider asks only for the new part. Switching a service off only stops Portly using it; nothing
   is changed or revoked at the provider. **App registrations**, under the tiles, shows whether
-  Google and Microsoft are set up and lets you edit a registration.
+  Google and Microsoft are set up and lets you edit a registration; **Manage** on a Google or
+  Outlook.com account has the same **App registration** with **Edit**.
 
 | Service | Calendar | Mail | Guide |
 | --- | --- | --- | --- |

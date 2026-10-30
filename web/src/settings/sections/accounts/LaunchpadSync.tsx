@@ -51,7 +51,7 @@ export function syncStatus(info: LaunchpadSyncInfo): { label: string; tone: Tone
     case 'up_to_date':
       return info.waiting ? { label: 'Changes waiting to upload', tone: 'neutral', help: null } : { label: 'Up to date', tone: 'success', help: null };
     case 'needs_choice':
-      return { label: 'Waiting for your choice', tone: 'warning', help: 'This browser and the synced launch pad are different: choose which one to keep.' };
+      return { label: 'Waiting for your choice', tone: 'warning', help: 'This browser and the synced launch pad both have content: choose which one to keep.' };
     case 'paused_reauth':
       return {
         label: 'Paused',
@@ -201,7 +201,7 @@ function FirstSyncDialog({ info, open, onClose }: { info: LaunchpadSyncInfo; ope
         if (!next) onClose();
       }}
       title="Which launch pad should this browser use?"
-      description={`This browser and ${where} both have a launch pad, and they are different.`}
+      description={`This browser and ${where} both have a launch pad.`}
     >
       <div className={styles.dialogStack}>
         <ul className={styles.steps}>

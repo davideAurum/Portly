@@ -155,8 +155,8 @@ mail and never sends mail.
    paste the **Client ID** and **Client secret** and click **Save and continue**.
 
 The secret is stored encrypted in Portly's vault (DPAPI-protected key) and is never sent back to
-the browser. To change the client later, use **Edit** next to Google under **App registrations**
-(below the tiles).
+the browser. To change the client later, use **Manage** on a Google account, then **Edit** under **App
+registration**, or **Edit** next to Google under **App registrations** (below the tiles).
 
 ## 6. Connect your Google account
 

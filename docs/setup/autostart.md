@@ -111,6 +111,11 @@ Portly…** for a few seconds at most before switching to it).
 
 ### If you see "Access is denied" (0x80070005)
 
+First check whether another Windows account on this PC already has Portly. Scheduled task names are
+shared by the whole PC, so only one account can have the `\Portly Server` task today; the other
+account cannot see it, and the error looks the same. Use that account, or remove Portly from it
+with `scripts\uninstall-autostart.ps1` there. Administrator rights do not help in that case.
+
 Some Windows setups only let administrators create scheduled tasks. Open PowerShell with
 **Run as administrator** and run the same command (the script prints it, with your options). The
 task is still registered for *your* user and still runs without administrator rights, and the

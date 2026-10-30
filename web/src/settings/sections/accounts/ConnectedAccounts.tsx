@@ -33,6 +33,7 @@ import { SettingsCard } from '../../../ui/Section.tsx';
 import { SkeletonList } from '../../../ui/Skeleton.tsx';
 import { toast, toastError } from '../../../ui/toast.ts';
 import { Switch } from '../../../ui/Toggles.tsx';
+import { ProviderRegistration } from './AppRegistration.tsx';
 import { connectionServices, serviceDescription } from './connections.ts';
 import { summarizeProbes } from './CredentialForms.tsx';
 import { GitHubSyncRow } from './GitHubSync.tsx';
@@ -244,6 +245,11 @@ function ManageAccount({ account }: { account: Account }) {
         <ColorPickerPopover label={`${account.label} color`} value={accountColor(account)} onChange={(color) => update.mutate({ id: account.id, color })} />
       </Field>
       <ServiceSwitches account={account} />
+      {reconnectsWithOAuth(account.kind) && !getCapabilities().remoteClient ? (
+        <Field label="App registration" help={`The ${ACCOUNT_KIND_LABELS[account.kind]} sign-in app behind this account (client ID${account.kind === 'google' ? ' and secret' : ''}).`}>
+          <ProviderRegistration provider={account.kind as 'google' | 'microsoft'} />
+        </Field>
+      ) : null}
     </div>
   );
 }

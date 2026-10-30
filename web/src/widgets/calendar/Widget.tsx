@@ -447,6 +447,7 @@ export default function CalendarWidget({ config, setConfig, size }: WidgetProps<
           initial={dialog.initial}
           writableCalendars={writable}
           calendars={calendars}
+          accounts={accountsQuery.data}
           onSubmit={submitDialog}
         />
       ) : null}

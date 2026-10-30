@@ -99,7 +99,8 @@ tokens for this kind of app last 90 days and renew every time Portly uses them.
    **App registration**: paste the **Application (client) ID** and click **Save and continue**.
    There is no secret to enter.
 
-To change it later, use **Edit** next to Microsoft under **App registrations** (below the tiles).
+To change it later, use **Manage** on an Outlook.com account, then **Edit** under **App registration**, or **Edit**
+next to Microsoft under **App registrations** (below the tiles).
 
 ## 7. Connect your account
 
