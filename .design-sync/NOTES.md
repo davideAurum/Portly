@@ -61,11 +61,10 @@ Project: "Portly UI" (projectId in config.json). Shape: package, no Storybook.
 - Write preview files with the Write tool: multi-file bash heredocs with JSX quotes failed to parse.
 - A preview-rebuild + capture of ~7 components took 10+ minutes with three batches running at once.
 
-## Kit gaps found while authoring (web/src/ui, not fixed here)
-- A disabled Slider looks identical to an enabled one: `Toggles.module.css` has no disabled rule
-  for the range input (Switch and SegmentedControl dim to 0.55). No Disabled cell in Slider.tsx.
-- A disabled TabsTrigger looks like any inactive tab: `.tab` in `Popover.module.css` has no
-  `[data-disabled]` rule. No disabled-tab story in Tabs.tsx.
+## Kit gaps found while authoring
+- Fixed 2026-10-29: Slider and TabsTrigger had no disabled style; both now dim to 0.55 like
+  Switch (`.range:disabled` in Toggles.module.css, `.tab[data-disabled]` in Popover.module.css),
+  and the Slider (Disabled cell) and Tabs (NewsFeeds "Saved" tab) previews show it.
 
 ## Known render warns
 - [RENDER_THIN] on floor cards for layout/sub-part exports with no content of their own:

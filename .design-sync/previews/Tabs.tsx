@@ -45,6 +45,7 @@ export const NewsFeeds = () => (
         <TabsTrigger value="all">All stories</TabsTrigger>
         <TabsTrigger value="tech">Tech</TabsTrigger>
         <TabsTrigger value="local">Local</TabsTrigger>
+        <TabsTrigger value="saved" disabled>Saved</TabsTrigger>
       </TabsList>
       <TabsContent value="all"><p style={text}>42 stories from 6 feeds.</p></TabsContent>
       <TabsContent value="tech">

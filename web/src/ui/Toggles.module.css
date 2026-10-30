@@ -248,6 +248,11 @@
   background: #ffffff;
 }
 
+.range:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .range:focus-visible {
   outline: none;
 }

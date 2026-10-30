@@ -131,8 +131,12 @@
   white-space: nowrap;
 }
 
-.tab:hover {
+.tab:hover:not([data-disabled]) {
   color: var(--hb-text);
+}
+
+.tab[data-disabled] {
+  opacity: 0.55;
 }
 
 .tab[data-state='active'] {

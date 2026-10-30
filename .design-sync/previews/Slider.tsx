@@ -51,6 +51,17 @@ export const Range = () => (
   </Panel>
 );
 
+export const Disabled = () => (
+  <Panel>
+    <Field label="Background blur" help="Turn on frosted glass to change the blur.">
+      <Slider value={12} min={0} max={40} onChange={() => {}} format={(v) => `${v}px`} disabled />
+    </Field>
+    <Field label="Widget opacity">
+      <Slider value={0.85} min={0.3} max={1} step={0.05} onChange={() => {}} format={(v) => `${Math.round(v * 100)}%`} />
+    </Field>
+  </Panel>
+);
+
 // Two sliders side by side, as on the Appearance settings page and the photo background editor.
 export const SettingsGrid = () => {
   const [blur, setBlur] = useState(12);

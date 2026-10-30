@@ -1561,6 +1561,7 @@ date and the outcome once a row has been run for real.
 | Saving the repository and token in Settings → Accounts on the published site (the check with GitHub, the refusal of a public repository and of a classic token), and the CSP with `api.github.com` alone (the preflight with `If-None-Match`) in a real browser; only unit tests, the built CSP and an unauthenticated `curl` of the preflight | G.2 commit, 2026-10-27 | G.3, and 2.5's CSP check before the release that ships it | not yet |
 | The Portly UI design system inside Claude Design: the preview cards in the project's Design System pane, and a design built there with `window.PortlyUI` (styles, Cascadia fonts, `PortlyQueryProvider`); only headless Chrome screenshots of the local cards before upload | design-sync commit, 2026-10-29 | the owner's first look at the project | not yet |
 | A re-sync from a fresh clone (`prepare.mjs`, then the converter with `--remote` against the uploaded `_ds_sync.json`); only first-sync builds in this checkout | design-sync commit, 2026-10-29 | the next design sync | not yet |
+| The dimmed disabled Slider and tab in the running app (a settings page with a disabled slider or tab, in light and dark themes); only headless Chrome screenshots of the design-sync preview cards | disabled-style commit, 2026-10-29 | the owner's next use of such a setting | not yet |
 
 ### Closed
 
