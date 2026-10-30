@@ -4,6 +4,14 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## Unreleased
+
+### Changed
+- **Approve your other PCs on the Pages site.** On the main PC, Settings → Devices on the Pages
+  site now has **Approve** and **Deny** itself, so the main PC also uses one address. Before, it
+  sent you to Portly's own page (`http://localhost:5757/#/settings/devices`). Another PC still
+  cannot approve anything.
+
 ## 0.2.0-alpha.4 (2026-10-30)
 
 The fourth alpha: one address for every PC, and a Notes widget. Ships with new-tab extension 0.5.3

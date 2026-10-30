@@ -1,7 +1,7 @@
 /**
  * Settings → Devices: the setup steps without a remote origin, the requests with Approve and Deny
- * (on Portly's own page on the main PC only), the connected PCs with Remove, and the note on a
- * page load whose data lives in this browser.
+ * (on the main PC only: its own page or the paired Pages site), the connected PCs with Remove, and
+ * the note on a page load whose data lives in this browser.
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -150,19 +150,35 @@ describe('Devices settings', () => {
     await waitFor(() => expect(reload).toHaveBeenCalled());
   });
 
-  it('on the paired Pages site lists everything but leaves approving to Portly’s own page, and links to it', async () => {
+  it('on the Pages site paired on the main PC approves and denies, and removes PCs, as Portly’s own page does', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
+    const user = userEvent.setup();
+    const t = renderWithProviders(<DevicesSettings />, {
+      apiMocks: { 'GET /api/devices': () => devices(), 'POST /api/devices/requests/:id/approve': { approved: true } },
+    });
+    await user.click(await screen.findByRole('button', { name: 'Approve Tablet' }));
+    await waitFor(() => expect(t.requestsTo('POST /api/devices/requests/r1/approve')).toHaveLength(1));
+    expect(screen.getByRole('button', { name: 'Deny Tablet' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove Laptop' })).toBeInTheDocument();
+    expect(screen.queryByText('Approve on the main PC')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /on this PC/ })).not.toBeInTheDocument();
+  });
+
+  it('on the Pages site connected to another PC’s Portly leaves approving to the main PC', async () => {
+    setCapabilitiesForTests(capabilitiesFor(true, 'server', true));
     renderWithProviders(<DevicesSettings />, { apiMocks: { 'GET /api/devices': () => devices() } });
     expect(await screen.findByText('Tablet')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approve Tablet' })).not.toBeInTheDocument();
-    expect(screen.getByText('Approve on Portly’s own page')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Settings → Devices on this PC/ })).toHaveAttribute('href', expect.stringMatching(/^http:\/\/(127\.0\.0\.1|localhost):\d+\/#\/settings\/devices$/));
+    expect(screen.getByText('Approve on the main PC')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Disconnect this PC' })).toBeInTheDocument();
   });
 
-  it('on a page whose data lives in this browser only says where to set other PCs up', () => {
+  it('on a page whose data lives in this browser says to connect the site on the main PC first', () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
     const t = renderWithProviders(<DevicesSettings />);
     expect(screen.getByText(/nothing for another PC to connect to here/)).toBeInTheDocument();
+    expect(screen.getByText(/Connect this site to Portly on this PC first/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'connect to Portly on your main PC' })).toHaveAttribute('href', '#/connect');
     expect(t.requests).toHaveLength(0);
   });
 });

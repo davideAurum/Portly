@@ -181,12 +181,11 @@ describe('PairPage on Portly’s own page', () => {
       'Connect, rename and remove accounts, and set up OAuth clients',
       'Reset the credential vault',
       'See Portly’s diagnostics and log',
-      'Revoke paired browsers and remove your other PCs',
+      'Revoke paired browsers, and approve or remove your other PCs',
     ]);
     const cannot = screen.getByRole('heading', { name: 'It won’t be able to' }).nextElementSibling as HTMLElement;
     expect(within(cannot).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       'Approve a new pairing (only this page can)',
-      'Approve or deny your other PCs',
       'Read back a saved password or token',
       'See where Portly keeps its files on this PC',
     ]);

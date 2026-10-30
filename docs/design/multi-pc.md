@@ -170,7 +170,8 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
     another PC may not. It marks the vault reset, the browser bookmark import (`sources` and
     `browser`), the OAuth start, the OAuth client settings, every pairing route, removing a
     device and the diagnostics report (it carries this PC's paths and log files); approving and
-    denying device requests and approving pairings stay untagged (local-only). So another PC
+    denying device requests and approving pairings stay untagged (local-only; device requests
+    moved to `samePc()` on 2026-10-30, see "One address for every PC"). So another PC
     manages neither pairings nor other PCs nor the OAuth clients: it may list the devices and
     disconnect itself. Overlapping registrations let in only the callers every one of them
     names, so a tag never widens another route.
@@ -208,9 +209,9 @@ device_requests(id TEXT PRIMARY KEY, code TEXT NOT NULL, secret_hash TEXT NOT NU
     paired-browsers card and the diagnostics report download; About says the data lives on the
     main PC;
   - Settings → Devices: the address for other PCs or the setup steps, the requests waiting
-    (Approve and Deny on Portly's own page on the main PC only; the paired Pages site and a
-    connected PC see the list and a note), the connected PCs with "This PC" and Remove, polled
-    every 5 s while the page is visible;
+    (Approve and Deny on Portly's own page on the main PC only, and since 2026-10-30 on the
+    paired Pages site too; a connected PC sees the list and a note), the connected PCs with
+    "This PC" and Remove, polled every 5 s while the page is visible;
   - the Pages forward never takes another PC's page load.
   - logs carry request and device ids only; the diagnostics log filters gained `deviceId`.
 
@@ -281,7 +282,7 @@ the address of the main PC is typed once per browser, never built into the publi
   that origin, as the main port does; preflights for those two headers too). Every other rule of
   the remote branch stays: what a device may call, `login_required`, the touch, no cookie at all
   for these requests. The devices module serves both: `remotePages` switches cookies for bodies
-  and headers. Approval stays on Portly's own page on the main PC.
+  and headers. Approval stays on the main PC.
 - **The site.** The pairing record gains `remoteOrigin`, and the hybrid controller follows it: the
   probe, the check (`GET /api/device`), the requests, the images, disconnecting. A page on that
   server counts as another PC's (`remoteClient`), so Google and Microsoft sign-in, the vault
@@ -296,7 +297,16 @@ the address of the main PC is typed once per browser, never built into the publi
   `targetAddressSpace` (the address is https, so nothing needs the loopback hint), and the
   controller follows the `local-network` permission for such a record.
 
-Not tried for real yet: ROADMAP B.7 and its rows in "Checks never run for real".
+**The real check (2026-10-30).** The owner's laptop connected through the Pages site and works.
+One thing was off: the main PC uses the Pages site too, which could not approve other PCs, so
+Settings → Devices there linked to Portly's own page (`localhost:5757/#/settings/devices`), and
+the owner had to change addresses to approve. Fixed the same day, asked for by the owner: approving
+and denying device requests are `samePc()` (the paired Pages site on the main PC may, another PC
+still may not, cookie or Pages site), the site shows Approve and Deny, and Portly's own page no
+longer keeps its Devices section from forwarding. The cost is the Pages-origin risk of
+ARCHITECTURE §4.1 reaching approval; a request still has to come from inside the tailnet, at
+most 3 wait, and a framed page never uses the server. Approving a pairing stays on Portly's own
+page: it is what lets the Pages site in at all.
 
 ## The name the connect screen fills in (2026-10-21)
 

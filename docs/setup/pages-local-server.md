@@ -24,12 +24,11 @@ Portly's data and accounts, and so can any script that site ever publishes:
 - **Pairing is once per browser.** The server only answers the Pages site for browsers you have
   paired on Portly's own page, and the site never sends anything to a server it hasn't paired
   with.
-- **One page.** Everything is done on the Pages site, account sign-in and OAuth client setup
-  included. `http://localhost:5757` forwards to the Pages site; it only stays put to approve a
-  pairing, to approve your other PCs (`#/settings/devices`, see
-  [Using Portly from your other PCs](other-pcs.md)), to show its diagnostics
-  (`#/settings/diagnostics`, see [Finding out why](#finding-out-why)), or when the Pages site
-  can't be reached (offline), when it serves the copy on this PC and says so.
+- **One page.** Everything is done on the Pages site, account sign-in, OAuth client setup and
+  approving your other PCs ([Using Portly from your other PCs](other-pcs.md)) included.
+  `http://localhost:5757` forwards to the Pages site; it only stays put to approve a pairing, to
+  show its diagnostics (`#/settings/diagnostics`, see [Finding out why](#finding-out-why)), or
+  when the Pages site can't be reached (offline), when it serves the copy on this PC and says so.
 
 - **Other PCs use the same site.** On a PC without Portly the site can connect to Portly on your
   main PC instead (**Use Portly on another PC**, the Tailscale address typed once), so every PC
@@ -291,8 +290,10 @@ paired browser, any script running on any page of that origin can read the pairi
 on this PC just like the Portly site can:
 
 - read and change your dashboards, settings, bookmarks and uploads, your Todoist tasks, calendars
-  and mail; connect and remove accounts, set the OAuth clients, reset the vault, and list or revoke
-  paired browsers (everything is done on the site: there is one page);
+  and mail; connect and remove accounts, set the OAuth clients, reset the vault, list or revoke
+  paired browsers, and approve or remove your other PCs, if you have set them up (everything is
+  done on the site: there is one page). A request from another PC can only come from inside your
+  tailnet;
 - read Portly's diagnostics — the health of every account and calendar, its log and the
   diagnostic report: never secrets, contents or full addresses, but account names, calendar names
   and hosts;

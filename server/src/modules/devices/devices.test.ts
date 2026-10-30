@@ -318,23 +318,43 @@ describe('devices routes', () => {
       ]);
     });
 
-    it("approving and denying stay with this PC's own page: 403 local_only from another PC or the Pages site", async () => {
+    it('approving and denying stay on this PC: 403 local_only from another PC, cookie or Pages site', async () => {
       ctx.close();
       setup({ ...TEST_REMOTE_ENV, ...TEST_PAGES_ENV });
       const device = connectTestDevice(ctx, { label: 'Desk' });
-      const token = ctx.pairing.create({ label: 'Chrome on Windows', origin: TEST_PAGES_ORIGIN }).token;
       const { body } = await ask('Laptop');
-      for (const headers of [remoteHeaders(device.secret), pagesHeaders(token)]) {
+      for (const headers of [remoteHeaders(device.secret), remotePagesHeaders(device.secret)]) {
         for (const action of ['approve', 'deny']) {
           const res = await json<ErrorBody>('POST', `/api/devices/requests/${body.id}/${action}`, { headers });
           expect(res.status, action).toBe(403);
           expect(res.body.error.code, action).toBe('local_only');
         }
       }
-      expect(ctx.devices.listRequests().map((r) => r.id)).toEqual([body.id]);
-      // Listing is open to both; the Pages site may not ask to connect.
+      expect(ctx.devices.listRequests().map((r) => [r.id, r.status])).toEqual([[body.id, 'pending']]);
       expect((await json<DevicesResponse>('GET', '/api/devices', { headers: remoteHeaders(device.secret) })).status).toBe(200);
-      expect((await json<DevicesResponse>('GET', '/api/devices', { headers: pagesHeaders(token) })).status).toBe(200);
+    });
+
+    it('the Pages site paired on this PC approves and denies, but may not ask to connect', async () => {
+      ctx.close();
+      setup({ ...TEST_REMOTE_ENV, ...TEST_PAGES_ENV });
+      const token = ctx.pairing.create({ label: 'Chrome on Windows', origin: TEST_PAGES_ORIGIN }).token;
+      const first = await ask('Laptop');
+      const second = await ask('Tablet');
+      const listed = await json<DevicesResponse>('GET', '/api/devices', { headers: pagesHeaders(token) });
+      expect(listed.body.requests.map((r) => r.label)).toEqual(['Laptop', 'Tablet']);
+
+      const approved = await json<{ approved: true }>('POST', `/api/devices/requests/${first.body.id}/approve`, { headers: pagesHeaders(token) });
+      expect(approved.status).toBe(200);
+      expect(approved.res.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
+      expect((await testRequest(app, 'POST', `/api/devices/requests/${second.body.id}/deny`, { headers: pagesHeaders(token) })).status).toBe(204);
+      expect((await poll(first.enroll)).body).toMatchObject({ status: 'approved', device: { label: 'Laptop' } });
+      expect((await poll(second.enroll)).body).toMatchObject({ status: 'denied' });
+
+      // Without a pairing token it is just another site.
+      const third = await ask('Phone');
+      const unpaired = await json<ErrorBody>('POST', `/api/devices/requests/${third.body.id}/approve`, { headers: pagesHeaders(null) });
+      expect(unpaired.status).toBe(401);
+      expect(ctx.devices.listRequests().find((r) => r.id === third.body.id)?.status).toBe('pending');
       expect((await json<ErrorBody>('POST', '/api/devices/requests', { headers: pagesHeaders(token), body: { label: 'x' } })).body.error.code).toBe('local_only');
     });
   });

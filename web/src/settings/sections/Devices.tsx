@@ -6,8 +6,8 @@
  *   at, or how to set them up;
  * - *Waiting for approval*: each request with the name the other PC gave itself, its browser, the
  *   code to compare with that PC's screen, and **Approve** / **Deny**. Approving happens only on
- *   Portly's own page on the main PC: a connected PC and the paired Pages site see the list
- *   without the buttons and a line saying where to approve;
+ *   the main PC (Portly's own page or the paired Pages site): a connected PC sees the list without
+ *   the buttons and a line saying where to approve;
  * - *Connected PCs*: each device with its browser, when it connected and was last used, a "This
  *   PC" badge for the page's own device, and **Remove**, which stops its cookie at once. Other PCs
  *   are managed from the main PC (its own page or the paired Pages site): on another PC only
@@ -15,16 +15,14 @@
  *
  * The list is polled every few seconds while the page is open, so a request shows up by itself.
  * On a page load whose data lives in this browser (the Pages build's browser backend) there is no
- * server to manage: a note says so, and links to the connect page (`#/connect`) for Portly on
- * another PC.
+ * server to manage: a note says so, says to connect the site to Portly on the main PC first, and
+ * links to the connect page (`#/connect`) for Portly on another PC.
  */
 import { useState, type ReactNode } from 'react';
 import { Check, Laptop, MonitorSmartphone, Trash2, X } from 'lucide-react';
 import type { DeviceRequestSummary, DeviceSummary } from '@portly/shared';
 import { useApproveDevice, useDenyDevice, useDevices, useDisconnectDevice, useRevokeDevice } from '../../api/devices.ts';
 import { getCapabilities } from '../../capabilities.ts';
-import { LOCAL_SERVER_ORIGIN } from '../../localServer/config.ts';
-import { localServerPageUrl } from '../../localServer/origin.ts';
 import { Badge } from '../../ui/Badge.tsx';
 import { Banner } from '../../ui/Banner.tsx';
 import { Button } from '../../ui/Button.tsx';
@@ -83,14 +81,20 @@ export default function DevicesSettings() {
       <div className={styles.stack}>
         <SettingsCard title="Other PCs" description="Other PCs connect to Portly running on the main PC, not to the copy in this browser.">
           <p className={styles.intro}>
-            This page’s data lives in this browser, so there is nothing for another PC to connect to here. Set other PCs up on the main PC, in
-            Portly’s own Settings → Devices.
+            This page’s data lives in this browser, so there is nothing for another PC to connect to here. Other PCs are set up and approved on
+            the main PC, in Settings → Devices.
           </p>
           {caps.pagesBuild ? (
-            <p className={styles.intro}>
-              Is Portly running on another PC of yours? This browser can use it through this same site:{' '}
-              <a href="#/connect">connect to Portly on your main PC</a>.
-            </p>
+            <>
+              <p className={styles.intro}>
+                Is this the main PC? Connect this site to Portly on this PC first (<strong>Pair this browser</strong> in the Portly status at the
+                bottom of the page); this section then shows the PCs waiting for approval.
+              </p>
+              <p className={styles.intro}>
+                Is Portly running on another PC of yours? This browser can use it through this same site:{' '}
+                <a href="#/connect">connect to Portly on your main PC</a>.
+              </p>
+            </>
           ) : null}
         </SettingsCard>
       </div>
@@ -101,8 +105,8 @@ export default function DevicesSettings() {
 
 function DevicesOnServer() {
   const caps = getCapabilities();
-  // Approving is a decision for Portly's own page on the main PC: not another PC, not the Pages site.
-  const canDecide = !caps.remoteClient && !caps.remoteServer;
+  // Approving is a decision for the main PC (its own page or the paired Pages site), never another PC.
+  const canDecide = !caps.remoteClient;
   const devices = useDevices({ poll: true });
   const data = devices.data;
 
@@ -141,7 +145,7 @@ function DevicesOnServer() {
         description={
           canDecide
             ? 'Approve a request only when the code here matches the one on that PC’s screen.'
-            : 'Requests are approved on Portly’s own page on the main PC.'
+            : 'Requests are approved on the main PC.'
         }
       >
         {data.requests.length === 0 ? (
@@ -154,17 +158,9 @@ function DevicesOnServer() {
           </ul>
         )}
         {!canDecide && data.requests.length > 0 ? (
-          // The Pages site on the main PC links to Portly's own page there; on another PC there is none to link to.
-          caps.remoteServer && !caps.remoteClient ? (
-            <Banner tone="info" title="Approve on Portly’s own page">
-              This site may not approve other PCs. Open Portly’s own page on this PC, which keeps its Devices section even when it forwards to
-              this site: <ExternalLink href={localServerPageUrl('settings/devices', LOCAL_SERVER_ORIGIN)}>Settings → Devices on this PC</ExternalLink>.
-            </Banner>
-          ) : (
-            <Banner tone="info" title="Approve on the main PC">
-              Open Portly’s own page on the main PC (Settings → Devices) to approve or deny these requests.
-            </Banner>
-          )
+          <Banner tone="info" title="Approve on the main PC">
+            Open Portly on the main PC (Settings → Devices) to approve or deny these requests.
+          </Banner>
         ) : null}
       </SettingsCard>
 

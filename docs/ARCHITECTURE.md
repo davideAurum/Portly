@@ -295,8 +295,9 @@ may call the routes declared `paired()` from that origin. Trust is per **origin*
 shared by every Pages site of the account: any script on any page of that origin, in a paired browser, can read the
 pairing token (localStorage) and the persisted copy of server data, call every paired route, and use the browser's
 local-network permission. Accepted for a single user who controls what the origin publishes (that includes
-connecting accounts, OAuth client secrets, the vault reset and listing/revoking pairings: there is one page,
-connected to the server or not); mitigations: approving a pairing stays local-only (403 `local_only`), secrets stay
+connecting accounts, OAuth client secrets, the vault reset, listing/revoking pairings and approving other PCs, §20:
+there is one page, connected to the server or not); mitigations: approving a pairing stays local-only (403
+`local_only`), secrets stay
 write-only, paths that name the Windows user are blanked for it (see §7, `/api/about`), the Pages site never persists
 account lists or OAuth client settings, and the consent page says that the whole origin gets access. A custom domain
 used only for the site removes the risk (docs/setup/pages-local-server.md). The page in turn treats every answer from
@@ -326,15 +327,20 @@ validated, icon bytes sniffed and matched against the listed SHA-256), reference
 refused file is never merged or overwritten (`web/src/static/sync/format.ts`; design/launchpad-sync.md section 8,
 launchpad-sync-github.md sections 9 and 11).
 
-**Other PCs (§20) add trusted devices:** with `PORTLY_REMOTE_ORIGIN` set, a PC approved once from Portly's own page
-(its device cookie) may call the routes declared `paired()` through the remote port, as a paired browser may. Each
+**Other PCs (§20) add trusted devices:** with `PORTLY_REMOTE_ORIGIN` set, a PC approved once on this PC (Portly's own
+page or the paired Pages site; its device cookie) may call the routes declared `paired()` through the remote port, as
+a paired browser may. Each
 approved PC is fully trusted, like a paired browser: a stolen PC has that access until it is removed in Settings →
 Devices (a 30-day idle expiry bounds a forgotten one; a passkey second factor is a later item). Mitigations: nothing
 opens a LAN socket (the proxy is the user's own, documented as Tailscale Serve inside the tailnet, never Funnel); what
 is decided on this PC stays here (`samePc()` or untagged: approving and removing devices, every pairing route, the OAuth
 client settings, the OAuth start, the vault reset, the browser bookmark import, the diagnostics report); a device may
 only disconnect itself; paths are blanked for it as for the Pages site; requests on the main port never count as another
-PC's and a proxy's forwarding header there is refused. The listener stays loopback-only.
+PC's and a proxy's forwarding header there is refused. The listener stays loopback-only. Approving from the paired
+Pages site (*decided 2026-10-30*, so that the main PC also uses one address) puts approval under the Pages-origin risk
+above: a script on that origin could approve a request that is waiting. Only a browser inside the tailnet can make
+one (the remote port is reached through the user's own proxy), at most 3 wait at once, and a framed page never uses
+the server, so it cannot be clicked through a frame.
 
 **The Pages site on another PC joins both:** with `PORTLY_REMOTE_ORIGIN` and `PORTLY_PAGES_URL` set, the remote port
 also answers CORS requests from the Pages origin (exactly that origin, as the main port does), and a browser that
@@ -368,10 +374,10 @@ it, and the address of the main PC is never published (each browser is told it o
    Route **access** is metadata too (`lib/routes.ts`): `paired()` marks a route the paired Pages site (hybrid mode)
    and connected devices (other PCs, §20) may call; `samePc()` one the paired Pages site may call but never another
    PC (the vault reset, the browser bookmark import, the OAuth start, the OAuth client settings, every pairing route
-   but `POST /api/pairings`, removing a device, the diagnostics report); `enrollment()` one anyone on the remote port may call without a device
+   but `POST /api/pairings`, approving, denying and removing devices, the diagnostics report); `enrollment()` one anyone on the remote port may call without a device
    cookie (asking for and polling a device request, and the name the connect screen fills in; the Pages site may
    not). Default deny — untagged routes are
-   local-only: `POST /api/pairings`, approving and denying device requests, the OAuth callback and unknown routes.
+   local-only: `POST /api/pairings`, the OAuth callback and unknown routes.
    `RouteTable.match` **fails closed**: each registration a request matches lets in the callers its tags name, the
    route lets in only the callers every registration agrees on, and that set must be exactly one level's (so a
    paired pattern over an enrollment route closes it). The 503 handlers of failed modules are tagged `paired()`. A
@@ -874,7 +880,7 @@ not know) · `GET /api/devices/requests/suggestion` [enrollment] → `{label|nul
 in, from the last `X-Forwarded-For` entry through Tailscale on this PC (§20; null from this PC's own page, without
 the header, or when Tailscale cannot say) · `GET /api/devices` [paired] → `{remoteOrigin|null, devices: {id, label, browser, createdAt, lastUsedAt|null,
 current}[], requests: {id, code, label, browser, createdAt, expiresAt}[]}` · `POST /api/devices/requests/:id/approve`
-[local] → `{approved: true}` / 404 · `POST /api/devices/requests/:id/deny` [local] → 204 / 404 ·
+[same-pc] → `{approved: true}` / 404 · `POST /api/devices/requests/:id/deny` [same-pc] → 204 / 404 ·
 `DELETE /api/devices/:id` [same-pc] → 204 / 404 · `GET /api/device` [paired] → `{device: {id, label, createdAt}}` for
 the device the gate verified (none → 409 `not_configured`) · `DELETE /api/device` [paired] → 204 (the device
 disconnects itself; its cookie cleared). Every other route except those listed `samePc()` or local-only in §4.2 is
@@ -1217,8 +1223,8 @@ animations are in §7a Theme rendering.
 ### 10.5 Settings
 Hash routes `#/settings/<section>`; nav: general, appearance, search, bookmarks, accounts, calendars, profiles,
 devices (other PCs using this Portly through the reverse proxy on the main PC: the requests waiting with Approve
-and Deny on Portly's own page on the main PC, the connected PCs with Remove; design in docs/design/multi-pc.md,
-guide docs/setup/other-pcs.md), import-export, diagnostics (§17), about. About shows the version, data dir, log path and vault state. The Todoist
+and Deny on the main PC, its own page or the paired Pages site, the connected PCs with Remove; design in
+docs/design/multi-pc.md, guide docs/setup/other-pcs.md), import-export, diagnostics (§17), about. About shows the version, data dir, log path and vault state. The Todoist
 section moved into Accounts: `#/settings/todoist` still resolves (to `accounts`, with `focus=todoist`;
 `MOVED_SETTINGS_SECTIONS` in `settings/nav.ts`), and Todoist links use `#/settings/accounts?focus=todoist`.
 
@@ -1609,11 +1615,10 @@ The browser-only build (`npm run build:static`, published on GitHub Pages; in-br
 user guide `docs/setup/static-build.md`) can use the Portly server running on the same PC. Decisions: when this
 browser is paired with that server and the server answers, the Pages site uses the server for **everything**, exactly
 like the server's own page; otherwise it uses its in-browser copy. The two datasets are separate (no sync). Pairing
-happens once, on the server's own page. Everything else, account sign-in, OAuth client setup and the vault reset
-included, happens on the Pages site: there is one page. The server's own page forwards to the Pages site (keeping the
-query and hash, so the OAuth callback's `?oauth=` result arrives there) unless it is approving a pairing (`#/pair`),
-approving other PCs (`#/settings/devices`, §20: the Pages site may not, and on a PC with a Pages site this is the only
-way to that section; the site links to it), showing diagnostics (`#/settings/diagnostics`, §17: full diagnostics on
+happens once, on the server's own page. Everything else, account sign-in, OAuth client setup, approving other PCs (§20)
+and the vault reset included, happens on the Pages site: there is one page. The server's own page forwards to the Pages
+site (keeping the query and hash, so the OAuth callback's `?oauth=` result arrives there) unless it is approving a
+pairing (`#/pair`), showing diagnostics (`#/settings/diagnostics`, §17: full diagnostics on
 this PC must open even when the Pages site or the connection to it is what is broken) or the Pages site can't be
 reached, when it serves the app as the offline
 fallback (`web/src/app/pagesForward.ts`; the HTML CSP's `connect-src` allows the Pages origin for that check). User
@@ -2188,9 +2193,9 @@ over, never moved or deleted:
 
 Portly runs on one PC, the **main PC**, and listens on loopback only (§4). Other PCs use it through an HTTPS
 reverse proxy the user runs on the main PC (documented: Tailscale Serve, reachable only inside the user's tailnet,
-with a real certificate and no firewall change; never Funnel), after each of them is approved once from Portly's own
-page. The design, its decisions and what each phase built are in docs/design/multi-pc.md; the user guide is
-docs/setup/other-pcs.md. With `PORTLY_REMOTE_ORIGIN` unset nothing below exists and the server behaves as before.
+with a real certificate and no firewall change; never Funnel), after each of them is approved once on the main PC
+(Portly's own page or the paired Pages site). The design, its decisions and what each phase built are in
+docs/design/multi-pc.md; the user guide is docs/setup/other-pcs.md. With `PORTLY_REMOTE_ORIGIN` unset nothing below exists and the server behaves as before.
 A "PC" here is any device with a current browser in the tailnet, phones and tablets included: nothing in
 the flow is specific to Windows (an untried case, see the guide's phone section and ROADMAP's checks table).
 
@@ -2206,9 +2211,9 @@ port shows up. `GET /api/health` answers `remote: true` on the remote port, so a
 branch in §4.2 step 3). No passwords: the other PC asks (`POST /api/devices/requests {label}`: a name it gives itself,
 one line) and gets a display code (`K7Q-4MP`, letters and digits that are hard to confuse) and an enrollment cookie
 (`__Host-portly_enroll`; 10 minutes plus the hour the request is retained, so the last poll can still say expired).
-At most 3 requests wait at once (429). The main PC approves or denies from Settings → Devices (`POST
-/api/devices/requests/:id/approve|deny`, local-only). The other PC polls `GET /api/devices/requests/current` every 2 s
-(10 s hidden): `approved` creates the device on that poll (no secret is ever stored in clear; approval only flips the
+At most 3 requests wait at once (429). The main PC approves or denies from Settings → Devices, on Portly's own page or
+the paired Pages site (`POST /api/devices/requests/:id/approve|deny`, `samePc()`). The other PC polls
+`GET /api/devices/requests/current` every 2 s (10 s hidden): `approved` creates the device on that poll (no secret is ever stored in clear; approval only flips the
 request's status) and answers with the device cookie `__Host-portly_device` (32 random bytes, `Secure; HttpOnly;
 SameSite=Strict; Path=/`, Max-Age 30 days) while clearing the enrollment cookie. The request row stays, marked
 `claimed`, until it expires: while the device has never been used, the same enrollment cookie claims again and gets a
@@ -2267,9 +2272,8 @@ approved → reload; denied, expired or gone → ask again; Retry when unreachab
 approval page give way to a line saying "on the main PC"; the browser bookmark import, the paired-browsers card, the
 app registrations and the report download are simply not shown; About says the data lives on the main PC. The Pages forward never takes
 a remote page load. Settings → Devices (every build; the browser backend shows a note): the address for other PCs or
-the setup steps, the requests waiting with Approve and Deny on Portly's own page on the main PC only (a device sees the
-list and a note; the paired Pages site sees the list and a link to Portly's own page's Devices section, which never
-forwards to the Pages site, like `#/pair`), the connected PCs with "This PC" and Remove (a device may only
+the setup steps, the requests waiting with Approve and Deny on the main PC only (its own page or the paired Pages
+site; a device sees the list and a note), the connected PCs with "This PC" and Remove (a device may only
 "Disconnect this PC"), polled every 5 s while the page is visible, never persisted.
 
 **One address for every PC: the Pages site** (`localServer/remote.ts`, `app/RemoteConnectPage.tsx`, §16 "Or Portly
@@ -2290,7 +2294,8 @@ once. On another PC the site has no server of its own, so its panel offers **Use
    next load starts on the main PC's Portly.
 
 The server side is the same devices module: `remotePages` (set by the gate) makes it hand the secrets out in bodies and
-read them from headers, and never set or clear a cookie for it. Approving stays on Portly's own page on the main PC.
+read them from headers, and never set or clear a cookie for it. Approving stays on the main PC (its own page or the
+paired Pages site there).
 Both ways in can be used side by side; a browser keeps one Portly (a paired browser is told to disconnect first).
 
 **Setup** (`setup.ps1 -RemoteOrigin <address>`, `off` removes it; or the user variable by hand, then

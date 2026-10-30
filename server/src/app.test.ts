@@ -231,8 +231,6 @@ describe('app: modules', () => {
     expect(settings.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
     const local: (readonly [string, string])[] = [
       ['POST', '/api/pairings'],
-      ['POST', '/api/devices/requests/sample-id/approve'],
-      ['POST', '/api/devices/requests/sample-id/deny'],
       ['POST', '/api/devices/requests'],
       ['GET', '/api/devices/requests/current'],
       ['GET', '/api/devices/requests/suggestion'],
@@ -390,8 +388,8 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   'GET /api/devices/requests/current': 'enrollment',
   'GET /api/devices/requests/suggestion': 'enrollment',
   'GET /api/devices': 'paired',
-  'POST /api/devices/requests/:id/approve': 'local',
-  'POST /api/devices/requests/:id/deny': 'local',
+  'POST /api/devices/requests/:id/approve': 'same-pc',
+  'POST /api/devices/requests/:id/deny': 'same-pc',
   'DELETE /api/devices/:id': 'same-pc',
   'GET /api/device': 'paired',
   'DELETE /api/device': 'paired',

@@ -25,8 +25,8 @@ describe('forwardToPages', () => {
     expect(t.replace).not.toHaveBeenCalled();
   });
 
-  it.each(['#/settings/diagnostics', '#/settings/diagnostics?x=1', '#/settings/devices'])(
-    'stays on %s (full diagnostics, approving other PCs) without asking the server',
+  it.each(['#/settings/diagnostics', '#/settings/diagnostics?x=1'])(
+    'stays on %s (full diagnostics) without asking the server',
     async (hash) => {
     const t = setup({ hash });
     expect(await t.run()).toBe('stay');
@@ -35,8 +35,8 @@ describe('forwardToPages', () => {
     expect(t.replace).not.toHaveBeenCalled();
   });
 
-  it('forwards every other settings section (and an unknown one) as before', async () => {
-    for (const hash of ['#/settings/about', '#/settings/diagnosticsx', '#/settings/devicesx', '#/settings']) {
+  it('forwards every other settings section (and an unknown one), Devices included: the Pages site approves other PCs too', async () => {
+    for (const hash of ['#/settings/about', '#/settings/devices', '#/settings/diagnosticsx', '#/settings']) {
       const t = setup({ hash });
       expect(await t.run()).toBe('forwarded');
       expect(t.replace).toHaveBeenCalledWith(`https://user.github.io/${hash}`);

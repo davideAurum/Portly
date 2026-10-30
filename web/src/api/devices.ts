@@ -1,10 +1,10 @@
 /**
  * Other PCs (shared/src/devices.ts): the devices connected to this Portly and the requests
- * waiting for approval (`GET /api/devices`), approving or denying a request (on Portly's own page
- * on the main PC only), removing a device, and the other PC's own side of it: asking to connect,
- * polling the answer, and disconnecting itself. The list is never persisted: it must always show
- * what the server trusts now, and it is polled while Settings > Devices is open so a request from
- * another PC shows up without a reload.
+ * waiting for approval (`GET /api/devices`), approving or denying a request (on the main PC only:
+ * its own page or the paired Pages site), removing a device, and the other PC's own side of it:
+ * asking to connect, polling the answer, and disconnecting itself. The list is never persisted:
+ * it must always show what the server trusts now, and it is polled while Settings > Devices is
+ * open so a request from another PC shows up without a reload.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -54,12 +54,12 @@ export function useDevices(options: { poll?: boolean } = {}) {
   });
 }
 
-/** `POST /api/devices/requests/:id/approve` (Portly's own page on the main PC only). */
+/** `POST /api/devices/requests/:id/approve` (the main PC only). */
 export function approveDeviceRequest(id: string): Promise<unknown> {
   return apiPost<unknown>(apiPath`/api/devices/requests/${id}/approve`);
 }
 
-/** `POST /api/devices/requests/:id/deny` (Portly's own page on the main PC only). */
+/** `POST /api/devices/requests/:id/deny` (the main PC only). */
 export function denyDeviceRequest(id: string): Promise<void> {
   return apiPost<void>(apiPath`/api/devices/requests/${id}/deny`);
 }

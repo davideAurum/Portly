@@ -23,12 +23,12 @@
  *   server does not know.
  * - `GET /api/devices` [paired] → `DevicesResponse` (the remote origin, the connected devices with
  *   `current` for the caller's own, the requests waiting).
- * - `POST /api/devices/requests/:id/approve` → `{approved: true}` (this PC's own page only: the
- *   trust starts here; 404 unless pending and unexpired). The device is made when the other PC polls.
- * - `POST /api/devices/requests/:id/deny` → 204 (this PC's own page only; 404 unless pending).
+ * - `POST /api/devices/requests/:id/approve` [same-pc] → `{approved: true}` (the trust starts on
+ *   this PC; 404 unless pending and unexpired). The device is made when the other PC polls.
+ * - `POST /api/devices/requests/:id/deny` [same-pc] → 204 (404 unless pending).
  * - `DELETE /api/devices/:id` [same-pc] → 204 (the device's cookie stops working at once), or 404.
- *   Other PCs are managed from this PC (its own page or the paired Pages site), never from
- *   another PC; a device may only disconnect itself (`DELETE /api/device`).
+ *   Other PCs are approved and managed from this PC (its own page or the paired Pages site), never
+ *   from another PC; a device may only disconnect itself (`DELETE /api/device`).
  * - `GET /api/device` [paired] → `DeviceStatusResponse` for the device the gate verified (a request
  *   the gate attributed to no device, such as a local one with a stray cookie → 409 `not_configured`).
  * - `DELETE /api/device` [paired] → 204: the presenting device disconnects itself (cookie cleared).
@@ -199,7 +199,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     return c.json(requestStatus(request, 'pending'));
   });
 
-  // ---- managing devices (approving stays with this PC's own page) -------------
+  // ---- managing devices (approving stays on this PC) --------------------------
 
   app.get('/api/devices', paired(), (c) => {
     const body: DevicesResponse = {
@@ -210,7 +210,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     return c.json(body);
   });
 
-  app.post('/api/devices/requests/:id/approve', (c) => {
+  app.post('/api/devices/requests/:id/approve', samePc(), (c) => {
     const id = c.req.param('id');
     const request = devices.approve(id);
     if (request === null) throw new HttpError(404, 'not_found', 'No request waiting with that id');
@@ -219,7 +219,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     return c.json(body);
   });
 
-  app.post('/api/devices/requests/:id/deny', (c) => {
+  app.post('/api/devices/requests/:id/deny', samePc(), (c) => {
     const id = c.req.param('id');
     if (!devices.deny(id)) throw new HttpError(404, 'not_found', 'No request waiting with that id');
     log.info('device request denied', { deviceRequestId: id });

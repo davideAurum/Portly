@@ -222,12 +222,11 @@ const CAN: readonly string[] = [
   'Connect, rename and remove accounts, and set up OAuth clients',
   'Reset the credential vault',
   'See Portly’s diagnostics and log',
-  'Revoke paired browsers and remove your other PCs',
+  'Revoke paired browsers, and approve or remove your other PCs',
 ];
 
 const CANNOT: readonly string[] = [
   'Approve a new pairing (only this page can)',
-  'Approve or deny your other PCs',
   'Read back a saved password or token',
   'See where Portly keeps its files on this PC',
 ];
