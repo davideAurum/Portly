@@ -80,6 +80,12 @@
       summary and actions as described for Microsoft above.</li>
     <li><strong>Todoist</strong> (<code>api.todoist.com</code>), with a personal API token: your
       tasks and projects, and the tasks you add, edit, complete or reopen.</li>
+    <li><strong>Spotify</strong> (<code>api.spotify.com</code>), through Portly on your PC, with
+      the permissions <code>user-read-playback-state</code> and
+      <code>user-modify-playback-state</code>: what is playing, your devices, and the playback
+      commands you give. Portly keeps what is playing in memory for a few seconds, and does not
+      read your library, playlists or listening history. Cover art loads from Spotify's image
+      server (<code>i.scdn.co</code>), which sees your IP address.</li>
     <li><strong>GitHub</strong> (<code>api.github.com</code>), on the browser-only site, for
       launch pad sync: a private repository you create and a fine-grained personal access token
       you limit to it. Portly uses them only for that repository: it checks that the repository
@@ -205,8 +211,8 @@
     <li><strong>Calendar subscriptions and feeds:</strong> the servers at the addresses you add
       see the request, like any feed reader.</li>
     <li><strong>Links you click:</strong> opening a message or task from Portly takes you to the
-      provider's own site (Gmail, Outlook.com, Yahoo Mail, Todoist), with that message or task
-      named in the address, like any link.</li>
+      provider's own site (Gmail, Outlook.com, Yahoo Mail, Todoist, Spotify), with that message,
+      task or track named in the address, like any link.</li>
     <li><strong>GitHub Pages</strong>, when you use the browser-only site, or when you have told
       Portly on your PC about your site (Portly's own page then checks that the site can be
       reached and opens it there): your IP address, like for any website.</li>

@@ -4,9 +4,9 @@
  *
  * - **Connected accounts** on top: every account (status, the services in use, Manage, Reconnect,
  *   Test, Remove) and Todoist while its token is saved (parts in `accounts/`).
- * - **Add a connection**: a tile per provider (Google, Microsoft, Yahoo, Todoist, Other). Each opens
+ * - **Add a connection**: a tile per provider (Google, Microsoft, Yahoo, Todoist, Spotify, Other). Each opens
  *   a connect dialog: the app registration when the provider needs one and has none yet, the
- *   services to use, then the sign-in (Google, Microsoft: only the scopes of those services) or the
+ *   services to use, then the sign-in (Google, Microsoft, Spotify: only the scopes of those services) or the
  *   credential form (Yahoo, CalDAV, IMAP) or the Todoist token. "App registrations" under the tiles
  *   edits a registration later.
  * - The vault-locked banner with "Reset credentials".
@@ -17,7 +17,7 @@
  *
  * Deep links: `#/settings/accounts?focus=todoist` (and the old `#/settings/todoist`) open Todoist:
  * its Manage dialog when it is connected, else its connect dialog. `?focus=github-status` does the
- * same for GitHub repositories.
+ * same for GitHub repositories. `?focus=spotify` opens Spotify's connect dialog.
  */
 import { useEffect, useState } from 'react';
 import { KeyRound, RotateCcw, Server } from 'lucide-react';
@@ -50,6 +50,7 @@ export default function AccountsSettings() {
   const [managingGitHubStatus, setManagingGitHubStatus] = useState(false);
   useConnectionDeepLink('todoist', useTodoistToken().data?.configured, setConnecting, setManagingTodoist);
   useConnectionDeepLink('github-status', useGitHubToken().data?.configured, setConnecting, setManagingGitHubStatus);
+  useSpotifyDeepLink(setConnecting);
   return (
     <div className={styles.stack}>
       {locked ? <VaultLockedBanner /> : null}
@@ -72,6 +73,15 @@ function useConnectionDeepLink(id: ConnectionId, configured: boolean | undefined
     if (configured) manage(true);
     else connect(id);
   }, [pending, configured, id, connect, manage]);
+}
+
+/** `?focus=spotify` (the music widget's "Connect Spotify"): open its connect dialog. */
+function useSpotifyDeepLink(connect: (id: ConnectionId) => void): void {
+  useEffect(() => {
+    if (hashFocus() !== 'spotify') return;
+    clearHashFocus();
+    if (availableConnections().some((c) => c.id === 'spotify')) connect('spotify');
+  }, [connect]);
 }
 
 // ---------------------------------------------------------------------------
@@ -126,10 +136,10 @@ function AddConnection({ onConnect }: { onConnect(id: ConnectionId): void }) {
         ))}
       </ul>
       {caps.remoteClient ? (
-        <p className={styles.intro}>Google and Microsoft accounts are connected on the main PC; once connected there, they work here too.</p>
+        <p className={styles.intro}>Google, Microsoft and Spotify accounts are connected on the main PC; once connected there, they work here too.</p>
       ) : null}
       {caps.backend === 'browser' ? (
-        <p className={styles.intro}>Google, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.</p>
+        <p className={styles.intro}>Google, Spotify, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.</p>
       ) : null}
       {caps.remoteClient ? null : <AppRegistrations providers={providers} />}
     </SettingsCard>

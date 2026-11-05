@@ -50,6 +50,8 @@ choice, provided it respects §4.
 - Weather: current / hourly / daily via Open-Meteo.
 - RSS feeds: RSS and Atom feeds merged newest first (server only).
 - Sports scores: favorite teams' live, upcoming and final games from ESPN's public API.
+- Music: a remote control for Spotify (what is playing, playback, device), server only. The sound plays on the
+  user's own devices; Portly never plays audio itself (§10.8).
 - Clock / greeting widget.
 - Notes: plain-text notes saved as you type, kept in the widget's config.
 - Customization: widget grid (add / remove / move / resize, multiple instances per type), per-widget
@@ -438,12 +440,13 @@ it, and the address of the main PC is never published (each browser is told it o
 - **All responses:** `X-Content-Type-Options: nosniff`, `Cross-Origin-Resource-Policy: same-origin`,
   `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`.
 - **HTML:** `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob: https://a.espncdn.com; connect-src 'self'; font-src 'self' data:; frame-src 'none';
+  img-src 'self' data: blob: https://a.espncdn.com https://i.scdn.co; connect-src 'self'; font-src 'self' data:; frame-src 'none';
   object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'` (`htmlCsp()` in
   `security/headers.ts`). With `PORTLY_PAGES_URL` set, `connect-src` is `'self' <pagesOrigin>`: the server's page checks
   that the Pages site answers before it forwards there (§16). **Invariant:** `script-src` never gains
   `'unsafe-inline'` or `'unsafe-eval'`. Consequence: all third-party traffic goes through the server, except the
-  sports widget's team logos (`<img>` from ESPN's image host; the mappers accept no other logo host).
+  sports widget's team logos (`<img>` from ESPN's image host) and the music widget's cover art (`<img>` from
+  Spotify's, `https://i.scdn.co`); the mappers accept no other image host.
 - **Static build** (`staticCsp()` in `web/vite.config.ts`): a `<meta http-equiv>` CSP added at build time, because
   static hosts send no headers. It matches the HTML CSP except: `img-src` also allows `https://icons.duckduckgo.com`
   (favicons as `<img>`); `connect-src` is `'self'` plus the hosts the in-browser backend calls directly,
@@ -528,7 +531,7 @@ ingest; invalid → null.
   `oauth-client:<provider>` (client secret), `ics:<calendarId>` (full feed URL), `canary`.
 - **Secrets are never returned to the client** (APIs return `{configured: true}` / host-only displays).
 
-### 4.7 OAuth (Google, Microsoft) — owned by the accounts module
+### 4.7 OAuth (Google, Microsoft, Spotify) — owned by the accounts module
 - `POST /api/oauth/:provider/start {accountId?, returnTo?, capabilities?}` (non-exempt) → `{authorizeUrl}`; the SPA
   does `location.assign(authorizeUrl)` in the same tab (never a popup). `returnTo` must match `^#/[a-z0-9/_-]*$`
   (default `#/settings/accounts`).
@@ -548,10 +551,12 @@ ingest; invalid → null.
   `DELETE FROM oauth_states WHERE state=? AND provider=? AND expires_at>? RETURNING code_verifier, account_id, return_to, capabilities`
   before any token exchange; always responds `302` to `${appOrigin}/?oauth=<result>${returnTo}` with
   `Cache-Control: no-store`, never reflecting provider text. `result` ∈
-  `connected|reconnected|different_account|denied|expired|error`.
+  `connected|reconnected|different_account|denied|not_allowed|expired|error`.
 - Identity: claims from the token endpoint's `id_token` (Google `sub`, `email`; Microsoft `oid`,
-  `email`/`preferred_username`, and **require** `tid == 9188040d-6c67-4c5b-b112-36a304b66dad`).
-  Upsert by `(kind, external_id)`. A reconnect for `accountId` whose subject differs creates a new
+  `email`/`preferred_username`, and **require** `tid == 9188040d-6c67-4c5b-b112-36a304b66dad`). Spotify has no OpenID
+  Connect: the spec's `fetchIdentity` asks `GET /me` with the new access token (`account_id`, else `id`; the display
+  name labels a new account), and a 403 there means the developer app refuses this account (result `not_allowed`,
+  nothing stored). Upsert by `(kind, external_id)`. A reconnect for `accountId` whose subject differs creates a new
   account (`different_account`) and never overwrites the original.
 - Granted scopes recorded in `accounts.granted_scopes`; capabilities derived from them (Google: calendar
   if `calendar.events` granted, mail if `gmail.modify` granted; Microsoft: `Calendars.ReadWrite`, `Mail.ReadWrite`; a
@@ -660,7 +665,7 @@ oauth_clients(provider TEXT PRIMARY KEY, client_id TEXT NOT NULL, has_secret INT
 oauth_states(state TEXT PRIMARY KEY, provider TEXT NOT NULL, code_verifier TEXT NOT NULL, account_id TEXT NULL,
          return_to TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
          capabilities TEXT NULL /* 005: JSON list of the services the sign-in asked for */)
-accounts(id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('google','microsoft','yahoo','caldav','imap')),
+accounts(id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (length(kind) BETWEEN 1 AND 32 AND kind NOT GLOB '*[^a-z0-9_-]*'),
          label TEXT NOT NULL, email TEXT NULL, external_id TEXT NULL, config TEXT NOT NULL DEFAULT '{}',
          capabilities TEXT NOT NULL DEFAULT '[]', enabled_capabilities TEXT NOT NULL DEFAULT '[]',
          granted_scopes TEXT NULL, color TEXT NULL, sort INTEGER NOT NULL DEFAULT 0,
@@ -718,6 +723,13 @@ the browser-only build runs the same upgrade once from its settings `ready()` (m
 `005_oauth_state_capabilities.sql`: `ALTER TABLE oauth_states ADD COLUMN capabilities TEXT NULL`, the services a
 pending sign-in asked for (§4.7). NULL (a sign-in started before the upgrade) means every service the provider offers.
 
+`007_account_kinds.sql`: `accounts.kind` stops being a fixed list, so a new provider needs no migration (`ACCOUNT_KINDS`
+in shared stays the list this build knows). SQLite cannot change a CHECK in place, so the table is rebuilt. Dropping a
+table with foreign keys on deletes its rows first and would cascade into calendars and events, so a migration whose
+first line is `-- portly:foreign-keys-off` (`FOREIGN_KEYS_OFF_MARKER`, `db/migrate.ts`) runs with foreign keys off, as
+SQLite documents: in its own transaction after the migrations before it have committed, refused if the switch did not
+take, and rolled back unless `PRAGMA foreign_key_check` finds nothing. Any other migration keeps sharing one transaction.
+
 ---
 
 ## 6. Server structure
@@ -728,7 +740,7 @@ server/src/
   supervisor.ts          autostart supervisor (§3)
   config.ts  app.ts  context.ts
   db/{open,migrate,helpers}.ts, db/migrations/{001_init,002_pairing,003_diagnostics,004_beacon_defaults,
-       005_oauth_state_capabilities,006_devices}.sql
+       005_oauth_state_capabilities,006_devices,007_account_kinds}.sql
   security/{gate,headers,vault,safe-fetch,private-address,dpapi,pairing,foreign-origins,devices,cookies}.ts
   lib/{logger,log-context,health,inflight,provider-errors,exit-codes,startup,ids,errors,cache,scheduler,validate,
        settings,routes,backups,html-scan,image-sniff,ipc,merge-patch,multipart,safe-json,user-agent,
@@ -736,7 +748,7 @@ server/src/
   testing/{test-context,test-request,test-devices,fake-fetch,fake-accounts}.ts
   modules/index.ts       static list of all modules (`MODULES`); each register() wrapped in try/catch — a failing
                          module is logged and its route prefix returns 503 `module_unavailable`
-  modules/{core,accounts,bookmarks,search,weather,todoist,github,calendar,mail,feeds,sports,pairing,devices,diagnostics}/index.ts
+  modules/{core,accounts,bookmarks,search,weather,todoist,github,calendar,mail,feeds,sports,music,pairing,devices,diagnostics}/index.ts
 ```
 
 Each module exports `register(app: Hono<AppEnv>, ctx: AppContext): void`. `lib/routes.ts` provides
@@ -884,6 +896,19 @@ is scheduled; soccer adds `?fixture=true`) with the league scoreboard (cached 20
 now (30 min before start to 8 h after). Team lists cached 1 day; the static build reads them from `/standings`
 (ESPN's `/teams` sends no CORS header). Plain text only; links https; logos from `a.espncdn.com` only.
 
+**Music** (`shared/src/music.ts`, all [paired]) — `GET /api/music/status[?accountId=]` → `MusicStatus {accountId,
+provider, features, playback|null}` (`playback` null: nothing is active on any device) ·
+`GET /api/music/devices[?accountId=]` → `MusicDevice[]` · `POST /api/music/command {accountId?, command}` → 204;
+`command` is one of `play`, `pause`, `next`, `previous`, `seek {positionMs}`, `volume {percent}`, `shuffle {on}`,
+`repeat {mode}`, `transfer {deviceId, play}`. No `accountId`, or one that is gone, means the first account with music
+switched on. Errors
+carry `details.reason` (`MUSIC_ERROR_REASONS`): 409 `not_configured`/`no_account`; 403 `forbidden`/`premium_required` or
+`access_denied`; 409 `conflict`/`no_active_device` or `not_allowed`; 404 `not_found`/`device_unavailable`; 429
+`rate_limited` with `Retry-After` and `details.retryAfterSeconds`. `modules/music/service.ts` picks the account and
+provider, shares one upstream status for 3 s between tabs (a generation in the key keeps a read under way from
+bringing back the state from before a command; the position is moved on by the answer's age), and on a 429 sends
+nothing for that account until the wait is over. What is playing stays in `ctx.memo`, never the SQLite cache or a log.
+
 **Pairing** (hybrid mode, §16; `shared/src/pairing.ts`; `samePc()` except `POST /api/pairings`, which is untagged
 and so local-only: another PC has no say over pairings)
 — `GET /api/pairing` → `PairingStatusResponse {paired, pairingId, instanceId, label, createdAt}` for the presenting
@@ -1019,6 +1044,10 @@ disconnects itself; its cookie cleared). Every other route except those listed `
 - **feeds.ts** — `Feed {url, feedUrl, title, siteUrl|null, items, fetchedAt}`; `FeedItem {id, title, url|null,
   published|null, author|null, summary|null}` (plain text; caps `MAX_FEED_ITEMS` 50, `MAX_FEED_SUMMARY` 400,
   `MAX_FEED_TITLE` 300); `FeedQuerySchema {url: SafeHttpUrl, check?: '1'}`.
+- **music.ts** — `MUSIC_PROVIDERS` (the account kinds that are music providers; each has a `MusicProvider`, `modules/
+  music/providers/types.ts`); `MusicStatus`, `MusicPlayback`, `MusicItem`, `MusicDevice`, `MusicFeatures` (what a provider
+  can do at all), `MusicAllowedActions` (what it allows right now); `MusicCommandSchema`, `MusicCommandRequestSchema`,
+  `MusicQuerySchema`; `MUSIC_ERROR_REASONS`.
 - **sports.ts** — `SPORTS_LEAGUES` (`SportsLeagueInfo {id, sport, league, name, soccer, scoreboardGroups?}`, picker
   order) and the `SportsLeagueId` enum of their ids; `SportsTeamId` (ESPN's numeric id); `SportsTeam {id, league, name,
   shortName, abbreviation, logo|null, logoDark|null, color|null}`; `SportsGame {id, league, date, timeValid,
@@ -1118,6 +1147,29 @@ the newest 1,000 messages; one short-lived connection per request (connect → l
 work → logout) with 15 s timeouts. v1: `STATUS INBOX (UNSEEN)`, latest N messages (ENVELOPE + FLAGS; no
 snippets), mark read/unread, trash, archive only when a `\Archive` special-use folder exists (§4.10).
 
+**Spotify** — Authorization code with PKCE as a public client (no secret), authorize
+`https://accounts.spotify.com/authorize`, token `https://accounts.spotify.com/api/token`, no scope at the token endpoint.
+The redirect URI must be an IP literal: Spotify refuses `localhost` (`config.ts` spells it `127.0.0.1`, which the Host
+allowlist has), and `http` is allowed only for loopback. Scopes `user-read-playback-state user-modify-playback-state`,
+nothing else: Portly sees no library, playlists or history. A refresh may or may not return a new refresh token, and
+refresh tokens last 6 months whatever happens (a refresh does not extend them) → `reauth`. No revocation endpoint.
+**Development Mode limits** (a personal app cannot leave it: extended quota is for organizations): the app's owner needs
+Premium or the app stops working until they have it again; 5 authenticated users, each on the app's allowlist (others get
+403); 25 client IDs per developer. `GET /me` keeps `id`, `account_id` and `display_name` but no longer has `email` or
+`product`, so Portly cannot tell Premium in advance: a refused command says so. Everyone brings their own client ID
+(§4.7), so these limits are per install. The player endpoints are all still available in Development Mode.
+`modules/music/providers/spotify.ts`: `GET /me/player?additional_types=track,episode` (204 or an empty 200 = nothing active),
+`GET /me/player/devices`, `PUT /me/player/{play,pause,seek,volume,shuffle,repeat}`, `POST /me/player/{next,previous}`,
+`PUT /me/player {device_ids: [one], play}`. Spotify does not promise when or in what order commands take effect, so the
+widget reads the state back 800 ms later. Errors are `{error: {status, message, reason}}`: only a token-shaped `reason`
+is read (`PREMIUM_REQUIRED`, `NO_ACTIVE_DEVICE`), `message` is never shown, and because the reference does not document
+these answers the status is used too (a refused command is `not_allowed`). Cover art only from `https://i.scdn.co/`,
+links only to `https://open.spotify.com/`. Developer Policy: attribute with the logo and link content back (the widget
+does); no playback without cover art and metadata; a disconnect (Accounts → Remove); do not replicate a core Spotify
+experience, which is why the widget stays a remote control and not a library browser. The design guidelines say no
+cropping and nothing on top of artwork, and recommend play/pause as the only controls: the widget has more, on
+purpose, as a remote for the user's own devices.
+
 **ICS** — `webcal://` → `https://`; full URL stored as vault secret `ics:<calendarId>`, API/logs show host only;
 conditional GET (ETag / Last-Modified) via `safeFetch('public')`; parse/expand in the worker (§4.9).
 
@@ -1211,7 +1263,7 @@ Below 768 px: widgets stacked full-width in (y, x) order, edit mode disabled; li
 mail) size to their content up to 70 vh, other widgets keep their row height (`WidgetDefinition.stackSizing`).
 First run seeds a "Home" profile from `web/src/grid/defaultLayout.ts`: on the server backend seven widgets (search,
 clock, launch pad, weather, calendar, Todoist, mail), on the browser backend five (no mail, and the calendar, which
-needs Outlook.com set up first, is left to Add widget). Feeds, sports, notes and GitHub start empty, so they are never seeded.
+needs Outlook.com set up first, is left to Add widget). Feeds, sports, notes, music and GitHub start empty, so they are never seeded.
 
 ### 10.3 Widget registry
 Each `web/src/widgets/<type>/index.ts` exports
@@ -1220,8 +1272,8 @@ configSchema /* zod, every field defaulted */, Component: lazyWithPreload(() => 
 (`lazyWithPreload` is `React.lazy` plus `preload()`; once preloaded it renders without suspending).
 `description` is the "Add widget" text, a string or `(caps: Capabilities) => string` when it depends on the page
 load's backend (the calendar names Outlook.com alone on the in-browser backend); read it with `widgetDescription()`.
-`web/src/widgets/registry.ts` lists all eleven definitions in "Add widget" order (search, launch pad, calendar, mail,
-Todoist, GitHub, notes, weather, feeds, sports, clock) and throws at load when they differ from `WIDGET_TYPES`
+`web/src/widgets/registry.ts` lists all twelve definitions in "Add widget" order (search, launch pad, calendar, mail,
+Todoist, GitHub, notes, weather, feeds, sports, music, clock) and throws at load when they differ from `WIDGET_TYPES`
 (`shared/src/profiles.ts`); `availableWidgetDefinitions()` leaves out the types this page load's backend cannot run
 (§16 Capabilities).
 `WidgetProps<C> = {instanceId, config: C, setConfig(patch: Partial<C>): Promise<void>, size: {w, h}, editMode: boolean}`;
@@ -1284,7 +1336,7 @@ then choose what it is used for":
   (deletes both from the browser; the repository stays on GitHub). GitHub repositories (the status board,
   `accounts/GitHubStatus.tsx`) has a row on every backend while its token is saved, built like Todoist's: status from
   `GET /api/github/token` and the board query, Test fetches the board, Manage replaces the token, Remove deletes it.
-- *Add a connection*: tiles Google, Microsoft, Yahoo, Todoist, GitHub, GitHub repositories, Other (`accounts/connections.ts`, data-driven: per
+- *Add a connection*: tiles Google, Microsoft, Yahoo, Todoist, Spotify, GitHub, GitHub repositories, Other (`accounts/connections.ts`, data-driven: per
   connection the services it offers with a one-line description; a new service is one entry plus its scopes). A tile
   opens a connect dialog: **App registration** (Google/Microsoft, only while the client is not configured; console
   link, steps, exact redirect URI, client ID/secret) → **Services** (checkboxes; only built services) → **Sign in**
@@ -1414,6 +1466,21 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   game shared by two favorites shown once; a row opens the box score (the preview before the start); live and upcoming
   games have a "Where to watch" popover mapping broadcasters to official streaming services (`model.ts`). Works in the
   static build. Not in the default layout (it starts empty).
+- **Music** (`music`) — config `{accountId: string|null}` (null, or an account that is gone: the first with music on; Settings
+  offer a choice from two accounts up). A remote control: the sound plays on the user's own devices in the provider's
+  app, so it survives the tab, which is the New Tab page and rarely stays. Spotify's Web Playback SDK, which would play in
+  the tab, is out on purpose: it needs a third-party script in `script-src` of the page holding the user's mail and
+  calendar, an access token in the browser (against "secrets never reach the browser"), and stops at the first link
+  clicked in that tab. The widget knows providers only through `MusicStatus.features` (hidden when the provider cannot do
+  it) and `allowed` (disabled when it refuses right now) and `widgets/music/providers.tsx` (name, logo, home page).
+  Polls every 5 s while playing, or just after the item ends; 15 s otherwise; never in a hidden tab (TanStack stops the
+  interval), and not at all after `not_configured`, `reauth_required` or `forbidden`; a 429 waits `retryAfterSeconds`. The
+  position moves on locally between polls. Commands are optimistic (`applyCommand`): a refusal restores the state and
+  says why. Sliders send one command when let go. Layout by height: compact (≤ 3 rows: art, title, transport, device
+  icon), normal (seek bar, device, volume from 4 columns wide), large (≥ 6 rows: bigger art, album). Cover art is
+  uncropped with nothing on top of it; the title, the art and the logo link back to the provider. Its queries set
+  `meta.persist: false`, so what is playing never reaches localStorage. Server backend only (`capabilities.music`).
+  Not in the default layout (it needs an account first). User guide: `docs/setup/spotify.md`.
 - **Notes** (`notes`) — config `{text: string (≤ 10,000 UTF-16 units, so even all-escaped JSON stays under the 64 KB
   config limit), textSize: 'sm'|'md'|'lg', font: 'sans'|'mono', spellcheck}`; defaults `''`, `md`, `sans`, on. Each field
   falls back to its default on its own (`.catch`), so an invalid field never shows the note empty for the next
@@ -1736,14 +1803,14 @@ and never reloads for this.
 **Capabilities (`web/src/capabilities.ts`)** — `getCapabilities()` returns frozen per-load flags: `pagesBuild`,
 `backend`, `remoteServer` (Pages + server), `remoteClient` (the server build opened from another PC, §20), `accounts`
 and `calendar` (every backend: on the browser backend Outlook.com signs in and its calendars sync from Microsoft Graph
-in the page, `web/src/static/handlers/accounts.ts`, `calendar.ts`), `appPasswordAccounts|icsSubscriptions|mail|feeds|
+in the page, `web/src/static/handlers/accounts.ts`, `calendar.ts`), `appPasswordAccounts|icsSubscriptions|mail|feeds|music|
 vault|siteMetaFetch|serverSearchSuggestions` (server backend), `googleAccounts` and `browserBookmarkImport` (server
 backend on the main PC only: off when `remoteClient` is on), `browserBackups` and `launchpadSync` (browser backend: the
 launch pad sync service is offered on Microsoft connections only where the launch pad lives in this browser,
 [design/launchpad-sync.md](design/launchpad-sync.md); its state and **Sync now** are `GET`/`POST /api/sync/launchpad[/now]` of the
 in-browser backend, one sync connection per browser, design 6.10), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
 `backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
-feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
+feeds, music) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
 browser / Switch now / Check again). Without `serverSearchSuggestions` an engine whose suggestions only the server can
 ask (Google, DuckDuckGo, Bing, YouTube) shows none and no request is made, unless this browser turned on **Wikipedia
 suggestions instead** in Settings → Search (`widgets/search/wikipediaFallback.ts`, localStorage
@@ -1843,7 +1910,7 @@ needs nothing more for them (`blob:` and `data:`, §4.3); `connect-src` gains th
 | localStorage | `portly:backend-mode:<base>` | `lastMode`: the backend the last decision chose |
 | localStorage | `portly:server-seen:<base>` | `lastServerSeenAt` (epoch ms) |
 | localStorage | `portly:query-cache:static:<base>` | browser backend snapshot, buster `<version>+static`, 24 h |
-| localStorage | `portly:query-cache:local-server:<base>` | server backend snapshot, buster `<version>+local-server:<instanceId>`, 7 days; never `accounts`, `oauth-clients` or mail |
+| localStorage | `portly:query-cache:local-server:<base>` | server backend snapshot, buster `<version>+local-server:<instanceId>`, 7 days; never `accounts`, `oauth-clients`, mail or music |
 | sessionStorage | `portly:pairing-nonce` | the nonce of this tab's pairing request (one use) |
 | sessionStorage | `portly:mode-switch-toast` | the switch to announce after the reload |
 | IndexedDB | `portly-static:<base>` | the browser backend's data (never opened by a server-backend page), launch pad sync's state among it: the `launchpad-sync` slice (clock, source id, file epoch and version, status, backoff; never a token, a URL or file content beyond the icon list) and the `github-sync` slice (repository and token, write-only), neither exported |
@@ -1911,6 +1978,7 @@ only source of failure, recovery and reminder lines for them (modules record out
 | `weather-place` | Nominatim (the device location's name); detail `{op: reverse}` | never |
 | `suggest:<provider>` | a search suggestion provider | never |
 | `sports:<league>` | ESPN for one league; detail `{op: teams\|schedule\|scoreboard, status}` | never |
+| `music:<accountId>` | the provider's status read; `account_unavailable`, caused by `account:<id>`, while the account needs reconnecting. Answers about what is playing (no active device, a refused command) are not recorded | never |
 | `job:<name>` | every scheduler job (the scheduler itself) | 3 × job interval |
 
 - **Statuses:** `ok`; `degraded` (ok but partial: `storage_limit`, `truncated`, a failed best-effort sports read);

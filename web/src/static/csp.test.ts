@@ -25,6 +25,15 @@ describe('static build CSP', () => {
     expect(directive(staticCsp(''), 'img-src').filter((source) => source.includes('github'))).toEqual([]);
   });
 
+  it('allows Spotify cover art, from its one image host, and no script or frame of Spotify’s', () => {
+    expect(directive(staticCsp(''), 'img-src')).toContain('https://i.scdn.co');
+    expect(staticCsp('')).not.toContain('sdk.scdn.co');
+    expect(directive(staticCsp(''), 'script-src')).toEqual(["'self'"]);
+    expect(directive(staticCsp(''), 'frame-src')).toEqual(["'none'"]);
+    // The widget talks to the server, never to Spotify from the page.
+    expect(directive(staticCsp(''), 'connect-src').filter((source) => source.includes('spotify'))).toEqual([]);
+  });
+
   it('allows Portly on another PC through any Tailscale Serve address with hybrid mode on, never one named PC', () => {
     expect(directive(staticCsp(''), 'connect-src')).not.toContain('https://*.ts.net');
     const connect = directive(staticCsp('http://127.0.0.1:5757'), 'connect-src');

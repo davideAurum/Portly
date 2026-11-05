@@ -276,6 +276,7 @@ const ACCOUNT_SUBJECT_TITLES: readonly [prefix: string, title: string][] = [
   ['account:', 'Account'],
   ['calendar-list:', 'Calendar list'],
   ['mail:', 'Mail'],
+  ['music:', 'Music'],
 ];
 
 function itemTitle(item: HealthItem, group: HealthGroup): string {
@@ -290,7 +291,7 @@ function itemName(item: HealthItem, group: HealthGroup): string {
 
 interface ItemRowProps {
   item: HealthItem;
-  /** What the row is called (in an account's group: Account, Calendar list, Mail or the calendar's name). */
+  /** What the row is called (in an account's group: Account, Calendar list, Mail, Music or the calendar's name). */
   title: string;
   /** Its full name (the account's name too): what its Details button names. */
   name: string;

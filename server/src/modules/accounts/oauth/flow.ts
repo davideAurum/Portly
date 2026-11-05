@@ -1,6 +1,7 @@
 /**
  * OAuth authorization flow (§4.7): start (state + PKCE, authorize URL) and callback (atomic state
- * consumption, code exchange, id_token identity, upsert by `(kind, external_id)`).
+ * consumption, code exchange, identity from the id_token or the provider's profile, upsert by
+ * `(kind, external_id)`).
  *
  * A sign-in asks only for the scopes of the services (capabilities) picked: a new connection the
  * ones named (all the provider offers when none are), a reconnect the account's granted services
@@ -48,7 +49,7 @@ import { isClientConfigured, loadOAuthClient } from './clients.ts';
 import { offeredCapabilities, providerSpec, scopesFor } from './providers.ts';
 import { STATE_PARAM_REGEX, consumeOAuthState, createOAuthState, createPkcePair } from './states.ts';
 import { requestToken } from './token-endpoint.ts';
-import type { OAuthIdentity, OAuthProviderSpec } from './types.ts';
+import type { IdentityResult, OAuthIdentity, OAuthProviderSpec } from './types.ts';
 
 /** Authorization codes are opaque; anything longer than this is not one we will send anywhere. */
 const MAX_CODE_LENGTH = 4096;
@@ -247,15 +248,24 @@ async function connect(core: AccountsCore, spec: OAuthProviderSpec, input: Conne
   if (!exchange.ok) return 'error';
   const tokens = exchange.tokens;
 
-  const claims = decodeJwtClaims(tokens.idToken);
-  if (!claims) {
-    log.warn('oauth token response without a usable id_token', { provider });
-    return 'error';
-  }
-  const verdict = spec.identity(claims, client.clientId, core.now());
-  if (!verdict.ok) {
-    log.warn('oauth id_token rejected', { provider, reason: verdict.reason });
-    return 'error';
+  let verdict: IdentityResult;
+  if (spec.fetchIdentity) {
+    verdict = await spec.fetchIdentity(tokens.accessToken, core.fetch, log);
+    if (!verdict.ok) {
+      log.warn('oauth profile rejected', { provider, reason: verdict.reason });
+      return verdict.reason === 'not_allowed' ? 'not_allowed' : 'error';
+    }
+  } else {
+    const claims = decodeJwtClaims(tokens.idToken);
+    if (!claims) {
+      log.warn('oauth token response without a usable id_token', { provider });
+      return 'error';
+    }
+    verdict = spec.identity(claims, client.clientId, core.now());
+    if (!verdict.ok) {
+      log.warn('oauth id_token rejected', { provider, reason: verdict.reason });
+      return 'error';
+    }
   }
   const granted = spec.grantedScopes(tokens.scope, requestedScopes);
   if (granted === null) {
@@ -330,7 +340,7 @@ function upsertOAuthAccount(core: AccountsCore, spec: OAuthProviderSpec, input: 
   insertAccountRow(db, {
     id,
     kind: spec.provider,
-    label: identity.email ?? spec.defaultLabel,
+    label: identity.label ?? identity.email ?? spec.defaultLabel,
     email: identity.email,
     externalId: identity.subject,
     config: {},

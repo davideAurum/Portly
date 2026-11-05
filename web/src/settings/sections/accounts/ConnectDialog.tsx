@@ -1,7 +1,7 @@
 /**
  * The connect dialog behind each "Add a connection" tile (§7 Accounts, §4.7):
  *
- * - Google and Microsoft: the app registration (only while the provider is not set up), the
+ * - Google, Microsoft and Spotify: the app registration (only while the provider is not set up), the
  *   services to use, then the sign-in. The sign-in asks only for the scopes of the services
  *   ticked; it runs in the same tab and comes back to this page.
  * - Yahoo: the services, then the app-password form (services left unticked start switched off).
@@ -42,6 +42,10 @@ const RETURN_TO = '#/settings/accounts';
 export const STATIC_MICROSOFT_SESSION_NOTE =
   'The sign-in is kept in this browser (not encrypted) and lasts 24 hours; Portly renews it by itself when you open the page while you are still signed in to Microsoft.';
 
+/** What the sign-in reaches, and the two limits of a Spotify developer app. */
+export const SPOTIFY_ACCESS_NOTE =
+  'Portly asks only to read what is playing and to control it. Spotify needs Premium for this, and it asks you to sign in again about every six months.';
+
 export interface ConnectDialogProps {
   /** The connection to set up, or null when closed. */
   connection: ConnectionId | null;
@@ -68,6 +72,7 @@ function ConnectFlow({ connection, onClose }: { connection: ConnectionId; onClos
   switch (connection) {
     case 'google':
     case 'microsoft':
+    case 'spotify':
       return <OAuthConnect provider={connection} />;
     case 'yahoo':
       return <YahooConnect onClose={onClose} />;
@@ -165,7 +170,7 @@ function Footer({ onBack, children }: { onBack?: (() => void) | undefined; child
 }
 
 // ---------------------------------------------------------------------------
-// Google and Microsoft
+// Google, Microsoft and Spotify
 // ---------------------------------------------------------------------------
 
 function OAuthConnect({ provider }: { provider: OAuthProvider }) {
@@ -227,6 +232,7 @@ function SignInStep({ provider, client, picked, onBack }: { provider: OAuthProvi
         <p className={styles.intro}>Keep every box ticked on Google's consent screen: a service you untick there stays off.</p>
       ) : null}
       {provider === 'microsoft' && inBrowser ? <p className={styles.intro}>{STATIC_MICROSOFT_SESSION_NOTE}</p> : null}
+      {provider === 'spotify' ? <p className={styles.intro}>{SPOTIFY_ACCESS_NOTE}</p> : null}
       {picked.includes('launchpadSync') ? <p className={styles.intro}>{LAUNCHPAD_SYNC_PERMISSION_NOTE}</p> : null}
       {locked ? (
         <Banner tone="warning" title="Saved credentials are locked">

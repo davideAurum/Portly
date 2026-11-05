@@ -46,6 +46,7 @@ function renderAccounts(mocks: Record<string, ApiMock>) {
       'GET /api/accounts': [],
       'GET /api/oauth-clients/google': GOOGLE_CLIENT,
       'GET /api/oauth-clients/microsoft': MS_CLIENT,
+      'GET /api/oauth-clients/spotify': { clientId: null, hasSecret: false, redirectUri: 'http://127.0.0.1:5757/api/oauth/spotify/callback' },
       'GET /api/todoist/token': { configured: false },
       ...mocks,
     },
@@ -74,6 +75,7 @@ describe('Accounts settings with Portly on this PC', () => {
       'Connect Microsoft',
       'Connect Yahoo',
       'Connect Todoist',
+      'Connect Spotify',
       'Connect GitHub repositories',
       'Connect another account (CalDAV or IMAP)',
     ]);
@@ -208,7 +210,7 @@ describe('Accounts settings on another PC', () => {
     });
     const tiles = within(await screen.findByRole('list', { name: 'Add a connection' })).getAllByRole('button');
     expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Yahoo', 'Connect Todoist', 'Connect GitHub repositories', 'Connect another account (CalDAV or IMAP)']);
-    expect(screen.getByText(/Google and Microsoft accounts are connected on the main PC/)).toBeInTheDocument();
+    expect(screen.getByText(/Google, Microsoft and Spotify accounts are connected on the main PC/)).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'App registrations' })).not.toBeInTheDocument();
     expect(requestsTo('GET /api/oauth-clients/google')).toEqual([]);
     // The reauth account offers no Reconnect here, and the locked vault no reset.

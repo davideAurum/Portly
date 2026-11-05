@@ -1,5 +1,5 @@
 /**
- * ReconnectButton (§10.4): for Google/Microsoft accounts starts OAuth again for that account
+ * ReconnectButton (§10.4): for accounts that sign in with OAuth starts it again for that account
  * (same tab, returning to the current page); app-password accounts link to Accounts settings.
  */
 import { LogIn } from 'lucide-react';

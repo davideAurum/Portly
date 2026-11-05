@@ -1625,6 +1625,26 @@ OneDrive's (D8 note). Design: [launchpad-sync-github.md](design/launchpad-sync-g
   *Done when:* two browsers on one GitHub account converge, a forced race is refused, and the
   "Checks never run for real" rows of G.2 are run with the owner's repository and token.
 
+## Music widget (beside phase 6)
+
+On 2026-11-04 the owner asked for a music widget that connects to different services, starting with
+Spotify, and acts as a music player. Decided the same day: a remote control for the owner's own
+devices, not sound in the tab (ARCHITECTURE 10.8 says why); the server backend only at first; no
+search or playlists in the first step. Spotify works only with Premium (ARCHITECTURE 8).
+
+- **M.1 Spotify remote** (L). Connection, `music` module with the provider interface, widget. Done
+  on branch `claude/music-widget-api-integration-4295ee`; first run with a real account still owed
+  (the table below).
+- **M.2 Search and playlists** (M). Not started. Search returns at most 10 results per request, and
+  playlist contents only for playlists the user owns or collaborates on. Keep it small: Spotify's
+  policy forbids replacing a core Spotify experience.
+- **M.3 The browser-only site** (M). Not started. PKCE works from the page, like Outlook.com's
+  sign-in; the access token would then live in the browser, and the Pages CSP would need Spotify's
+  hosts in `connect-src`.
+- **M.4 A second provider** (M). Not started, and which one is open: no other service's API has been
+  checked. It is one `MusicProvider`, one OAuth spec and an entry in `MUSIC_PROVIDERS`. Its kind needs
+  no migration (`007_account_kinds`).
+
 ## GitHub status board (beside track B)
 
 Asked for by the owner on 2026-11-04: a widget with the status of every repository of an account and
@@ -1885,6 +1905,10 @@ date and the outcome once a row has been run for real.
 | The hand CSP check's diagnostic report download, background upload and export/import on 0.2.0-alpha.4 builds (last done for alpha.1); the settings sections, dashboard and connect page were checked | alpha.4 published commit, 2026-10-30 | the next release's CSP check | 2026-11-04 (0.2.0-alpha.5, 2dc10c4): the diagnostic report (server build), a background upload and export then import on both builds, no violation. The saves were caught in the page, so the browser's own save to disk was not run |
 | `portly --update` started from PowerShell 7: `Get-FileHash` is not recognized, because the second Windows PowerShell that `portly.ps1` starts loads PowerShell 7's `Microsoft.PowerShell.Utility` 7.0 through the inherited `PSModulePath`. It stops before anything changes. Fixed, not released: `Common.ps1` takes PowerShell 7's folders out of `PSModulePath` in Windows PowerShell. Checked through a `.cmd` file with a fake of the module and with this PC's real folders, using a stand-in script, not a real update | alpha.5 published commit, 2026-11-04 | a real `portly --update` started from PowerShell 7 on a version with the fix (the copy that runs is the installed one, so the update to that version still goes through Windows PowerShell) | not yet |
 | A whole update of the installed Portly with its start check passing. 0.2.0-alpha.5 got there with `install.ps1 -SkipAutostart` and `portly --start`, checked by `/api/health` and Diagnostics, so the installer's own check of the new version did not count. The rollback did run for real on 2026-11-04 and put 0.2.0-alpha.4 back (task enabled, database restored), though it printed that the previous version did not start, the same false result | alpha.5 published commit, 2026-11-04 | the update to the next release (`Get-HbPortListeners` is fixed, not released; the new version's own `install-autostart.ps1` runs the check) | not yet |
+| The Music widget against a real Spotify account: the sign-in, `GET /me` (Spotify does not state that it still returns an id in Development Mode), every player endpoint and command, and the answers for "no active device" and "not Premium", which the reference does not document, so their mapping follows Spotify's general error format. Tests use fakes, and the browser check on the real server fed the page fixtures for `/api/music/*` | M.1, 2026-11-04 | the owner's first Spotify connection | not yet |
+| Spotify cover art from `i.scdn.co` loading in a page under the real CSP; the browser check used `data:` images, and the host itself comes from Spotify's documentation examples | M.1, 2026-11-04 | the owner's first Spotify connection | not yet |
+| `007_account_kinds` on a database in real use: run on a fresh start of the real server, and in tests on databases populated at 006, in memory and as a WAL file reopened afterwards, but never on the owner's own data | M.1, 2026-11-04 | the first update that carries it | not yet |
+| The Music widget on the Pages site paired with Portly and from another PC, and the hand CSP check of both production builds with it; only the server build was opened, in the desktop app's browser pane | M.1, 2026-11-04 | the next release's hand check | not yet |
 
 ### Closed
 

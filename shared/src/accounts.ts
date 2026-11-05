@@ -6,16 +6,17 @@ import { z } from 'zod';
 import { EntityId, HexColor, SafeHttpUrl } from './core.ts';
 import type { ErrorCode } from './errors.ts';
 
-export const ACCOUNT_KINDS = ['google', 'microsoft', 'yahoo', 'caldav', 'imap'] as const;
+export const ACCOUNT_KINDS = ['google', 'microsoft', 'yahoo', 'caldav', 'imap', 'spotify'] as const;
 export const AccountKindSchema = z.enum(ACCOUNT_KINDS);
 export type AccountKind = z.output<typeof AccountKindSchema>;
 
 /**
  * The services an account can be used for. `launchpadSync` (D7) is a service of a Microsoft
  * connection in the browser-only build only: OneDrive app-folder sync of the launch pad. The
- * server's sign-ins never offer it (`OAUTH_PROVIDER_CAPABILITIES`).
+ * server's sign-ins never offer it (`OAUTH_PROVIDER_CAPABILITIES`). `music` is the music widget's
+ * service: Spotify today, any provider in `MUSIC_PROVIDERS` (shared/src/music.ts) later.
  */
-export const CAPABILITIES = ['calendar', 'mail', 'launchpadSync'] as const;
+export const CAPABILITIES = ['calendar', 'mail', 'launchpadSync', 'music'] as const;
 export const CapabilitySchema = z.enum(CAPABILITIES);
 export type Capability = z.output<typeof CapabilitySchema>;
 
@@ -23,7 +24,7 @@ export const ACCOUNT_STATUSES = ['ok', 'error', 'reauth'] as const;
 export const AccountStatusSchema = z.enum(ACCOUNT_STATUSES);
 export type AccountStatus = z.output<typeof AccountStatusSchema>;
 
-export const OAUTH_PROVIDERS = ['google', 'microsoft'] as const;
+export const OAUTH_PROVIDERS = ['google', 'microsoft', 'spotify'] as const;
 export const OAuthProviderSchema = z.enum(OAUTH_PROVIDERS);
 export type OAuthProvider = z.output<typeof OAuthProviderSchema>;
 
@@ -40,10 +41,15 @@ export function isOAuthProvider(value: unknown): value is OAuthProvider {
 export const OAUTH_PROVIDER_CAPABILITIES: Readonly<Record<OAuthProvider, readonly Capability[]>> = Object.freeze({
   google: ['calendar', 'mail'],
   microsoft: ['calendar', 'mail'],
+  spotify: ['music'],
 });
 
-/** Outcome reported to the SPA as `/?oauth=<result>#<returnTo>`. */
-export const OAUTH_RESULTS = ['connected', 'reconnected', 'different_account', 'denied', 'expired', 'error'] as const;
+/**
+ * Outcome reported to the SPA as `/?oauth=<result>#<returnTo>`. `not_allowed`: the sign-in went
+ * through, but the provider refuses this account for this app (Spotify: the developer app's owner
+ * has no Premium, or the account is not on the app's user list).
+ */
+export const OAUTH_RESULTS = ['connected', 'reconnected', 'different_account', 'denied', 'not_allowed', 'expired', 'error'] as const;
 export const OAuthResultSchema = z.enum(OAUTH_RESULTS);
 export type OAuthResult = z.output<typeof OAuthResultSchema>;
 
@@ -128,6 +134,7 @@ export type ImapConnection = z.output<typeof ImapConnectionSchema>;
 
 export const GoogleAccountConfigSchema = z.looseObject({});
 export const MicrosoftAccountConfigSchema = z.looseObject({});
+export const SpotifyAccountConfigSchema = z.looseObject({});
 export const YahooAccountConfigSchema = z.looseObject({
   username: z.string().min(1).max(320),
   caldav: CaldavConnectionSchema.optional(),
@@ -144,6 +151,7 @@ export const ImapAccountConfigSchema = z.looseObject({
 
 export type GoogleAccountConfig = z.output<typeof GoogleAccountConfigSchema>;
 export type MicrosoftAccountConfig = z.output<typeof MicrosoftAccountConfigSchema>;
+export type SpotifyAccountConfig = z.output<typeof SpotifyAccountConfigSchema>;
 export type YahooAccountConfig = z.output<typeof YahooAccountConfigSchema>;
 export type CaldavAccountConfig = z.output<typeof CaldavAccountConfigSchema>;
 export type ImapAccountConfig = z.output<typeof ImapAccountConfigSchema>;
@@ -154,6 +162,7 @@ export interface AccountConfigByKind {
   yahoo: YahooAccountConfig;
   caldav: CaldavAccountConfig;
   imap: ImapAccountConfig;
+  spotify: SpotifyAccountConfig;
 }
 
 export const ACCOUNT_CONFIG_SCHEMAS = {
@@ -162,6 +171,7 @@ export const ACCOUNT_CONFIG_SCHEMAS = {
   yahoo: YahooAccountConfigSchema,
   caldav: CaldavAccountConfigSchema,
   imap: ImapAccountConfigSchema,
+  spotify: SpotifyAccountConfigSchema,
 } as const satisfies Record<AccountKind, z.ZodType>;
 
 /**

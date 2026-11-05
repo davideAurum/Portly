@@ -30,7 +30,7 @@ export function htmlCsp(pagesOrigin: string | null = null): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://a.espncdn.com",
+    "img-src 'self' data: blob: https://a.espncdn.com https://i.scdn.co",
     pagesOrigin === null ? "connect-src 'self'" : `connect-src 'self' ${pagesOrigin}`,
     "font-src 'self' data:",
     "frame-src 'none'",

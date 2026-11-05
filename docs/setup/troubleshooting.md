@@ -18,7 +18,7 @@ Jump to:
   ["Starting Portly…" and the launcher](#starting-portly-and-the-launcher)
 - **Pages site:** [Pages site with Portly on this PC](#pages-site-with-portly-on-this-pc)
 - **Accounts:** [Accounts that need "Reconnect"](#accounts-that-need-reconnect) ·
-  [Google](#google) · [Microsoft](#microsoft) · [Yahoo, CalDAV and IMAP](#yahoo-caldav-and-imap)
+  [Google](#google) · [Microsoft](#microsoft) · [Yahoo, CalDAV and IMAP](#yahoo-caldav-and-imap) · [Spotify](#spotify)
 - **Look and feel:** [The page or the mouse stutters](#the-page-or-the-mouse-stutters) ·
   [The background image](#the-background-image) ·
   [Weather and your location](#weather-and-your-location)
@@ -249,6 +249,12 @@ new account instead of overwriting the old one ("different account" message).
 | IMAP: no **Archive** action | The server doesn't advertise an Archive folder; archive isn't offered rather than guessed. |
 | A mail action says the message changed | The mailbox changed on the server (for example the folder was rebuilt); the list refreshes — try again. |
 | ICS calendar shows an error | Open the link in a browser to check it still works (share links can be revoked or reset). Very large or endlessly repeating feeds are cut off at safe limits; the calendar keeps its last good data and shows the error under **Settings → Calendars**. Diagnostics: [`not_found`](#not_found), [`parse_error`](#parse_error), [`too_large`](#too_large), [`blocked`](#blocked) or [`truncated`](#truncated). |
+
+### Spotify
+
+See the table at the end of [the Spotify guide](spotify.md#troubleshooting). The two most likely:
+the redirect URI in Spotify's dashboard must start with `127.0.0.1` and match Portly's exactly, and
+the account that created the Spotify app needs Premium.
 
 ## Look and feel
 

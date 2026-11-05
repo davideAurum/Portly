@@ -182,6 +182,7 @@ const PROVIDER_NAMES: Readonly<Record<AccountKind, string>> = Object.freeze({
   yahoo: 'Yahoo Mail',
   imap: 'The mail server',
   caldav: 'The server',
+  spotify: 'Spotify',
 });
 
 /** `read` / `unread` / `archive` / `trash` (the log's `op`). */

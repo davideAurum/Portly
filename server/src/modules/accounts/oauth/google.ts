@@ -42,6 +42,7 @@ export const google: OAuthProviderSpec = Object.freeze<OAuthProviderSpec>({
   baseScopes: GOOGLE_BASE_SCOPES,
   capabilityScopes: GOOGLE_CAPABILITY_SCOPES,
   usesClientSecret: true,
+  clientIdHint: 'Google client IDs end with .apps.googleusercontent.com',
 
   isValidClientId(clientId: string): boolean {
     return GOOGLE_CLIENT_ID.test(clientId);

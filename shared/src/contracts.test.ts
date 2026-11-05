@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ACCOUNT_KINDS, MUSIC_MAX_POSITION_MS, MUSIC_PROVIDERS, MusicCommandRequestSchema, MusicCommandSchema, isMusicProvider } from './index.ts';
 import {
   ACCOUNT_CONFIG_SCHEMAS,
   ApiErrorBodySchema,
@@ -396,13 +397,13 @@ describe('accounts & oauth payloads', () => {
     expect(OAuthStartSchema.parse({ capabilities: ['calendar', 'launchpadSync'] }).capabilities).toEqual(['calendar', 'launchpadSync']);
   });
 
-  it('lists every service, launch pad sync last', () => {
-    expect(CAPABILITIES).toEqual(['calendar', 'mail', 'launchpadSync']);
+  it('lists every service', () => {
+    expect(CAPABILITIES).toEqual(['calendar', 'mail', 'launchpadSync', 'music']);
   });
 
   it('lists the services each OAuth provider offers', () => {
     // The server's sign-ins: launch pad sync is the browser-only build's alone.
-    expect(OAUTH_PROVIDER_CAPABILITIES).toEqual({ google: ['calendar', 'mail'], microsoft: ['calendar', 'mail'] });
+    expect(OAUTH_PROVIDER_CAPABILITIES).toEqual({ google: ['calendar', 'mail'], microsoft: ['calendar', 'mail'], spotify: ['music'] });
     expect(Object.isFrozen(OAUTH_PROVIDER_CAPABILITIES)).toBe(true);
   });
 
@@ -515,5 +516,57 @@ describe('pairing', () => {
     expect(HealthResponseSchema.safeParse({ ...base, pagesUrl: 'https://me.github.io/' }).success).toBe(true);
     expect(HealthResponseSchema.safeParse({ ...base, pagesUrl: null }).success).toBe(true);
     expect(HealthResponseSchema.safeParse({ ...base, pagesUrl: '' }).success).toBe(false);
+  });
+});
+
+describe('music', () => {
+  const parse = (command: unknown) => MusicCommandSchema.safeParse(command).success;
+
+  it('accepts the commands, and nothing else', () => {
+    for (const command of [
+      { type: 'play' },
+      { type: 'pause' },
+      { type: 'next' },
+      { type: 'previous' },
+      { type: 'seek', positionMs: 0 },
+      { type: 'volume', percent: 100 },
+      { type: 'shuffle', on: false },
+      { type: 'repeat', mode: 'track' },
+      { type: 'transfer', deviceId: 'abc-123', play: true },
+    ]) {
+      expect(parse(command), JSON.stringify(command)).toBe(true);
+    }
+    for (const command of [
+      { type: 'stop' },
+      { type: 'pause', extra: 1 },
+      { type: 'seek' },
+      { type: 'seek', positionMs: -1 },
+      { type: 'seek', positionMs: 0.5 },
+      { type: 'seek', positionMs: MUSIC_MAX_POSITION_MS + 1 },
+      { type: 'volume', percent: 101 },
+      { type: 'shuffle', on: 'yes' },
+      { type: 'repeat', mode: 'always' },
+      { type: 'transfer', deviceId: 'a b', play: true },
+      { type: 'transfer', deviceId: 'x'.repeat(129), play: true },
+      { type: 'transfer', deviceId: 'abc' },
+    ]) {
+      expect(parse(command), JSON.stringify(command)).toBe(false);
+    }
+  });
+
+  it('takes an optional account with a command, and no other field', () => {
+    expect(MusicCommandRequestSchema.safeParse({ command: { type: 'play' } }).success).toBe(true);
+    expect(MusicCommandRequestSchema.safeParse({ accountId: 'a1', command: { type: 'play' } }).success).toBe(true);
+    expect(MusicCommandRequestSchema.safeParse({ accountId: 'a1' }).success).toBe(false);
+    expect(MusicCommandRequestSchema.safeParse({ command: { type: 'play' }, extra: 1 }).success).toBe(false);
+  });
+
+  it('knows which account kinds are music providers', () => {
+    expect(MUSIC_PROVIDERS).toEqual(['spotify']);
+    expect(MUSIC_PROVIDERS.every((kind) => (ACCOUNT_KINDS as readonly string[]).includes(kind))).toBe(true);
+    expect(MUSIC_PROVIDERS.every((kind) => OAUTH_PROVIDER_CAPABILITIES[kind].includes('music'))).toBe(true);
+    expect(isMusicProvider('spotify')).toBe(true);
+    expect(isMusicProvider('google')).toBe(false);
+    expect(isMusicProvider(undefined)).toBe(false);
   });
 });

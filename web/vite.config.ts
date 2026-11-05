@@ -72,7 +72,7 @@ export function staticCsp(localServer: string): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://icons.duckduckgo.com https://a.espncdn.com",
+    "img-src 'self' data: blob: https://icons.duckduckgo.com https://a.espncdn.com https://i.scdn.co",
     `connect-src ${connect.join(' ')}`,
     "font-src 'self' data:",
     "frame-src 'none'",

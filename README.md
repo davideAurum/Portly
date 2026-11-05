@@ -25,6 +25,8 @@ place name of your location), as the [privacy policy](site/privacy.html) lists.
 - **RSS feeds** — the latest headlines from RSS and Atom feeds, merged newest first.
 - **Sports scores** — live scores, recent results and upcoming games for your teams, with box scores
   and where to watch.
+- **Music** — a remote control for Spotify: what is playing, play, pause, skip, seek, volume and which
+  device it plays on. Needs Spotify Premium and Portly on your PC.
 - **Weather** (Open-Meteo, no key) and a **clock** with greeting and extra time zones.
 - **Notes** — plain-text notes saved as you type, one per widget. A note edited in two tabs or on
   two PCs is never silently overwritten: Portly asks which version to keep.
@@ -227,7 +229,7 @@ is listed in [SETUP: Configuration](docs/SETUP.md#configuration).
 - [Setup overview and quick start](docs/SETUP.md)
 - Accounts: [Google](docs/setup/google.md) · [Outlook.com](docs/setup/microsoft.md) ·
   [Yahoo](docs/setup/yahoo.md) · [CalDAV, IMAP & ICS](docs/setup/caldav-imap.md) ·
-  [Todoist](docs/setup/todoist.md)
+  [Todoist](docs/setup/todoist.md) · [Spotify](docs/setup/spotify.md)
 - [New-tab extension](docs/setup/extension.md) · [Autostart](docs/setup/autostart.md) ·
   [Adding a PC](docs/setup/add-a-pc.md) · [Troubleshooting](docs/setup/troubleshooting.md)
 - [Browser-only build on GitHub Pages](docs/setup/static-build.md) ·

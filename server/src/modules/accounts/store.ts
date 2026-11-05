@@ -46,7 +46,7 @@ const COLUMNS =
   'id, kind, label, email, external_id, config, capabilities, enabled_capabilities, granted_scopes, color, sort, status, status_message, created_at, updated_at';
 
 /** Kinds authenticated with OAuth (refresh token in the vault). */
-export const OAUTH_KINDS = ['google', 'microsoft'] as const satisfies readonly AccountKind[];
+export const OAUTH_KINDS = ['google', 'microsoft', 'spotify'] as const satisfies readonly AccountKind[];
 /** Kinds authenticated with an app password (password in the vault). */
 export const APP_PASSWORD_KINDS = ['yahoo', 'caldav', 'imap'] as const satisfies readonly AccountKind[];
 export type AppPasswordKind = (typeof APP_PASSWORD_KINDS)[number];

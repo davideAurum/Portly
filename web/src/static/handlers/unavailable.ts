@@ -1,6 +1,6 @@
 /**
  * Server-only routes in the static build. App-password accounts (Yahoo, CalDAV, IMAP), the
- * credential vault, ICS subscriptions, mail and the server's diagnostics need the Portly server
+ * credential vault, ICS subscriptions, mail, music and the server's diagnostics need the Portly server
  * (secrets, cross-origin feeds, provider APIs, its logs), and their UI is hidden behind
  * `src/capabilities.ts` (Settings → Diagnostics shows this browser's events and the hybrid state
  * instead). (Outlook.com accounts, their sign-in and their calendars are handled in the browser by
@@ -11,7 +11,7 @@
  * would read like a broken client. Nothing here touches state.
  *
  * Keep {@link UNAVAILABLE_ROUTES} in step with the paths and methods used in
- * web/src/api/accounts.ts, calendar.ts, mail.ts, feeds.ts, vault.ts and diagnostics.ts that
+ * web/src/api/accounts.ts, calendar.ts, mail.ts, music.ts, feeds.ts, vault.ts and diagnostics.ts that
  * handlers/accounts.ts and handlers/calendar.ts do not answer (the test pins the table). The OAuth
  * callback is the site's own address on the in-browser backend, never an API call, so it is not
  * listed.
@@ -20,7 +20,7 @@ import { unavailable } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';
 
 /** The feature name in the error message: "<feature> is not available in the browser-only build." */
-export type UnavailableFeature = 'Accounts' | 'The credential vault' | 'Subscribing to ICS feeds' | 'Mail' | 'Feeds' | 'Diagnostics';
+export type UnavailableFeature = 'Accounts' | 'The credential vault' | 'Subscribing to ICS feeds' | 'Mail' | 'Music' | 'Feeds' | 'Diagnostics';
 
 export interface UnavailableRoute {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -47,6 +47,10 @@ export const UNAVAILABLE_ROUTES: readonly UnavailableRoute[] = Object.freeze([
   route('POST', '/api/mail/:accountId/messages/:id/read', 'Mail'),
   route('POST', '/api/mail/:accountId/messages/:id/archive', 'Mail'),
   route('POST', '/api/mail/:accountId/messages/:id/trash', 'Mail'),
+  // web/src/api/music.ts (§7 Music: the server keeps the provider's tokens)
+  route('GET', '/api/music/status', 'Music'),
+  route('GET', '/api/music/devices', 'Music'),
+  route('POST', '/api/music/command', 'Music'),
   // web/src/api/feeds.ts (feeds are cross-origin documents: only the server can fetch them)
   route('GET', '/api/feeds', 'Feeds'),
   // web/src/api/diagnostics.ts (§17): the server's health, logs, log level, jobs and report, and

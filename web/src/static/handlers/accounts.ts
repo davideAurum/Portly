@@ -119,9 +119,9 @@ export const MESSAGES = Object.freeze({
   tokenRejected: 'The provider rejected fresh access; reconnect the account',
 });
 
-const NOT_IN_STATIC = 'Google accounts are not available in the browser-only build.';
+const notInStatic = (provider: 'google' | 'spotify'): string => `${provider === 'google' ? 'Google' : 'Spotify'} accounts are not available in the browser-only build.`;
 
-const CAPABILITY_NAMES: Readonly<Record<Capability, string>> = { calendar: 'Calendar', mail: 'Mail', launchpadSync: 'Launch pad sync' };
+const CAPABILITY_NAMES: Readonly<Record<Capability, string>> = { calendar: 'Calendar', mail: 'Mail', launchpadSync: 'Launch pad sync', music: 'Music' };
 
 // ---------------------------------------------------------------------------
 // Rows
@@ -220,7 +220,7 @@ function invalid(path: string, message: string): StaticApiError {
 /** The provider route parameter: Microsoft, a "not here" for Google, 404 for anything else. */
 function microsoftParam(value: string | undefined): 'microsoft' {
   if (!isOAuthProvider(value)) throw new StaticApiError('not_found', 'Unknown OAuth provider');
-  if (value !== 'microsoft') throw new StaticApiError('not_configured', NOT_IN_STATIC);
+  if (value !== 'microsoft') throw new StaticApiError('not_configured', notInStatic(value));
   return value;
 }
 
