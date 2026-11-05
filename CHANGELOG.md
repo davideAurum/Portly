@@ -4,7 +4,11 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
-## Unreleased
+## 0.2.0-alpha.7 (2026-11-05)
+
+The seventh alpha: a Music widget that controls Spotify from your home page. Ships with new-tab
+extension 0.5.3 (unchanged, so no reload of the extension is needed). Spotify has not yet been tried
+with a real account, so treat the widget as a first test.
 
 ### What's new
 - **Music widget.** See what is playing on Spotify and control it from your home page: play, pause,
