@@ -1826,6 +1826,19 @@ build and tests). Statuses: `disabled` (hybrid off), `framed`, `idle` (not check
   only), compare-and-clear, remove the server snapshot, `lastMode = 'browser'`, reload. Other tabs follow through `storage`
   events.
 
+**A server older than the site.** The site moves with each Pages publish and the server when its PC updates, so the
+site can be ahead of the server it uses; `apiVersion` only says whether the two can work together at all. A
+server-backend Pages page with the status `connected` compares `state.server.version` with its own `__APP_VERSION__`
+(`localServer/version.ts`: semver order, prereleases included, no dependency) and, when the server is older,
+`app/StatusBanners.tsx` shows an info notice, the last in its order: "Your main PC runs 0.2.0-alpha.6; this site is
+0.2.0-alpha.7. Run `portly --update` on your main PC." ("This PC runs …" for a paired browser). It is read-only: it uses
+what the probes already learned, so it adds no request and no server code, and it has no update action. The version is
+untrusted input: anything but a well-formed version of at most 40 characters shows nothing, so such text never reaches
+the page, and neither does `0.0.0`, which a server reports when it can't read its own version. A server on the same or a
+newer version shows nothing, and the notice goes by itself once a probe sees the updated server. Other statuses show
+nothing because `state.server` may then be another server or one that stopped answering. The server build never shows
+it: Portly's own page is always the server's version.
+
 **Transport (`localServer/transport.ts`).** `api()` calls `pagesFetch(path, init)` in the Pages build (dynamic import,
 so the server bundle never contains it). Browser backend → `staticFetch`. Server backend → wait for
 `whenServerReady(signal)` (resolves when connected, waits while checking/reconnecting/waiting for the permission,

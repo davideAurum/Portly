@@ -4,6 +4,13 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## Unreleased
+
+### What's new
+- **A notice when Portly is older than the site.** The Pages site and Portly update separately, so
+  the site can get ahead. A page using Portly now says when that happens and which version each is
+  on, with the command to run on that PC. It starts no update and makes no extra requests.
+
 ## 0.2.0-alpha.7 (2026-11-05)
 
 The seventh alpha: a Music widget that controls Spotify from your home page. Ships with new-tab
