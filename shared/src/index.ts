@@ -21,4 +21,5 @@ export * from './export.ts';
 export * from './pairing.ts';
 export * from './devices.ts';
 export * from './diagnostics.ts';
+export * from './version.ts';
 export * from './launchpadSync.ts';

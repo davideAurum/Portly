@@ -1047,6 +1047,9 @@ disconnects itself; its cookie cleared). Every other route except those listed `
   (30 days), `MAX_DEVICES` (20), `DEVICE_CODE_ALPHABET`/`DeviceCodeSchema` (`XXX-XXX` without 0/O/1/I/L),
   `DeviceSecretSchema` (32 random bytes base64url), `DeviceLabelSchema` (one line ≤ 60, no control or bidi
   characters), `DeviceRequestCreateSchema`, the response schemas of §7 Devices.
+- **version.ts** — `compareVersions` and `isNewerVersion`: semver precedence over text that is not trusted, so anything
+  but a short, well-formed version reads as no version and never counts as older or newer. `__fixtures__/version-order.json`
+  is the test table.
 - **diagnostics.ts** (§17) — log levels, `DIAGNOSTIC_AREAS`, `HEALTH_CODES`, `REQUEST_ID_HEADER`, the scrubbers
   (`scrub`, `maskUserPaths`, `scrubFields`, `redactForSharing`) shared by the server and the browser, and the DTOs of
   `/api/diagnostics/*` (log records and queries, health entries and outcome rows, jobs, log level, summary, browser
@@ -1833,7 +1836,7 @@ build and tests). Statuses: `disabled` (hybrid off), `framed`, `idle` (not check
 **A server older than the site.** The site moves with each Pages publish and the server when its PC updates, so the
 site can be ahead of the server it uses; `apiVersion` only says whether the two can work together at all. A
 server-backend Pages page with the status `connected` compares `state.server.version` with its own `__APP_VERSION__`
-(`localServer/version.ts`: semver order, prereleases included, no dependency) and, when the server is older,
+(`localServer/version.ts`, with the order in `shared/src/version.ts`: semver, prereleases included, no dependency) and, when the server is older,
 `app/StatusBanners.tsx` shows an info notice, the last in its order: "Your main PC runs 0.2.0-alpha.6; this site is
 0.2.0-alpha.7. Run `portly --update` on your main PC." ("This PC runs …" for a paired browser). It is read-only: it uses
 what the probes already learned, so it adds no request and no server code, and it has no update action. The version is
