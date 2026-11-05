@@ -6,6 +6,18 @@ gets a new one when its own code changes. Each entry names the extension version
 
 ## Unreleased
 
+### Fixed
+- **`portly --update` from PowerShell 7.** It stopped with "The term 'Get-FileHash' is not
+  recognized", before changing anything, because the Windows PowerShell behind the `portly` command
+  picked up PowerShell 7's modules. The fix is in the installed copy that runs an update, so the
+  update *to* this version from PowerShell 7 still needs
+  [the way round it](docs/setup/troubleshooting.md#updating).
+- **A working update is no longer rolled back.** Windows build 26300 reports the state of network
+  connections wrongly, so the start check after an update found nothing listening, waited 90 seconds
+  and put the old version back although the new one was running. `portly --status`, `portly --start`
+  and `scripts\start.ps1` could say "nothing is listening" for the same reason. They now look for the
+  connection with no remote end, which Windows reports correctly.
+
 ### Removed
 - **Copying a Homebase install.** No PC runs Homebase any more, so the installer, `portly
   --copy-from-homebase`, `-NoHomebaseCopy` and the browser's copy of Homebase's data are gone.
