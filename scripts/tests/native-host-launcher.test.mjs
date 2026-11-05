@@ -504,8 +504,8 @@ describe('health check', () => {
     });
     servers.notOk = await listen(json(200, { ok: false, app: 'portly' }));
     servers.okString = await listen(json(200, { ok: 'true', app: 'portly' }));
-    // Homebase, the name before Portly, and a server that does not say what it is.
-    servers.homebase = await listen(json(200, { ok: true, app: 'homebase', version: '9.9.9', vault: 'ready' }));
+    // Another app, and a server that does not say what it is.
+    servers.otherApp = await listen(json(200, { ok: true, app: 'another-app', version: '9.9.9', vault: 'ready' }));
     servers.unnamed = await listen(json(200, { ok: true, version: '9.9.9', vault: 'ready' }));
     servers.error = await listen(json(503, { ok: true, app: 'portly' }));
     servers.html = await listen((_req, res) => {
@@ -533,7 +533,7 @@ describe('health check', () => {
     assert.equal(await checkHealth(portOf('ok')), true);
   });
 
-  for (const name of ['notOk', 'okString', 'homebase', 'unnamed', 'error', 'html', 'huge']) {
+  for (const name of ['notOk', 'okString', 'otherApp', 'unnamed', 'error', 'html', 'huge']) {
     it(`rejects ${name}`, async () => {
       assert.equal(await checkHealth(portOf(name)), false);
     });

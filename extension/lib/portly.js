@@ -384,9 +384,8 @@ export function googleSearchUrl(query) {
 
 /**
  * GET http://localhost:<port>/api/health with a hard timeout covering headers *and* body.
- * Success requires a 2xx JSON body with `ok: true` and `app: 'portly'`, so neither Homebase (the
- * name before Portly, which answers the same way on the same port) nor some other service squatting
- * on the port gets the redirect. Never throws.
+ * Success requires a 2xx JSON body with `ok: true` and `app: 'portly'`, so another service on the
+ * port doesn't get the redirect, even one that answers the same way. Never throws.
  * @param {number} port
  * @param {HealthDeps} deps
  * @returns {Promise<HealthResult>}

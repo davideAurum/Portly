@@ -106,14 +106,9 @@ Homebase; see "Renamed from Homebase".
   version can be published once.
 
 ## Renamed from Homebase (ARCHITECTURE section 19)
-Everything user-facing and internal is Portly. A legacy layer copies an existing Homebase
-install over:
-- `server/src/lib/legacy-homebase.ts`;
-- `web/src/legacyStorage.ts`;
-- `copyLegacyStaticDatabase` in `web/src/static/storage/idb.ts`;
-- `Get-HbLegacyPlan`, `Invoke-HbLegacyEnvCopy`, `Suspend-`/`Resume-HbLegacyServer`,
-  `Remove-HbLegacyInstall` and the `*HomebaseCopy*` helpers in `scripts/lib/Common.ps1`;
-- import of `homebase-export` files and acceptance of `homebase-build` publishes;
+Everything user-facing and internal is Portly. The code that copied a Homebase install over is
+gone; 0.2.0-alpha.5 is the last version that has it. What is left stays on purpose:
+- import of `homebase-export` files;
 - the redirect pages in `davideAurum/homebase-site`. The 0.2.0-alpha.1 footer and old consent
   screens link there, so keep that repository and its Pages site up.
 
@@ -121,25 +116,21 @@ Do not rename:
 - the vault canary `homebase-vault-canary-v1`;
 - the bookmark import source seed;
 - the `--hb-*` CSS custom properties and `hb-*` classes in `web/src`. They keep the old prefix
-  on purpose, like the PowerShell `Hb` helpers;
-- the legacy code above.
+  on purpose, like the PowerShell `Hb` helpers.
 
 Never change the extension `key` in `extension/manifest.json`. Its ID is pinned in the
 extension, the native host and the docs.
 
 ## Running things by hand
-- The developer's machine may already run an installed Portly or Homebase on port 5757. For
+- The developer's machine may already run an installed Portly on port 5757. For
   manual runs set `PORTLY_PORT`, `PORTLY_VITE_PORT` and `PORTLY_DATA_DIR=<scratch>\data`, never
   the defaults, and stop whatever you start.
 - Also clear `PORTLY_PAGES_URL` for manual runs (it may be set as a user variable). With it set,
   the server's own page forwards to the real Pages site (`web/src/app/pagesForward.ts`).
-- A scratch `PORTLY_DATA_DIR` is not optional: the default folder is the user's real data. It is
-  also where the switch-over leaves its `copy-from-homebase.json` request (section 19), and any
-  server started there would carry out that copy.
+- A scratch `PORTLY_DATA_DIR` is not optional: the default folder is the user's real data.
 - Do not run `install-autostart.ps1`, `uninstall-autostart.ps1`, `setup.ps1`, `install.ps1`,
   `update.ps1`, `install-cli.ps1` or `try-branch.ps1` for real unless asked. They change the
-  scheduled task, registry, PATH and user environment, and remove an existing Homebase install.
-  Use `-DryRun`.
+  scheduled task, registry, PATH and user environment. Use `-DryRun`.
 
 ## Ask first
 - Pushing; creating, renaming or archiving repositories; publishing releases

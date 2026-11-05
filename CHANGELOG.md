@@ -4,6 +4,14 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## Unreleased
+
+### Removed
+- **Copying a Homebase install.** No PC runs Homebase any more, so the installer, `portly
+  --copy-from-homebase`, `-NoHomebaseCopy` and the browser's copy of Homebase's data are gone.
+  0.2.0-alpha.5 is the last version that can carry a Homebase install over. Export files from
+  Homebase can still be imported. Nothing changes for a PC already on Portly.
+
 ## 0.2.0-alpha.5 (2026-11-04)
 
 The fifth alpha: the main PC approves your other PCs on the same address. Ships with new-tab

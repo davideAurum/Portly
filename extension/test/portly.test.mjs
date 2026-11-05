@@ -399,8 +399,8 @@ describe('checkHealth', () => {
     }
   });
 
-  it('does not take Homebase (the name before Portly) or an unnamed server for Portly', async () => {
-    for (const app of ['homebase', undefined, 'Portly']) {
+  it('does not take another app or an unnamed server for Portly', async () => {
+    for (const app of ['another-app', undefined, 'Portly']) {
       const fetch = createFetch(() => jsonResponse({ ...HEALTH_BODY, app }));
       assert.deepEqual(await checkHealth(5757, { fetch }), { ok: false, reason: 'unexpected' }, String(app));
     }

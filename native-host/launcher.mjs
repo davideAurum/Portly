@@ -203,8 +203,8 @@ export function loadConfig(file, readFile = fs.readFileSync) {
 
 /**
  * True when http://<host>:<port>/api/health answers 200 with a JSON object whose ok is true and
- * whose app is 'portly'. Homebase (the name before Portly) answers the same way with another app,
- * and must not count: Portly's task still has to be started.
+ * whose app is 'portly'. Another server that answers the same way must not count: Portly's task
+ * still has to be started.
  */
 export function probeHealth(host, port, { timeoutMs = HEALTH_TIMEOUT_MS, get = http.get } = {}) {
   return new Promise((resolve) => {
