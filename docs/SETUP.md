@@ -57,56 +57,12 @@ you then load it and point it at your Pages site
 
 ## Coming from Homebase
 
-Portly is Homebase's new name. Installing Portly on a PC that ran Homebase carries everything over;
-Homebase's own folders are left as they were, so you can go back until you delete them. To use
-your main PC's Portly from such a PC instead of installing it there, see
-[A PC that ran Homebase](setup/other-pcs.md#a-pc-that-ran-homebase).
+Portly is Homebase's new name. This version doesn't read a Homebase install, and doesn't stop or
+remove one: if Homebase's server holds the port, Portly reports the port as in use.
 
-- **Your data and accounts:** `install-autostart.ps1` (which `install.ps1` and `setup.ps1` run)
-  asks Portly to copy `%LOCALAPPDATA%\Homebase\homebase.db` (or the `homebase.db` in the folder
-  `HOMEBASE_DATA_DIR` named) and `vault.key` into `%LOCALAPPDATA%\Portly` when it first starts.
-  Connected accounts keep working: the key is protected for your Windows user wherever it lives, and
-  the Google and Microsoft redirect addresses did not change. The server log says so (`copied the
-  data of Homebase`), and `migrated-from-homebase.json` in the data folder records it. Starting
-  Portly any other way (`npm start`, a development server) never copies anything.
-- **If the copy fails,** Portly doesn't start with empty data: it stops and tries again at the next
-  start, and the log says why. To try again later run `portly --copy-from-homebase`; to give up and
-  start without Homebase's data run `portly --copy-from-homebase --cancel`. If Portly already has
-  data of its own, the installer warns and copies nothing; `portly --copy-from-homebase --replace`
-  copies Homebase's data and vault key over it and keeps Portly's old database and key beside them
-  (`portly.db.before-homebase-<time>` and `vault.key.before-homebase-<time>`). A database always
-  keeps the key it was made with, so the accounts saved in it keep working.
-- **Starting from scratch instead:** run `setup.ps1 -NoHomebaseCopy` (or
-  `install-autostart.ps1 -NoHomebaseCopy`). Portly then starts with empty data and copies neither
-  Homebase's database and vault key nor its `HOMEBASE_*` variables (later runs without the switch
-  don't copy the variables either). Homebase's task is still replaced, and its data folder stays
-  where it is. Browsers still copy Homebase's in-browser settings on their first visit (see
-  **Browsers** below).
-- **Settings and autostart:** the installer copies your `HOMEBASE_*` user variables to their
-  `PORTLY_*` names once (never over one you already set). It notes that in
-  `homebase-variables-copied.json` in Portly's data folder, so later runs and updates leave them
-  alone and a variable you remove stays removed. `HOMEBASE_DATA_DIR` is the exception: it only tells
-  Portly where to copy Homebase's data from, and Portly keeps its data in `%LOCALAPPDATA%\Portly`.
-  To keep it somewhere else, set `PORTLY_DATA_DIR` before you install. The installer stops the
-  **Homebase Server** task just before it starts Portly, since both use the same port, and removes
-  that task and the `com.homebase.launcher` registrations only once Portly answers. The old task's
-  definition is saved as `homebase-task-backup.xml` in Portly's data folder. If Portly doesn't come
-  up, Homebase is started again and nothing of it is removed. With `-NoStart`, Homebase stays
-  installed. `-DryRun` shows exactly what it would do.
-- **The `homebase` command:** `install-cli.ps1` (which `setup.ps1` runs) installs `portly` and then
-  removes the old `homebase` command and its PATH entry. Open a new terminal afterwards.
-- **Browsers:** a browser paired with Homebase stays paired, and the Pages site keeps the data it
-  kept in the browser: on its first load Portly copies Homebase's `homebase:` settings and its
-  in-browser database to the new names. If copying the database fails part-way, the next two loads
-  try again and replace whatever that browser showed in between. This happens with
-  `-NoHomebaseCopy` too, since that is a script option the browser never sees; to start a browser
-  empty, delete the Pages site's data in it after the first visit, or use a new browser profile
-  ([Adding a PC](setup/add-a-pc.md#browsers-keep-their-homebase-data)). Export files from Homebase
-  import as they are.
-- **By hand:** in `chrome://extensions` (or `edge://extensions`) **Remove** *Homebase New Tab* and
-  **Load unpacked** Portly's `extension` folder (same extension ID, so nothing else changes).
-  Publish the Pages site again from Portly (`publish-static.ps1` accepts the Homebase publish it
-  replaces). When everything works, delete `%LOCALAPPDATA%\Homebase` and the old checkout.
+Version 0.2.0-alpha.5 is the last one that copies a Homebase install over. To carry one over,
+install [that release](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.5) first,
+then update. Export files from Homebase can still be imported, in **Settings → Import & export**.
 
 ## Requirements
 
@@ -361,6 +317,5 @@ for up to 10 minutes after a publish, so hard-refresh (Ctrl+F5) before judging i
   code means, port in use, vault locked, reconnecting accounts, extension and autostart problems.
 - [Browser-only build](setup/static-build.md) and [Pages site with Portly on this
   PC](setup/pages-local-server.md) — the GitHub Pages site and pairing it with Portly.
-- [Adding a PC](setup/add-a-pc.md) — the checklist for putting Portly on another of your PCs,
-  including one that runs Homebase.
+- [Adding a PC](setup/add-a-pc.md) — the checklist for putting Portly on another of your PCs.
 - [Architecture](ARCHITECTURE.md) — how Portly is built and why.

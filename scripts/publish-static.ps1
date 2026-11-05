@@ -27,10 +27,9 @@
     Safety rails: the folder must be the root of a git repository with a branch checked out and a
     clean working tree (no uncommitted changes, no untracked files), and it must not be this
     Portly checkout or any other Portly checkout. The repository must be empty or hold only
-    an earlier Portly publish (index.html with <meta name="portly-build" content="static">, or
-    "homebase-build" from before the rename, assets/, install.ps1, setup.ps1, get-extension.ps1,
-    portly-extension.zip, portly-extension.json, the files of
-    web\public, .nojekyll, .gitattributes, CNAME, README.md); anything else is refused
+    an earlier Portly publish (index.html with <meta name="portly-build" content="static">,
+    assets/, install.ps1, setup.ps1, get-extension.ps1, portly-extension.zip,
+    portly-extension.json, the files of web\public, .nojekyll, .gitattributes, CNAME, README.md); anything else is refused
     unless -ReplaceEverything. When origin is on github.com and there is no CNAME file, -Base must
     match the repository ('/' for <user>.github.io, '/<repo>/' otherwise). Only the build's own
     paths are staged. -DryRun only prints the plan: it fetches (to report the same as a real
@@ -103,9 +102,8 @@ $HbGitAttributesLines = @(
     '*.ps1 -text',
     '*.woff2 binary'
 )
-# web\vite.config.ts (staticHtml) puts this tag into every static build's index.html (homebase-build
-# before the rename to Portly).
-$HbBuildMarker = '<meta\s[^>]*name\s*=\s*["'']?(portly|homebase)-build["'']?[^>]*content\s*=\s*["'']?static\b'
+# web\vite.config.ts (staticHtml) puts this tag into every static build's index.html.
+$HbBuildMarker = '<meta\s[^>]*name\s*=\s*["'']?portly-build["'']?[^>]*content\s*=\s*["'']?static\b'
 
 # Runs git in a folder. Output is captured (stderr included) unless -ShowOutput, which streams it
 # to the console (commit, push). Throws on a non-zero exit code unless -AllowFailure. Windows

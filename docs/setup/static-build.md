@@ -350,8 +350,7 @@ itself (or any other Portly checkout), when its working tree has uncommitted cha
 files, when no branch is checked out, or when the repository holds anything but an earlier
 Portly publish, unless you pass `-ReplaceEverything`. An earlier publish holds only:
 
-- `index.html` with `<meta name="portly-build" content="static">` (or `homebase-build`, from a
-  publish made before the rename);
+- `index.html` with `<meta name="portly-build" content="static">`;
 - `assets/`, `install.ps1`, `setup.ps1` and `get-extension.ps1`;
 - `portly-extension.zip` and `portly-extension.json` (the new-tab extension as a download, see
   [Get the extension on a PC without the code](extension.md#get-the-extension-on-a-pc-without-the-code));

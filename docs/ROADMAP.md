@@ -739,7 +739,7 @@ Items:
   the extension cannot open another PC's Portly yet (B.6). Checked against Homebase's scripts,
   then followed verbatim in 3.3.
 
-  *Status:* written 2026-10-29 as [A PC that ran Homebase](setup/other-pcs.md#a-pc-that-ran-homebase),
+  *Status:* written 2026-10-29 as A PC that ran Homebase (a part of `docs/setup/other-pcs.md`, removed 2026-11-04),
   linked from SETUP and Adding a PC; each command was checked against Homebase's and Portly's
   scripts and run read-only in Windows PowerShell 5.1 where it changes nothing. Not yet followed
   on a PC: that is 3.3.
@@ -771,7 +771,7 @@ Items:
   *Status:* the SETUP line is in (2026-10-27). SETUP's *Browsers* bullet says the copy happens
   with `-NoHomebaseCopy` too, and how to start a browser empty: delete the site's data after the
   first visit, which removes Homebase's in-browser data on the same origin as well, or use a new
-  profile. [Adding a PC](setup/add-a-pc.md#browsers-keep-their-homebase-data) explains why
+  profile. Adding a PC explained why
   (`web/src/legacyStorage.ts` copies once behind the `portly:migrated-from-homebase` marker, and
   `copyLegacyStaticDatabase` only into a new database, with up to three loads). The fresh-profile
   check is in the checks table, for 3.3.
@@ -790,6 +790,16 @@ Items:
   `claude/local-server-setup-b2d229` 61e10ac, `claude/rss-widget-62f007` 65ccc76,
   `claude/server-calendar-static-page-49085a` 79a2485. `gh repo view` reports it archived and
   private.
+
+- **3.7 Remove the migration code** (M; go-ahead; after no PC runs Homebase).
+  Remove what copied a Homebase install into Portly, keeping what existing data and links need
+  (ARCHITECTURE section 19). 0.2.0-alpha.5 stays the last version that can carry an install over.
+
+  *Done when:* the installer, the server, the browser and `portly` no longer touch Homebase, and
+  section 19 says what is left and why.
+
+  *Status:* built 2026-11-04 with the owner's go-ahead, after Homebase was removed from the second
+  PC. Merging waits for the owner to confirm that the main PC has no Homebase left.
 
 ## Phase 4: Release rehearsal in private
 
@@ -1765,6 +1775,7 @@ date and the outcome once a row has been run for real.
 | --- | --- | --- | --- |
 | `get-extension.ps1` downloading from the live Pages site (not published yet) and loading the unpacked folder in a real browser; the checks use a zip made in a temporary folder | this commit, 2026-11-04 | next Pages publish | |
 | `publish-static.ps1` accepting `get-extension.ps1`, `portly-extension.zip` and `portly-extension.json` in a real publish, and the zip's bytes surviving it, so that its SHA-256 still matches on the site; only the dry run and name checks ran | this commit, 2026-11-04 | next Pages publish | |
+| A real `install-autostart.ps1` and `portly --update` run after the Homebase code was removed (dry runs, fakes and `check-release.ps1`'s temporary install passed; a scratch start of the server ignored leftover Homebase files); the CSP of both builds by hand | Homebase removal, 2026-11-04 | 3.7, the first update of the main PC after merging | not yet |
 | `publish-release.ps1` handing the CHANGELOG notes to a real `gh release create --notes-file`, and how they render on github.com (links, the arrow character); the dry run printed the 0.2.0-alpha.1 section in both PowerShell versions but stops at the private-repository refusal before the `gh` command line | this commit, 2026-10-25 | 5.3 | 2026-10-28 (5.3): `gh release create --notes-file` carried the 0.2.0-alpha.1 section; on github.com the links point at 1189489 and the arrow renders. The zip upload stalled over HTTP/2 and went up with `GODEBUG=http2client=0` (5.3's status) |
 | The package built with the nodejs.org runtime installed for real: the scheduled task, native host and extension on a real account; `check-release.ps1` only installs into a temporary folder without autostart or the CLI | this commit, 2026-10-25 | 4.3 | 2026-10-27 (4.3): installed on a fresh standard account with the real task, native host, CLI and Load unpacked; a new tab started it and About showed the account's data folder. Its update path is the failed-update row below |
 | The Weather widget's place name from a real browser location (the browser pane blocks location, so the check faked the position; the server's real Nominatim lookup did answer with the expected city) | this commit, 2026-10-25 | owner's next use with *Use this device's location* | 2026-10-29 (2.4, reported by the owner): in Edge on the paired published site, *Use my location* with a real position showed the weather and its place |
@@ -1797,8 +1808,8 @@ date and the outcome once a row has been run for real.
 | A PC whose policy blocks running programs from `%LOCALAPPDATA%` (the task should fall back to `node.exe` and the supervisor to its own program) | 89e4325, 2026-10-18 | none: parked, cannot be reproduced on Windows 11 Home | not yet |
 | The Weather widget's location prompt flow in a real browser (permission already granted, *Use my location*, a one-time *Allow this time*); the browser APIs are faked in the tests | 82fb2f8, 2026-10-13 | 2.4 | 2026-10-29 (2.4, reported by the owner): in Edge, no location prompt on page load; only *Use my location* asked, and *Allow this time* worked |
 | The animated lighthouse logo in Firefox and as the extension's New Tab page; frames were checked by eye in Chromium only | 7657e96, 2026-10-13 | 2.4 | 2026-10-29 (2.4, reported by the owner): it animates on Chrome's Portly New Tab page and in Firefox |
-| A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | not yet |
-| A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | none: the other PCs connect instead of installing (F11, 2026-10-29); 3.5 documents the browser side | not yet |
+| A successful `portly --copy-from-homebase` run from the command line (the first PC's copy was requested by the installer instead) | c7549e5, 2026-10-13 | none scheduled: 3.1 avoids it on purpose because it acts on the real data folder; reopen if a PC in 3.3 or 3.4 needs it | no longer applicable (2026-11-04): this commit removed the code, because no PC runs Homebase |
+| A real run of `setup.ps1 -NoHomebaseCopy` or `install-autostart.ps1 -NoHomebaseCopy` (starting from scratch next to a Homebase install); only a dry run was made | 376e146, 2026-10-13 | none: the other PCs connect instead of installing (F11, 2026-10-29); 3.5 documents the browser side | no longer applicable (2026-11-04): this commit removed the code, because no PC runs Homebase |
 | The next real `portly --update`: the dirty-tree refusal and the fetch/fast-forward messages for real, and a publish that writes `.gitattributes` to the live Pages clone (which makes the live `install.ps1` byte-equal to the built one) | 1.8, 2026-10-21 | 5.4, or the next republish of the Pages site | 2026-10-28 (5.4, `publish-static.ps1`): `.gitattributes` written and the live `install.ps1` byte-equal to the built one; the clone was level with its origin, so no fast-forward message. The dirty-tree refusal and the fast-forward still wait for a real `portly --update` from a checkout |
 | `setup.ps1` on a fresh PC without Node.js, now that the major is pinned: it must install Node 24 (today winget's `OpenJS.NodeJS.LTS`, later `OpenJS.NodeJS.24`) and stop on another major; checked only with `node.exe` hidden from PATH on this PC | 1.11, 2026-10-21 | none planned: the other PCs connect instead (F11, 2026-10-29); the next PC that installs Portly with `setup.ps1` | not yet |
 | Both production builds free of CSP violations: the rule in ARCHITECTURE section 13 has no automated step behind it | design contract (ARCHITECTURE section 13) | 2.5, and again before every release | 2026-10-25 (2.5, at 749ec2f): zero violations in both builds in Chromium; 2026-10-28 (before 0.2.0-alpha.1, at 6ac3731): zero in both builds in Chromium and Edge; repeat before every release (releases.md step 3) |
@@ -1811,7 +1822,7 @@ date and the outcome once a row has been run for real.
 | Connecting an Android phone through Tailscale Serve (the connect screen, the code, the `__Host-` cookie in Chrome on Android, the stacked layout below 768 px, the name Tailscale suggests for a phone): documented from the code only; every real check used a second Windows PC | phone docs commit, 2026-10-25 | the owner's first connect from a phone | not yet |
 | The Reload notice as the last lines of a real update in a visible PowerShell window (`install.ps1` now prints it after "Updated Portly"); only `check-release.ps1`'s temporary install, whose captured output the console wraps | 4.4 commit, 2026-10-27 | 5.2, or the first release that changes the extension version | 2026-10-28 (5.2): an update to a copy with extension 0.5.4, run in a visible window, ended with the yellow warning as its last line |
 | [Adding a PC](setup/add-a-pc.md) followed verbatim on a real PC, from the install to green Diagnostics; written from the scripts and guides only | 4.4 commit, 2026-10-27 | none planned: the other PCs connect instead (F11, 2026-10-29); 3.3 follows other-pcs.md | not yet |
-| A fresh browser profile on a PC that ran Homebase: the browser-side copy with `-NoHomebaseCopy`, and deleting the site's data after the first visit leaving it empty, as SETUP and Adding a PC now say | 4.4 commit, 2026-10-27 | 3.3, if that PC's browser opens the Pages site | not yet |
+| A fresh browser profile on a PC that ran Homebase: the browser-side copy with `-NoHomebaseCopy`, and deleting the site's data after the first visit leaving it empty, as SETUP and Adding a PC now say | 4.4 commit, 2026-10-27 | 3.3, if that PC's browser opens the Pages site | no longer applicable (2026-11-04): this commit removed the code, because no PC runs Homebase |
 | Browser-only accounts remembering the scopes their last sign-in asked for, against a real Outlook.com account whose grant lists more (refresh, renewal and Reconnect with no `invalid_grant` loop); only static tests with a faked token endpoint | 6.1 commit, 2026-10-27 | 6.6 | 2026-10-29 (6.6, `preview:static` in Chrome and Edge): with sync on, Microsoft's grant also held the server's mail consent, and refreshes kept working; after the consent was withdrawn at account.live.com, **Test** forced a refresh: one failure in Diagnostics > This browser, then **Reconnect needed**, and a reload did not loop. Reconnect asked again for calendars and the app folder only |
 | The Microsoft tile's **Launch pad sync** checkbox in a real browser on the browser backend, and its absence on a paired (server-backend) page; only the settings tests with mocked answers | 6.2 commit, 2026-10-27 | 6.6 | 2026-10-29 (6.6, `preview:static` in Chrome and Edge): offered on the Microsoft card and in Manage, unticked. Its absence on a paired page was not looked at directly (the paired published page showed no GitHub sync either) |
 | The `bookmarks-sync-fields` upgrade on a real browser's existing launch pad (IndexedDB data from before 6.3) and the stamps after real edits across two tabs; only static tests over memory storage | 6.3 commit, 2026-10-27 | 6.7 | not yet |
@@ -1833,7 +1844,7 @@ date and the outcome once a row has been run for real.
 | GitHub's answers to a refused contents write: `409` for a stale `sha`, `422` for a missing one, what a `sha` on a missing file gets (the store assumes `422`, handles `404`), and a `409` for two writes to the branch at once; only GitHub's docs and the in-memory GitHub | G.2 commit, 2026-10-27 | G.3 | not yet |
 | Saving the repository and token in Settings → Accounts on the published site (the check with GitHub, the refusal of a public repository and of a classic token), and the CSP with `api.github.com` alone (the preflight with `If-None-Match`) in a real browser; only unit tests, the built CSP and an unauthenticated `curl` of the preflight | G.2 commit, 2026-10-27 | 6.7 (the published site), a classic token | 2026-10-29 (G.3, on `preview:static`): the save checked the repository with GitHub and refused it while it was public ("This repository is public. Portly syncs only to a private repository"); made private, it saved; no CSP violation. Not tried: a classic token, the published site |
 | The guide's GitHub token steps against GitHub's own pages: the **Read and write** and **No access** choices and Metadata added by itself; only Portly's in-app steps and GitHub's docs were compared | 6.7 docs commit, 2026-10-29 | G.3 (the owner makes the repository and token) | 2026-10-29 (G.3): the owner made the token with the guide's steps; GitHub offered **Contents → Read and write** and added **Metadata: Read-only** by itself |
-| [A PC that ran Homebase](setup/other-pcs.md#a-pc-that-ran-homebase) followed verbatim on a real PC: the task saved and removed, the `com.homebase.launcher` keys removed, the port free, the extension gone; only read-only runs in Windows PowerShell 5.1 | 3.2 commit, 2026-10-29 | 3.3 | not yet |
+| A PC that ran Homebase (a part of `docs/setup/other-pcs.md`) followed verbatim on a real PC: the task saved and removed, the `com.homebase.launcher` keys removed, the port free, the extension gone; only read-only runs in Windows PowerShell 5.1 | 3.2 commit, 2026-10-29 | 3.3 | 2026-11-04: the same steps were run on the second PC (task saved and removed, both keys removed, data and checkout deleted, the port free), though not verbatim from the guide, whose part was then removed |
 | Archiving and trashing a Yahoo message over IMAP for real (2.6 saw both offered, with only fakes behind them) | 2.6 commit, 2026-10-29 | the owner's next Yahoo archive or trash | not yet |
 | A field-by-field comparison of each provider's live answer with the fields its mapper reads (drift that keeps health green); 2.7 checked health only | 2.7 commit, 2026-10-29 | the next provider sweep with the verbose Diagnostics log, if wanted | not yet |
 | An install or update on a PC where another Windows account already has Portly: today Windows refuses the shared `\Portly Server` task name (0x80070005) and the installer advises running as administrator, which does not help; the clearer message is not built yet | 6.8 commit, 2026-10-29 | 0.2.0-alpha.3 (the message), with *Several Windows accounts on one PC* | not yet |
@@ -2064,7 +2075,7 @@ history, the MIT license and a full rename. The old phase 1 finished Portly: an 
 is carried over (data, vault key, settings, browser data and accounts, only when the installer or
 `portly --copy-from-homebase` asks; a failed copy is retried, and Homebase is removed only once
 Portly is up; see [SETUP: Coming from Homebase](SETUP.md#coming-from-homebase) and
-[ARCHITECTURE section 19](ARCHITECTURE.md#19-moving-over-from-homebase-the-name-before-portly));
+[ARCHITECTURE section 19](ARCHITECTURE.md#19-renamed-from-homebase));
 Outlook.com calendars in the browser-only build (proven with a real account on a localhost copy
 on 2026-10-19, [design/launchpad-sync.md](design/launchpad-sync.md) section 13; the published
 address is 2.1); the browser-only polish (the *Browser only* footer, the **Wikipedia suggestions

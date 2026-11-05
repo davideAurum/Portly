@@ -25,6 +25,12 @@ gets a new one when its own code changes. Each entry names the extension version
   and `scripts\start.ps1` could say "nothing is listening" for the same reason. They now look for the
   connection with no remote end, which Windows reports correctly.
 
+### Removed
+- **Copying a Homebase install.** No PC runs Homebase any more, so the installer, `portly
+  --copy-from-homebase`, `-NoHomebaseCopy` and the browser's copy of Homebase's data are gone.
+  0.2.0-alpha.5 is the last version that can carry a Homebase install over. Export files from
+  Homebase can still be imported. Nothing changes for a PC already on Portly.
+
 ## 0.2.0-alpha.5 (2026-11-04)
 
 The fifth alpha: the main PC approves your other PCs on the same address. Ships with new-tab

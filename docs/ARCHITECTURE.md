@@ -28,7 +28,7 @@ choice, provided it respects §4.
 - [16. Hybrid mode](#16-hybrid-mode-pages-site--portly-on-this-pc)
 - [17. Diagnostics](#17-diagnostics)
 - [18. Release packages](#18-release-packages-install-without-a-checkout)
-- [19. Moving over from Homebase](#19-moving-over-from-homebase-the-name-before-portly)
+- [19. Renamed from Homebase](#19-renamed-from-homebase)
 
 ---
 
@@ -713,7 +713,7 @@ server/src/
        005_oauth_state_capabilities,006_devices}.sql
   security/{gate,headers,vault,safe-fetch,private-address,dpapi,pairing,foreign-origins,devices,cookies}.ts
   lib/{logger,log-context,health,inflight,provider-errors,exit-codes,startup,ids,errors,cache,scheduler,validate,
-       settings,routes,backups,html-scan,image-sniff,ipc,legacy-homebase,merge-patch,multipart,safe-json,user-agent,
+       settings,routes,backups,html-scan,image-sniff,ipc,merge-patch,multipart,safe-json,user-agent,
        peer-names}.ts
   testing/{test-context,test-request,test-devices,fake-fetch,fake-accounts}.ts
   modules/index.ts       static list of all modules (`MODULES`); each register() wrapped in try/catch — a failing
@@ -1513,8 +1513,7 @@ copies of Node.js"):
 - `install-autostart.ps1` makes or refreshes them before registering the task: not usable (cannot be written, blocked by
   policy, wrong version) → the task runs node.exe itself, with a warning; usable but not current (Portly runs from
   them) → registered with the copy and refreshed again once the running processes are stopped (still not usable then →
-  re-registered with node.exe). `Start-HbTask` (`update.ps1` restart, `portly --start`, the `--copy-from-homebase`
-  restart, `try-branch.ps1` restore) first runs `Sync-HbTaskRuntime`: when the task's program is
+  re-registered with node.exe). `Start-HbTask` (`update.ps1` restart, `portly --start`, `try-branch.ps1` restore) first runs `Sync-HbTaskRuntime`: when the task's program is
   `portly-supervisor.exe` and the copies are missing or another build than `runtime.json`'s source, it refreshes them
   (quiet when current; a line when it did something or could not; `-DryRun` only says it). A browser start goes
   through `schtasks /run` only, so it does not refresh them; `status.ps1` warns when they are another build than
@@ -2135,68 +2134,29 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
 
 ---
 
-## 19. Moving over from Homebase (the name before Portly)
+## 19. Renamed from Homebase
 
-User guide: `docs/SETUP.md` (Coming from Homebase). Everything was renamed (PORTLY_* variables, `@portly/*`,
-`X-Portly` headers, `app: 'portly'` in health, the **Portly Server** task, `com.portly.launcher`,
-`%LOCALAPPDATA%\Portly` with `portly.db`, `portly:` browser keys, `portly-export`) except two literals existing
-data depends on: the vault canary `homebase-vault-canary-v1` and the bookmark import source seed. The public pages
-(`site/`) moved from `davideAurum/homebase-site` to `davideAurum/portly-site` in October 2026; the old repository keeps
-redirect pages, because the 0.2.0-alpha.1 footer links there. What an existing Homebase install wrote is carried
-over, never moved or deleted:
+Portly was called Homebase until October 2026. Everything was renamed (PORTLY_* variables, `@portly/*`, `X-Portly`
+headers, `app: 'portly'` in health, the **Portly Server** task, `com.portly.launcher`, `%LOCALAPPDATA%\Portly` with
+`portly.db`, `portly:` browser keys, `portly-export`). The code that copied an existing Homebase install over was
+removed once no PC ran Homebase; 0.2.0-alpha.5 is the last version that has it. Portly neither reads nor stops
+nor removes a Homebase install now. What is left, each for a reason:
 
-- **Data** (`server/src/lib/legacy-homebase.ts`, start-up phase `legacy` between `port-probe` and `db`): only on an
-  explicit request, `<data dir>/copy-from-homebase.json` (`{requestedAt, replace}`), written by `install-autostart.ps1`
-  when Homebase's database exists and Portly has none, or by `portly --copy-from-homebase [--replace]`; a plain first
-  start never copies. Source: the first of `<data dir>/homebase.db` and the `homebase.db` in Homebase's own folder: the
-  one HOMEBASE_DATA_DIR names (resolved like PORTLY_DATA_DIR), else — only with PORTLY_DATA_DIR unset too — Homebase's
-  default folder. HOMEBASE_DATA_DIR is only read as that source; Portly keeps its own folder. `VACUUM INTO` a temporary
-  file (consistent while an old server still has it open; read-only connection first, a normal one if that fails;
-  SQLITE_BUSY/LOCKED, EBUSY, EPERM and EACCES retried, 3 attempts), then the rename to `portly.db`. `homebase.db` itself
-  is never written, but SQLite leaves an empty `homebase.db-wal` and a `-shm` beside a WAL database that had none
-  (seen in 3.1's rehearsal, 2026-10-29). An existing
-  `portly.db` is kept (marker `kept-portly-database`, request dropped, warning) unless `replace`, which first moves it
-  and its `-wal`/`-shm` to `portly.db.before-homebase-<time>`. The vault key travels with the database it encrypts: when
-  the database comes from another folder, Homebase's `vault.key` takes the place of Portly's (DPAPI is per user, not per
-  path), and a `vault.key` of Portly's own that differs is moved to `vault.key.before-homebase-<time>` (the same time as
-  its database; also when Homebase has no key, as it does not fit the copy). A step that fails undoes the earlier ones,
-  so a database never ends up with another one's key. On success the request is removed and
-  `migrated-from-homebase.json` records `{status: 'copied', at, from, copied, replaced?, replacedKey?}`. A copy that
-  cannot be made fails start-up (`StartupError`, marker `status: 'failed'`), keeping the request so no empty `portly.db`
-  is created: still busy → `homebase_copy_busy` (exit 1, the supervisor retries); no source or an unreadable one →
-  `homebase_not_found` / `homebase_copy_failed` (EXIT_PERMANENT_FAILURE; `--cancel` withdraws the request). A key
-  without a database just gets a new canary. The pairing instance id lives in the database, so pairings survive.
-- **User environment, task, native host** (`scripts/lib/Common.ps1`, run by `install-autostart.ps1`, listed by
-  `-DryRun`): `Get-HbLegacyPlan`; first `Invoke-HbLegacyEnvCopy` (`HOMEBASE_X` user variables copied to unset
-  `PORTLY_X`, user scope and this process, before the PORTLY_* settings are read; never `HOMEBASE_DATA_DIR`, which
-  `Get-HbHomebaseDataDir` reads for the source; once, see below); `Get-HbHomebaseCopyPlan` /
-  `Write-HbHomebaseCopyRequest` after the configuration check; once Portly's task and host are registered,
-  `Suspend-HbLegacyServer` stops `\Homebase Server` (and its supervisor processes) without removing it; only when
-  `/api/health` answers with `app: 'portly'`, `Remove-HbLegacyInstall` exports the task to
-  `<data dir>/homebase-task-backup.xml`, unregisters it and removes the `com.homebase.launcher` HKCU keys. Any other
-  outcome (start failure, port taken, an error) runs `Resume-HbLegacyServer` in a `finally`. `-NoStart` leaves Homebase
-  alone. The variables are copied once: the first real run that finds any `HOMEBASE_X` writes
-  `<data dir>/homebase-variables-copied.json` (`{at, copied}`, the names only), and while it exists
-  `Get-HbLegacyPlan -DataDir` copies nothing, so a variable removed since stays removed. `-NoHomebaseCopy` (also on
-  `setup.ps1`) starts from scratch: no variable copy (still recorded, with `copied: []`, so a later run without it
-  copies none either), no copy request (a waiting one is withdrawn); the task and host are still replaced. Homebase's
-  data and native-host folders stay.
-- **Health checks:** Homebase answers `/api/health` on the same port with `ok: true` too, so the extension
-  (`checkHealth`, `extension/lib/portly.js`) and the native host (`probeHealth`) take an answer for Portly only with
-  `app: 'portly'`, like `install-autostart.ps1`; the web app's probe never takes another `app` for Portly either.
-- **Command** (`Get-HbLegacyCliPlan`, `install-cli.ps1`): once `portly` is written and on the user PATH (one PATH
-  write), `homebase.cmd` / `homebase` in `%LOCALAPPDATA%\Homebase\bin` and that folder's PATH entries are removed, and the
-  folder if it is then empty.
-- **Browser** (`web/src/legacyStorage.ts`, imported by `main.tsx` right after zod's configuration): once
-  (`portly:migrated-from-homebase`), every `homebase:` localStorage key except query caches is copied to its unset
-  `portly:` key; `copyLegacyStaticDatabase` (`static/storage/idb.ts`) copies `homebase-static:<base>` into
-  `portly-static:<base>` (both stores; needs `indexedDB.databases()`), only into a database it creates itself: the
-  transaction that creates it writes the `kv` marker `copy:homebase-pending` (`{attempts}`), and the one that writes the
-  copied records removes it. A copy cut off part-way (an error, a full disk, a closed tab) leaves the marker, so later
-  loads try again, replacing what the database holds by then, `LEGACY_COPY_ATTEMPTS` (3) loads in all; after that the
-  database is kept as it is. A database without the marker is never touched.
-- **Files:** import accepts `format: 'homebase-export'` (`isExportFormat`), and `publish-static.ps1` recognises a
-  Pages repository holding a `homebase-build` publish.
+- **Two literals existing data depends on:** the vault canary `homebase-vault-canary-v1` (changing it makes every
+  existing vault read as the wrong key) and the bookmark import source seed (changing it changes every imported
+  source's id).
+- **Public pages:** `site/` moved from `davideAurum/homebase-site` to `davideAurum/portly-site` in October 2026. The
+  old repository keeps redirect pages, because the 0.2.0-alpha.1 footer and old consent screens link there.
+- **Export files:** import accepts `format: 'homebase-export'` (`isExportFormat`), which has the same content.
+- **Health checks:** the extension (`checkHealth`, `extension/lib/portly.js`), the native host (`probeHealth`),
+  `install-autostart.ps1` and the web app's probe take an answer on the port for Portly only with `app: 'portly'`.
+  Homebase answered `ok: true` on the same port, and any other server may.
+- **Old names kept on purpose:** the `--hb-*` CSS properties, `hb-*` classes and `Hb` PowerShell helpers.
+
+Files the removed code left behind are ignored and harmless: `copy-from-homebase.json`, `migrated-from-homebase.json`,
+`homebase-variables-copied.json` and `homebase-task-backup.xml` in the data folder, `portly.db.before-homebase-<time>`
+and `vault.key.before-homebase-<time>` beside the database, the `portly:migrated-from-homebase` browser key and a
+`copy:homebase-pending` record in the browser's database.
 
 ---
 
