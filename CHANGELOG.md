@@ -4,7 +4,11 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
-## Unreleased
+## 0.2.0-alpha.6 (2026-11-04)
+
+The sixth alpha: the new-tab extension can be downloaded without the code, updates work from
+PowerShell 7, and the Homebase copy is gone. Ships with new-tab extension 0.5.3 (unchanged, so no
+reload of the extension is needed).
 
 ### What's new
 - **Get the new-tab extension without the code.** On a PC that only wants the new tab page, one
