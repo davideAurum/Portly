@@ -3,7 +3,8 @@
  * `db/migrations/` and every `modules/<name>/migrations/` folder, applied in filename order inside
  * one transaction, and tracked in `schema_migrations(name TEXT PK, applied_at)`.
  * A number is used once across all folders (a duplicate fails start-up in `listMigrations`);
- * a new migration takes the next free number.
+ * a new migration takes the next free number. A migration that rebuilds a table runs apart from
+ * the others, see {@link FOREIGN_KEYS_OFF_MARKER}.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,6 +12,17 @@ import type { Logger } from '../lib/logger.ts';
 import type { Db } from './open.ts';
 
 export const MIGRATION_NAME_REGEX = /^(\d{3})_[a-z0-9_]+\.sql$/;
+
+/**
+ * First line of a migration that rebuilds a table (SQLite cannot change a CHECK in place). With
+ * foreign keys on, `DROP TABLE` deletes every row first and fires `ON DELETE CASCADE` in the tables
+ * that reference it, so such a file runs with foreign keys off, as SQLite's documented procedure
+ * says: in a transaction of its own, after the migrations before it have committed. Before that
+ * transaction commits, `PRAGMA foreign_key_check` must find nothing, and the switch is confirmed
+ * first (the pragma silently does nothing inside a transaction, which would leave the cascades
+ * armed). Any failure rolls the file back and leaves foreign keys on.
+ */
+export const FOREIGN_KEYS_OFF_MARKER = '-- portly:foreign-keys-off';
 
 const SERVER_SRC_DIR = path.resolve(import.meta.dirname, '..');
 
@@ -61,6 +73,58 @@ export interface MigrateOptions {
   now?: () => number;
 }
 
+interface MigrationStep {
+  migration: MigrationFile;
+  sql: string;
+  foreignKeysOff: boolean;
+}
+
+/** Consecutive ordinary migrations share a transaction; a table rebuild gets one of its own. */
+function batches(steps: readonly MigrationStep[]): MigrationStep[][] {
+  const result: MigrationStep[][] = [];
+  for (const step of steps) {
+    const last = result.at(-1);
+    if (last === undefined || step.foreignKeysOff || last[0]?.foreignKeysOff === true) result.push([step]);
+    else last.push(step);
+  }
+  return result;
+}
+
+function applyBatch(db: Db, batch: readonly MigrationStep[], now: () => number): void {
+  db.tx(() => {
+    for (const { migration, sql, foreignKeysOff } of batch) {
+      try {
+        db.exec(sql);
+        if (foreignKeysOff) assertForeignKeysHold(db);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`Migration ${migration.name} failed: ${message}`, { cause: err });
+      }
+      db.run('INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)', [migration.name, now()]);
+    }
+  });
+}
+
+/** Throws when a row references one that no longer exists. Names tables only, never row data. */
+function assertForeignKeysHold(db: Db): void {
+  const broken = db.all<{ table: string; parent: string }>('PRAGMA foreign_key_check');
+  if (broken.length === 0) return;
+  const first = broken[0];
+  throw new Error(`${broken.length} row(s) lost their reference (first: ${first?.table} -> ${first?.parent})`);
+}
+
+function withForeignKeysOff(db: Db, name: string, fn: () => void): void {
+  db.exec('PRAGMA foreign_keys = OFF');
+  try {
+    if (db.get<{ foreign_keys: number }>('PRAGMA foreign_keys')?.foreign_keys !== 0) {
+      throw new Error(`Migration ${name} needs foreign keys off, and they could not be switched off`);
+    }
+    fn();
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON');
+  }
+}
+
 /** Applies pending migrations; returns the names applied (in order). */
 export function migrate(db: Db, options: MigrateOptions = {}): string[] {
   const now = options.now ?? Date.now;
@@ -76,18 +140,15 @@ export function migrate(db: Db, options: MigrateOptions = {}): string[] {
   const pending = all.filter((m) => !applied.has(m.name));
   if (pending.length === 0) return [];
 
-  db.tx(() => {
-    for (const m of pending) {
-      const sql = fs.readFileSync(m.file, 'utf8');
-      try {
-        db.exec(sql);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        throw new Error(`Migration ${m.name} failed: ${message}`, { cause: err });
-      }
-      db.run('INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)', [m.name, now()]);
-    }
+  const steps = pending.map((migration) => {
+    const sql = fs.readFileSync(migration.file, 'utf8');
+    return { migration, sql, foreignKeysOff: sql.split(/\r?\n/, 1)[0]?.trim() === FOREIGN_KEYS_OFF_MARKER };
   });
+  for (const batch of batches(steps)) {
+    const apply = (): void => applyBatch(db, batch, now);
+    if (batch[0]?.foreignKeysOff === true) withForeignKeysOff(db, batch[0].migration.name, apply);
+    else apply();
+  }
   for (const m of pending) options.log?.info('migration applied', { migration: m.name });
   return pending.map((m) => m.name);
 }

@@ -57,6 +57,7 @@ export const microsoft: OAuthProviderSpec = Object.freeze<OAuthProviderSpec>({
   baseScopes: MICROSOFT_BASE_SCOPES,
   capabilityScopes: MICROSOFT_CAPABILITY_SCOPES,
   usesClientSecret: false,
+  clientIdHint: 'Microsoft application (client) IDs are GUIDs',
 
   isValidClientId(clientId: string): boolean {
     return UUID.test(clientId);

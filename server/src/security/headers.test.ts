@@ -130,6 +130,11 @@ describe('security headers', () => {
 
   it('the HTML CSP lets the page connect to the configured Pages origin only', () => {
     expect(HTML_CSP).toContain("connect-src 'self';");
+    // Spotify cover art as `<img>`; no script, frame or connection of Spotify's ever reaches the page.
+    expect(HTML_CSP).toContain("img-src 'self' data: blob: https://a.espncdn.com https://i.scdn.co;");
+    expect(HTML_CSP).toContain("script-src 'self';");
+    expect(HTML_CSP).toContain("frame-src 'none';");
+    expect(HTML_CSP).not.toContain('spotify');
     const csp = htmlCsp('https://user.github.io');
     expect(csp).toContain("connect-src 'self' https://user.github.io;");
     expect(csp.replace(" https://user.github.io", '')).toBe(HTML_CSP);

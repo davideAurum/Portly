@@ -24,7 +24,7 @@ export interface FakeAccountSeed {
   statusMessage?: string | null;
   sort?: number;
   config?: Record<string, unknown>;
-  /** Access token for google/microsoft accounts (missing → reauth_required). */
+  /** Access token for OAuth accounts (missing → reauth_required). */
   token?: string;
   /** Tokens returned by successive forced refreshes (after a ProviderUnauthorizedError). */
   refreshedTokens?: string[];
@@ -109,7 +109,7 @@ export function createFakeAccountService(seeds: FakeAccountSeed[] = []): FakeAcc
     },
     async getAccessToken(id) {
       const { account, seed } = mustGet(id);
-      if (account.kind !== 'google' && account.kind !== 'microsoft') {
+      if (account.kind !== 'google' && account.kind !== 'microsoft' && account.kind !== 'spotify') {
         throw new HttpError(400, 'bad_request', 'Account does not use OAuth');
       }
       if (account.status === 'reauth' || !seed.token) throw reauth(id);
@@ -142,7 +142,7 @@ export function createFakeAccountService(seeds: FakeAccountSeed[] = []): FakeAcc
     },
     async getSecret(id) {
       const { account, seed } = mustGet(id);
-      if (account.kind === 'google' || account.kind === 'microsoft') {
+      if (account.kind === 'google' || account.kind === 'microsoft' || account.kind === 'spotify') {
         throw new HttpError(400, 'bad_request', 'Account does not use an app password');
       }
       if (seed.password === undefined) {

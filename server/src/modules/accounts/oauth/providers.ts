@@ -3,9 +3,10 @@ import { CAPABILITIES, isOAuthProvider, type AccountKind, type Capability, type 
 import { HttpError } from '../../../lib/errors.ts';
 import { google } from './google.ts';
 import { microsoft } from './microsoft.ts';
+import { spotify } from './spotify.ts';
 import type { OAuthProviderSpec } from './types.ts';
 
-export const OAUTH_PROVIDER_SPECS: Readonly<Record<OAuthProvider, OAuthProviderSpec>> = Object.freeze({ google, microsoft });
+export const OAUTH_PROVIDER_SPECS: Readonly<Record<OAuthProvider, OAuthProviderSpec>> = Object.freeze({ google, microsoft, spotify });
 
 export function providerSpec(provider: OAuthProvider): OAuthProviderSpec {
   return OAUTH_PROVIDER_SPECS[provider];

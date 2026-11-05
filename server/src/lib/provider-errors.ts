@@ -30,6 +30,8 @@ export interface ProviderHttpErrorOptions {
   retryAfterSeconds?: number | null;
   /** The provider's own HTTP status when it differs from ours (e.g. 400 behind a 502); default null. */
   upstreamStatus?: number | null;
+  /** Sent to the client with the error (`error.details`): Portly's own machine values, never provider text. */
+  details?: unknown;
 }
 
 /** A mapped provider error status, with the provider's reason codes for logs (never sent to clients). */
@@ -45,7 +47,7 @@ export class ProviderHttpError extends HttpError {
   readonly httpStatus: number | null;
 
   constructor(status: number, code: ErrorCode, options: ProviderHttpErrorOptions) {
-    super(status, code, { message: options.message, accountId: options.accountId });
+    super(status, code, { message: options.message, accountId: options.accountId, details: options.details });
     this.providerReason = options.providerReason;
     this.denial = options.denial ?? null;
     this.retryAfterSeconds = finiteOrNull(options.retryAfterSeconds);

@@ -29,13 +29,14 @@ export const KIND_CAPABILITIES: Readonly<Record<AccountKind, readonly Capability
   yahoo: ['calendar', 'mail'],
   caldav: ['calendar'],
   imap: ['mail'],
+  spotify: ['music'],
 });
 
 export const NOT_VERIFIED = 'not verified';
 export const PROBE_TIMEOUT_MS = 30_000;
 const MAX_PROBE_MESSAGE = 300;
 
-const CAPABILITY_LABEL: Readonly<Record<Capability, string>> = Object.freeze({ calendar: 'Calendar', mail: 'Mail', launchpadSync: 'Launch pad sync' });
+const CAPABILITY_LABEL: Readonly<Record<Capability, string>> = Object.freeze({ calendar: 'Calendar', mail: 'Mail', launchpadSync: 'Launch pad sync', music: 'Music' });
 
 export function capabilityLabel(capability: Capability): string {
   return CAPABILITY_LABEL[capability];

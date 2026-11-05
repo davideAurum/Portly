@@ -16,6 +16,7 @@ export * from './calendar.ts';
 export * from './mail.ts';
 export * from './feeds.ts';
 export * from './sports.ts';
+export * from './music.ts';
 export * from './export.ts';
 export * from './pairing.ts';
 export * from './devices.ts';

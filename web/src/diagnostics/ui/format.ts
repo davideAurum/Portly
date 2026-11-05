@@ -88,6 +88,7 @@ const AREA_LABELS: Readonly<Record<DiagnosticArea, string>> = Object.freeze({
   feeds: 'Feeds',
   weather: 'Weather',
   sports: 'Sports',
+  music: 'Music',
   search: 'Search',
   bookmarks: 'Bookmarks',
   pairing: 'Pairing',

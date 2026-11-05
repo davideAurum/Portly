@@ -423,7 +423,7 @@ describe('static build: server-only features', () => {
     const tiles = within(screen.getByRole('list', { name: 'Add a connection' })).getAllByRole('button');
     expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Microsoft', 'Connect Todoist', 'Connect GitHub']);
     expect(within(tiles[0]!).getByText('Outlook.com calendar and launch pad sync')).toBeInTheDocument();
-    expect(screen.getByText('Google, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.')).toBeInTheDocument();
+    expect(screen.getByText('Google, Spotify, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.')).toBeInTheDocument();
     expect(screen.queryByText("Saved credentials can't be unlocked")).not.toBeInTheDocument();
     expect(within(screen.getByRole('list', { name: 'App registrations' })).getAllByRole('listitem')).toHaveLength(1);
 

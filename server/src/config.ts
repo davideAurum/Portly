@@ -315,6 +315,13 @@ function hostHeaderFor(hostname: string, port: number, protocol: 'http:' | 'http
   return (port === defaultPort ? host : `${host}:${port}`).toLowerCase();
 }
 
+/** `origin` with `localhost` spelled as an IP: Spotify refuses `localhost` in a redirect URI (§8). */
+function loopbackLiteral(origin: string): string {
+  const url = new URL(origin);
+  if (url.hostname === 'localhost') url.hostname = '127.0.0.1';
+  return url.origin;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const port = parsePort('PORTLY_PORT', env.PORTLY_PORT, DEFAULT_PORT);
   const vitePort = parsePort('PORTLY_VITE_PORT', env.PORTLY_VITE_PORT, DEFAULT_VITE_PORT);
@@ -361,6 +368,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const redirectUris = {
     google: `${origin}/api/oauth/google/callback`,
     microsoft: `${origin}/api/oauth/microsoft/callback`,
+    spotify: `${loopbackLiteral(origin)}/api/oauth/spotify/callback`,
   } as const;
 
   const originUrl = new URL(origin);
@@ -388,7 +396,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     remotePort,
     remoteHosts,
     redirectUris: Object.freeze({ ...redirectUris }),
-    registrationRedirectUris: Object.freeze({ google: redirectUris.google, microsoft: microsoftRegistration }),
+    registrationRedirectUris: Object.freeze({ google: redirectUris.google, microsoft: microsoftRegistration, spotify: redirectUris.spotify }),
     logLevel,
     paths: Object.freeze({
       db: path.join(dataDir, 'portly.db'),

@@ -4,6 +4,12 @@ Portly itself is under the MIT License ([LICENSE](LICENSE)). It also carries dat
 projects, whose notices follow. The npm packages a release package installs keep their own license
 files in `node_modules`, and the bundled Node.js runtime keeps its own in `runtime\LICENSE`.
 
+## Spotify
+
+The Spotify icon in `web/src/widgets/music/providers.tsx` is a trademark of Spotify AB. It is shown
+because Spotify's design guidelines require it beside content from Spotify; it is not covered by
+Portly's license. Portly is not affiliated with or endorsed by Spotify.
+
 ## Unicode CLDR: Windows time zone ids
 
 `server/src/modules/calendar/data/windowsZones.json` and `web/src/static/lib/windowsZones.json`

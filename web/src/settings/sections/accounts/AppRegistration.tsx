@@ -1,5 +1,5 @@
 /**
- * OAuth app registrations (§4.7) for Google and Microsoft: the one-time registration each provider
+ * OAuth app registrations (§4.7) for Google, Microsoft and Spotify: the one-time registration each provider
  * needs, with the console to open, the steps, the exact redirect URI to register and the client
  * ID (and Google's secret, write-only). The form is the first step of a connect dialog when the
  * provider is not set up yet; afterwards the "App registrations" line under the tiles edits it.
@@ -74,6 +74,22 @@ export const PROVIDER_INFO: Readonly<Record<OAuthProvider, ProviderInfo>> = {
       </>,
       <MicrosoftPlatformStep key="platform" />,
       <>Paste the Application (client) ID here. No secret is needed.</>,
+    ],
+  },
+  spotify: {
+    title: 'Spotify',
+    console: { href: 'https://developer.spotify.com/dashboard', label: 'Spotify developer dashboard' },
+    guide: 'docs/setup/spotify.md',
+    needsSecret: false,
+    clientIdPattern: /^[0-9a-f]{32}$/i,
+    clientIdHint: 'Spotify client IDs are 32 letters and digits, from the app’s Settings page.',
+    clientIdLabel: 'Client ID',
+    steps: [
+      <>
+        Sign in with a <strong>Premium</strong> account and create an app. Under “Which API/SDKs are you planning to use?”, tick <strong>Web API</strong>.
+      </>,
+      <>Add the redirect URI below. It starts with 127.0.0.1 on purpose: Spotify refuses “localhost”.</>,
+      <>Paste the Client ID from the app’s Settings page here. No secret is needed.</>,
     ],
   },
 };

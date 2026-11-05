@@ -65,19 +65,14 @@ function invalid(path: string, message: string): HttpError {
 
 /**
  * Saves the client id (and Google's secret). Google needs a secret on first setup and whenever
- * the client id changes; an omitted secret otherwise keeps the stored one. Microsoft is a public
- * client and refuses a secret.
+ * the client id changes; an omitted secret otherwise keeps the stored one. Microsoft and Spotify
+ * are public clients and refuse a secret.
  */
 export function saveOAuthClient(deps: { db: Db; vault: Vault; now: number }, provider: OAuthProvider, update: OAuthClientUpdate): void {
   const spec = providerSpec(provider);
   const { db, vault, now } = deps;
   if (!spec.isValidClientId(update.clientId)) {
-    throw invalid(
-      'clientId',
-      provider === 'google'
-        ? 'Google client IDs end with .apps.googleusercontent.com'
-        : 'Microsoft application (client) IDs are GUIDs',
-    );
+    throw invalid('clientId', spec.clientIdHint);
   }
 
   const existing = readClientRow(db, provider);

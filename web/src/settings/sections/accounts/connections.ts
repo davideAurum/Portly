@@ -12,7 +12,7 @@
  * backend only Microsoft (calendar and launch pad sync, signed in from the browser) and Todoist
  * work; launch pad sync works nowhere else (the server's launch pad is not synced); Google,
  * Yahoo, CalDAV and IMAP need the Portly server. On another PC's page load (`remoteClient`) the
- * Google and Microsoft sign-ins stay on the main PC (their redirect lands there); Yahoo, CalDAV,
+ * Google, Microsoft and Spotify sign-ins stay on the main PC (their redirect lands there); Yahoo, CalDAV,
  * IMAP and Todoist work from anywhere, because the server keeps the credentials. GitHub (a private
  * repository and token for launch pad sync) is offered only when the page's data lives in this
  * browser.
@@ -39,6 +39,7 @@ export const CONNECTIONS: readonly ConnectionInfo[] = Object.freeze([
   { id: 'microsoft', title: 'Microsoft', mark: { letter: 'M', color: '#0f6cbd' }, available: (caps) => caps.accounts && !caps.remoteClient },
   { id: 'yahoo', title: 'Yahoo', mark: { letter: 'Y', color: '#5f01d1' }, available: (caps) => caps.appPasswordAccounts },
   { id: 'todoist', title: 'Todoist', mark: { letter: 'T', color: '#dc4c3e' }, available: () => true },
+  { id: 'spotify', title: 'Spotify', mark: { letter: 'S', color: '#1db954' }, available: (caps) => caps.music && !caps.remoteClient },
   { id: 'github', title: 'GitHub', mark: { letter: 'G', color: '#24292f' }, available: (caps) => caps.backend === 'browser' },
   { id: 'other', title: 'Other', mark: null, available: (caps) => caps.appPasswordAccounts },
 ]);
@@ -76,6 +77,9 @@ const SERVICE_DESCRIPTIONS: Readonly<Record<ServiceConnection, Readonly<Partial<
     calendar: 'A CalDAV calendar: Nextcloud, Fastmail, iCloud and others. Read-only for now.',
     mail: 'Any IMAP mailbox: unread count and recent messages.',
   },
+  spotify: {
+    music: 'See what is playing and control it from a widget. The music plays in Spotify, on your own devices. Needs Spotify Premium.',
+  },
 });
 
 /** Whether this page load can use a service at all (the in-browser backend has no mail, the server no launch pad sync). */
@@ -83,6 +87,7 @@ const PAGE_SUPPORT: Readonly<Record<Capability, (caps: Capabilities) => boolean>
   calendar: (caps) => caps.calendar,
   mail: (caps) => caps.mail,
   launchpadSync: (caps) => caps.launchpadSync,
+  music: (caps) => caps.music,
 });
 
 /**
@@ -94,6 +99,7 @@ const OFFERED: Readonly<Record<ServiceConnection, readonly Capability[]>> = Obje
   microsoft: [...OAUTH_PROVIDER_CAPABILITIES.microsoft, 'launchpadSync'],
   yahoo: CAPABILITIES,
   other: CAPABILITIES,
+  spotify: OAUTH_PROVIDER_CAPABILITIES.spotify,
 });
 
 export interface ServiceInfo {

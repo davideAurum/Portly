@@ -1,0 +1,233 @@
+/* Music widget. Tokens only. Spotify's guidelines: artwork keeps its shape, nothing sits on top of it,
+   corners are 4 px (8 px at large sizes), and the logo has clear space around it. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.state {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hb-space-1);
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  color: var(--hb-accent-text);
+}
+
+.deviceChoices {
+  display: grid;
+  gap: var(--hb-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- The logo ---- */
+
+.providerLink {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-text);
+}
+
+.providerLink:hover {
+  background: var(--hb-hover);
+}
+
+.providerMark {
+  display: block;
+  width: 21px;
+  height: 21px;
+}
+
+/* ---- Player ---- */
+
+.player {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto 1fr;
+  grid-template-areas:
+    'art meta'
+    'art controls'
+    'seek seek'
+    'footer footer';
+  gap: var(--hb-space-1) var(--hb-space-3);
+  padding: 0 var(--hb-space-3) var(--hb-space-2);
+  overflow: hidden;
+}
+
+.player[data-tier='compact'] {
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    'art meta'
+    'art controls';
+  align-content: center;
+}
+
+.artLink,
+.artFrame {
+  grid-area: art;
+  display: block;
+}
+
+.artLink .artFrame {
+  grid-area: auto;
+}
+
+.artFrame {
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--hb-surface-2);
+}
+
+.player[data-tier='normal'] .artFrame {
+  width: 80px;
+  height: 80px;
+}
+
+.artFrame[data-large='true'] {
+  width: min(42cqw, 180px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 8px;
+}
+
+.art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.artPlaceholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--hb-text-subtle);
+}
+
+.artPlaceholder svg {
+  width: 40%;
+  height: 40%;
+}
+
+.meta {
+  grid-area: meta;
+  align-self: end;
+  min-width: 0;
+}
+
+.title,
+.artists,
+.album {
+  display: block;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title {
+  font-size: var(--hb-text-md);
+  font-weight: 650;
+  color: var(--hb-text);
+  text-decoration: none;
+}
+
+a.title:hover {
+  text-decoration: underline;
+}
+
+.artists {
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
+
+.album {
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+}
+
+.controls {
+  grid-area: controls;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.slider {
+  min-width: 0;
+}
+
+.player > .slider {
+  grid-area: seek;
+}
+
+.footer {
+  grid-area: footer;
+  align-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hb-space-2);
+  min-width: 0;
+}
+
+.deviceButton {
+  min-width: 0;
+  max-width: 55%;
+}
+
+.deviceName {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.volume {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-1);
+  min-width: 90px;
+  max-width: 160px;
+}
+
+.volume .slider {
+  flex: 1;
+}
+
+.volumeIcon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--hb-text-subtle);
+}
+
+.settingsNote {
+  margin: 0;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text-muted);
+}
