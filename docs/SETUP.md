@@ -50,6 +50,11 @@ After the extension is loaded:
 doesn't start. Click **Reload** on the extension when it says the extension changed. Details,
 and how releases are built and published: [Releases](setup/releases.md).
 
+**Just the new tab page:** on a PC where you don't want Portly itself, run
+`irm https://davideaurum.github.io/get-extension.ps1 | iex`. It downloads only the extension, and
+you then load it and point it at your Pages site
+([Get the extension on a PC without the code](setup/extension.md#get-the-extension-on-a-pc-without-the-code)).
+
 ## Coming from Homebase
 
 Portly is Homebase's new name. This version doesn't read a Homebase install, and doesn't stop or

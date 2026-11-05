@@ -28,7 +28,8 @@
     clean working tree (no uncommitted changes, no untracked files), and it must not be this
     Portly checkout or any other Portly checkout. The repository must be empty or hold only
     an earlier Portly publish (index.html with <meta name="portly-build" content="static">,
-    assets/, install.ps1, setup.ps1, the files of web\public, .nojekyll, .gitattributes, CNAME, README.md); anything else is refused
+    assets/, install.ps1, setup.ps1, get-extension.ps1, portly-extension.zip,
+    portly-extension.json, the files of web\public, .nojekyll, .gitattributes, CNAME, README.md); anything else is refused
     unless -ReplaceEverything. When origin is on github.com and there is no CNAME file, -Base must
     match the repository ('/' for <user>.github.io, '/<repo>/' otherwise). Only the build's own
     paths are staged. -DryRun only prints the plan: it fetches (to report the same as a real
@@ -186,12 +187,12 @@ function Get-HbPagesUrl {
 }
 
 # Top-level names an earlier publish leaves in the public repository: the build's own entries
-# (index.html, assets, install.ps1, setup.ps1, whatever web\public holds), .nojekyll, .gitattributes
-# and the kept files.
+# (index.html, assets, install.ps1, setup.ps1, get-extension.ps1, the extension download, whatever
+# web\public holds), .nojekyll, .gitattributes and the kept files.
 function Get-HbPublishedNames {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $names = New-Object System.Collections.Generic.List[string]
-    foreach ($name in (@('index.html', 'assets', 'install.ps1', 'setup.ps1', $HbNoJekyll, $HbGitAttributes) + $HbPublishKeep)) { $names.Add($name) }
+    foreach ($name in (@('index.html', 'assets', 'install.ps1', 'setup.ps1', 'get-extension.ps1', 'portly-extension.zip', 'portly-extension.json', $HbNoJekyll, $HbGitAttributes) + $HbPublishKeep)) { $names.Add($name) }
     $publicDir = Join-Path $RepoRoot 'web\public'
     if (Test-Path -LiteralPath $publicDir -PathType Container) {
         foreach ($entry in @(Get-ChildItem -LiteralPath $publicDir -Force)) { $names.Add($entry.Name) }

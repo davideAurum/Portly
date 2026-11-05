@@ -204,6 +204,7 @@ The ones you need most:
 | `scripts\install-autostart.ps1` | Registers the **Portly Server** scheduled task and the launcher the extension uses to start Portly ([Autostart](docs/setup/autostart.md)). `-DryRun` shows everything and changes nothing. |
 | `scripts\uninstall-autostart.ps1` | Removes autostart and the launcher; leaves your data alone. |
 | `scripts\status.ps1` | Health, processes, task, launcher, settings and log tails (also `portly --status` and `portly --settings`). |
+| `scripts\get-extension.ps1` | Downloads just the new-tab extension from the Pages site, for a PC without Portly (`irm https://davideaurum.github.io/get-extension.ps1 \| iex`; [how](docs/setup/extension.md#get-the-extension-on-a-pc-without-the-code)). |
 | `scripts\publish-static.ps1` | Builds the browser-only app and publishes it to your public Pages repository ([how](docs/setup/static-build.md#publish-to-github-pages)). |
 | `scripts\check-scripts.ps1` | Self-checks for the PowerShell scripts and the native host (dry runs only). |
 
