@@ -4,6 +4,15 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## Unreleased
+
+### What's new
+- **Music on the browser-only site.** The Music widget no longer needs Portly on your PC: the site
+  signs in to Spotify and controls it straight from the browser. Add the site's address as a second
+  redirect URI in your Spotify app ([how](docs/setup/spotify.md#where-it-runs)). The sign-in is kept
+  in that browser, not encrypted, and each browser signs in once. With Portly on your PC nothing
+  changes. This route has not yet been tried with a real Spotify account.
+
 ## 0.2.0-alpha.7 (2026-11-05)
 
 The seventh alpha: a Music widget that controls Spotify from your home page. Ships with new-tab

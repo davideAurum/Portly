@@ -169,14 +169,14 @@ async function startStaticBackend(preloaded: Promise<StaticBackendModule> | null
 }
 
 /**
- * Pages build, browser backend: Outlook.com signs in from this browser (static/handlers/accounts.ts).
- * Back from Microsoft's sign-in (`?code&state`), finish it before anything renders and show the
- * result the way the server does (`?oauth=`, read by App.tsx). Otherwise, when an Outlook.com
+ * Pages build, browser backend: Outlook.com and Spotify sign in from this browser
+ * (static/handlers/accounts.ts). Back from either sign-in (`?code&state`), finish it before anything
+ * renders and show the result the way the server does (`?oauth=`, read by App.tsx). Otherwise, when an Outlook.com
  * sign-in has ended or is about to, renew it with a quick round trip to Microsoft instead of asking
  * for a click (at most once per account every few hours). Returns true when the page is leaving
  * for that round trip.
  */
-async function finishOutlookSignIn(preloaded: Promise<StaticBackendModule> | null): Promise<boolean> {
+async function finishBrowserSignIn(preloaded: Promise<StaticBackendModule> | null): Promise<boolean> {
   try {
     const backend = await (preloaded ?? import('./static/backend.ts'));
     const afterSignIn = await backend.staticFinishSignIn(window.location.href);
@@ -191,17 +191,17 @@ async function finishOutlookSignIn(preloaded: Promise<StaticBackendModule> | nul
     window.location.replace(automatic);
     return true;
   } catch (err) {
-    console.error('[Portly] The Outlook.com sign-in in this browser could not be completed', err);
+    console.error('[Portly] The sign-in in this browser could not be completed', err);
     return false;
   }
 }
 
 /**
- * Pages build, server backend: a Microsoft answer meant for this browser's own Outlook.com sign-in
+ * Pages build, server backend: a provider's answer meant for this browser's own sign-in
  * arrived while the page uses Portly on this PC. It cannot be completed here (the pending
  * sign-in lives in this browser's copy); keep the code out of the address bar and the history.
  */
-function dropMicrosoftAnswer(): void {
+function dropSignInAnswer(): void {
   const url = new URL(window.location.href);
   if (!url.searchParams.has('state') || (!url.searchParams.has('code') && !url.searchParams.has('error'))) return;
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.hash || '#/settings/accounts'}`);
@@ -266,9 +266,9 @@ async function start(): Promise<void> {
     // The server backend never opens the in-browser database in this page load.
     if (backend === 'browser') {
       await startStaticBackend(staticBackend);
-      if (await finishOutlookSignIn(staticBackend)) return;
+      if (await finishBrowserSignIn(staticBackend)) return;
     } else {
-      dropMicrosoftAnswer();
+      dropSignInAnswer();
     }
     // Ask the browser to keep this origin's data out of storage eviction (answered silently;
     // Chromium/Safari decide from engagement, Firefox asks). Once, after the first interaction.

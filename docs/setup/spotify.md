@@ -19,11 +19,24 @@ app and the web player at <https://open.spotify.com> all count.
 - **Spotify Premium.** Spotify only lets an app work if the account that created it has Premium,
   and only Premium accounts can control playback. Without it there is no widget, not even a
   read-only one.
-- **Portly on your PC** (or a browser connected to it). Spotify is not available on the browser-only
-  site, because the sign-in is kept by the Portly server.
 - **About 5 minutes**, once, to create your own Spotify app.
 
 Portly has no central server, so the Spotify app is yours and is used only by you.
+
+## Where it runs
+
+The widget works the same in both places. What differs is who talks to Spotify and where your
+sign-in is kept.
+
+| | Portly on your PC, or a browser paired or connected to it | The browser-only site |
+| --- | --- | --- |
+| **Who talks to Spotify** | The Portly server | The browser itself |
+| **Your sign-in** | Encrypted on your PC, and never reaches the browser | In that browser, not encrypted ([what that means](static-build.md#where-your-data-lives)) |
+| **Signing in** | Once, for every browser using that Portly | Once per browser |
+| **Redirect URI** | `http://127.0.0.1:5757/api/oauth/spotify/callback` | The site's own address, like `https://<user>.github.io/` |
+
+One Spotify app can do both: list both redirect URIs in it and use the same Client ID. Portly always
+shows you the one for the place you are in.
 
 ## 1. Create your Spotify app
 
@@ -34,9 +47,8 @@ Portly has no central server, so the Spotify app is yours and is used only by yo
 3. Click **Create app** and fill in:
    - **App name:** anything of yours. Spotify does not allow the word "Spotify" in it.
    - **App description:** for example "My home page".
-   - **Redirect URIs:** paste the one from Portly and click **Add**. It looks like
-     `http://127.0.0.1:5757/api/oauth/spotify/callback`. It must match exactly, and it starts with
-     `127.0.0.1` on purpose: Spotify refuses `localhost`.
+   - **Redirect URIs:** paste the one from Portly and click **Add**. It must match exactly. With
+     Portly on your PC it starts with `127.0.0.1` on purpose: Spotify refuses `localhost`.
    - **Which API/SDKs are you planning to use?:** tick **Web API**.
 4. Accept the terms and click **Save**.
 5. Open the app's **Settings** and copy the **Client ID**. You do not need the client secret: Portly
@@ -64,10 +76,10 @@ Portly asks for two permissions only:
 | `user-modify-playback-state` | Play, pause, skip, seek, volume, shuffle, repeat, and moving playback between devices |
 
 It cannot see your playlists, your library or your listening history, and it changes nothing in
-them. Your sign-in stays encrypted on your PC and never reaches the browser. What is playing is
-kept in memory for a few seconds so several tabs can share one answer. It is not written to disk or
-to the logs. Cover art loads directly from Spotify's image server (`i.scdn.co`), so that server sees
-your IP address, as it does when you use Spotify itself.
+them. What is playing is kept in memory for a few seconds, so several widgets (and, with Portly on
+your PC, several tabs) can share one answer. It is not written to disk or to the logs. Cover art
+loads directly from Spotify's image server (`i.scdn.co`), so that server sees your IP address, as it
+does when you use Spotify itself.
 
 ## Good to know
 
@@ -86,7 +98,7 @@ your IP address, as it does when you use Spotify itself.
 
 | What you see | What to do |
 | --- | --- |
-| Spotify shows **INVALID_CLIENT: Insecure redirect URI** or **Invalid redirect URI** | The redirect URI in the dashboard does not match. Copy it again from Portly's dialog, including `127.0.0.1` and the port. |
+| Spotify shows **INVALID_CLIENT: Insecure redirect URI** or **Invalid redirect URI** | The redirect URI in the dashboard does not match. Copy it again from Portly's dialog, exactly as shown. On the browser-only site, that is the site's own address, next to the `127.0.0.1` one if you have both. |
 | **The service refused this account** after signing in, or **Spotify refused access** in the widget | The account that created the Spotify app has no Premium, or the account you signed in with is not on the app's **User Management** list. |
 | **Spotify only lets Premium accounts control playback** | The account you connected has no Premium. |
 | **Nothing is playing**, with no devices listed | Open Spotify on a device and start or pause anything once. Devices drop off after a while without use. |

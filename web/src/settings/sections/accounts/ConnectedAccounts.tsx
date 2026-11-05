@@ -67,7 +67,7 @@ export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void
             ? 'Connect Google, Microsoft, Yahoo, Todoist, a CalDAV server or an IMAP mailbox below to see your calendars, mail and tasks.'
             : getCapabilities().remoteClient
               ? 'Connect Yahoo, Todoist, a CalDAV server or an IMAP mailbox below to see your calendars, mail and tasks. Google and Microsoft accounts are connected on the main PC.'
-              : 'Connect Microsoft (Outlook.com) or Todoist below to see your calendars and tasks.'
+              : 'Connect Microsoft (Outlook.com), Todoist or Spotify below to see your calendars and tasks and control your music.'
         }
       />
     );

@@ -1,12 +1,12 @@
 /**
- * The page side of the static build's Microsoft sign-in (see handlers/accounts.ts). Microsoft sends
+ * The page side of the static build's sign-ins (see handlers/accounts.ts). The provider sends
  * the browser back to the site's own address with `?code&state` (or `?error&state`); before the app
  * renders, main.tsx passes that address to {@link finishSignIn}, which completes the sign-in and
  * returns the address to show instead: the same page with the server build's `?oauth=<result>`
  * and the route the sign-in started from, so App.tsx reports it exactly as after a server sign-in.
  * The code never stays in the address bar or the history.
  *
- * {@link planAutomaticSignIn} is the other half: at page load, when an account's sign-in has ended
+ * {@link planAutomaticSignIn} is the other half: at page load, when a Microsoft account's sign-in has ended
  * or is about to, the address of a `prompt=none` sign-in to send the page to (Microsoft answers at
  * once, without a page of its own, while the browser is still signed in to the account).
  */
@@ -21,14 +21,14 @@ function single(params: URLSearchParams, name: string): string | null | undefine
   return values.length === 1 ? (values[0] as string) : null;
 }
 
-/** The sign-in answer in `url`, or null when the address is not a return from Microsoft. */
+/** The sign-in answer in `url`, or null when the address is not a return from a provider. */
 export function readCallback(url: URL): CallbackQuery | null {
   const params = url.searchParams;
   if (!params.has('state') || (!params.has('code') && !params.has('error'))) return null;
   return { code: single(params, 'code'), state: single(params, 'state'), error: single(params, 'error') };
 }
 
-/** The page to show after a sign-in: same path, no Microsoft parameters, `?oauth=` when there is something to say. */
+/** The page to show after a sign-in: same path, no provider parameters, `?oauth=` when there is something to say. */
 export function afterSignInUrl(url: URL, outcome: CallbackOutcome): string {
   const target = new URL(url.pathname, url.origin);
   if (outcome.result !== null) target.searchParams.set('oauth', outcome.result);
@@ -36,7 +36,7 @@ export function afterSignInUrl(url: URL, outcome: CallbackOutcome): string {
   return target.href;
 }
 
-/** Completes a sign-in when `href` is Microsoft's answer; returns the address to replace it with, else null. */
+/** Completes a sign-in when `href` is a provider's answer; returns the address to replace it with, else null. */
 export async function finishSignIn(ctx: StaticContext, href: string): Promise<string | null> {
   const url = new URL(href);
   const query = readCallback(url);

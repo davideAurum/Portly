@@ -18,7 +18,7 @@ import {
   type Capabilities,
 } from './capabilities.ts';
 
-const SERVER_FEATURES = ['accounts', 'googleAccounts', 'appPasswordAccounts', 'calendar', 'icsSubscriptions', 'mail', 'feeds', 'music', 'vault', 'browserBookmarkImport', 'siteMetaFetch', 'serverSearchSuggestions'] as const;
+const SERVER_FEATURES = ['accounts', 'googleAccounts', 'appPasswordAccounts', 'calendar', 'icsSubscriptions', 'mail', 'feeds', 'vault', 'browserBookmarkImport', 'siteMetaFetch', 'serverSearchSuggestions'] as const;
 
 function featureFlags(caps: Capabilities): Record<string, boolean> {
   return Object.fromEntries(SERVER_FEATURES.map((name) => [name, caps[name]]));
@@ -62,7 +62,7 @@ describe('capabilitiesFor', () => {
       icsSubscriptions: false,
       mail: false,
       feeds: false,
-      music: false,
+      music: true,
       vault: false,
       browserBookmarkImport: false,
       siteMetaFetch: false,
@@ -139,8 +139,8 @@ describe('getCapabilities (server build)', () => {
 });
 
 describe('widget availability', () => {
-  it('a browser backend cannot run mail, feeds or music (the calendar reads Outlook.com); a server backend runs everything', () => {
-    expect([...unavailableWidgetTypes(capabilitiesFor(true, 'browser'))]).toEqual(['mail', 'feeds', 'music']);
+  it('a browser backend cannot run mail or feeds (the calendar reads Outlook.com, music talks to Spotify); a server backend runs everything', () => {
+    expect([...unavailableWidgetTypes(capabilitiesFor(true, 'browser'))]).toEqual(['mail', 'feeds']);
     expect(unavailableWidgetTypes(capabilitiesFor(true, 'server')).size).toBe(0);
     expect(unavailableWidgetTypes(capabilitiesFor(false, 'server')).size).toBe(0);
     expect(isWidgetTypeAvailable('mail', capabilitiesFor(true, 'browser'))).toBe(false);
@@ -165,7 +165,7 @@ describe('widget availability', () => {
   });
 
   it('BROWSER_UNAVAILABLE_WIDGET_TYPES is the browser backend’s set whatever the page load', () => {
-    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['mail', 'feeds', 'music']);
+    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['mail', 'feeds']);
     expect(BROWSER_UNAVAILABLE_WIDGET_TYPES).toBe(unavailableWidgetTypes(capabilitiesFor(true, 'browser')));
   });
 });

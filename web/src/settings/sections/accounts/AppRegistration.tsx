@@ -4,8 +4,8 @@
  * ID (and Google's secret, write-only). The form is the first step of a connect dialog when the
  * provider is not set up yet; afterwards the "App registrations" line under the tiles edits it.
  *
- * On the in-browser backend Microsoft signs in from the browser itself, so its redirect URI is
- * this site's address, registered as a single-page application.
+ * On the in-browser backend Microsoft and Spotify sign in from the browser itself, so their
+ * redirect URI is this site's address (on Microsoft's side, a single-page application).
  */
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Pencil } from 'lucide-react';
@@ -88,7 +88,7 @@ export const PROVIDER_INFO: Readonly<Record<OAuthProvider, ProviderInfo>> = {
       <>
         Sign in with a <strong>Premium</strong> account and create an app. Under “Which API/SDKs are you planning to use?”, tick <strong>Web API</strong>.
       </>,
-      <>Add the redirect URI below. It starts with 127.0.0.1 on purpose: Spotify refuses “localhost”.</>,
+      <SpotifyRedirectStep key="redirect" />,
       <>Paste the Client ID from the app’s Settings page here. No secret is needed.</>,
     ],
   },
@@ -102,6 +102,12 @@ function MicrosoftPlatformStep() {
       Add the platform <strong>{platform}</strong> with the redirect URI below.
     </>
   );
+}
+
+/** Only the server's redirect URI needs explaining: the browser's is this site's own address. */
+function SpotifyRedirectStep() {
+  if (getCapabilities().backend === 'browser') return <>Add the redirect URI below, next to any address already there.</>;
+  return <>Add the redirect URI below. It starts with 127.0.0.1 on purpose: Spotify refuses “localhost”.</>;
 }
 
 /** A client ID is saved (and Google's secret with it). */

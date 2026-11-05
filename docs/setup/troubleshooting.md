@@ -253,8 +253,8 @@ new account instead of overwriting the old one ("different account" message).
 ### Spotify
 
 See the table at the end of [the Spotify guide](spotify.md#troubleshooting). The two most likely:
-the redirect URI in Spotify's dashboard must start with `127.0.0.1` and match Portly's exactly, and
-the account that created the Spotify app needs Premium.
+the redirect URI in Spotify's dashboard must match the one Portly shows exactly (with Portly on your
+PC it starts with `127.0.0.1`), and the account that created the Spotify app needs Premium.
 
 ## Look and feel
 

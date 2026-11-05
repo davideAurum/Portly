@@ -43,6 +43,7 @@ export const STATIC_MODE = 'static';
  * no headers. Mirrors the server's CSP (§4.3) plus the third-party origins the browser now calls
  * directly: Open-Meteo (weather, geocoding), Nominatim (the device location's place name), Todoist, Wikipedia (suggestions), ESPN (sports),
  * Microsoft's token endpoint and Graph (Outlook.com sign-in and calendar on the in-browser
+ * backend), Spotify's token endpoint and Web API (its sign-in and the Music widget on the in-browser
  * backend), GitHub's API (launch pad sync through a private repository), and DuckDuckGo's
  * favicon service used as `<img src>`. In hybrid mode `connect-src` also
  * allows the Portly server on this PC (`localServer`) and Portly on another PC through its
@@ -64,6 +65,8 @@ export function staticCsp(localServer: string): string {
     'https://site.api.espn.com',
     'https://login.microsoftonline.com',
     'https://graph.microsoft.com',
+    'https://accounts.spotify.com',
+    'https://api.spotify.com',
     // OneDrive download URLs of launch pad sync (the only host seen for a personal account; design section 4).
     'https://my.microsoftpersonalcontent.com',
   ];
