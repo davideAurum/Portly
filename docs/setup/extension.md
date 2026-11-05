@@ -45,14 +45,44 @@ navigates there. Unpacked extensions get these permissions without a prompt.
 always `nbaolbakegefnefgojdokagajincnfjj` in Chrome and in Edge, wherever your Portly folder is.
 The launcher only answers that ID.
 
+## Get the extension on a PC without the code
+
+On a PC where you only want the new tab page (no Portly server, no Git or Node.js), download the
+extension from the Pages site. In PowerShell:
+
+```powershell
+irm https://davideaurum.github.io/get-extension.ps1 | iex
+```
+
+It downloads `portly-extension.zip`, checks its SHA-256 and that it really is Portly New Tab (same
+name, same extension ID), and unpacks it into `%LOCALAPPDATA%\Programs\Portly\extension`. Then it
+opens the browser's extensions page and puts the folder path on the clipboard, ready for the steps
+below. The browser still has to load the folder itself: Chrome and Edge don't let a script install
+an extension that isn't in their store.
+
+- **Without Portly on this PC**, set the extension's options to **New tab opens → The Pages site**
+  with your site's address (see [What new tabs open](#what-new-tabs-open)). New tabs then open the
+  browser-only Pages site, which keeps its data in this browser.
+- **To update**, run the same command again. It replaces the folder when the site has a newer
+  version; then click **Reload** on Portly New Tab.
+- **Options:** `-Destination <folder>` puts it elsewhere (keep it there: the browser loads it from
+  that folder), `-SiteUrl https://<user>.github.io/` downloads from another Pages site, and
+  `-DryRun` only says what it would do. To pass them:
+  `& ([scriptblock]::Create((irm https://davideaurum.github.io/get-extension.ps1))) -DryRun`.
+- If you also install Portly itself later, load only one of the folders (they are the same
+  extension). A release install keeps its own copy in `%LOCALAPPDATA%\Programs\Portly\app\extension`.
+
+You can also download `https://davideaurum.github.io/portly-extension.zip` in the browser and unzip
+it yourself into a folder you keep.
+
 ## Install in Google Chrome
 
 1. Type `chrome://extensions` in the address bar and press Enter.
 2. Turn on **Developer mode** (top-right).
 3. Click **Load unpacked** and select the `extension` folder inside your Portly folder (the
    folder that contains `manifest.json`): `%LOCALAPPDATA%\Programs\Portly\app\extension` after a
-   release install (the installer puts that path on the clipboard), or for example
-   `C:\Users\you\Coding\Portly\extension` in a checkout.
+   release install (the installer puts that path on the clipboard), for example
+   `C:\Users\you\Coding\Portly\extension` in a checkout, or the folder `get-extension.ps1` filled.
 4. **Portly New Tab** appears in the list. Open a new tab (Ctrl+T).
 5. Chrome asks whether you want to keep the new tab page the extension set: choose **Keep it**.
    If you choose to change it back, Chrome turns the extension's new tab override off; re-enable
@@ -203,7 +233,8 @@ Portly…"), while a plain `http://localhost:5757` page would show a connection 
 After pulling a new version of Portly, open `chrome://extensions` / `edge://extensions` and click
 the **Reload** button on Portly New Tab's card. The settings (what new tabs open, the Pages site
 address and the port) are kept. Also run `scripts\install-autostart.ps1` again so the launcher is
-updated too (see [After updating Portly](autostart.md#after-updating-portly-or-nodejs)).
+updated too (see [After updating Portly](autostart.md#after-updating-portly-or-nodejs)). A folder
+that `get-extension.ps1` filled is updated by running it again, then **Reload**.
 
 ## Behaviour notes
 

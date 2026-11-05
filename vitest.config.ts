@@ -13,7 +13,8 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
-          include: ['server/src/**/*.test.ts', 'shared/src/**/*.test.ts'],
+          // (web/build: the Pages build's own Node code, e.g. the extension download.)
+          include: ['server/src/**/*.test.ts', 'shared/src/**/*.test.ts', 'web/build/**/*.test.ts'],
           restoreMocks: true,
         },
       },

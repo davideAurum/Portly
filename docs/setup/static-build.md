@@ -352,7 +352,9 @@ Portly publish, unless you pass `-ReplaceEverything`. An earlier publish holds o
 
 - `index.html` with `<meta name="portly-build" content="static">` (or `homebase-build`, from a
   publish made before the rename);
-- `assets/`, `install.ps1` and `setup.ps1`;
+- `assets/`, `install.ps1`, `setup.ps1` and `get-extension.ps1`;
+- `portly-extension.zip` and `portly-extension.json` (the new-tab extension as a download, see
+  [Get the extension on a PC without the code](extension.md#get-the-extension-on-a-pc-without-the-code));
 - the files in `web\public` (today `favicon.svg` and `.nojekyll`), and `.gitattributes`;
 - `CNAME` and `README.md`, which a publish never deletes.
 

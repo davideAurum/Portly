@@ -30,7 +30,8 @@
        status.ps1, a start.ps1 argument error, setup.ps1 -DryRun -PagesUrl and -RemoteOrigin, a
        copy of setup.ps1 -DryRun on this checkout (it says it does not update it), update.ps1
        -DryRun (a checkout with uncommitted changes is refused unless -AllowDirty), try-branch.ps1
-       -DryRun, the portly command, install-cli.ps1 -DryRun and publish-static.ps1 -DryRun (against
+       -DryRun, the portly command, install-cli.ps1 -DryRun, get-extension.ps1 (into a temporary
+       folder, from a zip made there) and publish-static.ps1 -DryRun (against
        throwaway repositories in a temporary folder: clones level with, behind, ahead of and
        diverged from their origin, and one whose origin cannot be fetched) in child processes of
        Windows PowerShell 5.1 and PowerShell 7 (when installed), and verifies that the scheduled
@@ -991,8 +992,8 @@ if (Test-Path -LiteralPath (Join-Path $distStatic 'index.html') -PathType Leaf) 
     $unknownNames = @($buildNames | Where-Object { $publishedNames -cnotcontains $_ })
     Assert-That -Name 'every top-level file of web\dist-static is one publish-static.ps1 knows from a Portly publish' -Condition (
         $unknownNames.Count -eq 0) -Detail "not on Get-HbPublishedNames: $($unknownNames -join ', ')"
-    $missingNames = @(@('index.html', 'assets', 'install.ps1', 'setup.ps1') | Where-Object { $buildNames -cnotcontains $_ })
-    Assert-That -Name 'web\dist-static holds the names Get-HbPublishedNames lists for the build (index.html, assets, install.ps1, setup.ps1)' -Condition (
+    $missingNames = @(@('index.html', 'assets', 'install.ps1', 'setup.ps1', 'get-extension.ps1', 'portly-extension.zip', 'portly-extension.json') | Where-Object { $buildNames -cnotcontains $_ })
+    Assert-That -Name 'web\dist-static holds the names Get-HbPublishedNames lists for the build (index.html, assets, install.ps1, setup.ps1, get-extension.ps1, the extension download)' -Condition (
         $missingNames.Count -eq 0) -Detail "missing: $($missingNames -join ', ')"
 } else {
     Write-Host '  skip  web\dist-static is not built (npm run build:static; CI builds it before this check)' -ForegroundColor DarkYellow
@@ -1282,6 +1283,33 @@ try {
         }
         $before = & $snapshot
 
+        # get-extension.ps1: the extension zip the Pages build ships (web\build\extensionPackage.ts,
+        # made here with Node.js into $workDir), and the key the script checks against the manifest's.
+        $extZipDir = Join-Path $workDir 'extension-package'
+        $null = New-Item -ItemType Directory -Path $extZipDir -Force
+        $extMaker = Join-Path $workDir 'make-extension-package.mjs'
+        $extModule = ([System.Uri](Join-Path $repoRoot 'web\build\extensionPackage.ts')).AbsoluteUri
+        [System.IO.File]::WriteAllText($extMaker, (@(
+                    "import { writeFileSync } from 'node:fs';",
+                    "import { buildExtensionPackage } from '$extModule';",
+                    "const { zip, info } = buildExtensionPackage($(ConvertTo-Json -Compress (Join-Path $repoRoot 'extension')));",
+                    "writeFileSync($(ConvertTo-Json -Compress (Join-Path $extZipDir 'portly-extension.zip')), zip);",
+                    "writeFileSync($(ConvertTo-Json -Compress (Join-Path $extZipDir 'portly-extension.json')), JSON.stringify(info));"
+                ) -join "`n"))
+        $previousPreference = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        $extMade = @(& $checkNode $extMaker 2>&1 | ForEach-Object { "$_" })
+        $extMadeExit = $LASTEXITCODE
+        $ErrorActionPreference = $previousPreference
+        $extZip = Join-Path $extZipDir 'portly-extension.zip'
+        Assert-That -Name 'web\build\extensionPackage.ts makes portly-extension.zip and portly-extension.json' -Condition (
+            $extMadeExit -eq 0 -and (Test-Path -LiteralPath $extZip -PathType Leaf)) -Detail ($extMade -join ' ')
+        $extManifest = Get-Content -LiteralPath (Join-Path $repoRoot 'extension\manifest.json') -Raw | ConvertFrom-Json
+        $extScriptKey = [regex]::Match((Get-Content -LiteralPath (Join-Path $PSScriptRoot 'get-extension.ps1') -Raw), "\`$ExtKey = '([^']+)'").Groups[1].Value
+        Assert-That -Name 'get-extension.ps1 checks for the key in extension\manifest.json' -Condition (
+            "$($extManifest.key)" -ne '' -and $extScriptKey -ceq "$($extManifest.key)")
+        $extVersion = "$($extManifest.version)"
+
         $fixedId = 'abcdefghijklmnopabcdefghijklmnop'
         foreach ($engine in $engines) {
             $label = [System.IO.Path]::GetFileNameWithoutExtension($engine)
@@ -1547,6 +1575,46 @@ try {
                 $setupOtherMajor.Text.Contains(', open a new PowerShell window and run this again.') -and
                 -not $setupOtherMajor.Text.Contains('Today winget lists') -and
                 -not $setupOtherMajor.Text.Contains('Installing dependencies') -and -not $setupOtherMajor.Text.Contains('winget install --id')) -Detail $setupOtherMajor.Text
+
+            # get-extension.ps1 -ZipPath into folders under $workDir (-NoBrowser: no clipboard, no browser).
+            $extDest = Join-Path $workDir "get-extension-$label\extension"
+            $extArgs = @('-ZipPath', $extZip, '-Destination', $extDest, '-NoBrowser')
+            $extDry = & $run 'get-extension.ps1' ($extArgs + @('-DryRun'))
+            Assert-That -Name 'get-extension.ps1 -DryRun names the version and changes nothing' -Condition (
+                $extDry.ExitCode -eq 0 -and $extDry.Text.Contains("Would put Portly New Tab $extVersion in $extDest") -and
+                $extDry.Text.Contains('Dry run finished; nothing was changed.') -and -not (Test-Path -LiteralPath $extDest)) -Detail $extDry.Text
+            $extFirst = & $run 'get-extension.ps1' $extArgs
+            Assert-That -Name 'get-extension.ps1 -ZipPath checks the SHA-256, unpacks the extension (no tests or tools) and shows the Load unpacked steps' -Condition (
+                $extFirst.ExitCode -eq 0 -and $extFirst.Text.Contains('SHA-256 checked') -and
+                $extFirst.Text.Contains("Portly New Tab $extVersion is in $extDest") -and $extFirst.Text.Contains("Load unpacked -> select $extDest") -and
+                (Test-Path -LiteralPath (Join-Path $extDest 'manifest.json') -PathType Leaf) -and
+                (Test-Path -LiteralPath (Join-Path $extDest 'icons\icon-128.png') -PathType Leaf) -and
+                -not (Test-Path -LiteralPath (Join-Path $extDest 'test')) -and -not (Test-Path -LiteralPath "$extDest.new")) -Detail $extFirst.Text
+            $extSame = & $run 'get-extension.ps1' $extArgs
+            Assert-That -Name 'get-extension.ps1 leaves the same version alone' -Condition (
+                $extSame.ExitCode -eq 0 -and $extSame.Text.Contains("Portly New Tab $extVersion is already in $extDest")) -Detail $extSame.Text
+            $extMarker = Join-Path $extDest 'left-from-before.txt'
+            [System.IO.File]::WriteAllText($extMarker, 'old')
+            $extForce = & $run 'get-extension.ps1' ($extArgs + @('-Force'))
+            Assert-That -Name 'get-extension.ps1 -Force replaces the folder and says to click Reload' -Condition (
+                $extForce.ExitCode -eq 0 -and $extForce.Text.Contains("Updated Portly New Tab $extVersion -> $extVersion") -and
+                $extForce.Text.Contains('Click Reload') -and -not (Test-Path -LiteralPath $extMarker) -and
+                -not (Test-Path -LiteralPath "$extDest.previous") -and (Test-Path -LiteralPath (Join-Path $extDest 'manifest.json') -PathType Leaf)) -Detail $extForce.Text
+            $extBadHash = & $run 'get-extension.ps1' ($extArgs + @('-Force', '-Sha256', ('0' * 64)))
+            Assert-That -Name 'get-extension.ps1 refuses a zip whose SHA-256 does not match and changes nothing' -Condition (
+                $extBadHash.ExitCode -eq 1 -and $extBadHash.Text.Contains("The zip's SHA-256 is") -and
+                (Test-Path -LiteralPath (Join-Path $extDest 'manifest.json') -PathType Leaf)) -Detail $extBadHash.Text
+            $extForeign = Join-Path $workDir "get-extension-foreign-$label"
+            $null = New-Item -ItemType Directory -Path $extForeign -Force
+            [System.IO.File]::WriteAllText((Join-Path $extForeign 'notes.txt'), 'mine')
+            $extForeignRun = & $run 'get-extension.ps1' @('-ZipPath', $extZip, '-Destination', $extForeign, '-NoBrowser')
+            Assert-That -Name 'get-extension.ps1 refuses a folder that holds something else' -Condition (
+                $extForeignRun.ExitCode -eq 1 -and $extForeignRun.Text.Contains('holds no Portly New Tab') -and
+                (Test-Path -LiteralPath (Join-Path $extForeign 'notes.txt') -PathType Leaf) -and
+                -not (Test-Path -LiteralPath (Join-Path $extForeign 'manifest.json'))) -Detail $extForeignRun.Text
+            $extBadSite = & $run 'get-extension.ps1' @('-SiteUrl', 'http://example.invalid/', '-Destination', (Join-Path $workDir "get-extension-site-$label"), '-NoBrowser', '-DryRun')
+            Assert-That -Name 'get-extension.ps1 refuses an http -SiteUrl before downloading anything' -Condition (
+                $extBadSite.ExitCode -eq 1 -and $extBadSite.Text.Contains('-SiteUrl must be') -and $extBadSite.Text.Contains('It must use https')) -Detail $extBadSite.Text
 
             # publish-static.ps1: argument checks and the dry run, against folders under $workDir only
             # (-DryRun never builds, commits or pushes).

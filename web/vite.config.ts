@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { buildExtensionPackage, EXTENSION_PACKAGE, EXTENSION_PACKAGE_INFO } from './build/extensionPackage.ts';
 import { REMOTE_SERVER_CSP_SOURCE, parseLocalServerOrigin } from './src/localServer/origin.ts';
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
@@ -106,19 +107,23 @@ function staticHtml(localServer: string): Plugin {
 }
 
 /**
- * Ships scripts/install.ps1 (install or update from a release package) and scripts/setup.ps1 (a
- * Git checkout, for development) at the site root, so a new PC can run `irm <site>/install.ps1 | iex`.
- * Copied byte for byte: the scripts are ASCII with CRLF endings.
+ * Ships scripts/install.ps1 (install or update from a release package), scripts/setup.ps1 (a
+ * Git checkout, for development) and scripts/get-extension.ps1 (the new-tab extension alone) at the
+ * site root, so a new PC can run `irm <site>/install.ps1 | iex`. Copied byte for byte: the scripts
+ * are ASCII with CRLF endings. get-extension.ps1 downloads the extension zip emitted next to them.
  */
 function staticSetupScript(): Plugin {
   return {
     name: 'portly-static-setup-script',
     apply: 'build',
     generateBundle() {
-      for (const fileName of ['install.ps1', 'setup.ps1']) {
+      for (const fileName of ['install.ps1', 'setup.ps1', 'get-extension.ps1']) {
         const source = readFileSync(path.join(webDir, '..', 'scripts', fileName));
         this.emitFile({ type: 'asset', fileName, source });
       }
+      const { zip, info } = buildExtensionPackage(path.join(webDir, '..', 'extension'));
+      this.emitFile({ type: 'asset', fileName: EXTENSION_PACKAGE, source: zip });
+      this.emitFile({ type: 'asset', fileName: EXTENSION_PACKAGE_INFO, source: `${JSON.stringify(info, null, 2)}\n` });
     },
   };
 }

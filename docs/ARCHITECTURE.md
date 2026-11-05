@@ -1457,6 +1457,16 @@ clears `chrome.storage.local`, i.e. the port). No content scripts, no `externall
   New Tab page is preferred for startup, because it waits while Portly starts).
 - Tests: `extension/test/*.test.mjs` with `node --test` (`npm run test:extension`), mocked fetch, storage and
   native messaging.
+- **Download without a checkout.** The static build (`web/vite.config.ts`, `web/build/extensionPackage.ts`) puts
+  `portly-extension.zip` at the site root: `extension/` without `test/` and `tools/` (as in a release package),
+  sorted names, fixed 1980-01-01 timestamps, so an unchanged extension builds the same bytes. Next to it,
+  `portly-extension.json` holds `{name: "portly-extension", version, package, sha256, size}`. `scripts/get-extension.ps1`
+  (self-contained, `irm | iex`, also at the site root) reads the JSON, downloads the zip, checks its SHA-256, unpacks
+  it to `<Destination>.new`, requires `manifest.json` with the name **Portly New Tab** and exactly the pinned `key`,
+  and swaps it into `<Destination>` (default `%LOCALAPPDATA%\Programs\Portly\extension`). It replaces only a folder
+  that holds Portly New Tab or nothing, and refuses a release install's `app\extension`. Loading the folder stays a
+  manual step: branded Chrome and Edge install store extensions only, by policy or otherwise. `-SiteUrl` is https
+  (http for loopback only); `-ZipPath`/`-Sha256` for a local zip; `-Force`, `-NoBrowser`, `-DryRun`.
 
 ---
 

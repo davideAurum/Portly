@@ -4,7 +4,9 @@ A Chromium Manifest V3 extension (Chrome and Edge) that makes Portly your New Ta
 Portly when it isn't running, follows Portly on this PC by default (its Pages site when the server
 has one, otherwise Portly itself; the options can pin either), and its toolbar button adds the
 current page to the launch pad. Plain JavaScript, no build step.
-Installation: [docs/setup/extension.md](../docs/setup/extension.md).
+Installation: [docs/setup/extension.md](../docs/setup/extension.md). On a PC without the code,
+`scripts/get-extension.ps1` downloads it from the Pages site, where the static build publishes it
+as `portly-extension.zip` (this folder without `test/` and `tools/`).
 
 ## Extension ID (pinned)
 

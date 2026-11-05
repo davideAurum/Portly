@@ -6,6 +6,13 @@ gets a new one when its own code changes. Each entry names the extension version
 
 ## Unreleased
 
+### What's new
+- **Get the new-tab extension without the code.** On a PC that only wants the new tab page, one
+  PowerShell command downloads the extension from the Pages site, checks it and unpacks it ready for
+  **Load unpacked**; running it again updates the folder
+  ([how](docs/setup/extension.md#get-the-extension-on-a-pc-without-the-code)). It needs the Pages
+  site published from this version on.
+
 ### Fixed
 - **`portly --update` from PowerShell 7.** It stopped with "The term 'Get-FileHash' is not
   recognized", before changing anything, because the Windows PowerShell behind the `portly` command

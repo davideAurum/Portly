@@ -217,10 +217,11 @@ there: the login cookie belongs to one of them, so each one asks and is approved
 
 ### 5. What a new tab shows now
 
-Portly's New Tab extension is not made for this yet: it checks and starts Portly on its own PC
-(`http://localhost`), and that PC runs none. So new tabs keep the browser's own page. To reach
-Portly in one click instead, use your Pages site once it is connected (or the Tailscale address,
-`https://<pc>.<tailnet>.ts.net`):
+New tabs keep the browser's own page until you choose otherwise. To have them open Portly, get the
+New Tab extension on its own and set it to open your Pages site
+([Get the extension on a PC without the code](extension.md#get-the-extension-on-a-pc-without-the-code)).
+No browser extension is needed for the other ways to reach Portly in one click, with your Pages
+site once it is connected (or the Tailscale address, `https://<pc>.<tailnet>.ts.net`):
 
 - as the page the browser opens when it starts: in Chrome, Settings → **On startup** → **Open a
   specific page or set of pages**; in Edge, Settings → **Start, home, and new tabs** → **When Edge
