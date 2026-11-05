@@ -4,6 +4,16 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## Unreleased
+
+### What's new
+- **GitHub status board.** A new **GitHub** widget lists your repositories with their latest CI
+  result, open pull requests and issues, latest release and last push, with whatever needs attention
+  first. The small **⋯** menu on each row opens the repository in GitHub Desktop, opens its pages on
+  GitHub, or copies its clone address. It uses a read-only token you create
+  ([how](docs/setup/github.md)), and Portly changes nothing on GitHub or on your disk. It works on
+  Portly's own page, the Pages site, other PCs and the browser-only site.
+
 ## 0.2.0-alpha.6 (2026-11-04)
 
 The sixth alpha: the new-tab extension can be downloaded without the code, updates work from

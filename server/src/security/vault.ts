@@ -19,7 +19,7 @@
  * - `state` is `'ready'` or `'locked'`. While locked, `get`/`put` throw {@link VaultLockedError}
  *   (409 `reauth_required`); `delete`/`has`/`list` keep working (they need no key).
  * - Values are strings (JSON for structured secrets). Secret ids: `account:<accountId>`,
- *   `todoist:token`, `oauth-client:<provider>`, `ics:<calendarId>`; `canary` is reserved.
+ *   `todoist:token`, `github:token`, `oauth-client:<provider>`, `ics:<calendarId>`; `canary` is reserved.
  * - A stored secret that fails authentication (tampered row, wrong AAD) reads as missing (`null`)
  *   and is logged, so callers fall into their "reconnect" path.
  * - Operations are synchronous so they can run inside `db.tx(...)` next to related row changes.

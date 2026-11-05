@@ -20,6 +20,8 @@ place name of your location), as the [privacy policy](site/privacy.html) lists.
 - **Mail** — Gmail, Outlook.com and IMAP (Yahoo, iCloud, Fastmail, …): unread counts, recent
   messages, mark read/unread, archive, trash, open in webmail.
 - **Todoist** — tasks by filter, natural-language quick add, complete with undo.
+- **GitHub** — a read-only status board of your repositories: CI results, open pull requests and
+  issues, latest release, and a quick way into GitHub Desktop.
 - **RSS feeds** — the latest headlines from RSS and Atom feeds, merged newest first.
 - **Sports scores** — live scores, recent results and upcoming games for your teams, with box scores
   and where to watch.
@@ -122,7 +124,7 @@ and [connect your accounts](docs/SETUP.md#connect-your-accounts).
 ## Browser-only build
 
 Portly can also be built as plain files that run entirely in the browser — no server, hosted on
-GitHub Pages — with search, bookmarks, clock, weather, notes, Todoist, sports scores, themes, profiles
+GitHub Pages — with search, bookmarks, clock, weather, notes, Todoist, GitHub, sports scores, themes, profiles
 and export/import, and Outlook.com calendars (the browser signs in to Microsoft and syncs them itself).
 Mail, feeds, Google and app-password accounts, and ICS links need the server and are left out. Your
 data lives in that browser's storage (IndexedDB), moved between computers with export/import. The

@@ -1625,6 +1625,24 @@ OneDrive's (D8 note). Design: [launchpad-sync-github.md](design/launchpad-sync-g
   *Done when:* two browsers on one GitHub account converge, a forced race is refused, and the
   "Checks never run for real" rows of G.2 are run with the owner's repository and token.
 
+## GitHub status board (beside track B)
+
+Asked for by the owner on 2026-11-04: a widget with the status of every repository of an account and
+a small operations button in the spirit of GitHub Desktop. Built read-only, on both backends: the
+board, and a menu per repository that opens GitHub Desktop or the repository's pages
+([guide](setup/github.md), ARCHITECTURE 10.8).
+
+Left out on purpose, for the owner to decide after using it:
+
+- **Real Fetch, Pull and Push inside Portly.** It needs git on the PC that runs the server, so on a PC
+  connected to the main PC it would act on the main PC's clones, and a route that can push code
+  doesn't sit well with the paired Pages origin (ARCHITECTURE 4.1). Keeping that route off the Pages
+  site means the button appears only on Portly's own page.
+- **GitHub-side actions** (re-run failed CI, merge a pull request, sync a fork). They need a token that
+  can write, which should stay on the server.
+- **CI results through the Actions API**, one request per repository, if the rollup turns out to be
+  empty with fine-grained tokens (first row of the checks table).
+
 ## Track B: multi-PC
 
 One Portly server for several PCs, built beside the phases on the go of 2026-10-21 (D10 asked
@@ -1774,6 +1792,9 @@ date and the outcome once a row has been run for real.
 
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
+| The GitHub widget with a real fine-grained token: saving it, the board, and above all what `statusCheckRollup` gives (GitHub's docs say fine-grained tokens can't use the Checks API, so CI results may show as unknown). The query and parser were run against a real account only with a `gh` login token, which the app refuses; every test uses an in-memory GitHub | this commit, 2026-11-05 | the owner's first token | not yet |
+| **Open in GitHub Desktop** from a real browser: the browser's prompt, then Desktop opening a cloned repository and offering to clone another. The address was read from GitHub Desktop 3.6.10's own code; the tests only check the address is built | this commit, 2026-11-05 | the owner's first token | not yet |
+| The GitHub widget on the published Pages site against the real `api.github.com`: GitHub's CORS answer was checked with a preflight from the command line, not from a browser | this commit, 2026-11-05 | the next Pages publish | not yet |
 | `get-extension.ps1` downloading from the live Pages site (not published yet) and loading the unpacked folder in a real browser; the checks use a zip made in a temporary folder | this commit, 2026-11-04 | next Pages publish | 2026-11-04 (0.2.0-alpha.6, Pages f73c92f): the download half passed. The live files match the build byte for byte, and the script downloaded, checked and unpacked 0.5.3 into a scratch folder; a second run left it alone. Loading the folder in a real browser not done |
 | `publish-static.ps1` accepting `get-extension.ps1`, `portly-extension.zip` and `portly-extension.json` in a real publish, and the zip's bytes surviving it, so that its SHA-256 still matches on the site; only the dry run and name checks ran | this commit, 2026-11-04 | next Pages publish | 2026-11-04 (0.2.0-alpha.6, Pages f73c92f): the real publish took all three, and the live zip's SHA-256 matches `portly-extension.json` (d2c69ec4…18dc) |
 | A real `install-autostart.ps1` and `portly --update` run after the Homebase code was removed (dry runs, fakes and `check-release.ps1`'s temporary install passed; a scratch start of the server ignored leftover Homebase files); the CSP of both builds by hand | Homebase removal, 2026-11-04 | 3.7, the first update of the main PC after merging | The real runs: not yet (the PC that made 0.2.0-alpha.6 has no installed Portly). The CSP: 2026-11-04 on 0.2.0-alpha.6 (c1182b6), zero violations in both builds (ARCHITECTURE 13) |

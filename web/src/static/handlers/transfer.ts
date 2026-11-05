@@ -8,8 +8,8 @@
  * per-entity allowlist serializer (each entity re-validated with its export schema). Only uploads
  * whose UUID occurs in the settings/profiles JSON and custom icons referenced by custom bookmarks
  * or search engines are embedded, newest first (the background image first), within a byte budget
- * that keeps the file importable (≤ 25 MB). Never exported: the Todoist token, the pre-import
- * backups. Synthetic favicon ids (`fav:<host>`) are plain strings and travel as-is in settings;
+ * that keeps the file importable (≤ 25 MB). Never exported: the Todoist and GitHub tokens, the
+ * pre-import backups. Synthetic favicon ids (`fav:<host>`) are plain strings and travel as-is in settings;
  * bookmarks with a non-embedded custom icon are exported as `auto`.
  *
  * Import: the file is parsed (forbidden keys / deep nesting → 400), validated with the strict

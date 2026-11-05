@@ -10,7 +10,7 @@
  * handler or keep the backend from starting.
  *
  * Export (`GET /api/export`) reads settings, profiles, bookmarks, uploads and icons. The Todoist
- * token, the GitHub sync repository and token, the pre-import backups, accounts and their tokens,
+ * token, the GitHub status token, the GitHub sync repository and token, the pre-import backups, accounts and their tokens,
  * the OAuth client, pending sign-ins and the calendar cache are never exported (and an import
  * never touches them), and neither is the list of one-time data upgrades already applied.
  */
@@ -42,6 +42,7 @@ export const SLICE = Object.freeze({
   icons: 'icons',
   todoistToken: 'todoist-token',
   githubSync: 'github-sync',
+  githubStatusToken: 'github-status-token',
   backups: 'backups',
   accounts: 'accounts',
   accountTokens: 'account-tokens',
@@ -323,6 +324,27 @@ export function getTodoistToken(ctx: StaticContext): TodoistTokenSlice {
   return checkedSlice<TodoistTokenSlice>(
     ctx,
     SLICE.todoistToken,
+    () => ({ token: null, generation: 0 }),
+    (value) => isRow(value) && (value.token === null || typeof value.token === 'string') && Number.isFinite(value.generation),
+    // Keep the generation moving forward so token-keyed caches are never reused.
+    (value) => ({ token: null, generation: isRow(value) && Number.isFinite(value.generation) ? Number(value.generation) + 1 : 1 }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// GitHub status board token (never exported)
+// ---------------------------------------------------------------------------
+
+export interface GitHubStatusTokenSlice {
+  token: string | null;
+  /** Bumped on every token change so caches keyed by it are never served across tokens. */
+  generation: number;
+}
+
+export function getGitHubStatusToken(ctx: StaticContext): GitHubStatusTokenSlice {
+  return checkedSlice<GitHubStatusTokenSlice>(
+    ctx,
+    SLICE.githubStatusToken,
     () => ({ token: null, generation: 0 }),
     (value) => isRow(value) && (value.token === null || typeof value.token === 'string') && Number.isFinite(value.generation),
     // Keep the generation moving forward so token-keyed caches are never reused.

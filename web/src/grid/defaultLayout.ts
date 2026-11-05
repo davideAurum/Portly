@@ -1,8 +1,8 @@
 /**
- * Client-side default layout (§10.2): every widget type except feeds, sports and notes, which are
- * empty until the user adds a feed, a team or some text and so are left to "Add widget". Shown
- * while there are no profiles, and used to seed the first "Home" profile (see seed.ts). Built for
- * this page load's capabilities: the in-browser backend has no mail widget, and leaves the calendar
+ * Client-side default layout (§10.2): every widget type except feeds, sports, notes and GitHub,
+ * which are empty until the user adds a feed, a team, some text or a token and so are left to
+ * "Add widget". Shown while there are no profiles, and used to seed the first "Home" profile (see
+ * seed.ts). Built for this page load's capabilities: the in-browser backend has no mail widget, and leaves the calendar
  * (Outlook.com only, after a one-time app registration) to "Add widget". Either layout fills the
  * 12 × 15 cells it spans, with no gaps: without the bottom row's calendar and mail, the weather runs
  * down to the bottom (where it has room for the 7-day list) and Todoist takes the width under the

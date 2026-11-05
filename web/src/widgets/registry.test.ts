@@ -43,6 +43,7 @@ describe('widget registry', () => {
     expect(cfg('calendar')).toEqual({ view: 'agenda', days: 7, calendarIds: 'visible', showDeclined: false });
     expect(cfg('mail')).toEqual({ accountIds: 'all', maxMessages: 10, unreadOnly: false, grouping: 'merged' });
     expect(cfg('todoist')).toEqual({ filter: '', showProject: true, showDue: true, sort: 'todoist' });
+    expect(cfg('github')).toEqual({ sort: 'attention', showArchived: false, showForks: false });
     expect(cfg('weather')).toEqual({ location: null, useDeviceLocation: false, show: { hourly: true, daily: true }, units: 'inherit' });
     expect(cfg('clock')).toEqual({ format: 'inherit', showSeconds: false, showDate: true, greeting: true, extraZones: [] });
   });
@@ -66,8 +67,8 @@ describe('widget registry', () => {
 describe('default layout', () => {
   const layout = createDefaultLayout();
 
-  it('contains every widget type but feeds, sports and notes once', () => {
-    expect(layout.items.map((i) => i.type).sort()).toEqual(WIDGET_TYPES.filter((t) => t !== 'feeds' && t !== 'sports' && t !== 'notes').sort());
+  it('contains every widget type but feeds, sports, notes and GitHub once', () => {
+    expect(layout.items.map((i) => i.type).sort()).toEqual(WIDGET_TYPES.filter((t) => t !== 'feeds' && t !== 'sports' && t !== 'notes' && t !== 'github').sort());
   });
 
   it('returns a fresh copy each time', () => {

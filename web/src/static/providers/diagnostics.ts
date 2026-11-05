@@ -1,6 +1,6 @@
 /**
  * Upstream failures of the in-browser backend's providers (Open-Meteo, Nominatim, Wikipedia suggestions,
- * Todoist, Microsoft sign-in, and ESPN through the sports handler's own fetch in
+ * Todoist, the GitHub status board, Microsoft sign-in, and ESPN through the sports handler's own fetch in
  * `handlers/sports.ts`) as this browser's `provider` events (ARCHITECTURE §17) — the
  * browser-only build's counterpart of the server's outbound log lines: which provider and host,
  * the HTTP status, a machine reason code (the server's health codes where one fits: `timeout`,
@@ -13,7 +13,7 @@ import { REASON_TOKEN, type LogLevel } from '@portly/shared';
 import { recordCollapsedClientEvent } from '../../api/client.ts';
 import { classifyFetchError, UpstreamPayloadTooLargeError } from '../lib/fetch.ts';
 
-export type ProviderName = 'open-meteo' | 'nominatim' | 'wikipedia' | 'todoist' | 'microsoft' | 'espn';
+export type ProviderName = 'open-meteo' | 'nominatim' | 'wikipedia' | 'todoist' | 'github' | 'microsoft' | 'espn';
 
 export interface ProviderFailure {
   /** The provider's HTTP status; null (or absent) when no answer arrived. */

@@ -6,6 +6,7 @@ import { getCapabilities, isWidgetTypeAvailable, unavailableWidgetTypes, type Ca
 import { definition as calendar } from './calendar/index.ts';
 import { definition as clock } from './clock/index.ts';
 import { definition as feeds } from './feeds/index.ts';
+import { definition as github } from './github/index.ts';
 import { definition as launchpad } from './launchpad/index.ts';
 import { definition as mail } from './mail/index.ts';
 import { definition as notes } from './notes/index.ts';
@@ -22,6 +23,7 @@ export const WIDGET_DEFINITIONS: readonly AnyWidgetDefinition[] = Object.freeze(
   calendar,
   mail,
   todoist,
+  github,
   notes,
   weather,
   feeds,

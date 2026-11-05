@@ -74,6 +74,7 @@ describe('Accounts settings with Portly on this PC', () => {
       'Connect Microsoft',
       'Connect Yahoo',
       'Connect Todoist',
+      'Connect GitHub repositories',
       'Connect another account (CalDAV or IMAP)',
     ]);
     expect(screen.queryByText(/need the Portly server/)).not.toBeInTheDocument();
@@ -206,7 +207,7 @@ describe('Accounts settings on another PC', () => {
       },
     });
     const tiles = within(await screen.findByRole('list', { name: 'Add a connection' })).getAllByRole('button');
-    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Yahoo', 'Connect Todoist', 'Connect another account (CalDAV or IMAP)']);
+    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Yahoo', 'Connect Todoist', 'Connect GitHub repositories', 'Connect another account (CalDAV or IMAP)']);
     expect(screen.getByText(/Google and Microsoft accounts are connected on the main PC/)).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'App registrations' })).not.toBeInTheDocument();
     expect(requestsTo('GET /api/oauth-clients/google')).toEqual([]);

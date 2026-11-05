@@ -1,0 +1,225 @@
+/* GitHub widget (§10.8). Tokens only; the body is an inline-size container (WidgetFrame). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.state {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--hb-space-3);
+}
+
+.summary {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--hb-space-2);
+  padding: 0 var(--hb-space-4) var(--hb-space-2);
+}
+
+.count {
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+  color: var(--hb-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  margin: 0;
+  padding: 0 var(--hb-space-2) var(--hb-space-2);
+  list-style: none;
+}
+
+.item {
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hb-space-2);
+  padding: 6px var(--hb-space-2);
+  border-radius: var(--hb-radius-md);
+  transition: background var(--hb-hover-duration) var(--hb-ease);
+}
+
+.row:hover,
+.row:focus-within {
+  background: var(--hb-hover);
+}
+
+/* The CI result. Each state differs in shape as well as color, so color is never the only signal. */
+.dot {
+  --state: var(--hb-text-subtle);
+
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border: 2px solid var(--state);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.dot[data-state='success'] {
+  --state: var(--hb-success);
+
+  background: var(--state);
+}
+
+.dot[data-state='failure'] {
+  --state: var(--hb-danger);
+
+  border-radius: 2px;
+  background: var(--state);
+}
+
+.dot[data-state='pending'] {
+  --state: var(--hb-warning);
+
+  border-style: dashed;
+}
+
+.dot[data-state='unavailable'] {
+  border-style: dotted;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-1);
+  min-width: 0;
+}
+
+/*
+ * `position: relative` makes the name the containing block of its visually hidden text. Without it
+ * that text escapes the clipping after a long name and gives the whole card a horizontal scrollbar.
+ */
+.name {
+  position: relative;
+  min-width: 0;
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  color: var(--hb-text);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+a.name:hover {
+  text-decoration: underline;
+}
+
+.marker {
+  flex: none;
+  display: inline-flex;
+  color: var(--hb-text-subtle);
+}
+
+.marker svg {
+  width: 12px;
+  height: 12px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px var(--hb-space-2);
+  min-width: 0;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.chip svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.chipText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.release {
+  max-width: 14ch;
+}
+
+.pushed {
+  white-space: nowrap;
+}
+
+.note {
+  flex: none;
+  margin: 0;
+  padding: var(--hb-space-1) var(--hb-space-4) var(--hb-space-2);
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hb-space-1);
+  font-size: var(--hb-text-sm);
+  font-weight: 600;
+  color: var(--hb-accent-text);
+  text-decoration: none;
+}
+
+.cta svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cta:hover {
+  text-decoration: underline;
+}
+
+@container (max-width: 250px) {
+  .release {
+    display: none;
+  }
+}
+
+/* A wide board reads better in columns than as one long list. */
+@container (min-width: 620px) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 960px) {
+  .list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

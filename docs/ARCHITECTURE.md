@@ -45,6 +45,8 @@ choice, provided it respects §4.
 - Mail: unread counts + recent inbox messages, mark read/unread, archive (where supported), trash,
   open in webmail — Gmail (API), Outlook.com (Graph), IMAP (Yahoo preset + generic).
 - Todoist: tasks by filter, quick add (natural language), complete (with undo), project chips.
+- GitHub: a read-only status board of the account's repositories (CI result, open pull requests and issues, latest
+  release, last push), with a menu per repository that opens GitHub Desktop or its pages on GitHub.
 - Weather: current / hourly / daily via Open-Meteo.
 - RSS feeds: RSS and Atom feeds merged newest first (server only).
 - Sports scores: favorite teams' live, upcoming and final games from ESPN's public API.
@@ -327,6 +329,18 @@ validated, icon bytes sniffed and matched against the listed SHA-256), reference
 refused file is never merged or overwritten (`web/src/static/sync/format.ts`; design/launchpad-sync.md section 8,
 launchpad-sync-github.md sections 9 and 11).
 
+**The GitHub status board puts one more grant on that origin, when it is used on the browser-only site.** Its token
+(the `github-status-token` slice, unencrypted in the site's IndexedDB) reads every repository of the account, private
+code included, until it expires or is revoked; any script on any page of `https://<user>.github.io`, and any extension
+with access to the site, can read it. That is more than the sync token reaches, on the same grounds and with the same
+limits as above. Mitigations: fine-grained tokens only, so that it can change nothing; the link Settings offers fills in
+read-only permissions and a 90-day expiry; write-only (`{configured}`), never exported, sent only to `api.github.com`
+(`credentials: 'omit'`, `redirect: 'error'`); **Remove** in Settings → Accounts, and revoking at GitHub ends it everywhere.
+With a server the token stays in the vault: a paired page or another PC sees repository names and status, not the token.
+Portly can't check that a token is read-only, so the setup steps say so plainly. **Nothing in Portly runs git or changes
+a repository**, so a stolen pairing token can't push code; a route that did would have to be weighed against every
+risk in this section first.
+
 **Other PCs (§20) add trusted devices:** with `PORTLY_REMOTE_ORIGIN` set, a PC approved once on this PC (Portly's own
 page or the paired Pages site; its device cookie) may call the routes declared `paired()` through the remote port, as
 a paired browser may. Each
@@ -436,7 +450,8 @@ it, and the address of the main PC is never published (each browser is told it o
   `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://nominatim.openstreetmap.org`,
   `https://api.todoist.com`, `https://api.github.com` (launch pad sync through a private repository,
   docs/design/launchpad-sync-github.md; one of the two sync connections, design/launchpad-sync.md 6.10; the repository and token are kept
-  like the Todoist token, in the never-exported `github-sync` slice),
+  like the Todoist token, in the never-exported `github-sync` slice; and the GitHub status board's GraphQL calls, with
+  its own token in the never-exported `github-status-token` slice),
   `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://login.microsoftonline.com` and
   `https://graph.microsoft.com` (Outlook.com sign-in and calendar, and launch pad sync's OneDrive metadata and
   uploads), `https://my.microsoftpersonalcontent.com` (launch pad sync's OneDrive downloads: the only download host
@@ -469,6 +484,9 @@ it, and the address of the main PC is never published (each browser is told it o
 - Web: one `safeHref()` helper (`web/src/lib/openUrl.ts`) used by every `<a href>`, `window.open`,
   `location.assign`. External links: `target="_blank" rel="noopener noreferrer"` (unless the user's
   "open links in same tab" preference applies to launch pad/search).
+- **The one address outside http(s):** `githubDesktopHref()` (`web/src/lib/openUrl.ts`) builds GitHub Desktop's
+  `x-github-client://openRepo/https://github.com/<owner>/<name>` from a name that passes `parseGitHubRepoName`. It is
+  never taken from a provider or a stored value, and `safeHref()` stays http(s) only.
 - `#/add-bookmark?url=&title=` (§10.1, §11) comes from outside the page, so both values are hostile.
   `parseAddBookmarkRequest` (`widgets/launchpad/addRequest.ts`) accepts only an `http:`/`https:` URL of at most 2048
   characters without a username or password, and a title with whitespace collapsed, cut to 300 characters. The request
@@ -504,9 +522,9 @@ ingest; invalid → null.
 - Startup: (a) no key file and no secrets → create key + canary secret. (b) key missing while secrets
   exist, or DPAPI/parse/canary-decrypt fails → **never regenerate automatically**: rename the file to
   `vault.key.unreadable-<ts>`, enter `locked`. Locked: non-secret features work, `GET /api/health` reports
-  `vault:'locked'`, accounts/Todoist report `reauth`, Settings shows a banner with **Reset credentials**
+  `vault:'locked'`, accounts/Todoist/GitHub report `reauth`, Settings shows a banner with **Reset credentials**
   → `POST /api/vault/reset` (confirm) deletes all secrets and creates a new key.
-- Secret ids: `account:<accountId>` (JSON `{refreshToken}` or `{password}`), `todoist:token`,
+- Secret ids: `account:<accountId>` (JSON `{refreshToken}` or `{password}`), `todoist:token`, `github:token`,
   `oauth-client:<provider>` (client secret), `ics:<calendarId>` (full feed URL), `canary`.
 - **Secrets are never returned to the client** (APIs return `{configured: true}` / host-only displays).
 
@@ -718,7 +736,7 @@ server/src/
   testing/{test-context,test-request,test-devices,fake-fetch,fake-accounts}.ts
   modules/index.ts       static list of all modules (`MODULES`); each register() wrapped in try/catch — a failing
                          module is logged and its route prefix returns 503 `module_unavailable`
-  modules/{core,accounts,bookmarks,search,weather,todoist,calendar,mail,feeds,sports,pairing,devices,diagnostics}/index.ts
+  modules/{core,accounts,bookmarks,search,weather,todoist,github,calendar,mail,feeds,sports,pairing,devices,diagnostics}/index.ts
 ```
 
 Each module exports `register(app: Hono<AppEnv>, ctx: AppContext): void`. `lib/routes.ts` provides
@@ -796,7 +814,7 @@ summary blanks its directories the same way, §17).
 
 Export file: `{format:'portly-export', version:1, exportedAt, data:{settings, profiles, bookmarkGroups,
 bookmarks, uploads[base64], customIcons[base64]}}` built by an explicit per-entity allowlist serializer.
-Excluded: accounts, secrets, oauth_*, the Todoist token, calendars/ICS URLs, events, cache, fetched favicons.
+Excluded: accounts, secrets, oauth_*, the Todoist and GitHub tokens, calendars/ICS URLs, events, cache, fetched favicons.
 Import preview validates with a strict versioned `ExportSchema` reusing the create/update schemas
 (SafeHttpUrl, Theme), regenerates all IDs, caps counts (≤ 50 profiles, ≤ 200 groups, ≤ 5,000 bookmarks,
 ≤ 50 widgets/profile), drops unknown widget types, and returns a summary (counts, search-engine names+hosts,
@@ -824,6 +842,11 @@ nothing is there).
 `DELETE /api/todoist/token` · `GET /api/todoist/tasks?filter=` · `POST /api/todoist/tasks {text}` (quick add) ·
 `POST /api/todoist/tasks/:id/close` · `POST /api/todoist/tasks/:id/reopen` · `PATCH /api/todoist/tasks/:id` ·
 `GET /api/todoist/projects`.
+
+**GitHub** (status board, read-only) — `GET /api/github/token` → `{configured}` · `PUT /api/github/token {token}` (shape
+checked, classic tokens refused, then GitHub is asked for one repository) · `DELETE /api/github/token` ·
+`GET /api/github/repos` → `GitHubBoard` (cached 30 s). Declared `paired()`. Launch pad sync's own
+`/api/sync/github` exists only on the in-browser backend and is unrelated.
 
 **Accounts** — `GET /api/accounts` · `PATCH /api/accounts/:id {label?, color?, enabledCapabilities?, sort?}` ·
 `DELETE /api/accounts/:id` · `POST /api/accounts/:id/test` · `GET /api/oauth-clients/:provider` →
@@ -979,6 +1002,11 @@ disconnects itself; its cookie cleared). Every other route except those listed `
   WMO code → `{label, icon}` map.
 - **todoist.ts** — `Task {id, content, description, projectId, due: {date, datetime|null, string, isRecurring}|null,
   priority: 1|2|3|4, labels: string[], url}`, `Project {id, name, color}`, `TodoistSettings {defaultFilter}`.
+- **github.ts** — `GitHubRepo {fullName, isPrivate, isArchived, isFork, pushedAt|null, defaultBranch|null, openIssues,
+  openPullRequests, checks: 'success'|'failure'|'pending'|'none'|'unavailable', latestRelease: {tag, publishedAt|null}|null}`,
+  `GitHubBoard {login, repos, total, truncated, skipped}`, and the pure parts both backends share: the GraphQL query,
+  `readGitHubBoardPage`, `collectGitHubBoard`, the rate-limit rules and the token's shape check. `none` means GitHub says
+  there are no checks; `unavailable` means this token may not read the result. They must never be merged (§8 GitHub).
 - **calendar.ts** — `Calendar {id, accountId|null, source, name, color /*resolved*/, writable /* provider && !userReadOnly */,
   providerWritable, userReadOnly, visible, isPrimary, sort, displayUrl|null, lastSyncedAt|null, lastError|null,
   colorOverride?: string|null}` (`lastError` starting with `CALENDAR_WARNING_PREFIX` = `"Warning: "` is non-fatal);
@@ -1024,7 +1052,7 @@ disconnects itself; its cookie cleared). Every other route except those listed `
   events).
 - **Conventions:** API camelCase; DB snake_case; booleans ↔ 0/1; DB timestamps epoch ms, API ISO strings.
 - **web/src/api/keys.ts** exports one `qk` object with every query key (settings, profiles, accounts, oauthClients,
-  bookmarks, icons, search.suggest, weather, geocode, todoist.token/tasks/projects, calendar.calendars/events,
+  bookmarks, icons, search.suggest, weather, geocode, todoist.token/tasks/projects, github.token/board, calendar.calendars/events,
   mail.summary, pairings, diagnostics — never persisted). Account create/delete/reconnect invalidates `['accounts']`,
   `['calendar']`, `['mail']`.
 
@@ -1105,6 +1133,20 @@ instances: `instance_key` = occurrence start (UTC), `editable = 0`.
 `POST /tasks/{id}` (not PATCH). Projects: `GET /projects?limit=200` with cursor paging. IDs are opaque strings.
 REST v2 is shut down (410). Token validated with a cheap call before storing.
 
+**GitHub** (status board) — `POST https://api.github.com/graphql` with `Authorization: Bearer <fine-grained token>`, policy
+`provider` on the server; straight from the browser on the in-browser backend (CORS allows it; the preflight was checked
+on 2026-11-04). One query (`viewer.repositories`, `ownerAffiliations: [OWNER]`, most recently pushed first, 100 a page, at
+most 500) reads everything, so 25 repositories cost 1 of the 5,000 points an hour (checked against a real account on
+2026-11-04). GraphQL has no conditional requests; both backends keep an answer for 30 s. It answers 200 with `errors`
+beside what it could read, and a failed field nulls its nearest nullable parent: `issues` and `pullRequests` are non-null,
+so without those permissions a repository is lost whole, and the token is refused when saved, naming the permission;
+`defaultBranchRef` and `statusCheckRollup` are nullable, so the repository stays and `checks` is `unavailable`.
+**Fine-grained tokens can't use the Checks API** (GitHub's list of what they can't do), so `statusCheckRollup` may be
+partial or refused with them; not yet tried with a real one (ROADMAP, checks table). Classic tokens are refused anyway.
+Rate limits arrive as a 429, a 403 with `Retry-After` or `X-RateLimit-Remaining: 0`, or a 200 with `RATE_LIMITED` in
+`errors`; a cooldown then sends nothing until the time GitHub gives. Permissions: Metadata (automatic), Contents, Issues,
+Pull requests and Commit statuses, all read-only, All repositories.
+
 **Weather** — Open-Meteo `https://api.open-meteo.com/v1/forecast?latitude&longitude&current=...&hourly=...&daily=...&timezone=auto&temperature_unit&wind_speed_unit&precipitation_unit&forecast_days=7`;
 geocoding `https://geocoding-api.open-meteo.com/v1/search?name=&count=8&language=en&format=json`. Cache 10 min
 (key rounds lat/lon to 2 decimals). No key. Reverse geocoding (the device location's name) uses OpenStreetMap Nominatim
@@ -1169,7 +1211,7 @@ Below 768 px: widgets stacked full-width in (y, x) order, edit mode disabled; li
 mail) size to their content up to 70 vh, other widgets keep their row height (`WidgetDefinition.stackSizing`).
 First run seeds a "Home" profile from `web/src/grid/defaultLayout.ts`: on the server backend seven widgets (search,
 clock, launch pad, weather, calendar, Todoist, mail), on the browser backend five (no mail, and the calendar, which
-needs Outlook.com set up first, is left to Add widget). Feeds, sports and notes start empty, so they are never seeded.
+needs Outlook.com set up first, is left to Add widget). Feeds, sports, notes and GitHub start empty, so they are never seeded.
 
 ### 10.3 Widget registry
 Each `web/src/widgets/<type>/index.ts` exports
@@ -1178,8 +1220,8 @@ configSchema /* zod, every field defaulted */, Component: lazyWithPreload(() => 
 (`lazyWithPreload` is `React.lazy` plus `preload()`; once preloaded it renders without suspending).
 `description` is the "Add widget" text, a string or `(caps: Capabilities) => string` when it depends on the page
 load's backend (the calendar names Outlook.com alone on the in-browser backend); read it with `widgetDescription()`.
-`web/src/widgets/registry.ts` lists all ten definitions in "Add widget" order (search, launch pad, calendar, mail,
-Todoist, notes, weather, feeds, sports, clock) and throws at load when they differ from `WIDGET_TYPES`
+`web/src/widgets/registry.ts` lists all eleven definitions in "Add widget" order (search, launch pad, calendar, mail,
+Todoist, GitHub, notes, weather, feeds, sports, clock) and throws at load when they differ from `WIDGET_TYPES`
 (`shared/src/profiles.ts`); `availableWidgetDefinitions()` leaves out the types this page load's backend cannot run
 (§16 Capabilities).
 `WidgetProps<C> = {instanceId, config: C, setConfig(patch: Partial<C>): Promise<void>, size: {w, h}, editMode: boolean}`;
@@ -1239,21 +1281,24 @@ then choose what it is used for":
   Manage holds Replace token and the default filter. On the in-browser backend, GitHub (launch pad sync through a
   private repository, `accounts/GitHubSync.tsx`) has a row too while its repository and token are saved
   (`GET /api/sync/github` → `{configured}`): *Token saved*, the Launch pad sync chip, Manage (replace both) and Remove
-  (deletes both from the browser; the repository stays on GitHub).
-- *Add a connection*: tiles Google, Microsoft, Yahoo, Todoist, GitHub, Other (`accounts/connections.ts`, data-driven: per
+  (deletes both from the browser; the repository stays on GitHub). GitHub repositories (the status board,
+  `accounts/GitHubStatus.tsx`) has a row on every backend while its token is saved, built like Todoist's: status from
+  `GET /api/github/token` and the board query, Test fetches the board, Manage replaces the token, Remove deletes it.
+- *Add a connection*: tiles Google, Microsoft, Yahoo, Todoist, GitHub, GitHub repositories, Other (`accounts/connections.ts`, data-driven: per
   connection the services it offers with a one-line description; a new service is one entry plus its scopes). A tile
   opens a connect dialog: **App registration** (Google/Microsoft, only while the client is not configured; console
   link, steps, exact redirect URI, client ID/secret) → **Services** (checkboxes; only built services) → **Sign in**
   (start with the services ticked; disabled while the vault is locked) or the credential form (Yahoo app password;
   Other: CalDAV calendar or IMAP mail) with per-service probe results, the Todoist token, or GitHub's repository
   (`owner/name`) and fine-grained token (`PUT /api/sync/github`, checked with GitHub before saving: private
-  repository, contents readable, classic tokens refused). Yahoo services left unticked are switched off after
+  repository, contents readable, classic tokens refused), or the status board's read-only token (`PUT /api/github/token`;
+  the link fills in the permissions and expiry, All repositories is the user's to pick). Yahoo services left unticked are switched off after
   creation. *App registrations* under the tiles shows each provider's status (Ready / Setup needed / Credentials
   locked) with **Edit**; Manage on a Google or Microsoft account shows the same status and Edit for that
   provider.
 - The vault-locked banner with **Reset credentials** (server vault only).
 - What a page load offers follows `getCapabilities()`: on the in-browser backend only Microsoft (calendar, and launch
-  pad sync, never ticked for the user; browser sign-in with a single-page-app redirect), Todoist and GitHub, with a line
+  pad sync, never ticked for the user; browser sign-in with a single-page-app redirect), Todoist and both GitHub tiles, with a line
   saying the others need the Portly server. Launch pad sync is offered nowhere else (`launchpadSync`, §16).
 - *Launch pad sync* (in-browser backend; `accounts/LaunchpadSync.tsx`, state from `GET /api/sync/launchpad`): the card
   of the one connection that syncs (a Microsoft account with the service on, or the GitHub row) shows the status line
@@ -1298,7 +1343,7 @@ copy of the same list, show it under "On a launch pad tile", after the page-wide
 4. Stale data kept on refetch failure with "Updated N min ago" and a warning indicator.
 5. Renders at minW×minH and adapts upward via container queries. 6. Light + dark via tokens only.
 7. Keyboard-reachable actions with visible focus. 8. Optimistic mutations with toast (+ Undo where reversible).
-Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refetch on window focus.
+Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, github 60 s; refetch on window focus.
 
 ### 10.8 Widget product specs
 - **Search** — presets: Google, DuckDuckGo, Bing, YouTube, Wikipedia, Google Maps, GitHub, Amazon, Reddit, Perplexity,
@@ -1339,6 +1384,16 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
 - **Todoist** — config `{filter: string (default settings.todoist.defaultFilter = 'today | overdue'), title?, showProject,
   showDue, sort: 'todoist'|'due'|'priority'}`; quick-add input; complete checkbox with Undo (reopen); project color chips;
   overdue styling.
+- **GitHub** (`github`) — config `{sort: 'attention'|'pushed'|'name', showArchived, showForks}`; defaults `attention`, off,
+  off. One board query shared by every widget (staleTime 60 s, refetch 5 min). `attention` puts failing CI first, then
+  running, then the most recently pushed. A row: the CI dot (each state differs in shape as well as color, and is
+  named for screen readers), the name linking to the repository, private/fork/archived markers, open pull requests and
+  issues, latest release, last push. The small `⋯` menu is the row's operations button: **Open in GitHub Desktop**
+  (§4.4), Repository, Actions, Pull requests, Issues, Releases, Copy clone address. Portly runs no git and changes
+  nothing: real Fetch/Pull/Push needs git on the PC that runs the server, and §4.1 says why it isn't here. A note under
+  the list says when this token can't read some CI results, when the list was cut at 500, and when repositories could
+  not be read. Default size 4 × 7, min 3 × 3; columns from 620 px wide. Works in the static build. Not in the default
+  layout (it starts empty).
 - **Weather** — config `{location: GeoPlace|null, useDeviceLocation, show: {hourly, daily}, units: 'inherit'|'C'|'F'}`;
   location search via `/api/weather/geocode`; device location via `navigator.geolocation` (localhost is a secure context),
   named by `/api/weather/place` ("Boise", with "Idaho, United States" below it in the large tier) and shown as
@@ -1850,6 +1905,7 @@ only source of failure, recovery and reminder lines for them (modules record out
 | `ics:<calendarId>` | one ICS subscription; detail `{host, finalHost, blockedHost, status, bytes, notModified, …counts}` | 3 × 30 min |
 | `mail:<accountId>` | the inbox listing; detail `{stage, count}` (IMAP: the session phase that failed) | never |
 | `todoist` | the Todoist token and API | never |
+| `github` | the status board's token and GitHub's GraphQL API | never |
 | `feed:<sha1(url), 10 hex>` | one RSS/Atom feed (a settings check only when it succeeds); label = host; detail `{status, bytes, items, finalHost, contentType}` | never |
 | `weather` | Open-Meteo; detail `{op: geocode\|forecast}` | never |
 | `weather-place` | Nominatim (the device location's name); detail `{op: reverse}` | never |

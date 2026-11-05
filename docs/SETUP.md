@@ -184,8 +184,9 @@ The page has two parts:
   color and switches services on or off; **Reconnect** signs in again (Google, Outlook.com),
   **Test** checks it, **Remove** disconnects it.
 - **Add a connection** has a tile per provider: **Google**, **Microsoft** (Outlook.com),
-  **Yahoo**, **Todoist** and **Other** (a CalDAV calendar or an IMAP mailbox). A tile walks you
-  through connecting: the one-time app registration (Google and Microsoft, only the first time),
+  **Yahoo**, **Todoist**, **GitHub repositories** and **Other** (a CalDAV calendar or an IMAP
+  mailbox). A tile walks you through connecting: the one-time app registration (Google and
+  Microsoft, only the first time),
   then ticking what Portly should use the account for, then signing in (or entering the app
   password or token). Portly asks the provider only for access to what you ticked. To add a
   service later, open **Manage** on the account and click **Add**: you sign in once more and the
@@ -202,6 +203,7 @@ The page has two parts:
 | iCloud, Fastmail, Nextcloud, other CalDAV / IMAP | read-only | yes | [caldav-imap.md](setup/caldav-imap.md) |
 | Any ICS / webcal link (holidays, Proton Calendar share links, …) | read-only | — | [caldav-imap.md](setup/caldav-imap.md#ics--webcal-subscriptions) |
 | Todoist | — | — | [todoist.md](setup/todoist.md) — personal API token |
+| GitHub repositories | — | — | [github.md](setup/github.md) — read-only fine-grained token |
 | Weather | — | — | nothing to set up (Open-Meteo, no key); pick a location in the widget |
 
 Google and Microsoft require a one-time registration in their developer consoles because Portly

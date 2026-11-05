@@ -500,6 +500,9 @@ A provider rejected a saved token:
   Copy the current token in Todoist (**Settings → Integrations → Developer**), then in Portly click
   **Manage** on the Todoist row in **Settings → Accounts** and use **Replace token**
   ([Todoist](todoist.md#troubleshooting)).
+- `github` — GitHub answered 401/403 to the status board's token: it expired or was deleted. Create a
+  new one and use **Replace token** under **Manage** on the GitHub repositories row
+  ([GitHub repositories](github.md#troubleshooting)).
 - `account:` — Google or Microsoft rejected an access token Portly had just renewed (the log says
   *provider rejected a freshly refreshed token*). The account is marked **Reconnect needed**:
   **Reconnect** it in **Settings → Accounts**.
@@ -616,6 +619,10 @@ Microsoft app registration lacks **Calendars.ReadWrite**, **Mail.ReadWrite** or 
 
 **Fix:** **Reconnect** the account and allow everything it asks for (Microsoft: add the permissions
 under **API permissions** first).
+
+On `github`, the status board's token may not read something the board shows. Set the permission the
+message names to **Read-only** on the token in GitHub, or create a new one
+([GitHub repositories](github.md#1-create-a-read-only-token)).
 
 ### denied
 
