@@ -7,6 +7,19 @@
 
 Set-StrictMode -Version 3.0
 
+# Value without PowerShell 7's module folders. A Windows PowerShell started from PowerShell 7
+# through a .cmd file (the portly command) inherits them, and then loads PowerShell 7's
+# Microsoft.PowerShell.Utility, which has no Get-FileHash for it. PowerShell 7 corrects the
+# variable only for a powershell.exe it starts itself.
+function Get-HbWindowsModulePath {
+    param([string]$Value)
+    $folders = @($Value -split ';' | Where-Object {
+            $_ -and $_ -notmatch '\\PowerShell\\([0-9][^\\]*\\)?Modules\\?$' -and $_ -notmatch '\\Microsoft\.PowerShell_[^\\]+\\Modules\\?$'
+        })
+    return ($folders -join ';')
+}
+if ($PSVersionTable.PSEdition -eq 'Desktop') { $env:PSModulePath = Get-HbWindowsModulePath -Value $env:PSModulePath }
+
 $PortlyTaskName = 'Portly Server'
 $PortlyTaskPath = '\'
 $PortlyDefaultPort = 5757
@@ -364,11 +377,13 @@ function Test-HbTruthy {
 # --------------------------------------------------------------------------------------------
 
 # TCP listeners on a local port: @() when nothing listens, $null when this cannot be determined
-# (no NetTCPIP module). Each item: Address, ProcessId.
+# (no NetTCPIP module). Each item: Address, ProcessId. A listener is the socket with no remote end.
+# Not -State Listen: Windows build 26300 reports states wrongly, and never Listen for a socket
+# that just opened, so a server that had started looked like nothing listening.
 function Get-HbPortListeners {
     param([Parameter(Mandatory)][ValidateRange(1, 65535)][int]$Port)
     if ($null -eq (Get-Command -Name 'Get-NetTCPConnection' -ErrorAction SilentlyContinue)) { return $null }
-    $rows = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
+    $rows = @(Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Where-Object { $_.RemoteAddress -eq '0.0.0.0' -or $_.RemoteAddress -eq '::' })
     $listeners = @($rows | ForEach-Object { [pscustomobject]@{ Address = "$($_.LocalAddress)"; ProcessId = [int]$_.OwningProcess } })
     # The comma keeps an empty or one-item array intact (PowerShell would unroll it).
     return , $listeners

@@ -385,6 +385,45 @@ Assert-That -Name 'Get-HbEnvMismatches reports a variable set only in this windo
     @($mismatches | Where-Object { $_.Name -eq 'PORTLY_VITE_PORT' -and $_.Process -eq $marker }).Count -eq 1)
 
 $checkNode = (Resolve-HbNode).Path
+# PowerShell 7's module folders never reach Windows PowerShell (Common.ps1).
+$windowsModules = 'C:\Users\you\Documents\WindowsPowerShell\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules;D:\My Modules'
+$mixedModules = 'C:\Users\you\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;C:\Program Files\PowerShell\7-preview\Modules\;c:\program files\windowsapps\microsoft.powershell_7.6.9.0_x64__8wekyb3d8bbwe\Modules;' + $windowsModules
+Assert-That -Name 'Get-HbWindowsModulePath drops the folders of PowerShell 7 and keeps the others' -Condition ((Get-HbWindowsModulePath -Value $mixedModules) -eq $windowsModules) -Detail (Get-HbWindowsModulePath -Value $mixedModules)
+
+# The portly command: cmd.exe starts Windows PowerShell, and portly.ps1 starts the temporary
+# install.ps1 in a second one. The fake stands for PowerShell 7's Microsoft.PowerShell.Utility: it
+# claims Get-FileHash and has none. cmd.exe stays in between because PowerShell 7 corrects the
+# variable for a powershell.exe it starts itself.
+$fakeUtility = Join-Path $workDir 'PowerShell\7\Modules\Microsoft.PowerShell.Utility'
+$null = New-Item -ItemType Directory -Path $fakeUtility -Force
+Set-Content -LiteralPath (Join-Path $fakeUtility 'Microsoft.PowerShell.Utility.psd1') -Encoding ASCII -Value "@{ GUID = '1da87e53-152b-403e-98dc-74d7b4d63d59'; ModuleVersion = '7.0.0.0'; PowerShellVersion = '3.0'; CmdletsToExport = @('Get-FileHash') }"
+$hashProbe = Join-Path $workDir 'hash-probe.ps1'
+Set-Content -LiteralPath $hashProbe -Encoding ASCII -Value @(
+    'param([string]$Common, [int]$Depth = 0)'
+    'if ($Common) { . $Common }'
+    'if ($Depth -gt 0) { & (Get-Process -Id $PID).Path -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -Depth ($Depth - 1); exit $LASTEXITCODE }'
+    '(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash'
+)
+$hashCommand = Join-Path $workDir 'hash-probe.cmd'
+$windowsPowerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+Set-Content -LiteralPath $hashCommand -Encoding ASCII -Value @('@echo off', """$windowsPowerShell"" -NoProfile -ExecutionPolicy Bypass -File ""$hashProbe"" %*")
+function Invoke-HashProbe {
+    param([string[]]$Arguments = @())
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        return Invoke-WithProcessEnv -Values @{ PSModulePath = "$(Split-Path -Parent $fakeUtility);$env:PSModulePath" } -Action {
+            "$(& $hashCommand @Arguments 2>&1)"
+        }
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
+$withoutFix = Invoke-HashProbe
+Assert-That -Name 'Windows PowerShell started through a .cmd file with PowerShell 7 module folders has no Get-FileHash (the fake works)' -Condition ($withoutFix -notmatch '^[0-9A-F]{64}$') -Detail $withoutFix
+$withFix = Invoke-HashProbe -Arguments @('-Common', (Join-Path $PSScriptRoot 'lib\Common.ps1'), '-Depth', '1')
+Assert-That -Name 'after Common.ps1, a second Windows PowerShell finds Get-FileHash (portly --update from PowerShell 7)' -Condition ($withFix -match '^[0-9A-F]{64}$') -Detail $withFix
+
 # Resolve-HbNode accepts the pinned major only (older and newer are refused alike). The fakes are
 # .cmd files that answer "-p process.versions.node" with a version: a file named node.exe would
 # have to be a real program to run, and Resolve-HbNode only asks the file for its version.
@@ -1188,6 +1227,21 @@ try {
         -not $closed.Ok -and $closed.Error -eq "nothing is listening on port $freePort" -and $watch.ElapsedMilliseconds -lt 1500) -Detail "$($closed.Error) ($($watch.ElapsedMilliseconds) ms)"
     Assert-That -Name 'Format-HbPortOwners names the listening process' -Condition (
         (Format-HbPortOwners $notJson.Listeners) -eq "node (PID $($fixture.Id))") -Detail (Format-HbPortOwners $notJson.Listeners)
+    # What Windows build 26300 answered for a running server: wrong states on the listeners.
+    function global:Get-NetTCPConnection {
+        [CmdletBinding()]
+        param([int]$LocalPort)
+        [pscustomobject]@{ LocalAddress = '127.0.0.1'; RemoteAddress = '0.0.0.0'; State = 'Closed'; OwningProcess = 11 }
+        [pscustomobject]@{ LocalAddress = '::1'; RemoteAddress = '::'; State = ''; OwningProcess = 11 }
+        [pscustomobject]@{ LocalAddress = '127.0.0.1'; RemoteAddress = '127.0.0.1'; State = 'Listen'; OwningProcess = 22 }
+    }
+    try {
+        $wrongStates = Get-HbPortListeners -Port 5757
+    } finally {
+        Remove-Item -LiteralPath 'Function:\Get-NetTCPConnection'
+    }
+    Assert-That -Name 'Get-HbPortListeners finds the sockets with no remote end, whatever state Windows reports' -Condition (
+        $wrongStates.Count -eq 2 -and @($wrongStates | Where-Object { $_.ProcessId -ne 11 }).Count -eq 0) -Detail "$($wrongStates.Count) listener(s)"
 
     # The installed-like launcher answers "running" for a port where Portly answers.
     $runningDir = Join-Path $workDir 'running\native-host'

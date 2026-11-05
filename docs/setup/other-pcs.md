@@ -196,7 +196,7 @@ time:
    put that port in the command instead). No output means it is free:
 
    ```powershell
-   Get-NetTCPConnection -LocalPort 5757 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress, LocalPort, OwningProcess
+   Get-NetTCPConnection -LocalPort 5757 -ErrorAction SilentlyContinue | Where-Object RemoteAddress -in '0.0.0.0', '::' | Select-Object LocalAddress, LocalPort, OwningProcess
    ```
 
    If it lists a line, stop that process with `Stop-Process -Id <id> -Force`, where `<id>` is the
