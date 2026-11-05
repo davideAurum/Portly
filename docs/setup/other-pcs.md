@@ -106,6 +106,25 @@ that the browser may reach devices on your network (the site's settings, next to
 bar: **Local network access**, **Allow**). Only Tailscale addresses (`*.ts.net`) work from the
 Pages site; another reverse proxy works through its own address only.
 
+## When the main PC is older than the site
+
+Your Pages site and the main PC's Portly update separately, so the site can be a newer version
+than Portly. When it is, a page connected to the main PC says so under its header, for example:
+
+> **Portly on your main PC is older than this site**
+> Your main PC runs 0.2.0-alpha.6; this site is 0.2.0-alpha.7. Run `portly --update` on your main PC.
+
+The page keeps using the main PC, but anything new in the site that needs the newer Portly may not
+work until you update. Run this on the main PC:
+
+```powershell
+portly --update
+```
+
+The notice goes away by itself once the main PC is back on the newer version. It only informs you:
+another PC can't start the update. A page opened at the Tailscale address itself never shows it,
+because Portly serves that page and the two are always the same version.
+
 ## Using Portly on a phone or tablet
 
 An Android phone or tablet (or any other device with a current browser) connects the same way as

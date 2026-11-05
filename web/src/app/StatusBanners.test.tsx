@@ -5,7 +5,8 @@
  * - Pages build, browser backend: a backend that could not start, a database another tab closed,
  *   memory-only storage, and the browser wording of an unreachable backend;
  * - Pages build, server backend: no browser-storage banners, reconnecting, a pending switch with
- *   Switch now, and a locked vault linking to Settings → Accounts in this page, as in the server build;
+ *   Switch now, a locked vault linking to Settings → Accounts in this page, as in the server build,
+ *   and the notice for a server older than the site (the web project's version is `0.0.0-test`);
  * - the server build's wording. Plus the cross-tab refetch mapping.
  */
 import { act, screen, within } from '@testing-library/react';
@@ -197,6 +198,107 @@ describe('Pages build, server backend (Portly on this PC)', () => {
     renderWithProviders(<StatusBanners onAccountsPage />, { apiMocks: LOCKED, toaster: false });
     await settle();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('a server older than the site', () => {
+  const pagesServer = (remoteClient = false) => setCapabilitiesForTests(capabilitiesFor(true, 'server', remoteClient));
+  const running = (version: string) => ({ server: { ...CONNECTED.server!, version } });
+  const OLDER = '0.0.0-alpha.6';
+
+  it('a browser connected to another PC reads "your main PC", with no action of any kind', async () => {
+    pagesServer(true);
+    status = null;
+    plugController({ ...running(OLDER), remoteOrigin: 'https://desk.tailnet.ts.net' });
+    renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveTextContent('Portly on your main PC is older than this site');
+    expect(banner).toHaveTextContent('Your main PC runs 0.0.0-alpha.6; this site is 0.0.0-test. Run portly --update on your main PC.');
+    expect(within(banner).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(banner).queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('a paired browser reads "this PC"', () => {
+    pagesServer();
+    status = null;
+    plugController(running(OLDER));
+    renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveTextContent('Portly on this PC is older than this site');
+    expect(banner).toHaveTextContent('This PC runs 0.0.0-alpha.6; this site is 0.0.0-test. Run portly --update on this PC.');
+  });
+
+  it('goes away by itself once the server is updated', () => {
+    pagesServer();
+    status = null;
+    const controller = plugController(running(OLDER));
+    renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    controller.set(running('0.0.0-test'));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['the same version', '0.0.0-test'],
+    ['a newer version', '0.1.0'],
+    ['the same version with build metadata', '0.0.0-test+abc'],
+    ['an empty version', ''],
+    ['a version it could not read itself', '0.0.0'],
+    ['not a version', 'latest'],
+    ['markup', '<img src=x onerror=alert(1)>'],
+    ['too much text', `0.0.0-a${'.1'.repeat(1000)}`],
+  ])('shows nothing for %s', async (_name, version) => {
+    pagesServer();
+    status = null;
+    plugController(running(version));
+    const { container } = renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
+    await settle();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(container).not.toHaveTextContent('older than this site');
+  });
+
+  it.each(['checking', 'absent', 'unpaired', 'revoked', 'other-server', 'incompatible'] as const)('shows nothing while the status is %s', async (serverStatus) => {
+    pagesServer();
+    status = null;
+    plugController({ ...running(OLDER), status: serverStatus });
+    renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
+    await settle();
+    expect(screen.queryByText(/older than this site/)).not.toBeInTheDocument();
+  });
+
+  it('shows nothing on the browser backend or in the server build', async () => {
+    status = { state: 'ready', storage: 'indexeddb' };
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    plugController({ ...running(OLDER), backend: 'browser' });
+    const browser = renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
+    await settle();
+    expect(screen.queryByText(/older than this site/)).not.toBeInTheDocument();
+    browser.unmount();
+
+    status = null;
+    setCapabilitiesForTests(capabilitiesFor(false, 'server'));
+    renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
+    await settle();
+    expect(screen.queryByText(/older than this site/)).not.toBeInTheDocument();
+  });
+
+  it('waits behind every other notice', async () => {
+    pagesServer();
+    status = null;
+    const controller = plugController(running(OLDER));
+    const reconnecting = renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
+    controller.set({ status: 'reconnecting' });
+    expect(screen.getByRole('alert')).toHaveTextContent('Reconnecting to Portly on this PC');
+    expect(screen.queryByText(/older than this site/)).not.toBeInTheDocument();
+    controller.set({ status: 'connected', pendingSwitch: { target: 'browser', reason: 'unreachable' } });
+    expect(screen.getByRole('alert')).toHaveTextContent("Portly on this PC isn't reachable");
+    expect(screen.queryByText(/older than this site/)).not.toBeInTheDocument();
+    reconnecting.unmount();
+
+    plugController(running(OLDER));
+    renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: LOCKED, toaster: false });
+    expect(await screen.findByText('Saved credentials are locked')).toBeInTheDocument();
+    expect(screen.queryByText(/older than this site/)).not.toBeInTheDocument();
   });
 });
 

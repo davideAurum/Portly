@@ -13,6 +13,9 @@ gets a new one when its own code changes. Each entry names the extension version
   GitHub, or copies its clone address. It uses a read-only token you create
   ([how](docs/setup/github.md)), and Portly changes nothing on GitHub or on your disk. It works on
   Portly's own page, the Pages site, other PCs and the browser-only site.
+- **A notice when Portly is older than the site.** The Pages site and Portly update separately, so
+  the site can get ahead. A page using Portly now says when that happens and which version each is
+  on, with the command to run on that PC. It starts no update and makes no extra requests.
 
 ## 0.2.0-alpha.7 (2026-11-05)
 

@@ -185,6 +185,9 @@ While the page uses Portly on this PC:
   folder and log path): see [Finding out why](#finding-out-why).
 - The site's in-browser backups of imports don't exist there; Portly keeps its own
   (`<data>\backups`).
+- When Portly is an older version than the site, a notice under the header says so (*This PC runs
+  0.2.0-alpha.6; this site is 0.2.0-alpha.7*). Run `portly --update` on this PC and it goes away by
+  itself. Until then, anything new in the site that needs the newer Portly may not work.
 
 ## Disconnect or revoke
 

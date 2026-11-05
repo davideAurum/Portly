@@ -1075,6 +1075,9 @@ disconnects itself; its cookie cleared). Every other route except those listed `
   (30 days), `MAX_DEVICES` (20), `DEVICE_CODE_ALPHABET`/`DeviceCodeSchema` (`XXX-XXX` without 0/O/1/I/L),
   `DeviceSecretSchema` (32 random bytes base64url), `DeviceLabelSchema` (one line ≤ 60, no control or bidi
   characters), `DeviceRequestCreateSchema`, the response schemas of §7 Devices.
+- **version.ts** — `compareVersions` and `isNewerVersion`: semver precedence over text that is not trusted, so anything
+  but a short, well-formed version reads as no version and never counts as older or newer. `__fixtures__/version-order.json`
+  is the test table.
 - **diagnostics.ts** (§17) — log levels, `DIAGNOSTIC_AREAS`, `HEALTH_CODES`, `REQUEST_ID_HEADER`, the scrubbers
   (`scrub`, `maskUserPaths`, `scrubFields`, `redactForSharing`) shared by the server and the browser, and the DTOs of
   `/api/diagnostics/*` (log records and queries, health entries and outcome rows, jobs, log level, summary, browser
@@ -1476,7 +1479,11 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   Polls every 5 s while playing, or just after the item ends; 15 s otherwise; never in a hidden tab (TanStack stops the
   interval), and not at all after `not_configured`, `reauth_required` or `forbidden`; a 429 waits `retryAfterSeconds`. The
   position moves on locally between polls. Commands are optimistic (`applyCommand`): a refusal restores the state and
-  says why. Sliders send one command when let go. Layout by height: compact (≤ 3 rows: art, title, transport, device
+  says why, unless later presses are still waiting, when the read after the last of them puts it right. Requests go out
+  one at a time, in the order pressed (a mutation `scope`), because the server passes each on as it arrives. The state is
+  read back once, `MUSIC_SETTLE_MS` after the last command settles and never while one is in flight, so a read taken
+  before the provider has applied a later press cannot take that press off the screen and start the next one from the
+  old state. Sliders send one command when let go. Layout by height: compact (≤ 3 rows: art, title, transport, device
   icon), normal (seek bar, device, volume from 4 columns wide), large (≥ 6 rows: bigger art, album). Cover art is
   uncropped with nothing on top of it; the title, the art and the logo link back to the provider. Its queries set
   `meta.persist: false`, so what is playing never reaches localStorage. Server backend only (`capabilities.music`).
@@ -1717,9 +1724,11 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   handling, Todoist mapping.
 - The production build runs without CSP violations. No automated step covers this: it is checked by hand before
   every release, for both `web/dist` and `web/dist-static` ([Releases](setup/releases.md#cutting-a-release), step 3).
-  Last checked 2026-11-04 on 0.2.0-alpha.6 (c1182b6), in the desktop app's browser pane (Chromium): zero
-  violations in both builds, over every settings section, the dashboard's default widgets with no accounts, the
-  diagnostic report (server build), a background upload and export then import, with the saves caught in the page.
+  Last checked 2026-11-05 on 0.2.0-alpha.7 (1ca61be), in the desktop app's browser pane (Chromium): zero
+  violations in both builds, over every settings section, the dashboard with no accounts (a widget of every type on
+  the server build, the default widgets on the Pages build), the diagnostic report (server build), a background
+  upload and export then import, with the saves caught in the page. A real image from `i.scdn.co` loaded in both,
+  and a deliberately disallowed host was refused, which shows the check can fail.
   A Notes widget and the connect page (a made-up `*.ts.net` address, which the CSP let through to a failed DNS
   lookup) were last checked 2026-10-30 on 0.2.0-alpha.4 (d5f75f3), in the same pane. The browser's own save to
   disk was last run 2026-10-28 on the 0.2.0-alpha.1 release branch (6ac3731), in Chromium and Edge.
@@ -1878,6 +1887,19 @@ build and tests). Statuses: `disabled` (hybrid off), `framed`, `idle` (not check
   all), sent only after `GET /api/health` shows the paired `instanceId` (otherwise the pairing is cleared locally
   only), compare-and-clear, remove the server snapshot, `lastMode = 'browser'`, reload. Other tabs follow through `storage`
   events.
+
+**A server older than the site.** The site moves with each Pages publish and the server when its PC updates, so the
+site can be ahead of the server it uses; `apiVersion` only says whether the two can work together at all. A
+server-backend Pages page with the status `connected` compares `state.server.version` with its own `__APP_VERSION__`
+(`localServer/version.ts`, with the order in `shared/src/version.ts`: semver, prereleases included, no dependency) and, when the server is older,
+`app/StatusBanners.tsx` shows an info notice, the last in its order: "Your main PC runs 0.2.0-alpha.6; this site is
+0.2.0-alpha.7. Run `portly --update` on your main PC." ("This PC runs …" for a paired browser). It is read-only: it uses
+what the probes already learned, so it adds no request and no server code, and it has no update action. The version is
+untrusted input: anything but a well-formed version of at most 40 characters shows nothing, so such text never reaches
+the page, and neither does `0.0.0`, which a server reports when it can't read its own version. A server on the same or a
+newer version shows nothing, and the notice goes by itself once a probe sees the updated server. Other statuses show
+nothing because `state.server` may then be another server or one that stopped answering. The server build never shows
+it: Portly's own page is always the server's version.
 
 **Transport (`localServer/transport.ts`).** `api()` calls `pagesFetch(path, init)` in the Pages build (dynamic import,
 so the server bundle never contains it). Browser backend → `staticFetch`. Server backend → wait for

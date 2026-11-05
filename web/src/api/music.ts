@@ -1,11 +1,13 @@
 /**
  * Music API client (§7 Music). The status is polled while the widget is visible (TanStack stops a
  * refetch interval in a hidden tab), and commands are optimistic (§10.7 #8): the widget changes at
- * once, and a refused command puts it back and says why.
+ * once, and a refused command puts it back and says why. Quick presses stay in order: commands go
+ * out one at a time, and the state is read back once, after the last of them.
  *
  * What is playing is the user's listening history: its queries are never written to the persisted
  * cache (`meta.persist`), so a new tab starts from the server, not from localStorage.
  */
+import { useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MUSIC_ERROR_REASONS, type MusicCommand, type MusicDevice, type MusicErrorReason, type MusicStatus } from '@portly/shared';
 import { applyCommand, withLivePosition } from '../widgets/music/model.ts';
@@ -79,7 +81,14 @@ export function useMusicDevices(accountId: string | null, enabled: boolean) {
 export function useMusicCommand(accountId: string | null) {
   const client = useQueryClient();
   const key = qk.music.status(accountId);
+  const mutationKey = ['music', 'command', accountId];
+  const readBack = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   return useMutation({
+    mutationKey,
+    // One at a time, in the order pressed. The server passes each on as it arrives, so two at once
+    // could reach the provider the other way round and leave it on another state than the one shown.
+    // Only the request waits its turn: `onMutate` still changes the widget at once.
+    scope: { id: mutationKey.join(':') },
     mutationFn: (command: MusicCommand) => apiPost<void>('/api/music/command', { ...(accountId === null ? {} : { accountId }), command }),
     onMutate: async (command) => {
       await client.cancelQueries({ queryKey: key });
@@ -90,11 +99,20 @@ export function useMusicCommand(accountId: string | null) {
       return { previous };
     },
     onError: (error, _command, context) => {
-      if (context?.previous) client.setQueryData(key, context.previous);
+      // Presses still waiting were made on top of this one, and its snapshot would undo them too.
+      // The read after the last of them puts right what this one changed. (This one still counts.)
+      const laterPresses = client.isMutating({ mutationKey }) > 1;
+      if (context?.previous && !laterPresses) client.setQueryData(key, context.previous);
       toastError(error, 'That did not work. Try again.');
     },
     onSettled: () => {
-      setTimeout(() => void client.invalidateQueries({ queryKey: qk.music.all() }), MUSIC_SETTLE_MS);
+      // One read, after the last command. An earlier command's read can land before the provider has
+      // applied a later one: that press would drop off the screen, and the next would start from the
+      // old state (repeat sent "all" twice instead of moving on to "this track").
+      clearTimeout(readBack.current);
+      readBack.current = setTimeout(() => {
+        if (client.isMutating({ mutationKey }) === 0) void client.invalidateQueries({ queryKey: qk.music.all() });
+      }, MUSIC_SETTLE_MS);
     },
   });
 }
