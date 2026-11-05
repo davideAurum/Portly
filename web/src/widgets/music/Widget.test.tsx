@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Account, MusicDevice, MusicPlayback, MusicStatus } from '@portly/shared';
+import type { Account, MusicCommand, MusicDevice, MusicPlayback, MusicStatus } from '@portly/shared';
 import { MUSIC_SETTLE_MS } from '../../api/music.ts';
 import { qk } from '../../api/keys.ts';
 import { shouldPersistQuery } from '../../app/providers.tsx';
 import { WidgetFrameContext, type WidgetFrameContextValue } from '../../grid/WidgetContext.tsx';
-import { mockError, mockResponse, renderWithProviders, type ApiMock, type MockRequest } from '../../test/render.tsx';
+import { mockError, mockResponse, renderWithProviders, type ApiMock, type MockRequest, type MockResponse } from '../../test/render.tsx';
 import { definition, musicConfigSchema, type MusicConfig } from './index.ts';
+import { applyCommand } from './model.ts';
 import MusicSettings from './Settings.tsx';
 import MusicWidget from './Widget.tsx';
 
@@ -110,11 +111,17 @@ describe('music widget: playing', () => {
   });
 
   it('moves the position on by itself', async () => {
+    // The clock stands still until the test moves it: a busy machine must not move the bar first.
+    const start = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start);
     renderWidget({ 'GET /api/music/status': status() });
     const slider = await screen.findByRole('slider', { name: 'Position' });
     expect(slider).toHaveValue('30');
     expect(slider).toHaveAttribute('max', '200');
     expect(slider).toHaveAttribute('aria-valuetext', '0:30 / 3:20');
+    clock.mockReturnValue(start + 12_000);
+    await waitFor(() => expect(slider).toHaveValue('42'));
+    expect(slider).toHaveAttribute('aria-valuetext', '0:42 / 3:20');
   });
 });
 
@@ -122,8 +129,43 @@ describe('music widget: commands', () => {
   const accept = { 'POST /api/music/command': mockResponse(204) };
   const sent = (requests: MockRequest[]) => requests.map((r) => (r.body as { command: unknown }).command);
 
+  /**
+   * Spotify as the widget meets it: what it accepts shows in every later read. A fixed status would
+   * take a press back off the screen at the read that follows it, and a busy machine reaches that
+   * read in the middle of a test.
+   */
+  function spotify() {
+    let current = status();
+    return {
+      'GET /api/music/status': () => current,
+      'POST /api/music/command': ({ body }: MockRequest) => {
+        current = applyCommand(current, (body as { command: MusicCommand }).command);
+        return mockResponse(204);
+      },
+    };
+  }
+
+  /**
+   * Commands that wait for an answer until the test gives one, oldest first. Use a paused status with
+   * them when the test watches a press: a poll would answer with the state from before it, and a
+   * paused player's next poll is 15 s away instead of 5.
+   */
+  function heldCommands() {
+    const answers: Array<(answer: MockResponse) => void> = [];
+    return { answers, mock: () => new Promise<MockResponse>((resolve) => answers.push(resolve)) };
+  }
+
+  /** From here on the clock moves only when told to, however busy the machine is. */
+  function takeOverTheClock() {
+    vi.useFakeTimers({ shouldClearNativeTimers: true });
+    return (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+  }
+
   it('pauses at once, before Spotify answers', async () => {
-    const { user, requestsTo } = renderWidget({ 'GET /api/music/status': status(), ...accept });
+    const { user, requestsTo } = renderWidget(spotify());
     await user.click(await screen.findByRole('button', { name: 'Pause' }));
     expect(await screen.findByRole('button', { name: 'Play' })).toBeInTheDocument();
     await waitFor(() => expect(sent(requestsTo('POST /api/music/command'))).toEqual([{ type: 'pause' }]));
@@ -137,7 +179,7 @@ describe('music widget: commands', () => {
   });
 
   it('skips, shuffles and cycles repeat', async () => {
-    const { user, requestsTo } = renderWidget({ 'GET /api/music/status': status(), ...accept });
+    const { user, requestsTo } = renderWidget(spotify());
     await user.click(await screen.findByRole('button', { name: 'Previous' }));
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.click(screen.getByRole('button', { name: 'Shuffle is off' }));
@@ -155,6 +197,66 @@ describe('music widget: commands', () => {
     expect(screen.getByRole('button', { name: 'Shuffle is on' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('sends one command at a time, in the order pressed', async () => {
+    const held = heldCommands();
+    const { user, requestsTo } = renderWidget({ 'GET /api/music/status': status({ isPlaying: false }), 'POST /api/music/command': held.mock });
+    await user.click(await screen.findByRole('button', { name: 'Repeat is off' }));
+    await user.click(await screen.findByRole('button', { name: 'Repeating all' }));
+    // The second press shows at once, though its request waits for Spotify's answer to the first.
+    await screen.findByRole('button', { name: 'Repeating this track' });
+    expect(sent(requestsTo('POST /api/music/command'))).toEqual([{ type: 'repeat', mode: 'context' }]);
+    held.answers.shift()?.(mockResponse(204));
+    await waitFor(() =>
+      expect(sent(requestsTo('POST /api/music/command'))).toEqual([
+        { type: 'repeat', mode: 'context' },
+        { type: 'repeat', mode: 'track' },
+      ]),
+    );
+  });
+
+  it('reads the state back after the last press, so an earlier read cannot undo it', async () => {
+    const { requestsTo } = renderWidget({ 'GET /api/music/status': status(), ...accept });
+    const reads = () => requestsTo('GET /api/music/status').length;
+    const first = await screen.findByRole('button', { name: 'Repeat is off' });
+    const pass = takeOverTheClock();
+    fireEvent.click(first);
+    await pass(MUSIC_SETTLE_MS - 100);
+    fireEvent.click(screen.getByRole('button', { name: 'Repeating all' }));
+    await pass(10);
+    const before = reads();
+    // The first press's read would land here, before Spotify has applied the second press.
+    await pass(200);
+    expect(reads()).toBe(before);
+    expect(screen.getByRole('button', { name: 'Repeating this track' })).toBeInTheDocument();
+    await pass(MUSIC_SETTLE_MS);
+    expect(reads()).toBeGreaterThan(before);
+    expect(sent(requestsTo('POST /api/music/command'))).toEqual([
+      { type: 'repeat', mode: 'context' },
+      { type: 'repeat', mode: 'track' },
+    ]);
+  });
+
+  it('holds the read back while a later command has no answer yet', async () => {
+    const held = heldCommands();
+    const { requestsTo } = renderWidget({ 'GET /api/music/status': status(), 'POST /api/music/command': held.mock });
+    const reads = () => requestsTo('GET /api/music/status').length;
+    const first = await screen.findByRole('button', { name: 'Repeat is off' });
+    const pass = takeOverTheClock();
+    fireEvent.click(first);
+    await pass(10);
+    held.answers.shift()?.(mockResponse(204));
+    await pass(10);
+    fireEvent.click(screen.getByRole('button', { name: 'Repeating all' }));
+    await pass(10);
+    const before = reads();
+    await pass(MUSIC_SETTLE_MS + 100);
+    expect(reads()).toBe(before);
+    expect(screen.getByRole('button', { name: 'Repeating this track' })).toBeInTheDocument();
+    held.answers.shift()?.(mockResponse(204));
+    await pass(MUSIC_SETTLE_MS + 100);
+    expect(reads()).toBeGreaterThan(before);
+  });
+
   it('puts things back and says why when a command is refused', async () => {
     const { user } = renderWidget({
       'GET /api/music/status': status(),
@@ -163,6 +265,17 @@ describe('music widget: commands', () => {
     await user.click(await screen.findByRole('button', { name: 'Pause' }));
     expect(await screen.findByText('Spotify only lets Premium accounts control playback')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
+  });
+
+  it('keeps a later press on screen when an earlier one is refused', async () => {
+    const held = heldCommands();
+    const { user } = renderWidget({ 'GET /api/music/status': status({ isPlaying: false }), 'POST /api/music/command': held.mock });
+    await user.click(await screen.findByRole('button', { name: 'Shuffle is off' }));
+    await user.click(await screen.findByRole('button', { name: 'Repeat is off' }));
+    await screen.findByRole('button', { name: 'Repeating all' });
+    held.answers.shift()?.(mockError(403, 'forbidden', 'Spotify refused the shuffle'));
+    expect(await screen.findByText('Spotify refused the shuffle')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Repeating all' })).toBeInTheDocument();
   });
 
   it('reads the state again once Spotify has had a moment', async () => {
@@ -179,18 +292,17 @@ describe('music widget: commands', () => {
   });
 
   it('does not throw the bar back when a press restarts its clock', async () => {
-    const realNow = Date.now.bind(Date);
-    const { user, queryClient } = renderWidget({ 'GET /api/music/status': status({ positionMs: 30_000 }), ...accept });
+    const start = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start);
+    // Unanswered, so no read comes back to replace the position this test looks at.
+    const { user, queryClient } = renderWidget({ 'GET /api/music/status': status({ positionMs: 30_000 }), 'POST /api/music/command': heldCommands().mock });
     const slider = await screen.findByRole('slider', { name: 'Position' });
     expect(slider).toHaveValue('30');
     // Twelve seconds into playing, between two polls.
-    const later = realNow() + 12_000;
-    vi.spyOn(Date, 'now').mockImplementation(() => later);
+    clock.mockReturnValue(start + 12_000);
     await user.click(screen.getByRole('button', { name: 'Shuffle is off' }));
     await screen.findByRole('button', { name: 'Shuffle is on' });
-    const stored = queryClient.getQueryData<MusicStatus>(qk.music.status(null));
-    expect(stored?.playback?.positionMs).toBeGreaterThanOrEqual(41_000);
-    expect(stored?.playback?.positionMs).toBeLessThanOrEqual(43_000);
+    expect(queryClient.getQueryData<MusicStatus>(qk.music.status(null))?.playback?.positionMs).toBe(42_000);
   });
 
   it('sends one seek when the slider is let go, not one per step', async () => {

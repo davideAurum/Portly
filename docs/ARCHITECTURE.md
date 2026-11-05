@@ -1421,7 +1421,11 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s; refet
   Polls every 5 s while playing, or just after the item ends; 15 s otherwise; never in a hidden tab (TanStack stops the
   interval), and not at all after `not_configured`, `reauth_required` or `forbidden`; a 429 waits `retryAfterSeconds`. The
   position moves on locally between polls. Commands are optimistic (`applyCommand`): a refusal restores the state and
-  says why. Sliders send one command when let go. Layout by height: compact (≤ 3 rows: art, title, transport, device
+  says why, unless later presses are still waiting, when the read after the last of them puts it right. Requests go out
+  one at a time, in the order pressed (a mutation `scope`), because the server passes each on as it arrives. The state is
+  read back once, `MUSIC_SETTLE_MS` after the last command settles and never while one is in flight, so a read taken
+  before the provider has applied a later press cannot take that press off the screen and start the next one from the
+  old state. Sliders send one command when let go. Layout by height: compact (≤ 3 rows: art, title, transport, device
   icon), normal (seek bar, device, volume from 4 columns wide), large (≥ 6 rows: bigger art, album). Cover art is
   uncropped with nothing on top of it; the title, the art and the logo link back to the provider. Its queries set
   `meta.persist: false`, so what is playing never reaches localStorage. Server backend only (`capabilities.music`).
