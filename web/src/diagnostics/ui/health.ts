@@ -47,8 +47,8 @@ export function lastErrorIsCurrent(entry: Pick<HealthEntry, 'status' | 'failingS
   return entry.status === 'failing' || entry.status === 'degraded' || entry.failingSince !== null;
 }
 
-/** The order inside an account: the account, its calendar list, its calendars, its mail. */
-const ACCOUNT_KEY_ORDER = ['account:', 'calendar-list:', 'calendar:', 'mail:'];
+/** The order inside an account: the account, its calendar list, its calendars, its mail, its music. */
+const ACCOUNT_KEY_ORDER = ['account:', 'calendar-list:', 'calendar:', 'mail:', 'music:'];
 
 /** Groups of subjects without an account, in this order (anything else: "Other"). */
 const AREA_GROUPS: readonly { id: string; title: string; matches(key: string): boolean }[] = [
@@ -63,7 +63,7 @@ const AREA_GROUPS: readonly { id: string; title: string; matches(key: string): b
 const OTHER_GROUP = { id: 'other', title: 'Other' };
 
 /** Keys whose suffix is an account id (when the entry itself does not say). */
-const ACCOUNT_KEY = /^(?:account|calendar-list|mail):(.+)$/;
+const ACCOUNT_KEY = /^(?:account|calendar-list|mail|music):(.+)$/;
 
 function accountIdOf(entry: HealthEntry): string | null {
   return entry.accountId ?? ACCOUNT_KEY.exec(entry.key)?.[1] ?? null;

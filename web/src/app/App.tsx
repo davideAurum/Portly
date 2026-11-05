@@ -31,6 +31,10 @@ export const OAUTH_MESSAGES: Readonly<Record<OAuthResult, { kind: 'success' | 'e
     text: 'You signed in with a different account, so it was added as a new account. The original account still needs reconnecting.',
   },
   denied: { kind: 'error', text: 'Access was not granted, so the account was not connected.' },
+  not_allowed: {
+    kind: 'error',
+    text: 'The service refused this account. For Spotify, the app’s owner needs Premium, and this account must be on the app’s user list.',
+  },
   expired: { kind: 'error', text: 'The sign-in took too long and expired. Please try again.' },
   error: { kind: 'error', text: 'The account could not be connected. Please try again.' },
 });

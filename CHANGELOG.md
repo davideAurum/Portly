@@ -4,6 +4,20 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## Unreleased
+
+### What's new
+- **Music widget.** See what is playing on Spotify and control it from your home page: play, pause,
+  skip, seek, volume, shuffle, repeat and which device it plays on. It is a remote control, so the
+  music plays in Spotify on your own devices and keeps going while the tab goes elsewhere. It needs
+  Spotify Premium and Portly on your PC ([how](docs/setup/spotify.md)). More services can be added
+  later without changing the widget.
+
+### Changed
+- **One database update on start.** The accounts table is rebuilt once so that new kinds of account
+  fit. Your accounts, calendars and events are carried over unchanged, and if anything looks wrong
+  the update undoes itself and Portly stops with a message.
+
 ## 0.2.0-alpha.6 (2026-11-04)
 
 The sixth alpha: the new-tab extension can be downloaded without the code, updates work from

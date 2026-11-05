@@ -47,6 +47,7 @@ export function webmailUrlFor(account: Pick<Account, 'kind' | 'email'>, config: 
       return allowlistedWebUrl(configured, configured);
     }
     case 'caldav':
+    case 'spotify':
       return null;
   }
 }

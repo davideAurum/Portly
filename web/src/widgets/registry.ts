@@ -8,6 +8,7 @@ import { definition as clock } from './clock/index.ts';
 import { definition as feeds } from './feeds/index.ts';
 import { definition as launchpad } from './launchpad/index.ts';
 import { definition as mail } from './mail/index.ts';
+import { definition as music } from './music/index.ts';
 import { definition as notes } from './notes/index.ts';
 import { definition as search } from './search/index.ts';
 import { definition as sports } from './sports/index.ts';
@@ -26,6 +27,7 @@ export const WIDGET_DEFINITIONS: readonly AnyWidgetDefinition[] = Object.freeze(
   weather,
   feeds,
   sports,
+  music,
   clock,
 ]);
 
@@ -39,7 +41,7 @@ const availableCache = new WeakMap<Capabilities, readonly AnyWidgetDefinition[]>
 
 /**
  * The widgets this page load can run (all of them on the server backend; the in-browser backend
- * has no mail or feeds, see `capabilities.ts`), in registry order. "Add widget" and the
+ * has no mail, feeds or music, see `capabilities.ts`), in registry order. "Add widget" and the
  * default layout use this list; `getWidgetDefinition` still knows every type so persisted layouts
  * keep their titles. Read at render time; the same array for the same capabilities.
  */

@@ -66,8 +66,8 @@ describe('widget registry', () => {
 describe('default layout', () => {
   const layout = createDefaultLayout();
 
-  it('contains every widget type but feeds, sports and notes once', () => {
-    expect(layout.items.map((i) => i.type).sort()).toEqual(WIDGET_TYPES.filter((t) => t !== 'feeds' && t !== 'sports' && t !== 'notes').sort());
+  it('contains every widget type but feeds, sports, notes and music once', () => {
+    expect(layout.items.map((i) => i.type).sort()).toEqual(WIDGET_TYPES.filter((t) => t !== 'feeds' && t !== 'sports' && t !== 'notes' && t !== 'music').sort());
   });
 
   it('returns a fresh copy each time', () => {

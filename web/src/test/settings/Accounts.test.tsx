@@ -13,6 +13,7 @@ import { mockError, mockResponse, renderWithProviders, type ApiMock, type MockRe
 
 const GOOGLE_CLIENT = { clientId: null, hasSecret: false, redirectUri: 'http://localhost:5757/api/oauth/google/callback' };
 const MS_CLIENT = { clientId: 'ms-client-id', hasSecret: false, redirectUri: 'http://localhost/api/oauth/microsoft/callback' };
+const SPOTIFY_CLIENT = { clientId: null, hasSecret: false, redirectUri: 'http://127.0.0.1:5757/api/oauth/spotify/callback' };
 const TOKEN = '0123456789abcdef0123456789abcdef01234567';
 
 function baseMocks(overrides: Record<string, ApiMock> = {}): Record<string, ApiMock> {
@@ -21,6 +22,7 @@ function baseMocks(overrides: Record<string, ApiMock> = {}): Record<string, ApiM
     'GET /api/accounts': [],
     'GET /api/oauth-clients/google': GOOGLE_CLIENT,
     'GET /api/oauth-clients/microsoft': MS_CLIENT,
+    'GET /api/oauth-clients/spotify': SPOTIFY_CLIENT,
     'GET /api/todoist/token': { configured: false },
     ...overrides,
   };
@@ -59,11 +61,13 @@ describe('Accounts settings — layout', () => {
       'Connect Microsoft',
       'Connect Yahoo',
       'Connect Todoist',
+      'Connect Spotify',
       'Connect another account (CalDAV or IMAP)',
     ]);
     expect(within(tiles[1]!).getByText('Outlook.com calendar and mail')).toBeInTheDocument();
+    expect(within(tiles[4]!).getByText('Music')).toBeInTheDocument();
     const registrations = screen.getByRole('list', { name: 'App registrations' });
-    expect(await within(registrations).findByText('Setup needed')).toBeInTheDocument();
+    expect(await within(registrations).findAllByText('Setup needed')).toHaveLength(2);
     expect(within(registrations).getByText('Ready')).toBeInTheDocument();
     // The old cards are gone.
     expect(screen.queryByRole('form', { name: /app registration/ })).not.toBeInTheDocument();
@@ -111,6 +115,46 @@ describe('Accounts settings — Google and Microsoft', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Sign in with Google' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/v2/auth?x=1'));
     expect(requestsTo('POST /api/oauth/google/start')[0]!.body).toEqual({ returnTo: '#/settings/accounts', capabilities: ['calendar'] });
+  });
+
+  it('Spotify: says where the client id comes from, why the address is 127.0.0.1, and what it needs', async () => {
+    const assign = trackAssign();
+    const state = { client: SPOTIFY_CLIENT as typeof SPOTIFY_CLIENT | { clientId: string; hasSecret: boolean; redirectUri: string } };
+    const { user, requestsTo } = await renderAccounts({
+      'GET /api/oauth-clients/spotify': () => state.client,
+      'PUT /api/oauth-clients/spotify': (req: MockRequest) => {
+        state.client = { ...SPOTIFY_CLIENT, clientId: (req.body as { clientId: string }).clientId };
+        return state.client;
+      },
+      'POST /api/oauth/spotify/start': { authorizeUrl: 'https://accounts.spotify.com/authorize?x=1' },
+    });
+    const dialog = await openTile(user, 'Connect Spotify', 'Connect Spotify');
+    expect(within(dialog).getByText(/Spotify refuses “localhost”/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: /Spotify developer dashboard/ })).toHaveAttribute('href', 'https://developer.spotify.com/dashboard');
+    expect(within(dialog).queryByLabelText(/Client secret/)).not.toBeInTheDocument();
+
+    const clientId = within(dialog).getByRole('textbox', { name: /Client ID/ });
+    await user.type(clientId, 'too-short');
+    await user.click(within(dialog).getByRole('button', { name: 'Save and continue' }));
+    expect(await within(dialog).findByText(/32 letters and digits/)).toBeInTheDocument();
+    expect(requestsTo('PUT /api/oauth-clients/spotify')).toEqual([]);
+    await user.clear(clientId);
+    await user.type(clientId, '0123456789abcdef0123456789abcdef');
+    await user.click(within(dialog).getByRole('button', { name: 'Save and continue' }));
+    await waitFor(() => expect(requestsTo('PUT /api/oauth-clients/spotify')[0]?.body).toEqual({ clientId: '0123456789abcdef0123456789abcdef' }));
+
+    expect(await within(dialog).findByText(/Needs Spotify Premium/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    expect(await within(dialog).findByText(/Spotify needs Premium for this/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Sign in with Spotify' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://accounts.spotify.com/authorize?x=1'));
+    expect(requestsTo('POST /api/oauth/spotify/start')[0]!.body).toEqual({ returnTo: '#/settings/accounts', capabilities: ['music'] });
+  });
+
+  it('the music widget’s “Connect Spotify” opens Spotify’s dialog', async () => {
+    renderWithProviders(<AccountsSettings />, { apiMocks: baseMocks(), route: '#/settings/accounts?focus=spotify' });
+    expect(await screen.findByRole('dialog', { name: 'Connect Spotify' })).toBeInTheDocument();
+    expect(window.location.hash).toBe('#/settings/accounts');
   });
 
   it('Microsoft already registered: straight to the services; nothing ticked means no Continue', async () => {

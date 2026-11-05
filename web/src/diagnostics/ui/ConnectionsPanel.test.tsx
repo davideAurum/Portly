@@ -27,6 +27,7 @@ const SUMMARY = diagnosticsSummary({
     }),
     healthEntry('calendar:cal-1', { accountId: 'acc-1', label: 'Personal', status: 'failing', lastCode: 'account_unavailable', causeKey: 'account:acc-1', lastFailAt: '2026-10-11T11:00:00.000Z' }),
     healthEntry('mail:acc-1', { accountId: 'acc-1', label: 'Work' }),
+    healthEntry('music:acc-1', { accountId: 'acc-1', label: 'Work' }),
     // Recovered from a rate limit last week, then went stale: the old error is not its problem.
     healthEntry('feed:abc', {
       label: 'blog.example.org',
@@ -59,13 +60,13 @@ describe('ConnectionsPanel', () => {
     expect(groups).toEqual(['Work', 'ICS calendars', 'Feeds', 'Scheduled jobs', 'Weather', 'Search suggestions']);
     const work = screen.getByRole('region', { name: 'Work' });
     // Inside the account's group its own subjects are named by what they are.
-    expect(within(work).getAllByRole('listitem').map((li) => li.getAttribute('aria-label'))).toEqual(['Account', 'Personal', 'Mail']);
+    expect(within(work).getAllByRole('listitem').map((li) => li.getAttribute('aria-label'))).toEqual(['Account', 'Personal', 'Mail', 'Music']);
     expect(within(work).getAllByText(/^Failing since /)).toHaveLength(2);
     expect(within(screen.getByRole('region', { name: 'Feeds' })).getByText(/^Stale — last checked /)).toBeInTheDocument();
     // A job without a health entry: its last run counts as its last check.
     expect(within(screen.getByRole('listitem', { name: 'calendar:ics' })).getByText(/^Stale — last checked /)).toBeInTheDocument();
     expect(screen.getByText('Not checked yet')).toBeInTheDocument();
-    expect(screen.getByText(/^3 OK · 2 failing · 4 stale · 0 degraded · 1 not checked yet/)).toBeInTheDocument();
+    expect(screen.getByText(/^4 OK · 2 failing · 4 stale · 0 degraded · 1 not checked yet/)).toBeInTheDocument();
   });
 
   it('shows the last error with its remedy and troubleshooting anchor', () => {

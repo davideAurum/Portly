@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished } from 'vitest';
 import {
   DEFAULT_ACCENT,
   LayoutSchema,
@@ -13,7 +13,7 @@ import {
 } from '@portly/shared';
 import { createMemoryLogger } from '../lib/logger.ts';
 import { camelize, fromBool, msToIso, parseJsonColumn, toBool } from './helpers.ts';
-import { listMigrations, migrate } from './migrate.ts';
+import { FOREIGN_KEYS_OFF_MARKER, listMigrations, migrate } from './migrate.ts';
 import { openDb, type Db } from './open.ts';
 
 describe('openDb', () => {
@@ -199,7 +199,8 @@ describe('migrations', () => {
     db.run("DELETE FROM bookmark_groups WHERE id = 'g1'");
     expect(db.all('SELECT * FROM bookmarks')).toEqual([]);
 
-    expect(() => db.run("INSERT INTO accounts (id, kind, label) VALUES ('a1', 'aol', 'x')")).toThrow();
+    expect(() => db.run("INSERT INTO accounts (id, kind, label) VALUES ('a1', 'Not A Kind', 'x')")).toThrow();
+    expect(() => db.run("INSERT INTO accounts (id, kind, label) VALUES ('a1', '', 'x')")).toThrow();
     db.run("INSERT INTO accounts (id, kind, label, external_id) VALUES ('a1', 'google', 'x', 'sub-1')");
     expect(() => db.run("INSERT INTO accounts (id, kind, label, external_id) VALUES ('a2', 'google', 'y', 'sub-1')")).toThrow();
     expect(() => db.run("INSERT INTO accounts (id, kind, label, status) VALUES ('a3', 'imap', 'x', 'weird')")).toThrow();
@@ -253,6 +254,166 @@ describe('migrations', () => {
     const cols = db.all<{ name: string; notnull: number }>('PRAGMA table_info(oauth_states)');
     expect(cols.map((c) => c.name)).toEqual(['state', 'provider', 'code_verifier', 'account_id', 'return_to', 'created_at', 'expires_at', 'capabilities']);
     expect(cols.find((c) => c.name === 'capabilities')?.notnull).toBe(0);
+  });
+
+  describe('table rebuilds (foreign keys off)', () => {
+    /** A folder holding `files`; removed after the test. */
+    function folder(files: Record<string, string>): string {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-mig-'));
+      onTestFinished(() => fs.rmSync(dir, { recursive: true, force: true }));
+      for (const [name, sql] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), sql);
+      return dir;
+    }
+
+    const PARENT_AND_CHILD = `
+      CREATE TABLE parent (id TEXT PRIMARY KEY, kind TEXT CHECK (kind IN ('a')));
+      CREATE TABLE child (id TEXT PRIMARY KEY, parent_id TEXT REFERENCES parent(id) ON DELETE CASCADE);
+      INSERT INTO parent VALUES ('p1', 'a');
+      INSERT INTO child VALUES ('c1', 'p1');
+    `;
+    const REBUILD = `${FOREIGN_KEYS_OFF_MARKER}
+      CREATE TABLE parent_new (id TEXT PRIMARY KEY, kind TEXT);
+      INSERT INTO parent_new SELECT id, kind FROM parent;
+      DROP TABLE parent;
+      ALTER TABLE parent_new RENAME TO parent;
+    `;
+
+    it('rebuilds a referenced table without cascading, and turns foreign keys back on', () => {
+      expect(migrate(db, { dirs: [folder({ '001_tables.sql': PARENT_AND_CHILD, '002_rebuild.sql': REBUILD })] })).toEqual(['001_tables.sql', '002_rebuild.sql']);
+      expect(db.all('SELECT * FROM child')).toEqual([{ id: 'c1', parent_id: 'p1' }]);
+      expect(db.get<{ foreign_keys: number }>('PRAGMA foreign_keys')?.foreign_keys).toBe(1);
+      // The child's reference still works against the new table, in both directions.
+      expect(() => db.run("INSERT INTO child VALUES ('c2', 'missing')")).toThrow();
+      db.run("DELETE FROM parent WHERE id = 'p1'");
+      expect(db.all('SELECT * FROM child')).toEqual([]);
+    });
+
+    it('the same rebuild without the marker would have cascaded (why the marker exists)', () => {
+      const unmarked = REBUILD.replace(FOREIGN_KEYS_OFF_MARKER, '-- no marker');
+      migrate(db, { dirs: [folder({ '001_tables.sql': PARENT_AND_CHILD, '002_rebuild.sql': unmarked })] });
+      expect(db.all('SELECT * FROM child')).toEqual([]);
+    });
+
+    it('commits the migrations before a rebuild, and rolls the rebuild back when a reference breaks', () => {
+      const dropsARow = `${FOREIGN_KEYS_OFF_MARKER}
+        CREATE TABLE parent_new (id TEXT PRIMARY KEY, kind TEXT);
+        DROP TABLE parent;
+        ALTER TABLE parent_new RENAME TO parent;
+      `;
+      const dirs = [folder({ '001_tables.sql': PARENT_AND_CHILD, '002_rebuild.sql': dropsARow })];
+      expect(() => migrate(db, { dirs })).toThrow(/Migration 002_rebuild.sql failed: 1 row\(s\) lost their reference \(first: child -> parent\)/);
+      expect(db.all('SELECT * FROM parent')).toEqual([{ id: 'p1', kind: 'a' }]);
+      expect(db.all('SELECT * FROM child')).toEqual([{ id: 'c1', parent_id: 'p1' }]);
+      expect(db.all<{ name: string }>('SELECT name FROM schema_migrations').map((r) => r.name)).toEqual(['001_tables.sql']);
+      expect(db.get<{ foreign_keys: number }>('PRAGMA foreign_keys')?.foreign_keys).toBe(1);
+    });
+
+    it('rolls the rebuild back on a SQL error and leaves foreign keys on', () => {
+      const dirs = [folder({ '001_tables.sql': PARENT_AND_CHILD, '002_rebuild.sql': `${FOREIGN_KEYS_OFF_MARKER}\nDROP TABLE parent;\nCREATE TABLE broken (;` })];
+      expect(() => migrate(db, { dirs })).toThrow(/Migration 002_rebuild.sql failed/);
+      expect(db.all('SELECT * FROM parent')).toEqual([{ id: 'p1', kind: 'a' }]);
+      expect(db.get<{ foreign_keys: number }>('PRAGMA foreign_keys')?.foreign_keys).toBe(1);
+    });
+
+    it('refuses to rebuild when foreign keys cannot be switched off (inside a transaction)', () => {
+      migrate(db, { dirs: [folder({ '001_tables.sql': PARENT_AND_CHILD })] });
+      const rebuild = folder({ '001_tables.sql': PARENT_AND_CHILD, '002_rebuild.sql': REBUILD });
+      expect(() => db.tx(() => migrate(db, { dirs: [rebuild] }))).toThrow(/could not be switched off/);
+      expect(db.all('SELECT * FROM child')).toEqual([{ id: 'c1', parent_id: 'p1' }]);
+    });
+
+    it('only counts the marker on the first line', () => {
+      const later = `-- about ${FOREIGN_KEYS_OFF_MARKER}\nCREATE TABLE one (x INTEGER);\n${FOREIGN_KEYS_OFF_MARKER}\nINSERT INTO one VALUES (1);`;
+      migrate(db, { dirs: [folder({ '001_later.sql': later })] });
+      expect(db.get<{ foreign_keys: number }>('PRAGMA foreign_keys')?.foreign_keys).toBe(1);
+      expect(db.get<{ x: number }>('SELECT x FROM one')?.x).toBe(1);
+    });
+  });
+
+  describe('007_account_kinds', () => {
+    const ACCOUNT_COLUMNS = [
+      'id', 'kind', 'label', 'email', 'external_id', 'config', 'capabilities', 'enabled_capabilities', 'granted_scopes', 'color', 'sort',
+      'status', 'status_message', 'created_at', 'updated_at',
+    ];
+
+    /** Migrates up to 006, then stores one account of every kind with a calendar and an event each. */
+    function populatedAt006(target: Db): void {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-mig-'));
+      try {
+        for (const m of listMigrations().filter((m) => m.number < 7)) fs.copyFileSync(m.file, path.join(dir, m.name));
+        migrate(target, { dirs: [dir] });
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+      ['google', 'microsoft', 'yahoo', 'caldav', 'imap'].forEach((kind, i) => {
+        target.run(
+          `INSERT INTO accounts (${ACCOUNT_COLUMNS.join(', ')}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [`a-${kind}`, kind, `Label ${i}`, `user${i}@example.com`, `sub-${i}`, '{"k":1}', '["calendar","mail"]', '["calendar"]', '["scope"]', '#112233', i, i === 1 ? 'reauth' : 'ok', i === 1 ? 'Reconnect' : null, 1000 + i, 2000 + i],
+        );
+        target.run("INSERT INTO calendars (id, account_id, source, remote_id, name) VALUES (?, ?, 'ics', ?, 'Cal')", [`c-${kind}`, `a-${kind}`, `r-${i}`]);
+        target.run(
+          "INSERT INTO events (id, calendar_id, remote_id, title, start, \"end\", all_day, updated_at) VALUES (?, ?, 'r', 'T', '2026-01-01', '2026-01-02', 1, 0)",
+          [`e-${kind}`, `c-${kind}`],
+        );
+      });
+      // A subscription with no account: its reference stays NULL.
+      target.run("INSERT INTO calendars (id, account_id, source, remote_id, name) VALUES ('c-ics', NULL, 'ics', 'feed', 'Feed')");
+    }
+
+    const snapshot = (target: Db) => ({
+      accounts: target.all('SELECT * FROM accounts ORDER BY id'),
+      calendars: target.all('SELECT * FROM calendars ORDER BY id'),
+      events: target.all('SELECT * FROM events ORDER BY id'),
+    });
+
+    it('keeps every account, calendar and event, field for field', () => {
+      populatedAt006(db);
+      const before = snapshot(db);
+      expect(before.accounts).toHaveLength(5);
+      expect(before.calendars).toHaveLength(6);
+      expect(before.events).toHaveLength(5);
+      expect(migrate(db)).toEqual(['007_account_kinds.sql']);
+      expect(snapshot(db)).toEqual(before);
+      expect(db.all<{ name: string }>('PRAGMA table_info(accounts)').map((c) => c.name)).toEqual(ACCOUNT_COLUMNS);
+    });
+
+    it('does the same on a database file (WAL), and survives reopening it', () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-db-'));
+      const file = path.join(dir, 'portly.db');
+      const fileDb = openDb(file);
+      try {
+        populatedAt006(fileDb);
+        const before = snapshot(fileDb);
+        expect(migrate(fileDb)).toEqual(['007_account_kinds.sql']);
+        fileDb.close();
+        const reopened = openDb(file);
+        try {
+          expect(snapshot(reopened)).toEqual(before);
+          expect(migrate(reopened)).toEqual([]);
+          expect(reopened.all('PRAGMA foreign_key_check')).toEqual([]);
+        } finally {
+          reopened.close();
+        }
+      } finally {
+        fileDb.close();
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('still enforces the table: new kinds fit, the other rules hold, cascades still run', () => {
+      populatedAt006(db);
+      migrate(db);
+      db.run("INSERT INTO accounts (id, kind, label, external_id) VALUES ('a-spotify', 'spotify', 'x', 'sub-9')");
+      expect(() => db.run("INSERT INTO accounts (id, kind, label, external_id) VALUES ('a-2', 'spotify', 'y', 'sub-9')")).toThrow();
+      expect(() => db.run("INSERT INTO accounts (id, kind, label) VALUES ('a-3', 'Bad Kind', 'x')")).toThrow();
+      expect(() => db.run("INSERT INTO accounts (id, kind, label, status) VALUES ('a-4', 'imap', 'x', 'weird')")).toThrow();
+      expect(() => db.run("INSERT INTO calendars (id, account_id, source, remote_id, name) VALUES ('c-x', 'nobody', 'ics', 'r', 'n')")).toThrow();
+      db.run("DELETE FROM accounts WHERE id = 'a-google'");
+      expect(db.get("SELECT id FROM calendars WHERE id = 'c-google'")).toBeUndefined();
+      expect(db.get("SELECT id FROM events WHERE id = 'e-google'")).toBeUndefined();
+      expect(db.get("SELECT id FROM calendars WHERE id = 'c-microsoft'")).toBeDefined();
+      expect(db.get("SELECT id FROM calendars WHERE id = 'c-ics'")).toBeDefined();
+    });
   });
 
   describe('004_beacon_defaults', () => {

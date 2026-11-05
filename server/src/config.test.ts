@@ -40,7 +40,11 @@ describe('loadConfig', () => {
     expect(c.redirectUris).toEqual({
       google: 'http://localhost:5790/api/oauth/google/callback',
       microsoft: 'http://localhost:5790/api/oauth/microsoft/callback',
+      // Spotify refuses `localhost` in a redirect URI: the loopback IP, which the Host allowlist has too.
+      spotify: 'http://127.0.0.1:5790/api/oauth/spotify/callback',
     });
+    expect(c.allowedHosts.has('127.0.0.1:5790')).toBe(true);
+    expect(c.registrationRedirectUris.spotify).toBe('http://127.0.0.1:5790/api/oauth/spotify/callback');
     expect(c.registrationRedirectUris.microsoft).toBe('http://localhost/api/oauth/microsoft/callback');
     expect(c.registrationRedirectUris.google).toBe('http://localhost:5790/api/oauth/google/callback');
   });
@@ -61,6 +65,7 @@ describe('loadConfig', () => {
     expect(c.allowedOrigins.has('https://portly.lan:8443')).toBe(true);
     expect(c.bindAddresses).toEqual(['0.0.0.0']);
     expect(c.registrationRedirectUris.microsoft).toBe('https://portly.lan:8443/api/oauth/microsoft/callback');
+    expect(c.registrationRedirectUris.spotify).toBe('https://portly.lan:8443/api/oauth/spotify/callback');
   });
 
   it.each([

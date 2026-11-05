@@ -53,6 +53,12 @@ export const qk = {
     all: () => ['mail'] as const,
     summary: () => ['mail', 'summary'] as const,
   },
+  music: {
+    all: () => ['music'] as const,
+    /** `accountId`: a widget's own account; null is the first with music switched on. */
+    status: (accountId: string | null) => ['music', 'status', accountId] as const,
+    devices: (accountId: string | null) => ['music', 'devices', accountId] as const,
+  },
   feeds: {
     all: () => ['feeds'] as const,
     feed: (url: string) => ['feeds', 'feed', url] as const,
@@ -75,8 +81,8 @@ export const qk = {
   },
 } as const;
 
-/** Prefixes invalidated whenever an account is created, deleted or reconnected (its services decide calendars, mail and which connection syncs the launch pad). */
-export const ACCOUNT_DEPENDENT_KEYS = [qk.accounts(), qk.calendar.all(), qk.mail.all(), ['sync', 'launchpad']] as const;
+/** Prefixes invalidated whenever an account is created, deleted or reconnected (its services decide calendars, mail, music and which connection syncs the launch pad). */
+export const ACCOUNT_DEPENDENT_KEYS = [qk.accounts(), qk.calendar.all(), qk.mail.all(), qk.music.all(), ['sync', 'launchpad']] as const;
 
 export async function invalidateAccountData(client: QueryClient): Promise<void> {
   await Promise.all(ACCOUNT_DEPENDENT_KEYS.map((queryKey) => client.invalidateQueries({ queryKey })));

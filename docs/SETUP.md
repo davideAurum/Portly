@@ -12,8 +12,8 @@ Setup takes three parts — the first is enough to try it out:
 2. **Make it your browser's home** — the [new-tab extension](setup/extension.md) and
    [autostart](setup/autostart.md) (when the browser opens, or at sign-in).
 3. **Connect accounts** — whichever you use (see [Connect your accounts](#connect-your-accounts)).
-   Google and Microsoft each need a one-time app registration of your own first (about 15 and
-   25 minutes); Yahoo, CalDAV, IMAP and Todoist need only a password or token.
+   Google, Microsoft and Spotify each need a one-time app registration of your own first (about 15,
+   25 and 5 minutes); Yahoo, CalDAV, IMAP and Todoist need only a password or token.
 
 ## Install
 
@@ -181,17 +181,17 @@ The page has two parts:
 
 - **Connected accounts** lists what is connected: each account's name, email and status, and the
   services Portly uses it for (Calendar, Mail, Tasks). **Manage** renames an account, changes its
-  color and switches services on or off; **Reconnect** signs in again (Google, Outlook.com),
+  color and switches services on or off; **Reconnect** signs in again (Google, Outlook.com, Spotify),
   **Test** checks it, **Remove** disconnects it.
 - **Add a connection** has a tile per provider: **Google**, **Microsoft** (Outlook.com),
-  **Yahoo**, **Todoist** and **Other** (a CalDAV calendar or an IMAP mailbox). A tile walks you
-  through connecting: the one-time app registration (Google and Microsoft, only the first time),
+  **Yahoo**, **Todoist**, **Spotify** and **Other** (a CalDAV calendar or an IMAP mailbox). A tile walks you
+  through connecting: the one-time app registration (Google, Microsoft and Spotify, only the first time),
   then ticking what Portly should use the account for, then signing in (or entering the app
   password or token). Portly asks the provider only for access to what you ticked. To add a
   service later, open **Manage** on the account and click **Add**: you sign in once more and the
   provider asks only for the new part. Switching a service off only stops Portly using it; nothing
   is changed or revoked at the provider. **App registrations**, under the tiles, shows whether
-  Google and Microsoft are set up and lets you edit a registration; **Manage** on a Google or
+  Google, Microsoft and Spotify are set up and lets you edit a registration; **Manage** on a Google or
   Outlook.com account has the same **App registration** with **Edit**.
 
 | Service | Calendar | Mail | Guide |
@@ -202,9 +202,10 @@ The page has two parts:
 | iCloud, Fastmail, Nextcloud, other CalDAV / IMAP | read-only | yes | [caldav-imap.md](setup/caldav-imap.md) |
 | Any ICS / webcal link (holidays, Proton Calendar share links, …) | read-only | — | [caldav-imap.md](setup/caldav-imap.md#ics--webcal-subscriptions) |
 | Todoist | — | — | [todoist.md](setup/todoist.md) — personal API token |
+| Spotify (the Music widget; needs Premium) | — | — | [spotify.md](setup/spotify.md) — your own Spotify app, ~5 min |
 | Weather | — | — | nothing to set up (Open-Meteo, no key); pick a location in the widget |
 
-Google and Microsoft require a one-time registration in their developer consoles because Portly
+Google, Microsoft and Spotify require a one-time registration in their developer consoles because Portly
 has no central server: the app is yours, used only by you. The guides walk through every screen.
 
 ## Configuration

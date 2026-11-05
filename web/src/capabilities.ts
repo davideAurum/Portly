@@ -11,7 +11,7 @@
  *
  * A Pages page load on the `server` backend (hybrid mode: paired with the Portly server on this
  * PC) has every server feature, account setup included. A `browser` backend has no server, so anything
- * that needs one — Google and app-password accounts, mail, ICS subscriptions, feeds, the credential
+ * that needs one — Google, Spotify and app-password accounts, mail, music, ICS subscriptions, feeds, the credential
  * vault, fetching third-party pages — is off. Outlook.com accounts and their calendars work there
  * too: the browser signs in to Microsoft and reads the calendars from Graph itself
  * (`src/static/handlers/accounts.ts`, `calendar.ts`), so the Calendar widget is there as well.
@@ -62,6 +62,8 @@ export interface Capabilities {
   mail: boolean;
   /** RSS / Atom feeds widget (feeds are cross-origin: the server fetches them). */
   feeds: boolean;
+  /** Music widget and Spotify accounts (the server keeps the tokens). */
+  music: boolean;
   /** The credential vault (and its lock/reset banner). */
   vault: boolean;
   /** Importing bookmarks straight from the Chrome/Edge profile files on this PC. */
@@ -107,6 +109,7 @@ export function capabilitiesFor(pagesBuild: boolean, backend: Backend, remoteCli
     icsSubscriptions: server,
     mail: server,
     feeds: server,
+    music: server,
     vault: server,
     browserBookmarkImport: mainPc,
     siteMetaFetch: server,
@@ -160,7 +163,7 @@ export function setCapabilitiesForTests(caps: Capabilities | null): void {
 }
 
 /** Widget types that may need the server; each one needs the capability of the same name. */
-const SERVER_WIDGET_TYPES = ['calendar', 'mail', 'feeds'] as const;
+const SERVER_WIDGET_TYPES = ['calendar', 'mail', 'feeds', 'music'] as const;
 
 const unavailableCache = new WeakMap<Capabilities, ReadonlySet<string>>();
 
@@ -178,6 +181,6 @@ export function isWidgetTypeAvailable(type: string, caps: Capabilities = getCapa
   return !unavailableWidgetTypes(caps).has(type);
 }
 
-/** Widget types the in-browser backend cannot serve (`mail`, `feeds`), for the static handlers. */
+/** Widget types the in-browser backend cannot serve (`mail`, `feeds`, `music`), for the static handlers. */
 export const BROWSER_UNAVAILABLE_WIDGET_TYPES: ReadonlySet<string> = unavailableWidgetTypes(capabilitiesFor(true, 'browser'));
 
