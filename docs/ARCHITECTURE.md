@@ -1761,14 +1761,16 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   handling, Todoist mapping.
 - The production build runs without CSP violations. No automated step covers this: it is checked by hand before
   every release, for both `web/dist` and `web/dist-static` ([Releases](setup/releases.md#cutting-a-release), step 3).
-  Last checked 2026-11-05 on 0.2.0-alpha.7 (1ca61be), in the desktop app's browser pane (Chromium): zero
-  violations in both builds, over every settings section, the dashboard with no accounts (a widget of every type on
-  the server build, the default widgets on the Pages build), the diagnostic report (server build), a background
-  upload and export then import, with the saves caught in the page. A real image from `i.scdn.co` loaded in both,
-  and a deliberately disallowed host was refused, which shows the check can fail.
-  A Notes widget and the connect page (a made-up `*.ts.net` address, which the CSP let through to a failed DNS
-  lookup) were last checked 2026-10-30 on 0.2.0-alpha.4 (d5f75f3), in the same pane. The browser's own save to
-  disk was last run 2026-10-28 on the 0.2.0-alpha.1 release branch (6ac3731), in Chromium and Edge.
+  Last checked 2026-11-05 on 0.2.0-alpha.8 (b751661), in the desktop app's browser pane (Chromium): zero
+  violations in both builds, over every settings section, the dashboard with no accounts and a widget of every type
+  (12 on the server build, the 10 the Pages build offers), the diagnostic report (server build), a background upload
+  and export then import, with the saves caught in the page, and the connect page opened on the Pages build. There,
+  `api.github.com` and `api.spotify.com` answered the page and `example.com` was refused; on the server build the
+  check's own `blob:` fetch was refused by `connect-src`. Both show the check can fail.
+  A real image from `i.scdn.co` last loaded in both builds on 0.2.0-alpha.7 (1ca61be), 2026-11-05. The connect page
+  with a made-up `*.ts.net` address, which the CSP let through to a failed DNS lookup, was last checked 2026-10-30
+  on 0.2.0-alpha.4 (d5f75f3), in the same pane. The browser's own save to disk was last run 2026-10-28 on the
+  0.2.0-alpha.1 release branch (6ac3731), in Chromium and Edge.
 
 ---
 

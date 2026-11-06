@@ -1,6 +1,6 @@
 # Design: an Update button in Settings
 
-**Status:** built, not yet released, and never run for real (section 14). ARCHITECTURE sections 4,
+**Status:** built, released in 0.2.0-alpha.8, and never run for real (section 14). ARCHITECTURE sections 4,
 12, 18 and 20 are the binding text, and this document the design and its history. The assessment this grew beside, with its alternatives and
 test evidence, is [remote-update.md](remote-update.md).
 
@@ -387,14 +387,13 @@ always has. The status file tells them apart: `rolled-back` / `did_not_start`, o
 
 ## 14. Remaining work
 
-The code is done. What is left is a release and the real test:
+The code is done and released in 0.2.0-alpha.8, with the privacy policy's new effective date on both
+copies. What is left is the real test:
 
-1. Set a new effective date on `site/privacy.html` and on the copy in the privacy page's repository
-   when this is released: the policy gained `api.github.com`.
-2. Install the version that adds the button with `portly --update` on the main PC. That registers
-   **Portly Updater**, and `portly --status` shows it.
-3. Connect the other PC once at the Tailscale address.
-4. Release one more version and update through the button, from the main PC's page and from the
+1. Install 0.2.0-alpha.8 with `portly --update` on the main PC. That registers **Portly Updater**,
+   and `portly --status` shows it.
+2. Connect the other PC once at the Tailscale address.
+3. Release one more version and update through the button, from the main PC's page and from the
    other PC's. Section 10 lists what to watch.
 
 ## 15. Facts checked
