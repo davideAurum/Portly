@@ -98,6 +98,10 @@ Properties → Environment Variables), open a new PowerShell window and try agai
 
 ### Updating
 
+**The Updates card says "The updater is not set up"** in Settings → About: the **Portly Updater** task
+is missing. Run `portly --update --force` on the main PC, which registers it again. What an update
+printed is in `<data folder>\logs\update.log`.
+
 **"The term 'Get-FileHash' is not recognized"** from `portly --update` in PowerShell 7
 Versions up to 0.2.0-alpha.5 stop there, before they change anything. Run the update through
 Windows PowerShell instead. You only need this once: the versions after it fix the problem.

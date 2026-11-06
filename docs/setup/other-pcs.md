@@ -106,6 +106,48 @@ that the browser may reach devices on your network (the site's settings, next to
 bar: **Local network access**, **Allow**). Only Tailscale addresses (`*.ts.net`) work from the
 Pages site; another reverse proxy works through its own address only.
 
+## When the main PC is older than the site
+
+Your Pages site and the main PC's Portly update separately, so the site can be a newer version
+than Portly. When it is, a page connected to the main PC says so under its header, for example:
+
+> **Portly on your main PC is older than this site**
+> Your main PC runs 0.2.0-alpha.6; this site is 0.2.0-alpha.7. Run `portly --update` on your main PC.
+
+The page keeps using the main PC, but anything new in the site that needs the newer Portly may not
+work until you update, from Settings → About or with this on the main PC:
+
+```powershell
+portly --update
+```
+
+The notice goes away by itself once the main PC is back on the newer version. A page opened at the
+Tailscale address itself never shows it, because Portly serves that page and the two are always the
+same version.
+
+## Updating the main PC from another PC
+
+Open Settings → About. The **Updates** card says when a newer release exists. Press **Update**, and
+the main PC installs it with the same backup and rollback as `portly --update`.
+
+**Update is only on Portly's own page, the Tailscale address, not on the Pages site.** The site shows
+the same card with a link there, **Open Portly's own page**. The Pages site and the releases are
+published from one GitHub account, so if the site could start an update, someone who took that
+account could publish a bad release and start it with nobody choosing to. On Portly's own page, a
+person still has to press the button.
+
+The first time you follow that link, this PC connects there and the main PC approves it, as in
+[Connecting another PC](#connecting-another-pc). It shows as a second entry in Settings → Devices,
+because the Tailscale address and the Pages site keep separate logins. That happens once.
+
+- Portly stops for about a minute, on every PC using it. The page says what it is doing, and tells
+  you when it is finished.
+- The main PC must be on, and you must be signed in to Windows there. Otherwise Portly isn't running,
+  so there is nothing to ask. A locked screen should be fine, though that hasn't been tried.
+- If the new version doesn't start, the old one and your data are put back, and the page says so.
+- If Portly doesn't come back at all, it needs the main PC.
+- When the extension changes, **Reload** on `chrome://extensions` still has to be done on the main PC.
+
 ## Using Portly on a phone or tablet
 
 An Android phone or tablet (or any other device with a current browser) connects the same way as

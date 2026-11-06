@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
-import { BODY_LIMITS, RouteTable, deviceMayCall, enrollment, exempt, multipart, paired, pagesMayCall, routeMetaOf, samePc } from './routes.ts';
+import { BODY_LIMITS, RouteTable, deviceMayCall, enrollment, exempt, multipart, ownPage, paired, pagesDeviceMayCall, pagesMayCall, routeMetaOf, samePc } from './routes.ts';
 
 describe('route metadata', () => {
   it('records tagged handlers with their method and pattern', () => {
@@ -118,6 +118,38 @@ describe('route access levels', () => {
     expect(local).toEqual({});
     expect([reset, enroll, settings, local].map(pagesMayCall)).toEqual([true, false, true, false]);
     expect([reset, enroll, settings, local].map(deviceMayCall)).toEqual([false, true, true, false]);
+  });
+
+  it('records ownPage(): another PC on Portly\'s own page, never the Pages site on any PC', () => {
+    const app = new Hono();
+    app.post('/api/update', ownPage(), (c) => c.text('ok'));
+    app.post('/api/enroll', enrollment(), (c) => c.text('ok'));
+    app.get('/api/settings', paired(), (c) => c.text('ok'));
+    const table = new RouteTable();
+    table.collect(app);
+    const update = table.match('POST', '/api/update');
+    const enroll = table.match('POST', '/api/enroll');
+    const settings = table.match('GET', '/api/settings');
+    expect(update).toEqual({ access: 'own-page' });
+    expect([update, enroll, settings].map(pagesMayCall)).toEqual([false, false, true]);
+    expect([update, enroll, settings].map(pagesDeviceMayCall)).toEqual([false, true, true]);
+    expect([update, enroll, settings].map(deviceMayCall)).toEqual([true, true, true]);
+  });
+
+  it('keeps an own-page route closed under overlapping registrations', () => {
+    const table = new RouteTable();
+    table.record({ method: 'POST', pattern: '/api/x/:id', access: 'paired' });
+    table.record({ method: 'POST', pattern: '/api/x/start', access: 'own-page' });
+    // Paired over own-page narrows to own-page, never widens it.
+    expect(table.match('POST', '/api/x/start')).toEqual({ access: 'own-page' });
+    table.record({ method: 'ALL', pattern: '/api/x/*', access: 'same-pc' });
+    // Own-page and same-pc share no caller.
+    expect(table.match('POST', '/api/x/start')).toEqual({});
+    // Paired and enrollment still agree on no one level, so they do not come out as own-page.
+    const mixed = new RouteTable();
+    mixed.record({ method: 'GET', pattern: '/api/y/:id', access: 'paired' });
+    mixed.record({ method: 'GET', pattern: '/api/y/ask', access: 'enrollment' });
+    expect(mixed.match('GET', '/api/y/ask')).toEqual({});
   });
 
   it('fails closed to the narrowest access of overlapping registrations', () => {

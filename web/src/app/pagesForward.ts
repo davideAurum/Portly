@@ -9,6 +9,8 @@
  * - on `#/settings/diagnostics`, so that Portly's full diagnostics on this PC can always be
  *   opened here (the Pages site links to it), even when the Pages site or its connection to this
  *   server is what is broken;
+ * - on `#/settings/about`, where an update is started: the Pages site links here, because the server
+ *   refuses it from that site (`UpdatesCard`);
  * - on another PC's page load (`remoteClient`: through the reverse proxy on the main PC, where
  *   the Pages site would look for a server on that PC's own loopback and find none);
  * - in a frame, or when no Pages site is configured or its address is unusable;
@@ -54,10 +56,10 @@ function usablePagesUrl(raw: string | null): string | null {
   return url.href;
 }
 
-/** Routes that always stay on this page: pairing approval and the diagnostics page. */
+/** Routes that always stay on this page: pairing approval, the diagnostics page and the About page. */
 function staysHere(hash: string): boolean {
   const route = parseHash(hash);
-  return route.name === 'pair' || (route.name === 'settings' && route.section === 'diagnostics');
+  return route.name === 'pair' || (route.name === 'settings' && (route.section === 'diagnostics' || route.section === 'about'));
 }
 
 export async function forwardToPages(deps: PagesForwardDeps): Promise<PagesForwardResult> {

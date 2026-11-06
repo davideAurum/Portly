@@ -3,10 +3,11 @@
     The `portly` command (installed on PATH by scripts\install-cli.ps1).
 
 .DESCRIPTION
-    portly --update [--version <x>] [--dry-run] [--force]
+    portly --update [--version <x>] [--dry-run] [--force] [--unattended]
         In a release install: download and install the newest release (or <x>) with
         scripts\install.ps1, run from a temporary copy. In a Git checkout: the same as --rebuild
-        (with its options).
+        (with its options). --unattended is the Portly Updater task's: only a newer version, the
+        progress in <data folder>\update-status.json and the output in logs\update.log.
     portly --rebuild [--dry-run] [--skip-publish] [--skip-server] [--allow-dirty]
         Git checkout: update everything from the code checked out: dependencies, the local page,
         the server and the GitHub Pages site (scripts\update.ps1). Uncommitted changes are
@@ -40,6 +41,7 @@ Usage: portly <command> [options]
                   --version <x>   install release <x> instead
                   --dry-run       show what would happen, change nothing
                   --force         reinstall even the installed version
+                  --unattended    how the Portly Updater task runs it
   --rebuild     Git checkout: rebuild everything from the checked-out code:
                 dependencies, the local page, the server and the GitHub Pages site.
                   --dry-run       show what would happen, change nothing
@@ -79,16 +81,45 @@ function Invoke-HbCliScript {
     return $global:LASTEXITCODE
 }
 
+# Runs the installer with its output in $LogFile, replaced on each run, with the home folder
+# masked: the task has no window to show it in. Returns the installer's exit code.
+function Invoke-HbLoggedInstall {
+    param(
+        [Parameter(Mandatory)][string]$Powershell,
+        [Parameter(Mandatory)][string]$Installer,
+        [AllowEmptyCollection()][string[]]$Arguments,
+        [Parameter(Mandatory)][string]$LogFile
+    )
+    $folder = Split-Path -Parent $LogFile
+    if (-not (Test-Path -LiteralPath $folder)) { $null = New-Item -ItemType Directory -Path $folder -Force }
+    $writer = New-Object System.IO.StreamWriter($LogFile, $false, (New-Object System.Text.UTF8Encoding($false)))
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $global:LASTEXITCODE = 0
+        & $Powershell -NoProfile -ExecutionPolicy Bypass -File $Installer @Arguments 2>&1 | ForEach-Object {
+            $writer.WriteLine((ConvertTo-HbMaskedLine -Line "$_"))
+            $writer.Flush()
+        }
+        return $global:LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+        $writer.Dispose()
+    }
+}
+
 # portly --update in a release install: runs a temporary copy of scripts\install.ps1 against
 # the install folder (the parent of this copy's app folder), so nothing in app\ is in use while
 # it is replaced.
 function Invoke-HbReleaseUpdate {
     param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)]$Info, [AllowEmptyCollection()][string[]]$Options)
     $arguments = New-Object System.Collections.Generic.List[string]
+    $unattended = $false
     for ($i = 0; $i -lt $Options.Count; $i++) {
         switch ($Options[$i].ToLowerInvariant()) {
             '--dry-run' { $arguments.Add('-DryRun') }
             '--force' { $arguments.Add('-Force') }
+            '--unattended' { $unattended = $true }
             '--version' {
                 if ($i + 1 -ge $Options.Count) { Write-HbFailure '--version needs a version, for example --version 0.2.0-alpha.1.'; return 2 }
                 $i++
@@ -104,14 +135,25 @@ function Invoke-HbReleaseUpdate {
     }
     $releaseRepo = "$(Get-HbProperty $Info 'releaseRepo')"
     if ($releaseRepo) { $arguments.Add('-ReleaseRepo'); $arguments.Add($releaseRepo) }
+    $dataDir = Get-HbDataDir -Scope Task -RepoRoot $RepoRoot
+    if ($unattended) {
+        $arguments.Add('-OnlyNewer')
+        $arguments.Add('-NoBrowser')
+        $arguments.Add('-StatusFile')
+        $arguments.Add((Join-Path $dataDir 'update-status.json'))
+    }
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('portly-update-' + [guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $temp -Force
     try {
         $installer = Join-Path $temp 'install.ps1'
-        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'install.ps1') -Destination $installer
+        Copy-Item -LiteralPath (Join-Path $RepoRoot 'scripts\install.ps1') -Destination $installer
         $powershell = (Get-Process -Id $PID).Path
         Push-Location -LiteralPath $temp
         try {
+            if ($unattended) {
+                $installArguments = @('-InstallDir', (Split-Path -Parent $RepoRoot)) + $arguments.ToArray()
+                return Invoke-HbLoggedInstall -Powershell $powershell -Installer $installer -Arguments $installArguments -LogFile (Join-Path $dataDir 'logs\update.log')
+            }
             $global:LASTEXITCODE = 0
             & $powershell -NoProfile -ExecutionPolicy Bypass -File $installer -InstallDir (Split-Path -Parent $RepoRoot) @arguments | Out-Host
             return $global:LASTEXITCODE

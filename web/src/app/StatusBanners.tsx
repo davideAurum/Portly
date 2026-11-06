@@ -10,12 +10,15 @@
  *   data shown (no Reload: the controller reconnects or switches by itself).
  * - Every backend: the backend is unreachable (cached data is shown), and the credential vault is
  *   locked (§4.6 — accounts and Todoist are paused until it is reset in Settings → Accounts).
+ * - `server` in the Pages build, connected: that server is an older version than this page. Last
+ *   in line and read-only: the update happens on that PC (§16).
  */
 import { isApiError } from '../api/client.ts';
 import { useHealth } from '../api/about.ts';
 import { getCapabilities } from '../capabilities.ts';
 import { localServerActions, useLocalServer } from '../localServer/store.ts';
 import type { PendingSwitch, PendingSwitchReason } from '../localServer/types.ts';
+import { isServerBehind } from '../localServer/version.ts';
 import { Banner } from '../ui/Banner.tsx';
 import { Button } from '../ui/Button.tsx';
 import styles from './Shell.module.css';
@@ -65,6 +68,16 @@ function PendingSwitchBanner({ pending, place }: { pending: PendingSwitch; place
       }
     >
       {pendingSwitchText(pending, place)}
+    </Banner>
+  );
+}
+
+/** The server this page uses is older than the page: says so and where to update, nothing more. */
+function ServerBehindBanner({ serverVersion, place }: { serverVersion: string; place: string }) {
+  const subject = place.charAt(0).toUpperCase() + place.slice(1);
+  return (
+    <Banner title={`Portly on ${place} is older than this site`}>
+      {subject} runs {serverVersion}; this site is {__APP_VERSION__}. Run <code className={styles.bannerCode}>portly --update</code> on {place}.
     </Banner>
   );
 }
@@ -161,6 +174,16 @@ export function StatusBanners({ onAccountsPage }: { onAccountsPage: boolean }) {
         >
           Portly couldn't unlock its credential store, so connected accounts and Todoist are paused. Everything else keeps working.
         </Banner>
+      </div>
+    );
+  }
+
+  // Only `connected`: in any other status `server` may be another server, or one gone quiet.
+  const server = localServer.server;
+  if (caps.remoteServer && localServer.status === 'connected' && server !== null && isServerBehind(server.version, __APP_VERSION__)) {
+    return (
+      <div className={styles.banners}>
+        <ServerBehindBanner serverVersion={server.version} place={place} />
       </div>
     );
   }

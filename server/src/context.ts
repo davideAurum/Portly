@@ -20,7 +20,9 @@ import type { LogHub, Logger } from './lib/logger.ts';
 import type { RouteMeta } from './lib/routes.ts';
 import type { Scheduler } from './lib/scheduler.ts';
 import type { SettingsService } from './lib/settings.ts';
+import type { InstallInfo } from './lib/install-info.ts';
 import type { PeerNames } from './lib/peer-names.ts';
+import type { UpdaterTask } from './lib/updater-task.ts';
 import type { DeviceStore } from './security/devices.ts';
 import type { PairingStore } from './security/pairing.ts';
 import type { SafeFetch } from './security/safe-fetch.ts';
@@ -112,6 +114,10 @@ export interface AppContext {
   devices: DeviceStore;
   /** The name to suggest for a PC that asks to connect, from Tailscale on this PC (lib/peer-names.ts). */
   peerNames: PeerNames;
+  /** A release install or a Git checkout (lib/install-info.ts). */
+  install: InstallInfo;
+  /** The Portly Updater scheduled task (lib/updater-task.ts). */
+  updaterTask: UpdaterTask;
   /** The log's memory rings, level switch and queries (in production the same object as `log`). */
   logs: LogHub;
   /** Health of every synced subject (lib/health.ts, §17): `record`, `touch`, `forget`, … */

@@ -22,6 +22,17 @@ function about(patch: Partial<AboutResponse> = {}): AboutResponse {
   return { version: APP_VERSION, dataDir: 'C:\\Data\\Portly', logPath: 'C:\\Data\\Portly\\logs\\server.log', vault: 'ready', ...patch };
 }
 
+const UPDATE_STATUS = {
+  availability: 'ready',
+  installed: '0.2.0',
+  latest: '0.2.0',
+  updateAvailable: false,
+  notesUrl: null,
+  checkedAt: null,
+  checkFailed: false,
+  run: null,
+};
+
 const PAIRINGS = {
   pagesUrl: 'https://example.github.io/',
   instanceId: 'instance-1',
@@ -31,9 +42,23 @@ const PAIRINGS = {
 };
 
 describe('About settings', () => {
+  it('has the Updates card wherever a server answers, and none on the browser backend', async () => {
+    const { unmount } = renderWithProviders(<AboutSettings />, {
+      apiMocks: { 'GET /api/update': UPDATE_STATUS, 'GET /api/about': about(), 'GET /api/pairings': PAIRINGS },
+    });
+    expect(await screen.findByRole('region', { name: 'Updates' })).toBeInTheDocument();
+    unmount();
+
+    setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
+    const { requestsTo } = renderWithProviders(<AboutSettings />, { apiMocks: { 'GET /api/about': about() } });
+    expect(await screen.findByText('Version')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Updates' })).not.toBeInTheDocument();
+    expect(requestsTo('GET /api/update')).toHaveLength(0);
+  });
+
   it('server build: data folder, log file and vault, then the paired browsers', async () => {
     const { requestsTo } = renderWithProviders(<AboutSettings />, {
-      apiMocks: { 'GET /api/about': about(), 'GET /api/pairings': PAIRINGS },
+      apiMocks: { 'GET /api/update': UPDATE_STATUS, 'GET /api/about': about(), 'GET /api/pairings': PAIRINGS },
     });
     expect(await screen.findByDisplayValue('C:\\Data\\Portly')).toBeInTheDocument();
     expect(screen.getByDisplayValue('C:\\Data\\Portly\\logs\\server.log')).toBeInTheDocument();
@@ -49,7 +74,7 @@ describe('About settings', () => {
     setLocalServerController(fakeLocalServer({ backend: 'server', status: 'connected', server: LOCAL_SERVER, paired: true, permission: 'granted' }).controller);
     const { requestsTo } = renderWithProviders(<AboutSettings />, {
       // A paired request gets empty paths from the server; they must not show as empty fields either.
-      apiMocks: { 'GET /api/about': about({ version: '0.2.0', dataDir: '', logPath: '' }), 'GET /api/pairings': PAIRINGS },
+      apiMocks: { 'GET /api/update': UPDATE_STATUS, 'GET /api/about': about({ version: '0.2.0', dataDir: '', logPath: '' }), 'GET /api/pairings': PAIRINGS },
     });
     expect(screen.getByText('Your personal start page, with its data from Portly on this PC.')).toBeInTheDocument();
     expect(await screen.findByText('This site')).toBeInTheDocument();
@@ -77,7 +102,7 @@ describe('About settings', () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'server'));
     setLocalServerController(fakeLocalServer({ backend: 'server', status: 'connected', server: LOCAL_SERVER, paired: true, permission: 'granted' }).controller);
     renderWithProviders(<AboutSettings />, {
-      apiMocks: { 'GET /api/about': about({ vault: 'locked', dataDir: '', logPath: '' }), 'GET /api/pairings': PAIRINGS },
+      apiMocks: { 'GET /api/update': UPDATE_STATUS, 'GET /api/about': about({ vault: 'locked', dataDir: '', logPath: '' }), 'GET /api/pairings': PAIRINGS },
     });
     expect(await screen.findByText('Locked')).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'Review in Accounts' });
@@ -88,7 +113,7 @@ describe('About settings', () => {
 
   it('Pages build, data in this browser: the storage, and the local server card only while hybrid mode is on', async () => {
     setCapabilitiesForTests(capabilitiesFor(true, 'browser'));
-    const inert = renderWithProviders(<AboutSettings />, { apiMocks: { 'GET /api/about': about({ dataDir: 'This browser' }) } });
+    const inert = renderWithProviders(<AboutSettings />, { apiMocks: { 'GET /api/update': UPDATE_STATUS, 'GET /api/about': about({ dataDir: 'This browser' }) } });
     expect(screen.getByText('Your personal start page, stored in this browser.')).toBeInTheDocument();
     expect(await screen.findByText('Storage')).toBeInTheDocument();
     expect(screen.queryByText('Credential vault')).not.toBeInTheDocument();
@@ -98,7 +123,7 @@ describe('About settings', () => {
     inert.unmount();
 
     setLocalServerController(fakeLocalServer({ status: 'absent', permission: 'granted', checkedAt: Date.now() }).controller);
-    renderWithProviders(<AboutSettings />, { apiMocks: { 'GET /api/about': about({ dataDir: 'This browser' }) } });
+    renderWithProviders(<AboutSettings />, { apiMocks: { 'GET /api/update': UPDATE_STATUS, 'GET /api/about': about({ dataDir: 'This browser' }) } });
     const card = await screen.findByRole('region', { name: 'Portly on this PC' });
     expect(within(card).getByText('Not detected')).toBeInTheDocument();
     expect(within(card).getByText('Saved in this browser')).toBeInTheDocument();
@@ -109,7 +134,7 @@ describe('About settings on another PC', () => {
   it('shows the version, that the data lives on the main PC, and the vault; no paths', async () => {
     setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
     renderWithProviders(<AboutSettings />, {
-      apiMocks: { 'GET /api/about': about({ dataDir: '', logPath: '' }), 'GET /api/pairings': PAIRINGS },
+      apiMocks: { 'GET /api/update': UPDATE_STATUS, 'GET /api/about': about({ dataDir: '', logPath: '' }), 'GET /api/pairings': PAIRINGS },
     });
     expect(await screen.findByText('Portly on the main PC, in its data folder.')).toBeInTheDocument();
     expect(screen.getByText('Your personal start page, with its data from Portly on the main PC.')).toBeInTheDocument();

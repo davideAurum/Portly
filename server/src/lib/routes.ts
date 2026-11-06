@@ -31,17 +31,25 @@ export type BodyKind = 'json' | 'upload' | 'import';
  * - `same-pc`: the paired Pages site only, which runs on this PC, never another PC (approving
  *   devices, the vault reset, reading this PC's browser files, starting an OAuth sign-in);
  * - `enrollment`: anyone on the remote origin, device cookie or not (asking for and polling a
- *   device request); the Pages site may not call these.
+ *   device request); the Pages site on this PC may not call these;
+ * - `own-page`: a connected device on Portly's own page (its device cookie, on the remote origin),
+ *   and never the Pages site on any PC, so the code asking is code this server served, not code
+ *   GitHub Pages served (starting an update, §18).
  * Untagged routes are local-only. {@link RouteTable.match} fails closed to the most restrictive.
  */
-export type RouteAccess = 'paired' | 'same-pc' | 'enrollment';
+export type RouteAccess = 'paired' | 'same-pc' | 'enrollment' | 'own-page';
 
-/** Who, besides Portly's own page, each access level lets in. */
-type Caller = 'pages' | 'device' | 'anon';
+/**
+ * Who, besides Portly's own page on this PC, each access level lets in: `pages` the paired Pages
+ * site on this PC, `pages-device` the Pages site on another PC (its device secret), `device`
+ * another PC on Portly's own page (its device cookie), `anon` anyone on the remote origin.
+ */
+type Caller = 'pages' | 'pages-device' | 'device' | 'anon';
 const CALLERS: Readonly<Record<RouteAccess, readonly Caller[]>> = Object.freeze({
-  paired: ['pages', 'device'],
+  paired: ['pages', 'pages-device', 'device'],
   'same-pc': ['pages'],
-  enrollment: ['device', 'anon'],
+  enrollment: ['pages-device', 'device', 'anon'],
+  'own-page': ['device'],
 });
 
 function intersect(a: ReadonlySet<Caller>, b: ReadonlySet<Caller>): Set<Caller> {
@@ -53,9 +61,10 @@ function intersect(a: ReadonlySet<Caller>, b: ReadonlySet<Caller>): Set<Caller> 
 /** The access level that lets in exactly `callers`, or undefined (local-only) when no level does. */
 function accessFor(callers: ReadonlySet<Caller>): RouteAccess | undefined {
   const key = [...callers].sort().join(',');
-  if (key === 'device,pages') return 'paired';
+  if (key === 'device,pages,pages-device') return 'paired';
   if (key === 'pages') return 'same-pc';
-  if (key === 'anon,device') return 'enrollment';
+  if (key === 'anon,device,pages-device') return 'enrollment';
+  if (key === 'device') return 'own-page';
   return undefined;
 }
 
@@ -64,8 +73,13 @@ export function pagesMayCall(meta: RouteMeta): boolean {
   return meta.access === 'paired' || meta.access === 'same-pc';
 }
 
-/** True when a connected device (another PC) may call a route with this access. */
+/** True when another PC on Portly's own page (its device cookie) may call a route with this access. */
 export function deviceMayCall(meta: RouteMeta): boolean {
+  return meta.access === 'paired' || meta.access === 'enrollment' || meta.access === 'own-page';
+}
+
+/** True when the Pages site on another PC (its device secret) may call a route with this access. */
+export function pagesDeviceMayCall(meta: RouteMeta): boolean {
   return meta.access === 'paired' || meta.access === 'enrollment';
 }
 
@@ -129,7 +143,12 @@ export function enrollment(): MiddlewareHandler {
   return tag({ access: 'enrollment' });
 }
 
-/** Metadata attached to a handler by {@link exempt}/{@link multipart}/{@link paired}/{@link samePc}/{@link enrollment}, if any. */
+/** Declares the route as callable from Portly's own page only, on this PC or another, never the Pages site. */
+export function ownPage(): MiddlewareHandler {
+  return tag({ access: 'own-page' });
+}
+
+/** Metadata attached to a handler by {@link exempt}/{@link multipart}/{@link paired}/{@link samePc}/{@link enrollment}/{@link ownPage}, if any. */
 export function routeMetaOf(handler: unknown): RouteMeta | undefined {
   if (typeof handler !== 'function') return undefined;
   const direct = (handler as TaggedHandler)[META_KEY];

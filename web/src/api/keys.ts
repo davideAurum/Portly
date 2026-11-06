@@ -13,6 +13,7 @@ function coord(value: number): number {
 export const qk = {
   health: () => ['health'] as const,
   about: () => ['about'] as const,
+  update: () => ['update'] as const,
   settings: () => ['settings'] as const,
   profiles: () => ['profiles'] as const,
   accounts: () => ['accounts'] as const,

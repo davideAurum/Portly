@@ -126,6 +126,7 @@ launcher is still registered for your user.
 | What | Where |
 | --- | --- |
 | Scheduled task | `\Portly Server` in the Task Scheduler Library (root folder) |
+| Updater task (release installs) | `\Portly Updater` in the same place. It has no trigger, runs `portly --update --unattended` when asked, and does nothing otherwise |
 | Launcher files | `%LOCALAPPDATA%\Portly\native-host\`: `launcher.cmd` (runs `node.exe launcher.mjs`), `launcher.mjs` (a copy from the repository's `native-host` folder), `com.portly.launcher.json` (the host manifest browsers read), `config.json` (the allowed extension ID) |
 | Launcher log | `%LOCALAPPDATA%\Portly\native-host\launcher.log` — one line per request (time, extension, request, result) |
 | Portly's copies of Node.js | `%LOCALAPPDATA%\Portly\node\`: `portly-supervisor.exe` (a copy of your `node.exe`), `portly-server.exe` (a second name for the same file, so it takes no extra space) and `runtime.json` (which `node.exe` they were copied from) — see [In Task Manager](#in-task-manager) |
