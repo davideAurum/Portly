@@ -4,7 +4,13 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
-## Unreleased
+## 0.2.0-alpha.8 (2026-11-05)
+
+The eighth alpha: a GitHub status board, Music without Portly on your PC, and an Update button. Ships
+with new-tab extension 0.5.3 (unchanged, so no reload of the extension is needed). The privacy policy
+has a new effective date, because it now covers the GitHub status board, Spotify from the browser and
+the check for a newer release. The Update button has not yet been used for real, so treat it as a
+first test.
 
 ### What's new
 - **GitHub status board.** A new **GitHub** widget lists your repositories with their latest CI
@@ -30,6 +36,12 @@ gets a new one when its own code changes. Each entry names the extension version
 ### Changed
 - **One install at a time.** A second `portly --update` stops at once and says so, even from another
   window or an SSH login.
+
+### Fixed
+- **Quick presses on the Music widget.** Pressing the buttons quickly could lose a press, flip a
+  button back or send the wrong command, such as repeat "all" twice instead of moving on to "this
+  track". Presses now go out one at a time in the order you made them, and the widget still changes
+  at once.
 
 ## 0.2.0-alpha.7 (2026-11-05)
 
