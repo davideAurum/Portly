@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Account, MusicCommand, MusicDevice, MusicPlayback, MusicStatus } from '@portly/shared';
+import type { Account, MusicCommand, MusicDevice, MusicPlayback, MusicStatus, PhonePlayback } from '@portly/shared';
 import { MUSIC_SETTLE_MS } from '../../api/music.ts';
 import { qk } from '../../api/keys.ts';
 import { shouldPersistQuery } from '../../app/providers.tsx';
@@ -58,7 +58,7 @@ function renderWidget(mocks: Record<string, ApiMock>, options: { config?: Partia
     <Frame>
       <MusicWidget instanceId="w1" config={config} setConfig={async () => {}} size={options.size ?? { w: 4, h: 5 }} editMode={false} />
     </Frame>,
-    { apiMocks: { 'GET /api/accounts': [], ...mocks } },
+    { apiMocks: { 'GET /api/accounts': [], 'GET /api/music/phone': null, ...mocks } },
   );
   return { ...result, user: userEvent.setup() };
 }
@@ -515,6 +515,146 @@ describe('music widget: problems', () => {
   });
 });
 
+describe('music widget: the phone', () => {
+  const TITLE = 'Episode 12: The Lighthouse Keeper';
+  const CREDIT = 'Pocket Casts, on your phone';
+  const NO_ACCOUNT = mockError(409, 'not_configured', 'Connect a music service', { details: { reason: 'no_account' } });
+  const report = (overrides: Partial<PhonePlayback> = {}): PhonePlayback => ({
+    app: 'pocket-casts',
+    state: 'playing',
+    title: TITLE,
+    show: 'Tales of the Harbour',
+    durationMs: 1_800_000,
+    positionMs: 60_000,
+    speed: 1,
+    startedAt: new Date(Date.now() - 5_000).toISOString(),
+    ...overrides,
+  });
+
+  it('shows an episode with no music service connected, instead of asking to connect one', async () => {
+    renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': report() });
+    expect(await screen.findByText(TITLE)).toBeInTheDocument();
+    expect(screen.getByText('Tales of the Harbour')).toBeInTheDocument();
+    expect(screen.getByText(CREDIT)).toBeInTheDocument();
+    expect(screen.queryByText('No music service connected')).not.toBeInTheDocument();
+  });
+
+  it('offers no control over it, no link and no Spotify logo', async () => {
+    const { container } = renderWidget({ 'GET /api/music/status': status(null), 'GET /api/music/phone': report() });
+    await screen.findByText(TITLE);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Position' })).toBeDisabled();
+    expect(screen.getByRole('slider', { name: 'Position' })).toHaveAttribute('aria-valuetext', '1:00 / 30:00');
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('says when it is paused, since no button shows that', async () => {
+    renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': report({ state: 'paused' }) });
+    expect(await screen.findByText(`Paused · ${CREDIT}`)).toBeInTheDocument();
+  });
+
+  it('moves the bar on at the speed the phone plays', async () => {
+    const start = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start);
+    renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': report({ speed: 1.5 }) });
+    const slider = await screen.findByRole('slider', { name: 'Position' });
+    expect(slider).toHaveValue('60');
+    clock.mockReturnValue(start + 10_000);
+    await waitFor(() => expect(slider).toHaveValue('75'));
+  });
+
+  it('shows no bar when the length is unknown, or at the smallest size', async () => {
+    const { unmount } = renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': report({ durationMs: null }) });
+    await screen.findByText(TITLE);
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    unmount();
+    renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': report() }, { size: { w: 3, h: 3 } });
+    expect(await screen.findByText(CREDIT)).toBeInTheDocument();
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+  });
+
+  it('copes with a show the app does not name', async () => {
+    renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': report({ show: null }) });
+    expect(await screen.findByText(TITLE)).toBeInTheDocument();
+    expect(screen.getByText(CREDIT)).toBeInTheDocument();
+  });
+
+  it('shows a title from a feed as plain text', async () => {
+    const title = '<img src=x onerror=alert(1)>';
+    const { container } = renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': report({ title }) });
+    expect(await screen.findByText(title)).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('gives way to Spotify when Spotify is playing and the phone is paused', async () => {
+    renderWidget({ 'GET /api/music/status': status(), 'GET /api/music/phone': report({ state: 'paused' }) });
+    expect(await screen.findByRole('link', { name: 'Harbor Lights at Dawn' })).toBeInTheDocument();
+    expect(screen.queryByText(TITLE)).not.toBeInTheDocument();
+  });
+
+  it('shows over a paused Spotify, with the phone’s own look', async () => {
+    renderWidget({ 'GET /api/music/status': status({ isPlaying: false }), 'GET /api/music/phone': report() });
+    expect(await screen.findByText(TITLE)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open in Spotify' })).not.toBeInTheDocument();
+  });
+
+  it('shows the one that started last when both are playing', async () => {
+    const { unmount } = renderWidget({ 'GET /api/music/status': status({ positionMs: 30_000 }), 'GET /api/music/phone': report() });
+    expect(await screen.findByText(TITLE)).toBeInTheDocument();
+    unmount();
+    const started = new Date(Date.now() - 120_000).toISOString();
+    renderWidget({ 'GET /api/music/status': status({ positionMs: 30_000 }), 'GET /api/music/phone': report({ startedAt: started }) });
+    expect(await screen.findByRole('link', { name: 'Harbor Lights at Dawn' })).toBeInTheDocument();
+    expect(screen.queryByText(TITLE)).not.toBeInTheDocument();
+  });
+
+  it('shows an episode while Spotify needs reconnecting, and asks again once it ends', async () => {
+    const account = { id: 'a1', kind: 'spotify', label: 'Sam', status: 'reauth' } as Account;
+    const { queryClient } = renderWidget({ 'GET /api/accounts': [account], 'GET /api/music/status': mockError(409, 'reauth_required', 'Reconnect', { accountId: 'a1' }), 'GET /api/music/phone': report() });
+    expect(await screen.findByText(TITLE)).toBeInTheDocument();
+    act(() => void queryClient.setQueryData(qk.music.phone(), null));
+    expect(await screen.findByRole('button', { name: 'Reconnect' })).toBeInTheDocument();
+  });
+
+  it('goes back to the idle state when the report ends', async () => {
+    const { queryClient } = renderWidget({ 'GET /api/music/status': status(null), 'GET /api/music/devices': [], 'GET /api/music/phone': report() });
+    await screen.findByText(TITLE);
+    act(() => void queryClient.setQueryData(qk.music.phone(), null));
+    expect(await screen.findByText('Nothing is playing')).toBeInTheDocument();
+  });
+
+  it('holds the connect card back until the phone has answered', async () => {
+    let answer: (value: MockResponse) => void = () => {};
+    renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': () => new Promise<MockResponse>((resolve) => (answer = resolve)) });
+    await waitFor(() => expect(answer).not.toBe(undefined));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(screen.queryByText('No music service connected')).not.toBeInTheDocument();
+    act(() => answer(mockResponse(200, null)));
+    expect(await screen.findByText('No music service connected')).toBeInTheDocument();
+  });
+
+  it('leaves Spotify alone when the server is older and refuses the question', async () => {
+    renderWidget({ 'GET /api/music/status': status(), 'GET /api/music/phone': mockError(404, 'not_found', 'Not found') });
+    expect(await screen.findByRole('link', { name: 'Harbor Lights at Dawn' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
+    expect(screen.queryByText(/Updated/)).not.toBeInTheDocument();
+  });
+
+  it('keeps showing the last report, marked stale, when a refresh fails', async () => {
+    const answers: ApiMock[] = [report(), mockError(502, 'internal', 'The server is gone')];
+    const { queryClient } = renderWidget({ 'GET /api/music/status': NO_ACCOUNT, 'GET /api/music/phone': () => answers.shift() ?? mockError(502, 'internal', 'The server is gone') });
+    await screen.findByText(TITLE);
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: qk.music.phone() });
+    });
+    expect(await within(screen.getByTestId('actions')).findByText(/Updated/)).toBeInTheDocument();
+    expect(screen.getByText(TITLE)).toBeInTheDocument();
+  });
+});
+
 describe('music widget: privacy', () => {
   it('never writes what is playing to the persisted cache', async () => {
     const { queryClient } = renderWidget({ 'GET /api/music/status': status(), 'GET /api/music/devices': [DEVICE] });
@@ -522,6 +662,9 @@ describe('music widget: privacy', () => {
     const query = queryClient.getQueryCache().find({ queryKey: qk.music.status(null) });
     expect(query).toBeDefined();
     expect(shouldPersistQuery(query!)).toBe(false);
+    const phone = queryClient.getQueryCache().find({ queryKey: qk.music.phone() });
+    expect(phone).toBeDefined();
+    expect(shouldPersistQuery(phone!)).toBe(false);
   });
 });
 

@@ -9,7 +9,7 @@
  */
 import { useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MUSIC_ERROR_REASONS, type MusicCommand, type MusicDevice, type MusicErrorReason, type MusicStatus } from '@portly/shared';
+import { MUSIC_ERROR_REASONS, type MusicCommand, type MusicDevice, type MusicErrorReason, type MusicStatus, type PhonePlayback } from '@portly/shared';
 import { applyCommand, withLivePosition } from '../widgets/music/model.ts';
 import { toastError } from '../ui/toast.ts';
 import { apiGet, apiPost, isApiError } from './client.ts';
@@ -54,6 +54,24 @@ export function musicRefetchMs(status: MusicStatus | undefined, error: unknown):
   if (!playback?.isPlaying) return MUSIC_IDLE_REFETCH_MS;
   const left = playback.item === null ? MUSIC_PLAYING_REFETCH_MS : playback.item.durationMs - playback.positionMs + AFTER_ITEM_END_MS;
   return Math.max(SHORTEST_REFETCH_MS, Math.min(MUSIC_PLAYING_REFETCH_MS, left));
+}
+
+/** Milliseconds to the next look at what the phone is playing, or false to stop looking. */
+export function phoneRefetchMs(phone: PhonePlayback | null | undefined, error: unknown): number | false {
+  // A server older than this page does not have the route, and asking again won't add it.
+  if (isApiError(error) && error.status < 500) return false;
+  return phone?.state === 'playing' ? MUSIC_PLAYING_REFETCH_MS : MUSIC_IDLE_REFETCH_MS;
+}
+
+/** What the phone is playing (null: nothing). Portly's server knows it, and asks nobody else. */
+export function useMusicPhone() {
+  return useQuery({
+    queryKey: qk.music.phone(),
+    queryFn: ({ signal }) => apiGet<PhonePlayback | null>('/api/music/phone', { signal }),
+    staleTime: 2_000,
+    refetchInterval: (query) => phoneRefetchMs(query.state.data, query.state.error),
+    meta: { persist: false },
+  });
 }
 
 export function useMusicStatus(accountId: string | null) {

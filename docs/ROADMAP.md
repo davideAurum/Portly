@@ -1657,8 +1657,10 @@ search or playlists in the first step. Spotify works only with Premium (ARCHITEC
   signed in as a limited device. View-only at first. Design and phases:
   [phone-now-playing.md](design/phone-now-playing.md). Phase 0 passed on the owner's phone on
   2026-11-06 with a throwaway app, so reading Pocket Casts works. Phase 1 is built: the limited
-  `reporter` device and both `/api/music/phone` routes. Nothing shows in the widget yet, and phase 2
-  waits for the owner's go.
+  `reporter` device and both `/api/music/phone` routes. Phase 2 is built: the Music widget shows the
+  episode, Settings → Devices labels phones, the browser-only site answers `null`, and Diagnostics says
+  when the last report came. No helper app exists yet, so nothing real reports, and phase 3 waits for
+  the owner's go.
 
 ## GitHub status board (beside track B)
 
@@ -1841,10 +1843,13 @@ date and the outcome once a row has been run for real.
 
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
-| A phone really sending a report: the helper app doesn't exist yet, so the full run of the server side (29 of 29, on a scratch server) used this PC's curl with the phone unplugged. Also never run: a reporter connecting through the real Tailscale Serve address, the Pages site on the main PC reading a report in hybrid mode, and the widget showing it (not built) | this commit, 2026-11-06 | M.5 phases 2 and 3 | not yet |
-| Whether Android keeps the helper's listener alive for a day on battery, whether Tailscale stays connected on the phone all day and on mobile data, and what that costs in battery. Phase 0 saw minutes with the phone plugged in; the one-day reading of the test app's *Background check* lines is still owed | this commit, 2026-11-06 | M.5, the one-day phone test, then phase 3 | not yet |
-| Whether the helper can send with the screen off and the phone idle: the test app has no internet permission, so phase 0 could not show it. If it can't, the helper may need a battery exemption | this commit, 2026-11-06 | M.5 phase 3 | not yet |
-| Whether a command from another app reaches Pocket Casts' session | this commit, 2026-11-06 | M.5 phase 4, if it is chosen | not yet |
+| A phone really sending a report: the helper app doesn't exist yet, so the full run of the server side (29 of 29, on a scratch server) used this PC's curl with the phone unplugged. Also never run: a reporter connecting through the real Tailscale Serve address | 8ebe243, 2026-11-06 | M.5 phase 3 | not yet |
+| The Pages site on the main PC showing a report in hybrid mode, and a connected PC showing it through Tailscale; the widget was seen only on Portly's own page on this PC, and the gate lets both through in tests | 8ebe243, 2026-11-06 | M.5 phase 3 | not yet |
+| The phone's player beside a real Spotify account: what shows when both play, or when Spotify needs reconnecting. The rules are tested with a fake Spotify; the scratch run had no account connected | this commit, 2026-11-06 | M.5 phase 3 | not yet |
+| The browser-only site answering the phone question in a real browser: its `null` was covered by a unit test and the build only, so the Music widget on that site with no paired server was not looked at | this commit, 2026-11-06 | M.5 phase 3 | not yet |
+| Whether Android keeps the helper's listener alive for a day on battery, whether Tailscale stays connected on the phone all day and on mobile data, and what that costs in battery. Phase 0 saw minutes with the phone plugged in; the one-day reading of the test app's *Background check* lines is still owed | 8ebe243, 2026-11-06 | M.5, the one-day phone test, then phase 3 | not yet |
+| Whether the helper can send with the screen off and the phone idle: the test app has no internet permission, so phase 0 could not show it. If it can't, the helper may need a battery exemption | 8ebe243, 2026-11-06 | M.5 phase 3 | not yet |
+| Whether a command from another app reaches Pocket Casts' session | 8ebe243, 2026-11-06 | M.5 phase 4, if it is chosen | not yet |
 | The GitHub widget with a real fine-grained token: saving it, the board, and above all what `statusCheckRollup` gives (GitHub's docs say fine-grained tokens can't use the Checks API, so CI results may show as unknown). The query and parser were run against a real account only with a `gh` login token, which the app refuses; every test uses an in-memory GitHub | this commit, 2026-11-05 | the owner's first token | not yet |
 | **Open in GitHub Desktop** from a real browser: the browser's prompt, then Desktop opening a cloned repository and offering to clone another. The address was read from GitHub Desktop 3.6.10's own code; the tests only check the address is built | this commit, 2026-11-05 | the owner's first token | not yet |
 | The GitHub widget on the published Pages site against the real `api.github.com`: GitHub's CORS answer was checked with a preflight from the command line, not from a browser | this commit, 2026-11-05 | the owner's first token on the published site | 2026-11-05 on 0.2.0-alpha.8 (b751661): the browser-only build reached `api.github.com` in the desktop app's browser pane under the real CSP, from the local preview and with no token. The published site itself: not yet |

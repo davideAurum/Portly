@@ -176,6 +176,16 @@ describe('music: status', () => {
   });
 });
 
+describe('music: the phone', () => {
+  it('answers null: a phone reports to a Portly server, and none is behind this backend', async () => {
+    await setup({ connect: false });
+    const { status, body } = await t.json<null>('GET', '/api/music/phone');
+    expect(status).toBe(200);
+    expect(body).toBeNull();
+    expect(fake.calls).toEqual([]);
+  });
+});
+
 describe('music: the token', () => {
   it('a refused token is refreshed once and the call retried', async () => {
     const id = await setup();

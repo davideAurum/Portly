@@ -59,6 +59,62 @@ describe('Devices settings', () => {
     await waitFor(() => expect(t.requestsTo('GET /api/devices').length).toBeGreaterThanOrEqual(2));
   });
 
+  describe('phones', () => {
+    const phoneRequest = { id: 'r2', code: 'P4X-9TW', label: 'Test phone', browser: 'Unknown browser', scope: 'reporter' as const, createdAt: new Date(NOW - 30_000).toISOString(), expiresAt: new Date(NOW + 570_000).toISOString() };
+    const phone = { id: 'd3', label: 'Test phone', browser: 'Unknown browser', scope: 'reporter' as const, createdAt: new Date(NOW - 86_400_000).toISOString(), lastUsedAt: new Date(NOW - 60_000).toISOString(), current: false };
+
+    it('says plainly what a phone asking to connect could do, and approves it like any other', async () => {
+      const user = userEvent.setup();
+      const t = renderWithProviders(<DevicesSettings />, {
+        apiMocks: { 'GET /api/devices': () => devices({ requests: [phoneRequest] }), 'POST /api/devices/requests/:id/approve': { approved: true } },
+      });
+      const requests = await screen.findByRole('list', { name: 'Requests waiting for approval' });
+      expect(within(requests).getByText('Reports what is playing')).toBeInTheDocument();
+      expect(within(requests).getByText(/can only report what is playing/)).toBeInTheDocument();
+      expect(within(requests).queryByText('Unknown browser')).not.toBeInTheDocument();
+      expect(within(requests).getByText('P4X-9TW')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Approve Test phone' }));
+      await waitFor(() => expect(t.requestsTo('POST /api/devices/requests/r2/approve')).toHaveLength(1));
+    });
+
+    it('says nothing of the kind about a PC', async () => {
+      renderWithProviders(<DevicesSettings />, { apiMocks: { 'GET /api/devices': () => devices() } });
+      await screen.findByText('Tablet');
+      expect(screen.queryByText(/can only report what is playing/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('list', { name: 'Connected phones' })).not.toBeInTheDocument();
+    });
+
+    it('lists a phone apart from the PCs, and removes it after saying what that does', async () => {
+      const user = userEvent.setup();
+      const t = renderWithProviders(<DevicesSettings />, {
+        apiMocks: { 'GET /api/devices': () => devices({ devices: [...devices().devices, phone] }), 'DELETE /api/devices/:id': mockResponse(204) },
+      });
+      const phones = await screen.findByRole('list', { name: 'Connected phones' });
+      expect(within(phones).getByText('Test phone')).toBeInTheDocument();
+      expect(within(phones).getByText('Reports what is playing')).toBeInTheDocument();
+      expect(within(screen.getByRole('list', { name: 'Connected PCs' })).queryByText('Test phone')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Remove Test phone' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Remove Test phone?' });
+      expect(within(dialog).getByText(/stops reporting what is playing/)).toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
+      await waitFor(() => expect(t.requestsTo('DELETE /api/devices/d3')).toHaveLength(1));
+    });
+
+    it('still says no PC is connected when only a phone is', async () => {
+      renderWithProviders(<DevicesSettings />, { apiMocks: { 'GET /api/devices': () => devices({ devices: [phone], requests: [] }) } });
+      expect(await screen.findByRole('list', { name: 'Connected phones' })).toBeInTheDocument();
+      expect(screen.getByText('No other PC is connected')).toBeInTheDocument();
+    });
+
+    it('on another PC lists a phone without a way to remove it', async () => {
+      setCapabilitiesForTests(capabilitiesFor(false, 'server', true));
+      renderWithProviders(<DevicesSettings />, { apiMocks: { 'GET /api/devices': () => devices({ devices: [...devices().devices, phone] }) } });
+      expect(await screen.findByRole('list', { name: 'Connected phones' })).toBeInTheDocument();
+      expect(screen.getByText(/They are managed on the main PC/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Test phone/ })).not.toBeInTheDocument();
+    });
+  });
+
   it('shows an error with Retry when the list cannot be loaded', async () => {
     const user = userEvent.setup();
     let failing = true;

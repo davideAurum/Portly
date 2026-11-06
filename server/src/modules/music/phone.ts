@@ -14,6 +14,8 @@
  * - **Position.** A playing position is moved on by the report's age times the speed, never past
  *   the end, and each report corrects it.
  * - **Limit.** One report per {@link PHONE_REPORT_INTERVAL_MS} per device, then 429 with `Retry-After`.
+ * - **Health.** Each report taken is an OK for the subject `phone:<deviceId>`, which is how
+ *   Diagnostics knows when the last one came. It carries the device id and nothing of the report.
  */
 import type { PhonePlayback, PhoneReport } from '@portly/shared';
 import type { AppContext } from '../../context.ts';
@@ -25,6 +27,10 @@ export const PHONE_PLAYING_STALE_MS = 90_000;
 /** How long a paused report is kept (decision 4 of the design). */
 export const PHONE_PAUSED_KEPT_MS = 15 * 60 * 1000;
 export const PHONE_REPORT_INTERVAL_MS = 1_000;
+
+export function phoneHealthKey(deviceId: string): string {
+  return `phone:${deviceId}`;
+}
 
 type ShownReport = Exclude<PhoneReport, { state: 'stopped' }>;
 
@@ -48,8 +54,8 @@ function sameEpisode(a: ShownReport, b: ShownReport): boolean {
   return a.episodeId !== null && b.episodeId !== null ? a.episodeId === b.episodeId : a.title === b.title;
 }
 
-export function createPhoneReports(ctx: Pick<AppContext, 'devices'>, options: { now?: () => number } = {}): PhoneReports {
-  const { devices } = ctx;
+export function createPhoneReports(ctx: Pick<AppContext, 'devices' | 'health'>, options: { now?: () => number } = {}): PhoneReports {
+  const { devices, health } = ctx;
   const now = options.now ?? Date.now;
   let held: Held | null = null;
   /** Devices that reported within the last interval, with when. */
@@ -73,6 +79,7 @@ export function createPhoneReports(ctx: Pick<AppContext, 'devices'>, options: { 
     report(deviceId, report) {
       const at = now();
       notTooFast(deviceId, at);
+      health.record({ key: phoneHealthKey(deviceId), area: 'music' }, { ok: true });
       const before = live(at);
       const mine = before?.deviceId === deviceId ? before : null;
       if (report.state === 'stopped') {

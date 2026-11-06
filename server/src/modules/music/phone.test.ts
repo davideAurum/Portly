@@ -3,7 +3,7 @@
  * the real gate as a `reporter` device, and everyone else reading or being refused.
  */
 import type { Hono } from 'hono';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PHONE_MAX_POSITION_MS, PHONE_TEXT_MAX, PhoneReportSchema, cleanPhoneText, type PhonePlayback } from '@portly/shared';
 import { createApp } from '../../app.ts';
 import type { AppEnv } from '../../context.ts';
@@ -12,7 +12,7 @@ import { connectTestDevice, type TestDevice } from '../../testing/test-devices.t
 import { TEST_PAGES_ENV, TEST_PAGES_ORIGIN, TEST_REMOTE_ENV, pagesHeaders, remoteHeaders, remotePagesHeaders, testRequest } from '../../testing/test-request.ts';
 import { prefixes as devicePrefixes, register as registerDevices } from '../devices/index.ts';
 import { prefixes, register } from './index.ts';
-import { PHONE_PAUSED_KEPT_MS, PHONE_PLAYING_STALE_MS, PHONE_REPORT_INTERVAL_MS } from './phone.ts';
+import { PHONE_PAUSED_KEPT_MS, PHONE_PLAYING_STALE_MS, PHONE_REPORT_INTERVAL_MS, phoneHealthKey } from './phone.ts';
 
 const T0 = Date.parse('2026-11-06T10:00:00Z');
 const TITLE = 'Episode 12: The Lighthouse Keeper';
@@ -269,6 +269,43 @@ describe('music: what the phone is playing', () => {
       await report({ ...EPISODE, state: 'paused' });
       ctx.devices.revoke(phone.record.id, 'expired');
       expect(await read()).toBeNull();
+    });
+  });
+
+  describe('diagnostics', () => {
+    const key = (device: TestDevice = phone): string => phoneHealthKey(device.record.id);
+
+    it('says when the last report came, with nothing of what it said', async () => {
+      expect(ctx.health.get(key())).toBeNull();
+      const recorded = vi.spyOn(ctx.health, 'record');
+      await report();
+      expect(ctx.health.get(key())).toMatchObject({ area: 'music', status: 'ok', expectEveryMs: null });
+      expect(ctx.health.get(key())?.lastOkAt).toEqual(expect.any(Number));
+      await report({ app: 'pocket-casts', state: 'stopped' });
+      expect(recorded).toHaveBeenCalledTimes(2);
+      const everything = JSON.stringify([ctx.health.list(), ctx.health.history(key())]);
+      for (const text of [TITLE, SHOW, EPISODE.episodeId]) expect(everything).not.toContain(text);
+    });
+
+    it('does not count a report that was refused', async () => {
+      await report();
+      const recorded = vi.spyOn(ctx.health, 'record');
+      now += 1;
+      expect((await send(EPISODE)).status).toBe(429);
+      now += PHONE_REPORT_INTERVAL_MS;
+      expect((await send({ ...EPISODE, positionMs: -1 })).status).toBe(422);
+      expect(recorded).not.toHaveBeenCalled();
+    });
+
+    it('forgets a phone removed on the main PC, and one that disconnects itself', async () => {
+      await report();
+      expect((await testRequest(app, 'DELETE', `/api/devices/${phone.record.id}`)).status).toBe(204);
+      expect(ctx.health.get(key())).toBeNull();
+
+      const other = connectTestDevice(ctx, { label: 'Other phone', browser: 'Portly helper', scope: 'reporter' });
+      await report(EPISODE, other.secret);
+      expect((await testRequest(app, 'DELETE', '/api/device', { headers: remoteHeaders(other.secret) })).status).toBe(204);
+      expect(ctx.health.get(key(other))).toBeNull();
     });
   });
 

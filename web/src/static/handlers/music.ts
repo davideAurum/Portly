@@ -6,6 +6,7 @@
  * - `GET /api/music/status?accountId=` → `MusicStatus`
  * - `GET /api/music/devices?accountId=` → `MusicDevice[]`
  * - `POST /api/music/command {accountId?, command}` → 204
+ * - `GET /api/music/phone` → `null`: a phone reports to a Portly server, and there is none behind this
  *
  * - **Per page, not shared.** The server's cache serves every tab; here each tab keeps its own, for
  *   {@link MUSIC_STATUS_TTL_MS}, which is what several Music widgets on one page share. Only a
@@ -134,6 +135,8 @@ export function register(router: StaticRouter): void {
   router.get('/api/music/status', async (ctx, { url }) => json(await status(ctx, parseQuery(url, MusicQuerySchema).accountId)));
 
   router.get('/api/music/devices', async (ctx, { url }) => json(await devices(ctx, parseQuery(url, MusicQuerySchema).accountId)));
+
+  router.get('/api/music/phone', () => json(null));
 
   router.post('/api/music/command', async (ctx, { req }) => {
     const { accountId, command } = await parseJsonBody(req, MusicCommandRequestSchema);

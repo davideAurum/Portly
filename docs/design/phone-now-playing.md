@@ -1,9 +1,9 @@
 # Design: showing what the phone is playing
 
 **Status:** proposed on 2026-11-06, ROADMAP M.5. Phase 0 passed on the owner's phone on 2026-11-06
-(section 10), with a throwaway app outside this repository. Phase 1, the server side, is built, and
-ARCHITECTURE sections 4, 5, 7 and 20 are the binding text for it. Nothing shows in the widget yet, and
-phase 2 waits for the owner's go.
+(section 10), with a throwaway app outside this repository. Phases 1 and 2, the server side and the
+widget, are built, and ARCHITECTURE sections 4, 5, 7, 10.8, 17 and 20 are the binding text for them. No
+helper app exists yet, so nothing real reports, and phase 3 waits for the owner's go.
 
 **Main idea:** a small Android helper app reads what Pocket Casts is playing and tells Portly
 through the same Tailscale address other PCs use. The helper signs in as a new, limited kind of
@@ -90,7 +90,7 @@ gets lost, so the helper must not get that trust.
   to 500 characters rather than refused, because a stray character in someone's feed should not lose
   the owner a whole report. `app` is a closed list, and anything the schema doesn't name is a 422.
 - **No address from the phone.** A link is never taken from the report. If a link is added, the
-  server builds it from a validated episode id for a known app (phase 2 checks the address format).
+  server builds it from a validated episode id for a known app (section 12: its format is not known yet).
 - **Memory only.** It is listening history, so it stays in server memory, never in SQLite, the
   persisted browser cache or a log (section 17). Logs carry the device id only.
 - **Going stale.** A `playing` report with no follow-up for 90 s counts as gone: the phone has left
@@ -104,10 +104,14 @@ gets lost, so the helper must not get that trust.
 
 - **Which one shows.** Whatever is playing. If both are, the one that started last. If neither,
   a paused item, then the normal idle state (decision 3).
-- **Controls.** View-only at first. Play, previous and next are hidden, not disabled, through a
-  new `MusicFeatures.control` flag, because the buttons can't do anything. The position bar is read-only.
-- **Credit.** A phone icon and the words "Pocket Casts, on your phone". Spotify's logo and layout
-  rules stay on Spotify content only.
+- **Controls.** View-only at first. Play, previous and next are hidden, not disabled, because the
+  buttons can't do anything: the phone has a small player of its own. (This design first said a
+  `MusicFeatures.control` flag. The phone never goes through `MusicStatus`, so that flag would always
+  say yes, and it could hide Spotify's buttons when the Pages site is newer than the server.) The
+  position bar is read-only.
+- **Credit.** A phone icon and the words "Pocket Casts, on your phone", with "Paused" in front when
+  it is, because no button shows that and the end of the line is what a narrow widget cuts off.
+  Spotify's logo and layout rules stay on Spotify content only.
 - **No Spotify account.** A report still shows, instead of the "connect a music service" card.
 - **Browser-only site.** It answers `null` when no server is behind it, so nothing changes there.
 - **Diagnostics.** A health subject `phone:<deviceId>` says when the last report came, with no titles.
@@ -179,6 +183,11 @@ Each phase ends with a report, and the next waits for the owner's go.
      exists, and with `startedAt`, for decision 3. A helper app really reporting is phase 3.
 2. **Widget and settings** (M). Section 6, the approval card, the reporter label in Settings →
    Devices, the browser-only answer, diagnostics, §10.7's definition of done.
+   - **Built on 2026-11-06**, and seen in a real browser with a fake helper on a scratch server. Spotify
+     gives no start time, so when both play, its item's start is worked out from its position: a new
+     song counts as starting, and a resumed one does not. Phones get their own card in Settings →
+     Devices, so the *Connected PCs* wording stays true. Diagnostics names a phone "Phone helper" rather
+     than by its label, which could be a person's name and which the shared report does not redact.
 3. **The real helper** (M). Section 7, the signing key, an `android` CI job with pinned actions, a
    plain-English `docs/setup/phone-helper.md`, the privacy page. *Done when:* an episode on the phone
    shows in the widget on both PCs, and removing the device stops it.
@@ -208,5 +217,5 @@ Each phase ends with a report, and the next waits for the owner's go.
   battery.
 - Whether a command from another app reaches Pocket Casts' session (phase 4 only).
 - The address format of a Pocket Casts episode link, if one is added.
-- How the Pages site on the home PC reaches `GET /api/music/phone` in hybrid mode. It should behave
-  like the other `paired()` music routes, and phase 2 checks that.
+- The Pages site on the home PC reading a report in a real browser. It takes the same route as the other
+  `paired()` music calls, and the gate lets it through in `phone.test.ts`, but that has not been run for real.

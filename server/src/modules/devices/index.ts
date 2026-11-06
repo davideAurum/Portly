@@ -72,6 +72,7 @@ import { userAgentSummary } from '../../lib/user-agent.ts';
 import { parseBody } from '../../lib/validate.ts';
 import { clearCookieHeader, cookieHeader, readCookie } from '../../security/cookies.ts';
 import { REQUEST_RETENTION_MS, type DeviceRecord, type DeviceRequestRecord } from '../../security/devices.ts';
+import { phoneHealthKey } from '../music/phone.ts';
 
 export const prefixes = ['/api/device', '/api/devices'] as const;
 
@@ -233,6 +234,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   app.delete('/api/devices/:id', samePc(), (c) => {
     const id = c.req.param('id');
     if (!devices.revoke(id, 'revoked')) throw new HttpError(404, 'not_found', 'Device not found');
+    ctx.health.forget(phoneHealthKey(id));
     log.info('device removed', { deviceId: id, by: 'revoked' });
     return c.body(null, 204);
   });
@@ -250,6 +252,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     const secret = presentedSecret(c);
     const record = devices.verify(secret);
     if (record === null || !devices.revokeBySecret(secret, 'disconnected')) throw HttpError.of('login_required');
+    ctx.health.forget(phoneHealthKey(record.id));
     log.info('device removed', { deviceId: record.id, by: 'disconnected' });
     if (!fromPages(c)) c.header('Set-Cookie', clearCookieHeader(DEVICE_COOKIE), { append: true });
     return c.body(null, 204);

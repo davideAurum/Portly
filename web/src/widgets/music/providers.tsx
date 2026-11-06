@@ -4,7 +4,7 @@
  * one of the colors they allow, so it follows the theme (§10.7 #6).
  */
 import type { ComponentType } from 'react';
-import type { MusicProviderKind } from '@portly/shared';
+import type { MusicProviderKind, PhoneApp } from '@portly/shared';
 
 interface MarkProps {
   className?: string;
@@ -28,3 +28,6 @@ function SpotifyMark({ className }: MarkProps) {
 export const MUSIC_PROVIDER_INFO: Readonly<Record<MusicProviderKind, MusicProviderInfo>> = Object.freeze({
   spotify: { name: 'Spotify', homeUrl: 'https://open.spotify.com/', Mark: SpotifyMark },
 });
+
+/** The apps a phone can report from, by name. Portly has no account with them, so there is no logo or link. */
+export const PHONE_APP_NAMES: Readonly<Record<PhoneApp, string>> = Object.freeze({ 'pocket-casts': 'Pocket Casts' });

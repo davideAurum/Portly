@@ -944,7 +944,9 @@ is a 422. One report a second per device, then 429 with `Retry-After`; Portly's 
 startedAt}|null`. `modules/music/phone.ts` holds one report, latest wins, in its own memory, never SQLite or a log. A
 playing report with no follow-up for 90 s is gone, a paused one stays 15 minutes, `stopped` clears the reporting
 device's own, and a restart or the reporting device's removal clears it. The position moves on by the report's age
-times the speed, never past the end. The in-browser backend does not answer these two yet (the design's phase 2).
+times the speed, never past the end. Each report taken is an OK for the health subject `phone:<deviceId>` (§17), which
+carries nothing of the report. The in-browser backend answers `GET` with `null`, because a phone reports to a server and
+none is behind it, and does not have the `POST`.
 
 **Pairing** (hybrid mode, §16; `shared/src/pairing.ts`; `samePc()` except `POST /api/pairings`, which is untagged
 and so local-only: another PC has no say over pairings)
@@ -1528,7 +1530,14 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   calendar, on the server backend an access token in the browser (against "secrets never reach the browser"), and it
   stops at the first link clicked in that tab. The widget knows providers only through `MusicStatus.features` (hidden when the provider cannot do
   it) and `allowed` (disabled when it refuses right now) and `widgets/music/providers.tsx` (name, logo, home page).
-  Polls every 5 s while playing, or just after the item ends; 15 s otherwise; never in a hidden tab (TanStack stops the
+  What a phone reports (`GET /api/music/phone`, §7) shows in a player of its own, with or without a music service
+  connected, a Spotify account needing reconnection included: whichever is playing, the one that started last if both
+  are, and the phone if both are paused, since its pause lasts 15 minutes and a paused Spotify session can last hours
+  (`phoneIsShown`). Spotify gives no start time, so its item's is worked out from the position: a new song counts as
+  starting, and a resumed one does not. The phone's player is view-only: no controls, a read-only bar, no bar when the
+  length is unknown or at the compact size, no Spotify logo, a phone icon and "Pocket Casts, on your phone", with
+  "Paused" in front when it is. The connect card waits for the phone's answer. A server older than the page refuses the
+  route, which stops the phone's polling and changes nothing else. Polls every 5 s while playing, or just after the item ends; 15 s otherwise; never in a hidden tab (TanStack stops the
   interval), and not at all after `not_configured`, `reauth_required` or `forbidden`; a 429 waits `retryAfterSeconds`. The
   position moves on locally between polls. Commands are optimistic (`applyCommand`): a refusal restores the state and
   says why, unless later presses are still waiting, when the read after the last of them puts it right. Requests go out
@@ -2076,6 +2085,7 @@ only source of failure, recovery and reminder lines for them (modules record out
 | `suggest:<provider>` | a search suggestion provider | never |
 | `sports:<league>` | ESPN for one league; detail `{op: teams\|schedule\|scoreboard, status}` | never |
 | `music:<accountId>` | the provider's status read; `account_unavailable`, caused by `account:<id>`, while the account needs reconnecting. Answers about what is playing (no active device, a refused command) are not recorded | never |
+| `phone:<deviceId>` | each report a phone sends (§7 Music): it is only ever OK, so it says when the last one came, with nothing of the report. Forgotten when the device is removed or disconnects; an expired one goes by the 30-day retention | never |
 | `job:<name>` | every scheduler job (the scheduler itself) | 3 × job interval |
 
 - **Statuses:** `ok`; `degraded` (ok but partial: `storage_limit`, `truncated`, a failed best-effort sports read);
@@ -2453,7 +2463,8 @@ gets lost, so it may call only `POST /api/music/phone` and `DELETE /api/device`,
 `Cookie` header. Everywhere else it gets 403 `local_only`, `enrollment()` routes included (a phone asking again leaves
 its old cookie out), and the Pages site gets nowhere with its secret. Full devices and the Pages site are refused on
 the report route. `app.test.ts` sends a reporter through the real gate to every route in `ROUTE_ACCESS`. The 30-day idle
-rule applies and a report counts as use.
+rule applies and a report counts as use. Settings → Devices says on the request what such a device can do, and lists
+connected ones in a card of their own, *Connected phones*, which shows only when there is one.
 
 **The name the connect screen fills in** (`lib/peer-names.ts`, `GET /api/devices/requests/suggestion`). A browser
 cannot tell a page the computer's name, but Tailscale on this PC can tell who is asking: a Serve proxy sets

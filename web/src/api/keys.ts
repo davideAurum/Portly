@@ -64,6 +64,7 @@ export const qk = {
     /** `accountId`: a widget's own account; null is the first with music switched on. */
     status: (accountId: string | null) => ['music', 'status', accountId] as const,
     devices: (accountId: string | null) => ['music', 'devices', accountId] as const,
+    phone: () => ['music', 'phone'] as const,
   },
   feeds: {
     all: () => ['feeds'] as const,

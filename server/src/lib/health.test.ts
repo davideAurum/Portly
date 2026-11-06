@@ -759,6 +759,7 @@ describe('contextFieldForKey', () => {
     ['todoist', { area: 'todoist' }],
     ['weather', { area: 'weather' }],
     ['suggest:google', { area: 'search' }],
+    ['phone:device-1', { area: 'music' }],
     ['something-else', { area: 'server' }],
   ])('%s', (key, expected) => {
     expect(contextFieldForKey(key)).toEqual(expected);
