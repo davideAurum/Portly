@@ -1220,8 +1220,9 @@ most 500) reads everything, so 25 repositories cost 1 of the 5,000 points an hou
 beside what it could read, and a failed field nulls its nearest nullable parent: `issues` and `pullRequests` are non-null,
 so without those permissions a repository is lost whole, and the token is refused when saved, naming the permission;
 `defaultBranchRef` and `statusCheckRollup` are nullable, so the repository stays and `checks` is `unavailable`.
-**Fine-grained tokens can't use the Checks API** (GitHub's list of what they can't do), so `statusCheckRollup` may be
-partial or refused with them; not yet tried with a real one (ROADMAP, checks table). Classic tokens are refused anyway.
+GitHub lists the Checks API among what fine-grained tokens can't use, but `statusCheckRollup` gave real results with
+one on 2026-11-06 (passing and no checks; a failing or running result has not been seen, ROADMAP, checks table), so
+`unavailable` stays only as the fallback. Classic tokens are refused anyway.
 Rate limits arrive as a 429, a 403 with `Retry-After` or `X-RateLimit-Remaining: 0`, or a 200 with `RATE_LIMITED` in
 `errors`; a cooldown then sends nothing until the time GitHub gives. Permissions: Metadata (automatic), Contents, Issues,
 Pull requests and Commit statuses, all read-only, All repositories.

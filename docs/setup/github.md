@@ -63,9 +63,8 @@ The board shows up to 500 repositories, the most recently pushed first, and says
 | Hollow gray circle | This commit has no CI checks |
 | Dotted gray circle | Portly can't read the result with this token |
 
-A dotted dot is not a passing or a missing check: it means the result is unknown. GitHub doesn't
-let fine-grained tokens use its Checks API, so results from GitHub Actions may show this way. The
-widget says so under the list.
+A dotted dot is not a passing or a missing check: it means GitHub didn't give Portly the result, so
+it is unknown. The widget says so under the list.
 
 ### Open in GitHub Desktop
 
