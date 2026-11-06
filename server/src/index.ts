@@ -60,7 +60,9 @@ import {
 } from './lib/startup.ts';
 import { createAccountService } from './modules/accounts/index.ts';
 import { readPersistedVerbose } from './modules/diagnostics/level.ts';
+import { readInstallInfo } from './lib/install-info.ts';
 import { createPeerNames } from './lib/peer-names.ts';
+import { createUpdaterTask } from './lib/updater-task.ts';
 import { createDeviceStore } from './security/devices.ts';
 import { createPairingStore } from './security/pairing.ts';
 import { createSafeFetch } from './security/safe-fetch.ts';
@@ -427,6 +429,8 @@ async function main(): Promise<void> {
     pairing,
     devices,
     peerNames,
+    install: readInstallInfo(),
+    updaterTask: createUpdaterTask(),
     logs: log,
     health,
     runtime,

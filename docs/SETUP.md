@@ -45,7 +45,7 @@ After the extension is loaded:
 - **The `portly` command** works in terminals opened after the install (`portly --status`
   checks everything).
 
-**Updating:** `portly --update` installs the newest release: it copies your database to
+**Updating:** **Update** in Settings → About, or `portly --update`, installs the newest release: it copies your database to
 `backups\` first, keeps the previous version in `app.previous`, and puts both back if the new one
 doesn't start. Click **Reload** on the extension when it says the extension changed. Details,
 and how releases are built and published: [Releases](setup/releases.md).

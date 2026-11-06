@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Stops Portly and removes the "Portly Server" autostart task and the native host.
+    Stops Portly and removes the "Portly Server" and "Portly Updater" tasks and the native host.
 
 .DESCRIPTION
     Removes the native messaging host com.portly.launcher first (so no browser can start the
@@ -9,7 +9,7 @@
     HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher, and the folder
     %LOCALAPPDATA%\Portly\native-host (only that folder). Then stops the scheduled task, stops
     the Portly processes it started from this folder (node.exe, or portly-supervisor.exe and
-    portly-server.exe; Stop-ScheduledTask alone ends only conhost.exe), unregisters the task and
+    portly-server.exe; Stop-ScheduledTask alone ends only conhost.exe), unregisters both tasks and
     deletes %LOCALAPPDATA%\Portly\node (only that folder: Portly's copies of node.exe)
     (ARCHITECTURE section 12). The rest of your data folder (%LOCALAPPDATA%\Portly or
     PORTLY_DATA_DIR) is never touched. Safe to run when nothing is installed.
@@ -38,6 +38,7 @@ function Invoke-Uninstall {
     $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
     $scriptPath = Join-Path $PSScriptRoot 'uninstall-autostart.ps1'
     $task = Get-HbTask
+    $updater = Get-HbUpdaterTask
     $running = @(Get-HbSupervisorProcesses -RepoRoot $repoRoot)
     $port = (Get-HbPortSetting -Scope Task).Port
     $dataDir = Get-HbDataDir -Scope Task -RepoRoot $repoRoot
@@ -62,6 +63,7 @@ function Invoke-Uninstall {
     } else {
         Write-HbField 'Task' 'not installed'
     }
+    Write-HbField 'Updater task' $(if ($null -ne $updater) { "$PortlyTaskPath$PortlyUpdaterTaskName ($($updater.State))" } else { 'not installed' })
     Write-HbField 'Running now' (Format-HbProcessList -Trees $running)
     foreach ($key in $hostKeys) {
         $state = if ($null -eq $key.Value) { 'not registered' } elseif ($key.Value) { "registered -> $($key.Value)" } else { 'registered (no value)' }
@@ -91,6 +93,11 @@ function Invoke-Uninstall {
             Write-HbInfo "- unregister the task '$PortlyTaskName'"
         } else {
             Write-HbInfo '- no task to unregister'
+        }
+        if ($null -ne $updater) {
+            Write-HbInfo "- stop and unregister the task '$PortlyUpdaterTaskName'"
+        } else {
+            Write-HbInfo '- no updater task to unregister'
         }
         if ($runtimeDirExists) {
             Write-HbInfo "- delete the folder $runtimeDir ($PortlySupervisorProgram, $PortlyServerProgram; only that folder)"
@@ -128,6 +135,12 @@ function Invoke-Uninstall {
             Write-HbOk 'Autostart task removed'
         } else {
             Write-HbOk "The task '$PortlyTaskName' is not installed; nothing to remove"
+        }
+        if ($null -ne $updater) {
+            Write-HbStep "Removing the task '$PortlyUpdaterTaskName'"
+            if ("$($updater.State)" -eq 'Running') { Stop-ScheduledTask -TaskName $PortlyUpdaterTaskName -TaskPath $PortlyTaskPath }
+            Unregister-ScheduledTask -TaskName $PortlyUpdaterTaskName -TaskPath $PortlyTaskPath -Confirm:$false
+            Write-HbOk 'Updater task removed'
         }
     } catch {
         if (Test-HbAccessDenied $_) {

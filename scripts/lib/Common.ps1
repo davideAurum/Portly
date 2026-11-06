@@ -22,6 +22,10 @@ if ($PSVersionTable.PSEdition -eq 'Desktop') { $env:PSModulePath = Get-HbWindows
 
 $PortlyTaskName = 'Portly Server'
 $PortlyTaskPath = '\'
+$PortlyUpdaterTaskName = 'Portly Updater'
+$PortlyUpdaterDescription = 'Installs the newest Portly release when asked to from Settings > About. Its command takes no input from Portly.'
+# Below the 20 minutes after which the server counts a quiet run as dead (modules/update).
+$PortlyUpdaterTimeLimitMinutes = 15
 $PortlyDefaultPort = 5757
 # The Node.js major Portly runs on: the one package.json pins in engines.node (">=24 <25"), which
 # npm's engine-strict enforces, so Resolve-HbNode refuses any other major too (older or newer).
@@ -766,6 +770,66 @@ function Write-HbTaskDefinition {
     Write-HbField 'Start missed' ("StartWhenAvailable $($settings.StartWhenAvailable)")
     Write-HbField 'Priority' $settings.Priority
     Write-HbField 'Restart' ("RestartCount $($settings.RestartCount), RestartInterval $($settings.RestartInterval) (launch failures only; the supervisor restarts crashes)")
+}
+
+function Get-HbUpdaterTask {
+    return Get-ScheduledTask -TaskName $PortlyUpdaterTaskName -TaskPath $PortlyTaskPath -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+}
+
+# The Portly Updater task exactly as install-autostart.ps1 registers it, in a release install only
+# (ARCHITECTURE section 18). No trigger: it runs when the server asks with schtasks /run. Task
+# Scheduler owns the process, so the update outlives the server it stops. Its command is fixed
+# here, so nothing from a request reaches it. Its working folder is never the install, which could
+# then not be renamed.
+function New-HbUpdaterDefinition {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$UserId
+    )
+    $powershell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $script = Join-Path $RepoRoot 'scripts\portly.ps1'
+    $argument = '--headless "{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" --update --unattended' -f $powershell, $script
+    $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\conhost.exe" -Argument $argument `
+        -WorkingDirectory ([System.Environment]::GetFolderPath('LocalApplicationData'))
+    $principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes $PortlyUpdaterTimeLimitMinutes) `
+        -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
+    return New-ScheduledTask -Action $action -Principal $principal -Settings $settings -Description $PortlyUpdaterDescription
+}
+
+# Whether a registered task already is this definition, so it can be left alone.
+function Test-HbUpdaterCurrent {
+    param($Task, [Parameter(Mandatory)]$Definition)
+    if ($null -eq $Task) { return $false }
+    $current = @($Task.Actions)[0]
+    $wanted = @($Definition.Actions)[0]
+    return "$($current.Execute)" -eq "$($wanted.Execute)" -and "$($current.Arguments)" -eq "$($wanted.Arguments)" -and
+        "$($current.WorkingDirectory)" -eq "$($wanted.WorkingDirectory)" -and
+        "$($Task.Settings.ExecutionTimeLimit)" -eq "$($Definition.Settings.ExecutionTimeLimit)"
+}
+
+function Write-HbUpdaterDefinition {
+    param([Parameter(Mandatory)]$Task)
+    $action = @($Task.Actions)[0]
+    $settings = $Task.Settings
+    Write-HbField 'Task' ("$PortlyTaskPath$PortlyUpdaterTaskName")
+    Write-HbField 'Description' $Task.Description
+    Write-HbField 'Trigger' 'none - runs when the server asks (schtasks /run)'
+    Write-HbField 'Principal' ("$($Task.Principal.UserId), LogonType $($Task.Principal.LogonType), RunLevel $($Task.Principal.RunLevel)")
+    Write-HbField 'Execute' $action.Execute
+    Write-HbField 'Arguments' $action.Arguments
+    Write-HbField 'WorkingDir' $action.WorkingDirectory
+    Write-HbField 'Time limit' $settings.ExecutionTimeLimit
+    Write-HbField 'Instances' $settings.MultipleInstances
+}
+
+# A line of a log file with the home folder masked (ARCHITECTURE section 17), wherever it is, as
+# maskUserPaths does in the server for C:\Users.
+function ConvertTo-HbMaskedLine {
+    param([AllowEmptyString()][string]$Line, [string]$HomeDir = $env:USERPROFILE)
+    if ($HomeDir) { $Line = [regex]::Replace($Line, [regex]::Escape($HomeDir), '~', 'IgnoreCase') }
+    return [regex]::Replace($Line, '(?i)([a-z]:[\\/]users[\\/])[^\\/"'']+', '$1~')
 }
 
 # Human-readable meaning of a task's LastTaskResult (exit codes 1, 3 and 4 come from the server).

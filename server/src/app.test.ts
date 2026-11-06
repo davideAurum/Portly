@@ -274,7 +274,7 @@ describe('app: modules', () => {
   });
 
   it('registers every module', () => {
-    expect(MODULES.map((m) => m.name)).toEqual(['core', 'accounts', 'bookmarks', 'search', 'weather', 'todoist', 'calendar', 'mail', 'feeds', 'sports', 'music', 'pairing', 'devices', 'diagnostics']);
+    expect(MODULES.map((m) => m.name)).toEqual(['core', 'accounts', 'bookmarks', 'search', 'weather', 'todoist', 'calendar', 'mail', 'feeds', 'sports', 'music', 'pairing', 'devices', 'diagnostics', 'update']);
     const { modules } = createApp(ctx, { webDist: null });
     expect(modules.every((m) => m.ok)).toBe(true);
   });
@@ -289,10 +289,12 @@ describe('app: modules', () => {
  * the OAuth callback are exempt routes (no token, no pairing, no cookie); they are listed as local
  * because they are not declared with an access tag.
  */
-const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' | 'local'>> = {
+const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' | 'own-page' | 'local'>> = {
   // core
   'GET /api/health': 'local',
   'GET /api/about': 'paired',
+  'GET /api/update': 'paired',
+  'POST /api/update': 'own-page',
   'GET /api/settings': 'paired',
   'PATCH /api/settings': 'paired',
   'GET /api/profiles': 'paired',

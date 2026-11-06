@@ -506,6 +506,107 @@ if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
 
 # ---------------------------------------------------------------------------------------------
 Write-Host ''
+Write-Host 'The unattended update (install.ps1 and portly.ps1 functions)' -ForegroundColor White
+
+# Both scripts run as soon as they are loaded, so only their functions are loaded here.
+foreach ($scriptName in @('install.ps1', 'portly.ps1')) {
+    $parseTokens = $null
+    $parseErrors = $null
+    $scriptAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot $scriptName), [ref]$parseTokens, [ref]$parseErrors)
+    foreach ($definition in $scriptAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
+        . ([scriptblock]::Create($definition.Extent.Text))
+    }
+}
+
+# The table shared/src/version.test.ts passes too, so the installer and the server agree.
+$versionTable = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'shared\src\__fixtures__\version-order.json')) | ConvertFrom-Json
+$versionProblems = New-Object System.Collections.Generic.List[string]
+$ascending = @($versionTable.ascending)
+for ($i = 0; $i -lt $ascending.Count; $i++) {
+    for ($j = 0; $j -lt $ascending.Count; $j++) {
+        $order = Compare-InstVersion -One $ascending[$i] -Other $ascending[$j]
+        if ($null -eq $order -or [System.Math]::Sign($order) -ne [System.Math]::Sign($i - $j)) { $versionProblems.Add("$($ascending[$i]) against $($ascending[$j]): $order") }
+    }
+}
+foreach ($pair in @($versionTable.equal)) {
+    if ((Compare-InstVersion -One $pair[0] -Other $pair[1]) -ne 0) { $versionProblems.Add("$($pair[0]) equals $($pair[1])") }
+}
+foreach ($bad in @($versionTable.invalid)) {
+    if ($null -ne (Compare-InstVersion -One $bad -Other '1.2.3') -or $null -ne (Compare-InstVersion -One '1.2.3' -Other $bad)) { $versionProblems.Add("reads '$bad'") }
+    if ((Test-InstNewer -Candidate $bad -Than '1.2.3') -or (Test-InstNewer -Candidate '1.2.3' -Than $bad)) { $versionProblems.Add("counts '$bad' as newer") }
+}
+Assert-That -Name 'Compare-InstVersion passes the table of shared/src/version.ts' -Condition ($versionProblems.Count -eq 0) -Detail ($versionProblems -join '; ')
+Assert-That -Name 'Compare-InstVersion reads nothing longer than 40 characters, as shared/src/version.ts' -Condition (
+    $null -ne (Compare-InstVersion -One "1.2.3-$('a' * 34)" -Other '1.2.3') -and $null -eq (Compare-InstVersion -One "1.2.3-$('a' * 35)" -Other '1.2.3'))
+Assert-That -Name 'Test-InstNewer: only a certainly newer version' -Condition (
+    (Test-InstNewer -Candidate '0.2.0-alpha.10' -Than '0.2.0-alpha.9') -and -not (Test-InstNewer -Candidate '0.2.0-alpha.9' -Than '0.2.0-alpha.10') -and
+    -not (Test-InstNewer -Candidate '0.2.0-alpha.7' -Than '0.2.0-alpha.7'))
+
+Assert-That -Name 'ConvertTo-HbMaskedLine masks a home folder anywhere, and any C:\Users path' -Condition (
+    (ConvertTo-HbMaskedLine -Line 'Could not move D:\Profiles\You\x to y' -HomeDir 'd:\profiles\you') -ceq 'Could not move ~\x to y' -and
+    (ConvertTo-HbMaskedLine -Line 'in C:\Users\Riley Hollis\AppData\Local\Portly' -HomeDir '') -ceq 'in C:\Users\~\AppData\Local\Portly' -and
+    (ConvertTo-HbMaskedLine -Line 'plain text' -HomeDir '') -ceq 'plain text' -and (ConvertTo-HbMaskedLine -Line '' -HomeDir '') -ceq '')
+
+$fakeInstaller = Join-Path $workDir 'fake-installer.ps1'
+[System.IO.File]::WriteAllLines($fakeInstaller, [string[]]@(
+        'Write-Host "Unpacking into $env:USERPROFILE\app.new"',
+        'Write-Warning "From $env:USERPROFILE\warned"',
+        '[Console]::Error.WriteLine("Error in $env:USERPROFILE\stderr")',
+        'exit 7'))
+$updateLog = Join-Path $workDir 'update-logs\update.log'
+$loggedCode = Invoke-HbLoggedInstall -Powershell (Get-Process -Id $PID).Path -Installer $fakeInstaller -Arguments @() -LogFile $updateLog
+$loggedText = [System.IO.File]::ReadAllText($updateLog)
+Assert-That -Name 'Invoke-HbLoggedInstall passes the exit code on and keeps every kind of output, with the home folder masked' -Condition (
+    $loggedCode -eq 7 -and $loggedText.Contains('Unpacking into ~\app.new') -and $loggedText.Contains('~\warned') -and $loggedText.Contains('~\stderr') -and
+    $loggedText.IndexOf($env:USERPROFILE, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) -Detail "exit $loggedCode`n$loggedText"
+$null = Invoke-HbLoggedInstall -Powershell (Get-Process -Id $PID).Path -Installer $fakeInstaller -Arguments @() -LogFile $updateLog
+Assert-That -Name 'Invoke-HbLoggedInstall replaces the log on each run' -Condition (
+    ([regex]::Matches([System.IO.File]::ReadAllText($updateLog), 'Unpacking')).Count -eq 1)
+
+# What --unattended hands the installer, without running one.
+$realLoggedInstall = ${function:Invoke-HbLoggedInstall}
+function Invoke-HbLoggedInstall {
+    param($Powershell, $Installer, $Arguments, $LogFile)
+    $script:loggedArguments = @($Arguments)
+    $script:loggedFile = $LogFile
+    return 7
+}
+$unattendedRoot = Join-Path $workDir 'unattended\app'
+$null = New-Item -ItemType Directory -Path (Join-Path $unattendedRoot 'scripts') -Force
+[System.IO.File]::WriteAllText((Join-Path $unattendedRoot 'scripts\install.ps1'), 'exit 0')
+$unattendedCode = Invoke-HbReleaseUpdate -RepoRoot $unattendedRoot -Info ([pscustomobject]@{ releaseRepo = 'example/portly' }) -Options @('--unattended')
+$statusIndex = [array]::IndexOf($script:loggedArguments, '-StatusFile')
+Assert-That -Name 'portly --update --unattended: only a newer version, no browser, the status file and update.log in the data folder' -Condition (
+    $unattendedCode -eq 7 -and $script:loggedArguments -contains '-OnlyNewer' -and $script:loggedArguments -contains '-NoBrowser' -and
+    $statusIndex -ge 0 -and $script:loggedArguments[$statusIndex + 1] -like '*\update-status.json' -and
+    $script:loggedFile -like '*\logs\update.log' -and $script:loggedArguments -notcontains '-Force' -and
+    $script:loggedArguments[0] -eq '-InstallDir' -and $script:loggedArguments[1] -eq (Split-Path -Parent $unattendedRoot)) -Detail ($script:loggedArguments -join ' ')
+${function:Invoke-HbLoggedInstall} = $realLoggedInstall
+
+if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
+    $updaterRoot = 'C:\Install\app'
+    $updaterUser = Get-HbCurrentUserId
+    $updater = New-HbUpdaterDefinition -RepoRoot $updaterRoot -UserId $updaterUser
+    $updaterAction = @($updater.Actions)[0]
+    Assert-That -Name 'the updater task runs conhost --headless powershell portly.ps1 --update --unattended, with nothing else on its command line' -Condition (
+        $updaterAction.Execute -eq "$env:SystemRoot\System32\conhost.exe" -and
+        $updaterAction.Arguments -eq ('--headless "{0}\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "C:\Install\app\scripts\portly.ps1" --update --unattended' -f $env:SystemRoot)) -Detail $updaterAction.Arguments
+    Assert-That -Name 'the updater task never works inside the install, which could then not be renamed' -Condition (
+        $updaterAction.WorkingDirectory -and -not $updaterAction.WorkingDirectory.StartsWith($updaterRoot, [System.StringComparison]::OrdinalIgnoreCase)) -Detail $updaterAction.WorkingDirectory
+    Assert-That -Name 'the updater task has no trigger, and runs as the current user, Interactive, Limited' -Condition (
+        @(@($updater.Triggers) | Where-Object { $null -ne $_ }).Count -eq 0 -and $updater.Principal.UserId -eq $updaterUser -and
+        "$($updater.Principal.LogonType)" -eq 'Interactive' -and "$($updater.Principal.RunLevel)" -eq 'Limited')
+    Assert-That -Name 'the updater task: 15 minutes at most, below the server''s 20, on battery too, one at a time, on demand, no restarts' -Condition (
+        $updater.Settings.ExecutionTimeLimit -eq 'PT15M' -and $updater.Settings.DisallowStartIfOnBatteries -eq $false -and
+        $updater.Settings.StopIfGoingOnBatteries -eq $false -and "$($updater.Settings.MultipleInstances)" -eq 'IgnoreNew' -and
+        $updater.Settings.AllowDemandStart -eq $true -and $updater.Settings.RestartCount -eq 0) -Detail "$($updater.Settings.ExecutionTimeLimit) $($updater.Settings.RestartCount)"
+    Assert-That -Name 'Test-HbUpdaterCurrent: the same definition is current, none or another install is not' -Condition (
+        (Test-HbUpdaterCurrent -Task $updater -Definition $updater) -and -not (Test-HbUpdaterCurrent -Task $null -Definition $updater) -and
+        -not (Test-HbUpdaterCurrent -Task (New-HbUpdaterDefinition -RepoRoot 'C:\Other\app' -UserId $updaterUser) -Definition $updater))
+}
+
+# ---------------------------------------------------------------------------------------------
+Write-Host ''
 Write-Host 'Extension ID and native host' -ForegroundColor White
 
 # Observed values: Chromium's own vectors (components/crx_file/id_util_unittest.cc), where
@@ -1254,6 +1355,7 @@ try {
                 Assert-That -Name 'install-autostart.ps1 -DryRun prints the task (no trigger), every host file and both registry values' -Condition ($missing.Count -eq 0) -Detail (
                     'missing: ' + ($missing -join ' | ') + "`n" + $install.Text)
                 Assert-That -Name 'install-autostart.ps1 -DryRun (Browser mode) has no logon trigger' -Condition (-not $install.Text.Contains('Logon mode: at log on'))
+                Assert-That -Name 'install-autostart.ps1 -DryRun in a Git checkout has no updater task' -Condition (-not $install.Text.Contains($PortlyUpdaterTaskName)) -Detail $install.Text
             } else {
                 $noKey = & $run 'install-autostart.ps1' @('-DryRun')
                 Assert-That -Name 'install-autostart.ps1 -DryRun refuses the native host while the manifest has no "key"' -Condition (
@@ -1291,6 +1393,8 @@ try {
                 $uninstall.Text.Contains('Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher') -and
                 $uninstall.Text.Contains('Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher') -and
                 $uninstall.Text.Contains((Get-HbNativeHostDir)) -and $uninstall.Text.Contains((Get-HbRuntimeDir))) -Detail $uninstall.Text
+            Assert-That -Name 'uninstall-autostart.ps1 -DryRun names the updater task' -Condition (
+                $uninstall.Text.Contains('Updater task') -and $uninstall.Text.Contains('updater task')) -Detail $uninstall.Text
             Assert-That -Name 'uninstall-autostart.ps1 removes the native host before it stops and unregisters the task' -Condition (
                 $hostStep -ge 0 -and $taskStep -gt $hostStep) -Detail $uninstall.Text
 

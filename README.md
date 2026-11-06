@@ -104,7 +104,7 @@ irm https://davideaurum.github.io/install.ps1 | iex
 
 installs the latest release package (its own Node.js included; no Git, npm or administrator rights)
 into `%LOCALAPPDATA%\Programs\Portly`, with autostart and the `portly` command;
-`portly --update` updates it. Details: [docs/SETUP.md](docs/SETUP.md#install); building and
+`portly --update`, or **Update** in Settings → About, updates it. Details: [docs/SETUP.md](docs/SETUP.md#install); building and
 publishing releases: [docs/setup/releases.md](docs/setup/releases.md).
 
 ## Quick start (from the source code)

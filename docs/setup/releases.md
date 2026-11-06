@@ -65,6 +65,14 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
   accounts share port 5757 and the scheduled task name `\Portly Server`. To use Portly on another
   account, first remove it from the one that has it with `scripts\uninstall-autostart.ps1` there
   (its data stays), and later put it back with `scripts\install-autostart.ps1`.
+- **From Settings → About.** In a release install, the **Updates** card says when a newer release
+  exists, and **Update** does the same as `portly --update`, through a second scheduled task,
+  **Portly Updater**. It only moves to a newer version, and it writes its output to
+  `<data folder>\logs\update.log`. Update is on Portly's own page, which the Pages site links to
+  ([why](other-pcs.md#updating-the-main-pc-from-another-pc)). The first version with the button has
+  to be installed with `portly --update`, because the task comes with it.
+- **Only one install runs at a time.** A second `portly --update` stops at once and says so, even
+  from another window or an SSH login.
 - **Already a Git checkout on this PC?** One Portly per Windows user: installing a release
   replaces the scheduled task and launcher of the checkout with the release's. Stop using the
   checkout's `portly` command (the release installs its own).

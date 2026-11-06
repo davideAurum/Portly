@@ -36,11 +36,17 @@ describe('forwardToPages', () => {
   });
 
   it('forwards every other settings section (and an unknown one), Devices included: the Pages site approves other PCs too', async () => {
-    for (const hash of ['#/settings/about', '#/settings/devices', '#/settings/diagnosticsx', '#/settings']) {
+    for (const hash of ['#/settings/general', '#/settings/devices', '#/settings/diagnosticsx', '#/settings']) {
       const t = setup({ hash });
       expect(await t.run()).toBe('forwarded');
       expect(t.replace).toHaveBeenCalledWith(`https://user.github.io/${hash}`);
     }
+  });
+
+  it('stays on #/settings/about, where an update is started, without asking the server', async () => {
+    const t = setup({ hash: '#/settings/about' });
+    expect(await t.run()).toBe('stay');
+    expect(t.pagesUrl).not.toHaveBeenCalled();
   });
 
   it('stays on another PC’s page load (through the reverse proxy) without asking the server', async () => {

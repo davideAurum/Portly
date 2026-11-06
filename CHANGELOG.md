@@ -7,9 +7,18 @@ gets a new one when its own code changes. Each entry names the extension version
 ## Unreleased
 
 ### What's new
+- **An Update button.** Settings → About says when a newer release exists, and **Update** installs
+  it, from the main PC or from another PC, with the same backup and rollback as `portly --update`.
+  It is on Portly's own page, which the Pages site links to, so another PC connects at the Tailscale
+  address once ([why](docs/setup/other-pcs.md#updating-the-main-pc-from-another-pc)). This version
+  has to be installed with `portly --update`, and the button can first be used on the next release.
 - **A notice when Portly is older than the site.** The Pages site and Portly update separately, so
   the site can get ahead. A page using Portly now says when that happens and which version each is
   on, with the command to run on that PC. It starts no update and makes no extra requests.
+
+### Changed
+- **One install at a time.** A second `portly --update` stops at once and says so, even from another
+  window or an SSH login.
 
 ## 0.2.0-alpha.7 (2026-11-05)
 

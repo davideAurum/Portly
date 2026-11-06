@@ -25,7 +25,7 @@
  *    `Origin`, an absent-or-`same-origin` `Sec-Fetch-Site` (`image` routes also `none`),
  *    `X-Portly: 1` (not for `image` routes) and the Content-Type of step 4, then a device cookie
  *    (`__Host-portly_device`) that verifies (else 401 `login_required`) and a route declared
- *    `paired()` (else 403 `local_only`). Routes declared `enrollment()` (asking for and polling a
+ *    `paired()` or `ownPage()` (else 403 `local_only`). Routes declared `enrollment()` (asking for and polling a
  *    device request) need no cookie; a valid one is still noted. The device's last use is recorded
  *    (at most every 10 min) and the cookie's lifetime renewed then, unless the route set or cleared
  *    the cookie itself or stopped the device. No CORS headers, except for the Pages site:
@@ -75,7 +75,7 @@ import type { AppEnv, PagesPreflight } from '../context.ts';
 import { PayloadTooLargeError, errorResponse } from '../lib/errors.ts';
 import { withLogContext } from '../lib/log-context.ts';
 import { pathForLog, type LogFields, type Logger } from '../lib/logger.ts';
-import { BODY_LIMITS, deviceMayCall, pagesMayCall, type RouteMeta, type RouteTable } from '../lib/routes.ts';
+import { BODY_LIMITS, deviceMayCall, pagesDeviceMayCall, pagesMayCall, type RouteMeta, type RouteTable } from '../lib/routes.ts';
 import { cookieHeader, readCookie } from './cookies.ts';
 import type { DeviceRecord, DeviceStore } from './devices.ts';
 import { foreignOrigins as defaultForeignOrigins, isNamedForeignOrigin, webOrigin, type ForeignOriginTracker } from './foreign-origins.ts';
@@ -502,7 +502,7 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
       return refuse(c, 'login_required', 'This device is not connected to Portly', verdict.reason, verdict.fields);
     }
     const { record } = verdict;
-    if (!deviceMayCall(meta)) return refuse(c, 'local_only', 'Only available on the main PC', 'local_only', { deviceId: record.id });
+    if (!pagesDeviceMayCall(meta)) return refuse(c, 'local_only', 'Only available on the main PC', 'local_only', { deviceId: record.id });
 
     c.set('deviceId', record.id);
     devices?.touch(record.id);
