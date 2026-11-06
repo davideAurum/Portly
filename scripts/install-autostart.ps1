@@ -22,6 +22,11 @@
                  HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher
                  (default value = path of com.portly.launcher.json; no administrator rights)
 
+    A release install also gets the task "Portly Updater", which the server starts for an update
+    from Settings > About: no trigger, a fixed command (portly.ps1 --update --unattended), left
+    alone when it is already current or running (ARCHITECTURE section 18). A failure there is only
+    a warning: Portly works without it, and the page says the updater is not set up.
+
     The new-tab extension asks that host to start Portly when the browser opens and when a new
     tab finds Portly not running; the host runs "schtasks /run /tn \Portly Server", so Task
     Scheduler - not the browser - starts the server. Only the Portly extension may use the host:
@@ -198,6 +203,7 @@ function Invoke-Install {
     $userId = Get-HbCurrentUserId
     $webBuilt = Test-HbWebBuilt -RepoRoot $repoRoot
     $existing = Get-HbTask
+    $releaseInstall = $null -ne (Get-HbReleaseInfo -RepoRoot $repoRoot)
     $running = @(Get-HbSupervisorProcesses -RepoRoot $repoRoot)
     $startsText = if ($Trigger -eq 'Logon') {
         if ($LogonDelaySeconds -gt 0) { "at sign-in of $userId, after $LogonDelaySeconds s (-Trigger Logon)" } else { "at sign-in of $userId (-Trigger Logon)" }
@@ -261,6 +267,11 @@ function Invoke-Install {
             Write-HbNativeHostPlan -Plan $nativeHost
             Write-Host ''
         }
+        if ($releaseInstall) {
+            Write-HbStep 'Updater task (dry run - not registered)'
+            Write-HbUpdaterDefinition -Task (New-HbUpdaterDefinition -RepoRoot $repoRoot -UserId $userId)
+            Write-Host ''
+        }
         Write-HbStep 'Steps a real run would take'
         foreach ($problem in $problems) { Write-Warning "Must be fixed first: $problem" }
         if ($webBuilt) {
@@ -279,6 +290,13 @@ function Invoke-Install {
             Write-HbInfo "- replace the existing task '$PortlyTaskName' (state: $($existing.State), $(Get-HbTaskTriggerMode -Task $existing) mode) with the $Trigger mode task"
         } else {
             Write-HbInfo "- register the task '$PortlyTaskName' for $userId ($Trigger mode)"
+        }
+        if ($releaseInstall) {
+            if (Test-HbUpdaterCurrent -Task (Get-HbUpdaterTask) -Definition (New-HbUpdaterDefinition -RepoRoot $repoRoot -UserId $userId)) {
+                Write-HbInfo "- leave the task '$PortlyUpdaterTaskName' as it is: it is current"
+            } else {
+                Write-HbInfo "- register the task '$PortlyUpdaterTaskName' for $userId"
+            }
         }
         if ($null -ne $nativeHost) {
             Write-HbInfo "- write the $(@($nativeHost.Files).Count) native host files to $($nativeHost.Destination)"
@@ -365,6 +383,8 @@ function Invoke-Install {
         Write-HbOk "Wrote $($nativeHost.Destination) and the registry keys for Chrome and Edge (allowed extension: $($nativeHost.ExtensionId))"
     }
 
+    if ($releaseInstall) { Install-HbUpdaterTask -RepoRoot $repoRoot -UserId $userId }
+
     # Replace whatever the previous registration started. Stop-ScheduledTask ends only conhost,
     # so the node supervisor/server started from this folder are stopped explicitly.
     $current = Get-HbTask
@@ -450,6 +470,27 @@ function Invoke-Install {
     Write-HbLogTail -LogFile $supervisorLog -Lines 10
     Write-HbLogTail -LogFile $logFile -Lines 20
     return 1
+}
+
+# Registers the Portly Updater task, or leaves it alone. An update runs this script from inside that
+# task, and what replacing a running task does is unknown, so a running one always stays as it is:
+# a changed definition then arrives with the next update.
+function Install-HbUpdaterTask {
+    param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)][string]$UserId)
+    try {
+        $definition = New-HbUpdaterDefinition -RepoRoot $RepoRoot -UserId $UserId
+        $current = Get-HbUpdaterTask
+        if (Test-HbUpdaterCurrent -Task $current -Definition $definition) {
+            Write-HbOk "The '$PortlyUpdaterTaskName' task is up to date"
+        } elseif ($null -ne $current -and "$($current.State)" -eq 'Running') {
+            Write-HbInfo "The '$PortlyUpdaterTaskName' task is running, so it stays as it is until the next update."
+        } else {
+            $null = Register-ScheduledTask -TaskName $PortlyUpdaterTaskName -TaskPath $PortlyTaskPath -InputObject $definition -Force
+            Write-HbOk "Registered the '$PortlyUpdaterTaskName' task: it runs when you press Update in Settings > About"
+        }
+    } catch {
+        Write-Warning "Could not register the '$PortlyUpdaterTaskName' task ($($_.Exception.Message)). Portly works without it; only the Update button does not. portly --update --force tries again."
+    }
 }
 
 # The one-time extension step after the ID was pinned with a manifest "key".

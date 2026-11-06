@@ -12,7 +12,7 @@ import { createApp } from '../app.ts';
 import type { AppEnv } from '../context.ts';
 import { getLogContext } from '../lib/log-context.ts';
 import { createMemoryLogger } from '../lib/logger.ts';
-import { RouteTable, enrollment, exempt, multipart, paired, samePc } from '../lib/routes.ts';
+import { RouteTable, enrollment, exempt, multipart, ownPage, paired, samePc } from '../lib/routes.ts';
 import { parseBody } from '../lib/validate.ts';
 import type { ModuleEntry } from '../modules/index.ts';
 import { createTestContext, type TestContext } from '../testing/test-context.ts';
@@ -48,6 +48,7 @@ const remoteModule: ModuleEntry = {
     app.post('/api/uploads', multipart('upload'), paired(), async (c) => c.json({ bytes: (await c.req.arrayBuffer()).byteLength }));
     app.post('/api/local', (c) => c.json({ reached: true }));
     app.post('/api/this-pc', samePc(), (c) => c.json({ reached: true }));
+    app.post('/api/own-page', ownPage(), (c) => c.json({ reached: true }));
     app.post('/api/enroll', enrollment(), (c) => c.json({ deviceId: c.get('deviceId') ?? null, remote: c.get('remoteClient') ?? false }));
     app.get('/api/raw', paired(), () => new Response('raw', { status: 200, headers: { 'Content-Type': 'text/plain' } }));
     app.delete('/api/leave', paired(), (c) => {
@@ -189,6 +190,13 @@ describe('request gate: other PCs (remote origin)', () => {
         expect(await errorCode(res), `${method} ${path}`).toBe('local_only');
       }
       expect(refusals().every((l) => l.fields?.reason === 'local_only' && l.fields?.deviceId === deviceId)).toBe(true);
+    });
+
+    it('lets a device with its cookie call an own-page route', async () => {
+      const res = await testRequest(app, 'POST', '/api/own-page', { headers: remoteHeaders(secret) });
+      expect(res.status).toBe(200);
+      const anonymous = await testRequest(app, 'POST', '/api/own-page', { headers: remoteHeaders(null) });
+      expect(anonymous.status).toBe(401);
     });
 
     it('refuses the OAuth callback on the remote host: sign-in stays on the main PC', async () => {
@@ -495,8 +503,8 @@ describe('request gate: other PCs (remote origin)', () => {
         expect(corsHeaders(foreign)).toEqual([]);
       });
 
-      it('keeps what another PC may call: local-only, same-PC and the OAuth callback stay on the main PC', async () => {
-        for (const path of ['/api/local', '/api/this-pc']) {
+      it('keeps what another PC may call: local-only, same-PC, own-page and the OAuth callback stay away from this site', async () => {
+        for (const path of ['/api/local', '/api/this-pc', '/api/own-page']) {
           const res = await testRequest(bothApp, 'POST', path, { headers: remotePagesHeaders(device.secret) });
           expect(res.status, path).toBe(403);
           expect(await errorCode(res), path).toBe('local_only');

@@ -368,6 +368,18 @@ limits: the secret opens only what a device may call, Settings → Devices remov
 it, and the address of the main PC is never published (each browser is told it once; the site's CSP allows only
 `https://*.ts.net`, §4.3).
 
+**Starting an update is the one power a device has that the Pages site does not** (§18, design/update-button.md).
+*Decided 2026-11-05:* an approved PC may start one, an exception to "what is decided on this PC stays here" made
+because working from another PC is the reason for the button. It can only move Portly forward to the newest published
+release. The route is `ownPage()` (§4.2): Portly's own page on this PC, or a device cookie on the remote port, never
+the Pages site on any PC. The Pages site and the releases are published from one GitHub account, and the SHA-256 comes
+from the same release (§18), so a route the site could call would let whoever took that account publish a bad release
+and have the site start it, with nobody choosing to. On Portly's own page the code asking is what this server served,
+so a person still has to click. A stolen device secret works as a cookie only from inside the tailnet. Accepted: a
+stolen approved PC can start an update when one is available, until it is removed; a release that starts but breaks
+the remote port leaves other PCs out until someone is at the main PC; a person clicking Update on a bad release, as
+with `portly --update` today.
+
 ### 4.2 Request gate (global middleware, `app.use('*', …)`, in this order)
 1. Reject (400) if the raw request path (the target as received, query and fragment cut off; an absolute-form target
    is reduced to its path) does not start with `/`, or contains `//`, `\`, `%2f`, `%5c` (case-insensitive), `%00` or
@@ -392,7 +404,8 @@ it, and the address of the main PC is never published (each browser is told it o
    PC (the vault reset, the browser bookmark import, the OAuth start, the OAuth client settings, every pairing route
    but `POST /api/pairings`, approving, denying and removing devices, the diagnostics report); `enrollment()` one anyone on the remote port may call without a device
    cookie (asking for and polling a device request, and the name the connect screen fills in; the Pages site may
-   not). Default deny — untagged routes are
+   not); `ownPage()` one a connected device may call with its cookie, as Portly's own page on this PC may, but never
+   the Pages site on any PC (starting an update, §4.1). Default deny — untagged routes are
    local-only: `POST /api/pairings`, the OAuth callback and unknown routes.
    `RouteTable.match` **fails closed**: each registration a request matches lets in the callers its tags name, the
    route lets in only the callers every registration agrees on, and that set must be exactly one level's (so a
@@ -427,8 +440,8 @@ it, and the address of the main PC is never published (each browser is told it o
    (refusals included) and `remotePages`; preflights as in the Pages branch; `GET /api/health` passes; the OAuth
    callback is refused (403 `local_only`); everything else needs `X-Portly: 1`, `Sec-Fetch-Site`
    `cross-site`/`same-site`/absent, the Content-Type of step 4, then the device secret in `X-Portly-Device` that
-   verifies (else 401 `login_required`; any cookie is ignored) and a route a device may call (else 403 `local_only`).
-   `enrollment()` routes need no secret. The device's last use is recorded as for a cookie; nothing is renewed.
+   verifies (else 401 `login_required`; any cookie is ignored) and a route a device may call, `ownPage()` routes
+   excepted (else 403 `local_only`). `enrollment()` routes need no secret. The device's last use is recorded as for a cookie; nothing is renewed.
 4. Non-exempt `/api` requests must have: `X-Portly: 1`; `Origin` absent or in the origin allowlist;
    `Sec-Fetch-Site` absent or `same-origin` (reject `same-site`, `cross-site`, `none`); for bodies,
    `Content-Type: application/json`, except routes declared multipart (uploads, imports).
@@ -581,7 +594,7 @@ ingest; invalid → null.
 ### 4.8 Outbound fetch (`server/src/security/safe-fetch.ts`)
 `safeFetch(url, {method?, headers?, body?, policy, timeoutMs = 10000, maxBytes?, as: 'json'|'text'|'bytes', redirect?})
 → Promise<{status, headers, url, data}>`.
-- `policy: 'provider'` — fixed vendor endpoints (Google, Graph, Todoist, Open-Meteo, suggestion providers,
+- `policy: 'provider'` — fixed vendor endpoints (Google, Graph, Todoist, Open-Meteo, GitHub's releases API, suggestion providers,
   DuckDuckGo/Google favicon services). Uses global fetch; timeouts + size caps only.
 - `policy: 'public'` — untrusted/discovered URLs (bookmark pages, icon & manifest hrefs, site-meta, ICS feeds).
   Uses `fetch` **and** `Agent` imported from the pinned `undici` package (never mixed with global fetch) with
@@ -931,8 +944,15 @@ current}[], requests: {id, code, label, browser, createdAt, expiresAt}[]}` · `P
 [same-pc] → `{approved: true}` / 404 · `POST /api/devices/requests/:id/deny` [same-pc] → 204 / 404 ·
 `DELETE /api/devices/:id` [same-pc] → 204 / 404 · `GET /api/device` [paired] → `{device: {id, label, createdAt}}` for
 the device the gate verified (none → 409 `not_configured`) · `DELETE /api/device` [paired] → 204 (the device
-disconnects itself; its cookie cleared). Every other route except those listed `samePc()` or local-only in §4.2 is
-`paired()`; `GET /api/about` and the diagnostics summary blank the paths for a device as for the Pages site.
+disconnects itself; its cookie cleared). Every other route except those listed `samePc()`, `ownPage()` or local-only
+in §4.2 is `paired()`; `GET /api/about` and the diagnostics summary blank the paths for a device as for the Pages site.
+
+**Update** (§18; `shared/src/update.ts`, `modules/update`) — `GET /api/update[?refresh=1]` [paired] →
+`{availability: 'ready'|'checkout'|'unsupervised'|'no-task', installed, latest|null, updateAvailable, notesUrl|null,
+checkedAt|null, checkFailed, run|null}`; only a `ready` install asks GitHub, hourly at most (`?refresh=1`: once a
+minute) · `POST /api/update {version}` [own-page] → 202 `{run}`; 409 `conflict` when it cannot work here, `version` is
+no longer the newest or not newer than this one, or Windows refused the task; 502 `provider_error` when GitHub cannot be
+reached; a run already going answers 202 with that run.
 
 **Diagnostics** (§17; `shared/src/diagnostics.ts`, all [paired]) — `GET /api/diagnostics/summary` ·
 `GET /api/diagnostics/logs?scope=memory|files&…` · `GET /api/diagnostics/health/:key/history?limit=` ·
@@ -1371,6 +1391,11 @@ then choose what it is used for":
   **Import & export** warns in the import preview that an import replaces the launch pad in every synced browser and
   offers the newest backup of each kind, *Backup before the last import* and *Backup before sync*.
 The app reads `?oauth=<result>` on load, shows a toast, and strips it from the URL.
+Updates (§18): wherever a server answers, About has an **Updates** card (`settings/sections/UpdatesCard.tsx`): whether a
+newer release exists, and how an update went. **Update** is on Portly's own page only; the Pages site shows the same
+state and links there, to `<appUrl>#/settings/about` on the main PC and `<remoteOrigin>/#/settings/about` on another
+PC.
+
 Hybrid mode (§16): About in the server build ends with **Paired browsers** (`PairedBrowsersCard`: the configured Pages
 address or how to set it, every pairing with label, created and last used, "Old address" when not made for the
 current origin, Revoke); in the Pages build it shows the local server panel as a card instead. `#/pair?nonce=…`
@@ -1673,6 +1698,13 @@ administrator rights:
   It writes exactly one frame, appends one line to `launcher.log` (rotated at 64 KB) and exits 0. Nothing from the
   message reaches a command line; the worst a caller can do is start Portly.
 
+**Updater task** (release installs only, ARCHITECTURE §18, design/update-button.md): `\Portly Updater`, registered next
+to `\Portly Server` by `install-autostart.ps1`, no trigger, action `conhost.exe --headless powershell.exe -NoProfile
+-ExecutionPolicy Bypass -File "<install>\app\scripts\portly.ps1" --update --unattended`, `WorkingDirectory =
+%LOCALAPPDATA%` (never `app`, which could then not be renamed), current user, `Interactive`, `Limited`, `-ExecutionTimeLimit`
+15 minutes (below the server's 20 for a run gone quiet), `IgnoreNew`, no restarts. A current or running task is left alone;
+a failure is only a warning, and the page then says `no-task`. `uninstall-autostart.ps1` removes it, `status.ps1` shows it.
+
 **Install and uninstall order:** `install-autostart.ps1` validates first (Node 24+, dependencies, `PORTLY_*` via
 `server/src/config.ts`, manifest key; `-DryRun` prints the task, every file with content, both registry values and the
 copies' state, and exits 1 if something must be fixed), builds `web/dist` if missing, makes or refreshes the named
@@ -1759,9 +1791,9 @@ like the server's own page; otherwise it uses its in-browser copy. The two datas
 happens once, on the server's own page. Everything else, account sign-in, OAuth client setup, approving other PCs (§20)
 and the vault reset included, happens on the Pages site: there is one page. The server's own page forwards to the Pages
 site (keeping the query and hash, so the OAuth callback's `?oauth=` result arrives there) unless it is approving a
-pairing (`#/pair`), showing diagnostics (`#/settings/diagnostics`, §17: full diagnostics on
-this PC must open even when the Pages site or the connection to it is what is broken) or the Pages site can't be
-reached, when it serves the app as the offline
+pairing (`#/pair`), showing About (`#/settings/about`, where an update is started, §18), showing diagnostics
+(`#/settings/diagnostics`, §17: full diagnostics on this PC must open even when the Pages site or the connection to
+it is what is broken) or the Pages site can't be reached, when it serves the app as the offline
 fallback (`web/src/app/pagesForward.ts`; the HTML CSP's `connect-src` allows the Pages origin for that check). User
 guide: `docs/setup/pages-local-server.md`.
 
@@ -2274,9 +2306,21 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
   deleted.
 - **Trust:** the SHA-256 comes from the same release as the package, so it detects corruption, not a
   compromised repository; packages are not code-signed (alpha).
+- **Update button** (design/update-button.md; §10.5 for the card): the server never installs anything. `POST /api/update` (§7) runs `schtasks /run /tn "\Portly Updater"` (§12), whose
+  fixed command is `portly --update --unattended`, so the update outlives the server it stops. That adds to
+  `install.ps1`: `-OnlyNewer` (anything not newer stops before changing anything, `-Force` included; a port of
+  `shared/src/version.ts` with one test table), `-StatusFile` (the stage in closed values only, written in one step, never
+  a path) and, for every run but a dry run, one install at a time per user in any session (the mutex
+  `Global\PortlyInstall-<user SID>`). With nobody watching, downloads get a 10-minute limit, and the output goes to
+  `<data folder>\logs\update.log`, replaced on each run, home folder masked. The server reads
+  `<data folder>\update-status.json` through a strict schema; a run that goes quiet counts as `failed`, or `done` when
+  this server already runs its target. Portly's own page follows a run by polling `GET /api/update` every 2 s, treats
+  errors as the expected restart, says so after 5 minutes without an answer, and reloads 3 s after a `done` it followed.
+  It has no hybrid controller, so the 45-second switch of §16 never takes the page away mid-update.
 - **Checks:** `scripts/check-release.ps1` (`Restore-InstDatabase` on a temporary data folder, install, the installed CLI and autostart dry run, a server started from the
   package on a free port with a temporary data folder, re-install, `-Force` update with backup and `app.previous`,
-  an update blocked by a file in use leaving `app` whole, refusals) — in `ci.yml` with a test package and in `release.yml` with the real one.
+  an update blocked by a file in use leaving `app` whole, refusals, unattended updates with their status files read by
+  the package's own schema) — in `ci.yml` with a test package and in `release.yml` with the real one.
 
 ---
 
@@ -2354,7 +2398,8 @@ start (its redirect lands on the main PC; accounts connected there work from eve
 tokens; app-password accounts and Todoist can be connected from any PC), the OAuth client settings, every pairing
 route, removing other devices, approving and denying requests, and the diagnostics report (the logs, level and jobs
 stay open, as for the Pages site: scrubbed and home-directory-masked). `/api/about` and the diagnostics summary blank
-the paths. The later items (design phase 4): the extension's server address, OAuth sign-in from other PCs, a passkey
+the paths. A device on Portly's own page, with its cookie, may also start an update, which the Pages site may not on
+any PC (§4.1). The later items (design phase 4): the extension's server address, OAuth sign-in from other PCs, a passkey
 second factor, an optional `Tailscale-User-Login` identity check as defence in depth (the real check with a second
 device showed Serve replaces a forged one from inside the tailnet; any other proxy may pass it through).
 

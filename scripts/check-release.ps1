@@ -19,6 +19,11 @@
        and app\ stays whole and linked.
     6. A wrong -Sha256 and a missing package are refused and change nothing.
     7. install.ps1 -DryRun changes nothing.
+    8. Unattended updates (-OnlyNewer -StatusFile): a newer package, one that is not newer, a file
+       in use, one install at a time, and a version that does not start (put back, and not even
+       the old one starts), each leaving a status file the package's own schema accepts and that
+       holds no path. The cases that would start Portly run install.ps1's functions here with
+       stand-ins for the task, so the real task is never touched.
     Before all of this, install.ps1's Restore-InstDatabase is run on a temporary data folder: after
     a failed update the database copied before it is put back, and the one the failed version left
     is kept in backups\.
@@ -82,6 +87,28 @@ function Invoke-CheckScript {
         $env:PORTLY_DATA_DIR = $previousData
         $ErrorActionPreference = $previousPreference
     }
+}
+
+# A copy of the package with its release.json changed by $Change, in a folder of its own, so no
+# portly-release.json describes it.
+function New-CheckPackage {
+    param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Folder, [Parameter(Mandatory)][scriptblock]$Change)
+    $null = New-Item -ItemType Directory -Path $Folder -Force
+    $copy = Join-Path $Folder (Split-Path -Leaf $Source)
+    Copy-Item -LiteralPath $Source -Destination $copy
+    $archive = [System.IO.Compression.ZipFile]::Open($copy, 'Update')
+    try {
+        $entry = $archive.GetEntry('release.json')
+        $reader = New-Object System.IO.StreamReader($entry.Open())
+        try { $info = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
+        & $Change $info
+        $entry.Delete()
+        $writer = New-Object System.IO.StreamWriter(($archive.CreateEntry('release.json')).Open(), (New-Object System.Text.UTF8Encoding($false)))
+        try { $writer.Write(($info | ConvertTo-Json -Depth 5)) } finally { $writer.Dispose() }
+    } finally {
+        $archive.Dispose()
+    }
+    return $copy
 }
 
 function Test-Junction {
@@ -203,6 +230,8 @@ try {
         $autostart.Text.Contains("the task runs $bundledNode instead") -and
         $autostart.Text.Contains("""$bundledNode"" ""%~dp0launcher.mjs"" %*") -and
         $autostart.Text.Contains('valid (checked with server\src\config.ts)')) -Detail $autostart.Text
+    Assert-That -Name 'the installed install-autostart.ps1 -DryRun shows the updater task with its fixed command' -Condition (
+        $autostart.Text.Contains("$PortlyUpdaterTaskName") -and $autostart.Text.Contains("-File ""$(Join-Path $app 'scripts\portly.ps1')"" --update --unattended")) -Detail $autostart.Text
     if ($null -ne $builtOut) {
         $publish = Invoke-CheckScript -Path (Join-Path $PSScriptRoot 'publish-release.ps1') -Arguments @('-OutDir', $builtOut, '-DryRun')
         Assert-That -Name 'publish-release.ps1 refuses a test build (uncommitted changes or a local node.exe)' -Condition (
@@ -264,19 +293,9 @@ try {
         $null -ne (Get-HbReleaseInfo -RepoRoot $previous)) -Detail $second.Text
 
     # The same package with another extension version: the Reload notice must come last.
-    $extensionDir = Join-Path $workDir 'extension-changed'
-    $null = New-Item -ItemType Directory -Path $extensionDir -Force
-    $extensionZip = Join-Path $extensionDir (Split-Path -Leaf $zip)
-    Copy-Item -LiteralPath $zip -Destination $extensionZip
-    $changedInfo = Get-Content -LiteralPath (Join-Path $app 'release.json') -Raw | ConvertFrom-Json
-    $changedInfo.extensionVersion = "$($changedInfo.extensionVersion)-check"
-    $archive = [System.IO.Compression.ZipFile]::Open($extensionZip, 'Update')
-    try {
-        $archive.GetEntry('release.json').Delete()
-        $writer = New-Object System.IO.StreamWriter(($archive.CreateEntry('release.json')).Open(), (New-Object System.Text.UTF8Encoding($false)))
-        try { $writer.Write(($changedInfo | ConvertTo-Json -Depth 5)) } finally { $writer.Dispose() }
-    } finally {
-        $archive.Dispose()
+    $extensionZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'extension-changed') -Change {
+        param($changedInfo)
+        $changedInfo.extensionVersion = "$($changedInfo.extensionVersion)-check"
     }
     $changed = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $extensionZip, '-Force') + $common)
     # The console wraps a long warning, so the output is compared with its line breaks folded.
@@ -321,6 +340,163 @@ try {
     Assert-That -Name 'install.ps1 -DryRun changes nothing' -Condition (
         $dry.ExitCode -eq 0 -and $dry.Text.Contains('Dry run finished') -and
         (Get-Item -LiteralPath (Join-Path $app 'release.json')).LastWriteTimeUtc -eq $stamp) -Detail $dry.Text
+
+    Write-Host ''
+    Write-Host 'Unattended update (-OnlyNewer -StatusFile)' -ForegroundColor White
+    $statusFile = Join-Path $dataDir 'update-status.json'
+    $statusCheck = Join-Path $workDir 'check-status.mjs'
+    [System.IO.File]::WriteAllLines($statusCheck, [string[]]@(
+            "import { readFileSync } from 'node:fs';",
+            'const { UpdateRunSchema } = await import(process.env.CHECK_SHARED);',
+            "const text = readFileSync(process.env.CHECK_STATUS, 'utf8').replace(/^\uFEFF/, '');",
+            'const parsed = UpdateRunSchema.safeParse(JSON.parse(text));',
+            'if (!parsed.success) console.log(JSON.stringify(parsed.error.issues));',
+            'process.exit(parsed.success ? 0 : 1);'))
+
+    # What the server leaves before it starts the task.
+    function Write-RequestedRun {
+        param([Parameter(Mandatory)][string]$Id, [Parameter(Mandatory)][string]$From, [Parameter(Mandatory)][string]$To)
+        $requested = [ordered]@{
+            id = $Id; state = 'requested'; from = $From; to = $To; startedAt = '2026-01-02T03:04:05.678Z'
+            finishedAt = $null; code = $null; extensionChanged = $false
+        }
+        [System.IO.File]::WriteAllText($statusFile, ($requested | ConvertTo-Json -Compress), (New-Object System.Text.UTF8Encoding($false)))
+    }
+
+    function Read-Run { return [System.IO.File]::ReadAllText($statusFile) | ConvertFrom-Json }
+
+    # The run in the status file, read by the installed package's own schema, holds no path.
+    function Assert-Run {
+        param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$State, [string]$Code, [string]$To, [string]$Id)
+        $text = [System.IO.File]::ReadAllText($statusFile)
+        $run = $text | ConvertFrom-Json
+        $previousShared = $env:CHECK_SHARED
+        $env:CHECK_SHARED = ([System.Uri](Join-Path $app 'shared\src\index.ts')).AbsoluteUri
+        $env:CHECK_STATUS = $statusFile
+        try {
+            $schema = (& (Join-Path $app 'runtime\node.exe') --no-warnings $statusCheck 2>&1 | Out-String)
+            $schemaOk = $LASTEXITCODE -eq 0
+        } finally {
+            $env:CHECK_SHARED = $previousShared
+            $env:CHECK_STATUS = $null
+        }
+        Assert-That -Name $Name -Condition (
+            $run.state -ceq $State -and "$($run.code)" -ceq $Code -and (-not $To -or $run.to -ceq $To) -and (-not $Id -or $run.id -ceq $Id) -and
+            $null -ne $run.finishedAt -and $schemaOk -and $text -notmatch '[A-Za-z]:\\|\\\\|/Users/') -Detail "$text $schema"
+    }
+
+    $unattended = @('-OnlyNewer', '-StatusFile', $statusFile) + $common
+    $installed = "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')"
+    Write-RequestedRun -Id 'check-not-newer' -From $installed -To $installed
+    $stamp = (Get-Item -LiteralPath (Join-Path $app 'release.json')).LastWriteTimeUtc
+    $notNewer = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip, '-Force') + $unattended)
+    Assert-That -Name 'the same version is refused, -Force or not, and nothing changes' -Condition (
+        $notNewer.ExitCode -eq 1 -and $notNewer.Text.Contains('is not newer') -and
+        (Get-Item -LiteralPath (Join-Path $app 'release.json')).LastWriteTimeUtc -eq $stamp) -Detail $notNewer.Text
+    Assert-Run -Name 'the status file says failed / not_newer, on the run the server asked for' -State 'failed' -Code 'not_newer' -Id 'check-not-newer'
+
+    Write-RequestedRun -Id 'check-done' -From $installed -To '99.0.0'
+    $newerZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'newer') -Change { param($info) $info.version = '99.0.0' }
+    $newer = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $newerZip) + $unattended)
+    Assert-That -Name 'a newer package installs' -Condition (
+        $newer.ExitCode -eq 0 -and "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $newer.Text
+    Assert-Run -Name 'the status file says done, on the run the server asked for' -State 'done' -To '99.0.0' -Id 'check-done'
+    Assert-That -Name 'the run keeps the server''s start time and first version' -Condition (
+        ([System.IO.File]::ReadAllText($statusFile)).Contains('"startedAt":"2026-01-02T03:04:05.678Z"') -and (Read-Run).from -ceq $installed)
+
+    $olderZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'older') -Change { param($info) $info.version = '98.0.0' }
+    $older = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $olderZip) + $unattended)
+    Assert-That -Name 'an older package is refused once it is unpacked, and leaves no app.new' -Condition (
+        $older.ExitCode -eq 1 -and $older.Text.Contains('is not newer') -and -not (Test-Path -LiteralPath (Join-Path $installDir 'app.new')) -and
+        "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $older.Text
+    Assert-Run -Name 'with nothing requested a run of its own is reported: failed / not_newer' -State 'failed' -Code 'not_newer'
+    Assert-That -Name 'that run has a new id and starts from the installed version' -Condition (
+        (Read-Run).id -cne 'check-done' -and (Read-Run).from -ceq '99.0.0')
+
+    $inUseZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'in-use') -Change { param($info) $info.version = '99.0.1' }
+    $held = [System.IO.File]::Open((Join-Path $app 'release.json'), 'Open', 'Read', 'Read')
+    try {
+        $inUse = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $inUseZip) + $unattended)
+    } finally {
+        $held.Dispose()
+    }
+    Assert-That -Name 'a file in use stops the update, and the installed version stays' -Condition (
+        $inUse.ExitCode -eq 1 -and "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $inUse.Text
+    Assert-Run -Name 'the status file says failed / file_in_use' -State 'failed' -Code 'file_in_use' -To '99.0.1'
+
+    Write-RequestedRun -Id 'check-locked' -From '99.0.0' -To '99.0.2'
+    $lockedZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'locked') -Change { param($info) $info.version = '99.0.2' }
+    $otherInstall = New-Object System.Threading.Mutex($true, "Global\PortlyInstall-$([System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value)")
+    try {
+        $locked = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $lockedZip) + $unattended)
+        $lockedDry = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $lockedZip, '-DryRun') + $common)
+    } finally {
+        $otherInstall.ReleaseMutex()
+        $otherInstall.Dispose()
+    }
+    Assert-That -Name 'a second install stops at once, while a dry run still works' -Condition (
+        $locked.ExitCode -eq 1 -and $locked.Text.Contains('Another Portly install or update is running') -and -not $locked.Text.Contains('Unpacking') -and
+        $lockedDry.ExitCode -eq 0) -Detail "$($locked.Text) $($lockedDry.Text)"
+    Assert-Run -Name 'the status file says failed / unknown, on the run the server asked for' -State 'failed' -Code 'unknown' -Id 'check-locked'
+
+    # install.ps1 again, here and with stand-ins for the task, so that "the new version does not
+    # start" happens without Portly ever being started or the real task being touched.
+    function Invoke-FakedUpdate {
+        param([Parameter(Mandatory)][string]$Package, [Parameter(Mandatory)][int[]]$AutostartResults)
+        $InstallDir = $installDir
+        $ReleaseRepo = 'example/portly'
+        $Version = ''
+        $ZipPath = $Package
+        $Sha256 = ''
+        $PagesUrl = ''
+        $Trigger = 'Browser'
+        $Force = $false
+        $SkipAutostart = $false
+        $SkipCli = $true
+        $NoBrowser = $true
+        $DryRun = $false
+        $OnlyNewer = $true
+        $StatusFile = $statusFile
+        $InstTriggerGiven = $false
+        $InstManifestName = 'portly-release.json'
+        $InstPlatform = 'win-x64'
+        $InstTaskName = 'Portly Server'
+        $InstMoveAttempts = 20
+        $InstUnattendedTimeoutSeconds = 600
+        $script:InstRun = $null
+        $script:InstFailCode = 'unknown'
+        $script:autostartResults = New-Object System.Collections.Generic.Queue[int]
+        foreach ($result in $AutostartResults) { $script:autostartResults.Enqueue($result) }
+        function Get-InstTask { param($AppDir) return [pscustomobject]@{ Exists = $true; Ours = $true; Mode = 'Browser'; Runs = '' } }
+        function Set-InstTaskEnabled { param([bool]$Enabled) return $true }
+        function Stop-ScheduledTask { }
+        function Start-ScheduledTask { }
+        function Invoke-InstAutostart { param($AppDir, $Mode) return $script:autostartResults.Dequeue() }
+        $previousData = $env:PORTLY_DATA_DIR
+        $env:PORTLY_DATA_DIR = $dataDir
+        try {
+            return Invoke-InstMain 6> $null | Select-Object -Last 1
+        } finally {
+            $env:PORTLY_DATA_DIR = $previousData
+            $script:InstRun = $null
+        }
+    }
+
+    Write-RequestedRun -Id 'check-rolled-back' -From '99.0.0' -To '99.1.0'
+    $badZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'bad') -Change { param($info) $info.version = '99.1.0' }
+    $rollback = Invoke-FakedUpdate -Package $badZip -AutostartResults @(1, 0)
+    Assert-That -Name 'a version that does not start is put back, with the database copied before the update' -Condition (
+        $rollback -eq 1 -and "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0' -and
+        "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot (Join-Path $installDir 'app.failed')) 'version')" -eq '99.1.0' -and
+        @(Get-ChildItem -LiteralPath (Join-Path $dataDir 'backups') -Filter 'portly-failed-99.1.0-*.db' -File).Count -eq 1) -Detail "exit $rollback"
+    Assert-Run -Name 'the status file says rolled-back / did_not_start' -State 'rolled-back' -Code 'did_not_start' -To '99.1.0' -Id 'check-rolled-back'
+
+    Write-RequestedRun -Id 'check-neither' -From '99.0.0' -To '99.1.1'
+    $worseZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'worse') -Change { param($info) $info.version = '99.1.1' }
+    $neither = Invoke-FakedUpdate -Package $worseZip -AutostartResults @(1, 1)
+    Assert-That -Name 'when the old version does not start either, its files are still put back' -Condition (
+        $neither -eq 1 -and "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail "exit $neither"
+    Assert-Run -Name 'the status file says failed / did_not_start, not rolled-back' -State 'failed' -Code 'did_not_start' -To '99.1.1' -Id 'check-neither'
 
     $exitCode = if ($script:failures.Count -eq 0) { 0 } else { 1 }
 } catch {

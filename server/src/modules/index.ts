@@ -23,6 +23,7 @@ import * as pairing from './pairing/index.ts';
 import * as search from './search/index.ts';
 import * as sports from './sports/index.ts';
 import * as todoist from './todoist/index.ts';
+import * as update from './update/index.ts';
 import * as weather from './weather/index.ts';
 
 export interface ModuleEntry {
@@ -48,6 +49,7 @@ export const MODULES: readonly ModuleEntry[] = Object.freeze([
   { name: 'pairing', prefixes: pairing.prefixes, register: pairing.register },
   { name: 'devices', prefixes: devices.prefixes, register: devices.register },
   { name: 'diagnostics', prefixes: diagnostics.prefixes, register: diagnostics.register },
+  { name: 'update', prefixes: update.prefixes, register: update.register },
 ]);
 
 export type { ModuleStatus } from '../context.ts';

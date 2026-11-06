@@ -5,8 +5,9 @@
  *   → Promise<{status, headers, url, data}>`
  *
  * Policies:
- * - `provider`    fixed vendor endpoints (Google, Graph, Todoist, Open-Meteo, suggestion
- *                 providers, favicon services): global `fetch`; timeouts and size caps only.
+ * - `provider`    fixed vendor endpoints (Google, Graph, Todoist, Open-Meteo, GitHub's releases
+ *                 API, suggestion providers, favicon services): global `fetch`; timeouts and
+ *                 size caps only.
  * - `public`      untrusted/discovered URLs (bookmark pages, icon & manifest hrefs, site meta,
  *                 ICS feeds): `fetch` **and** `Agent` from the pinned `undici` package (never mixed
  *                 with global fetch) with `connect: {lookup: guardedLookup}` — every address a

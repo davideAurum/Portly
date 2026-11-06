@@ -1806,6 +1806,17 @@ Items:
   published to the Pages site (811a2be). Still open: the rows below, and two faults that update
   found in `portly --update` (the last rows of the table).
 
+- **B.8 An Update button** (L; the owner's ask of 2026-11-05): Settings → About offers a newer release,
+  on the main PC and on approved PCs, through a second scheduled task. Starting one is `ownPage()`,
+  never the Pages site, because the site and the releases share one GitHub account. Design:
+  [design/update-button.md](design/update-button.md), with the assessment before it in
+  [design/remote-update.md](design/remote-update.md).
+
+  *Done when:* a release after the one that adds it installs through the button from the main PC's
+  page and from another PC's, a failed one rolls back and says so, and the row below is closed.
+  *Status:* built 2026-11-05 with checks in temporary folders, stand-ins for the task and the card in
+  a real browser with `/api/update` faked. Not released, and never run against a real task.
+
 ## Checks never run for real
 
 One row per *Not tested* note still open from the commit history, with the item that performs it.
@@ -1817,6 +1828,8 @@ date and the outcome once a row has been run for real.
 | The GitHub widget with a real fine-grained token: saving it, the board, and above all what `statusCheckRollup` gives (GitHub's docs say fine-grained tokens can't use the Checks API, so CI results may show as unknown). The query and parser were run against a real account only with a `gh` login token, which the app refuses; every test uses an in-memory GitHub | this commit, 2026-11-05 | the owner's first token | not yet |
 | **Open in GitHub Desktop** from a real browser: the browser's prompt, then Desktop opening a cloned repository and offering to clone another. The address was read from GitHub Desktop 3.6.10's own code; the tests only check the address is built | this commit, 2026-11-05 | the owner's first token | not yet |
 | The GitHub widget on the published Pages site against the real `api.github.com`: GitHub's CORS answer was checked with a preflight from the command line, not from a browser | this commit, 2026-11-05 | the next Pages publish | not yet |
+| The Update button against the real thing: registering a real `\Portly Updater` task with `install-autostart.ps1`, `schtasks` starting it with no visible window, `install.ps1` stopping `\Portly Server` from inside it, the check against the real GitHub API through the server, a real run writing `update-status.json` and `update.log`, `portly --update --force` setting up a missing task, a real browser being refused `POST /api/update` from the Pages site and allowed from Portly's own page, and the card through a real update from each PC: its look in light, and the other PC's first connect at the Tailscale address. Scripts ran in temporary folders with stand-ins for the task, and the card in a real browser with `/api/update` faked in the page | this commit, 2026-11-05 | the release after next, on the home PC (design/update-button.md section 14) | not yet |
+| The OpenSSH steps of design/remote-update.md section 8 on a real main PC: key sign-in, `portly --update` over SSH, a dropped connection during an update, whether `command=` limits the key; the `\Portly Update` task, never registered; the outage length of a real update; scratch tests and a dry run only | this commit, 2026-11-05 | the owner's SSH setup, after the review of that document | not yet |
 | The "older than this site" notice in a real browser, with its look in light and dark, on the live Pages site against a server that really is older, on a connected PC and in a paired browser, and going away after a real `portly --update`; only component tests with a fake controller ran | this commit, 2026-11-05 | the next time a Pages publish gets ahead of the main PC | not yet |
 | `get-extension.ps1` downloading from the live Pages site (not published yet) and loading the unpacked folder in a real browser; the checks use a zip made in a temporary folder | this commit, 2026-11-04 | next Pages publish | 2026-11-04 (0.2.0-alpha.6, Pages f73c92f): the download half passed. The live files match the build byte for byte, and the script downloaded, checked and unpacked 0.5.3 into a scratch folder; a second run left it alone. Loading the folder in a real browser not done |
 | `publish-static.ps1` accepting `get-extension.ps1`, `portly-extension.zip` and `portly-extension.json` in a real publish, and the zip's bytes surviving it, so that its SHA-256 still matches on the site; only the dry run and name checks ran | this commit, 2026-11-04 | next Pages publish | 2026-11-04 (0.2.0-alpha.6, Pages f73c92f): the real publish took all three, and the live zip's SHA-256 matches `portly-extension.json` (d2c69ec4…18dc) |

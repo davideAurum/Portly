@@ -13,7 +13,8 @@
  *   main PC; the paths stay there) and the vault; no paired-browsers card, since pairing the
  *   Pages site is set up and approved on the main PC.
  *
- * The Pages build also gets the local server panel as a card (`LocalServerPanel`).
+ * Wherever a server answers, the Updates card follows (`UpdatesCard`). The Pages build also gets the
+ * local server panel as a card (`LocalServerPanel`).
  */
 import type { ReactNode } from 'react';
 import { KeyRound, LockKeyhole } from 'lucide-react';
@@ -31,6 +32,7 @@ import { ErrorState } from '../../ui/ErrorState.tsx';
 import { FactList, SettingsCard } from '../../ui/Section.tsx';
 import { SkeletonLines } from '../../ui/Skeleton.tsx';
 import { PairedBrowsersCard } from './PairedBrowsersCard.tsx';
+import { UpdatesCard } from './UpdatesCard.tsx';
 import styles from '../../styles/settings.module.css';
 
 interface Fact {
@@ -141,6 +143,7 @@ export default function AboutSettings() {
           <FactList items={facts(about.data, caps, storageKind)} />
         )}
       </SettingsCard>
+      {caps.backend === 'server' ? <UpdatesCard /> : null}
       {caps.pagesBuild ? <LocalServerPanel variant="card" /> : null}
       {caps.backend === 'server' && !caps.remoteClient ? <PairedBrowsersCard /> : null}
       <SettingsCard title="Keyboard shortcuts">

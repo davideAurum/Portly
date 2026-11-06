@@ -28,7 +28,9 @@ import { newRunId } from '../lib/log-context.ts';
 import { createTestLogger, type LogHub, type Logger } from '../lib/logger.ts';
 import { createManualScheduler, type ManualScheduler } from '../lib/scheduler.ts';
 import { createSettingsService } from '../lib/settings.ts';
+import type { InstallInfo } from '../lib/install-info.ts';
 import type { PeerNames } from '../lib/peer-names.ts';
+import type { UpdaterTask } from '../lib/updater-task.ts';
 import { createDeviceStore } from '../security/devices.ts';
 import { createPairingStore } from '../security/pairing.ts';
 import { createSafeFetch, type SafeFetch } from '../security/safe-fetch.ts';
@@ -57,6 +59,12 @@ export interface TestContextOverrides {
   now?: () => number;
   /** The name lookup for PCs that ask to connect (default: never a name, nothing spawned). */
   peerNames?: PeerNames;
+  /** Default: a Git checkout. */
+  install?: InstallInfo;
+  /** Default: no task, and nothing is ever run. */
+  updaterTask?: UpdaterTask;
+  /** Started by the supervisor (default false). */
+  supervised?: boolean;
 }
 
 export interface TestContext extends AppContext {
@@ -111,12 +119,14 @@ export function createTestContext(overrides: TestContextOverrides = {}): TestCon
     pairing: createPairingStore({ db, log, now: overrides.now }),
     devices: createDeviceStore({ db, log, now: overrides.now }),
     peerNames: overrides.peerNames ?? { lookup: async () => null },
+    install: overrides.install ?? { releaseRepo: null },
+    updaterTask: overrides.updaterTask ?? { exists: async () => false, start: async () => false },
     logs,
     health,
     runtime: {
       boot: newRunId(),
       startedAt: Date.now(),
-      supervised: false,
+      supervised: overrides.supervised ?? false,
       restart: null,
       inflight: createInFlightRequests(),
       modules: [],

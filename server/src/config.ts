@@ -13,6 +13,8 @@ import type { LogLevel, OAuthProvider } from '@portly/shared';
 export interface ConfigPaths {
   /** `<dataDir>/portly.db` */
   db: string;
+  /** `<dataDir>/update-status.json`: how the last update run went (design/update-button.md). */
+  updateStatus: string;
   /** `<dataDir>/vault.key` */
   vaultKey: string;
   /** `<dataDir>/logs` */
@@ -405,6 +407,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       logFile: path.join(logsDir, 'server.log'),
       supervisorLog: path.join(logsDir, 'supervisor.log'),
       backupsDir: path.join(dataDir, 'backups'),
+      updateStatus: path.join(dataDir, 'update-status.json'),
       webDist: path.join(REPO_ROOT, 'web', 'dist'),
     }),
   });

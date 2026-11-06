@@ -117,6 +117,12 @@ function Invoke-Status {
                 Write-HbField 'Autostart' "$($task.State) ($mode mode)"
                 $lastRun = if ($info.LastRunTime -and $info.LastRunTime.Year -gt 2000) { $info.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'never' }
                 Write-HbField 'Last run' "$lastRun, result $(Format-HbTaskResult -Code $info.LastTaskResult)"
+                $releaseInfo = $null
+                try { $releaseInfo = Get-HbReleaseInfo -RepoRoot $repoRoot } catch { }
+                if ($null -ne $releaseInfo) {
+                    $updater = Get-HbUpdaterTask
+                    Write-HbField 'Updater' $(if ($null -ne $updater) { "$($updater.State)" } else { 'not set up (portly --update --force sets it up)' })
+                }
                 $taskProgram = Get-HbTaskProgram -Task $task
                 if ($taskProgram -and -not (Test-Path -LiteralPath $taskProgram -PathType Leaf)) {
                     Write-Warning "The task's program no longer exists: $taskProgram. Re-run scripts\install-autostart.ps1."
@@ -221,6 +227,15 @@ function Invoke-Status {
                     Write-HbField 'Runs as' "$PortlySupervisorProgram and $PortlyServerProgram in $(Split-Path -Parent $taskProgram) ($source)"
                 } elseif ($taskProgram) {
                     Write-HbField 'Runs as' "$([System.IO.Path]::GetFileName($taskProgram)) (no Portly-named copies; install-autostart.ps1 makes them)"
+                }
+                if ($null -ne $release) {
+                    $updater = Get-HbUpdaterTask
+                    if ($null -ne $updater) {
+                        $updaterAction = @($updater.Actions)[0]
+                        Write-HbField 'Updater' "$($updaterAction.Execute) $($updaterAction.Arguments)"
+                    } else {
+                        Write-HbField 'Updater' 'not set up (portly --update --force sets it up)'
+                    }
                 }
             }
         }
