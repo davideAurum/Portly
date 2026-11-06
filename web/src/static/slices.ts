@@ -452,22 +452,30 @@ export function getBackups(ctx: StaticContext): BackupsSlice {
 }
 
 // ---------------------------------------------------------------------------
-// Accounts (Microsoft only in the static build; never exported)
+// Accounts (the kinds the browser signs in to itself; never exported)
 // ---------------------------------------------------------------------------
+
+/** The account kinds of the in-browser backend, which are also its OAuth providers. */
+export const BROWSER_ACCOUNT_KINDS = ['microsoft', 'spotify'] as const;
+export type BrowserAccountKind = (typeof BROWSER_ACCOUNT_KINDS)[number];
+
+function isBrowserAccountKind(value: unknown): boolean {
+  return (BROWSER_ACCOUNT_KINDS as readonly unknown[]).includes(value);
+}
 
 /** An account row (the server's `accounts` row, minus the config the OAuth kinds never use). */
 export interface StoredAccount {
   id: string;
-  kind: 'microsoft';
+  kind: BrowserAccountKind;
   label: string;
   email: string | null;
-  /** Provider subject (`oid`): reconnects match on it. */
+  /** Provider subject (Microsoft's `oid`, Spotify's `account_id`): reconnects match on it. */
   externalId: string;
   color: string | null;
   /** The services this browser may use: asked for by the last sign-in and in its grant. */
   capabilities: Capability[];
   enabledCapabilities: Capability[];
-  /** What Microsoft reported as granted (normalized): every grant of the account, not only this sign-in's. */
+  /** What the provider reported as granted (normalized); Microsoft's is every grant of the account, not only this sign-in's. */
   grantedScopes: string[];
   /**
    * The scopes the last sign-in asked for (normalized). Refreshes and automatic re-sign-ins never
@@ -493,7 +501,7 @@ function isStringList(value: unknown): boolean {
 function isAccountRow(row: unknown): boolean {
   return (
     hasId(row) &&
-    row.kind === 'microsoft' &&
+    isBrowserAccountKind(row.kind) &&
     typeof row.label === 'string' &&
     typeof row.externalId === 'string' &&
     isCapabilityList(row.capabilities) &&
@@ -522,10 +530,11 @@ export interface StoredAccountTokens {
   accessRefreshAt: number;
   /**
    * When the sign-in itself ends (epoch ms): Microsoft gives single-page apps refresh tokens that
-   * stop working 24 hours after the interactive sign-in, however often they are used.
+   * stop working 24 hours after the interactive sign-in, however often they are used, and Spotify's
+   * last six months.
    */
   sessionExpiresAt: number;
-  /** Last automatic (`prompt=none`) sign-in attempt for this account, epoch ms. */
+  /** Last automatic (`prompt=none`) sign-in attempt for this account, epoch ms. Microsoft only. */
   silentAttemptAt: number | null;
 }
 
@@ -556,9 +565,11 @@ export function getAccountTokens(ctx: StaticContext): AccountTokensSlice {
 // OAuth client and pending sign-ins (never exported)
 // ---------------------------------------------------------------------------
 
-/** The Microsoft app registration (Application (client) ID); public clients have no secret. */
+/** The app registrations (their client IDs); public clients have no secret. */
 export interface OAuthClientsSlice {
   microsoft: { clientId: string; updatedAt: number } | null;
+  /** Absent in a slice stored before Spotify could sign in from the browser. */
+  spotify?: { clientId: string; updatedAt: number } | null;
 }
 
 export function getOAuthClients(ctx: StaticContext): OAuthClientsSlice {
@@ -566,15 +577,15 @@ export function getOAuthClients(ctx: StaticContext): OAuthClientsSlice {
   return checkedSlice<OAuthClientsSlice>(
     ctx,
     SLICE.oauthClients,
-    () => ({ microsoft: null }),
-    (value) => isRow(value) && isClient(value.microsoft),
+    () => ({ microsoft: null, spotify: null }),
+    (value) => isRow(value) && isClient(value.microsoft) && isClient(value.spotify ?? null),
   );
 }
 
 /** A pending authorization (the server's `oauth_states` row). */
 export interface StoredOAuthState {
   state: string;
-  provider: 'microsoft';
+  provider: BrowserAccountKind;
   codeVerifier: string;
   /** Account being reconnected, or null for a new connection. */
   accountId: string | null;
@@ -591,7 +602,7 @@ function isOAuthStateRow(row: unknown): boolean {
   return (
     isRow(row) &&
     typeof row.state === 'string' &&
-    row.provider === 'microsoft' &&
+    isBrowserAccountKind(row.provider) &&
     typeof row.codeVerifier === 'string' &&
     typeof row.returnTo === 'string' &&
     typeof row.silent === 'boolean' &&

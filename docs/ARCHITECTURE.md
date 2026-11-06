@@ -50,8 +50,8 @@ choice, provided it respects §4.
 - Weather: current / hourly / daily via Open-Meteo.
 - RSS feeds: RSS and Atom feeds merged newest first (server only).
 - Sports scores: favorite teams' live, upcoming and final games from ESPN's public API.
-- Music: a remote control for Spotify (what is playing, playback, device), server only. The sound plays on the
-  user's own devices; Portly never plays audio itself (§10.8).
+- Music: a remote control for Spotify (what is playing, playback, device), from the server or the browser (§16). The
+  sound plays on the user's own devices; Portly never plays audio itself (§10.8).
 - Clock / greeting widget.
 - Notes: plain-text notes saved as you type, kept in the widget's config.
 - Customization: widget grid (add / remove / move / resize, multiple instances per type), per-widget
@@ -468,7 +468,8 @@ with `portly --update` today.
   docs/design/launchpad-sync-github.md; one of the two sync connections, design/launchpad-sync.md 6.10; the repository and token are kept
   like the Todoist token, in the never-exported `github-sync` slice; and the GitHub status board's GraphQL calls, with
   its own token in the never-exported `github-status-token` slice),
-  `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://login.microsoftonline.com` and
+  `https://en.wikipedia.org` (suggestions), `https://site.api.espn.com`, `https://accounts.spotify.com` and
+  `https://api.spotify.com` (Spotify sign-in and the Music widget, §16), `https://login.microsoftonline.com` and
   `https://graph.microsoft.com` (Outlook.com sign-in and calendar, and launch pad sync's OneDrive metadata and
   uploads), `https://my.microsoftpersonalcontent.com` (launch pad sync's OneDrive downloads: the only download host
   seen for a personal account; [design](design/launchpad-sync.md) section 4), and in hybrid mode the local server origin
@@ -921,6 +922,7 @@ carry `details.reason` (`MUSIC_ERROR_REASONS`): 409 `not_configured`/`no_account
 provider, shares one upstream status for 3 s between tabs (a generation in the key keeps a read under way from
 bringing back the state from before a command; the position is moved on by the answer's age), and on a 429 sends
 nothing for that account until the wait is over. What is playing stays in `ctx.memo`, never the SQLite cache or a log.
+The in-browser backend answers the same routes with the same shapes (§16, `web/src/static/handlers/music.ts`).
 
 **Pairing** (hybrid mode, §16; `shared/src/pairing.ts`; `samePc()` except `POST /api/pairings`, which is untagged
 and so local-only: another PC has no say over pairings)
@@ -1173,7 +1175,7 @@ snippets), mark read/unread, trash, archive only when a `\Archive` special-use f
 **Spotify** — Authorization code with PKCE as a public client (no secret), authorize
 `https://accounts.spotify.com/authorize`, token `https://accounts.spotify.com/api/token`, no scope at the token endpoint.
 The redirect URI must be an IP literal: Spotify refuses `localhost` (`config.ts` spells it `127.0.0.1`, which the Host
-allowlist has), and `http` is allowed only for loopback. Scopes `user-read-playback-state user-modify-playback-state`,
+allowlist has), and `http` is allowed only for loopback; the browser-only site's is its own `https` address (§16). Scopes `user-read-playback-state user-modify-playback-state`,
 nothing else: Portly sees no library, playlists or history. A refresh may or may not return a new refresh token, and
 refresh tokens last 6 months whatever happens (a refresh does not extend them) → `reauth`. No revocation endpoint.
 **Development Mode limits** (a personal app cannot leave it: extended quota is for organizations): the app's owner needs
@@ -1181,7 +1183,9 @@ Premium or the app stops working until they have it again; 5 authenticated users
 403); 25 client IDs per developer. `GET /me` keeps `id`, `account_id` and `display_name` but no longer has `email` or
 `product`, so Portly cannot tell Premium in advance: a refused command says so. Everyone brings their own client ID
 (§4.7), so these limits are per install. The player endpoints are all still available in Development Mode.
-`modules/music/providers/spotify.ts`: `GET /me/player?additional_types=track,episode` (204 or an empty 200 = nothing active),
+`modules/music/providers/spotify-mapping.ts`, pure and copied byte for byte to `web/src/static/providers/spotifyMapping.ts`
+(a test checks, like the ESPN mapping), holds what follows; `spotify.ts` beside it and `spotifyClient.ts` beside the copy
+are the two transports. `GET /me/player?additional_types=track,episode` (204 or an empty 200 = nothing active),
 `GET /me/player/devices`, `PUT /me/player/{play,pause,seek,volume,shuffle,repeat}`, `POST /me/player/{next,previous}`,
 `PUT /me/player {device_ids: [one], play}`. Spotify does not promise when or in what order commands take effect, so the
 widget reads the state back 800 ms later. Errors are `{error: {status, message, reason}}`: only a token-shaped `reason`
@@ -1498,8 +1502,8 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   offer a choice from two accounts up). A remote control: the sound plays on the user's own devices in the provider's
   app, so it survives the tab, which is the New Tab page and rarely stays. Spotify's Web Playback SDK, which would play in
   the tab, is out on purpose: it needs a third-party script in `script-src` of the page holding the user's mail and
-  calendar, an access token in the browser (against "secrets never reach the browser"), and stops at the first link
-  clicked in that tab. The widget knows providers only through `MusicStatus.features` (hidden when the provider cannot do
+  calendar, on the server backend an access token in the browser (against "secrets never reach the browser"), and it
+  stops at the first link clicked in that tab. The widget knows providers only through `MusicStatus.features` (hidden when the provider cannot do
   it) and `allowed` (disabled when it refuses right now) and `widgets/music/providers.tsx` (name, logo, home page).
   Polls every 5 s while playing, or just after the item ends; 15 s otherwise; never in a hidden tab (TanStack stops the
   interval), and not at all after `not_configured`, `reauth_required` or `forbidden`; a 429 waits `retryAfterSeconds`. The
@@ -1511,7 +1515,8 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   old state. Sliders send one command when let go. Layout by height: compact (≤ 3 rows: art, title, transport, device
   icon), normal (seek bar, device, volume from 4 columns wide), large (≥ 6 rows: bigger art, album). Cover art is
   uncropped with nothing on top of it; the title, the art and the logo link back to the provider. Its queries set
-  `meta.persist: false`, so what is playing never reaches localStorage. Server backend only (`capabilities.music`).
+  `meta.persist: false`, so what is playing never reaches localStorage. Every backend: on the browser backend the page
+  talks to Spotify itself (§16), and the widget cannot tell the difference.
   Not in the default layout (it needs an account first). User guide: `docs/setup/spotify.md`.
 - **Notes** (`notes`) — config `{text: string (≤ 10,000 UTF-16 units, so even all-escaped JSON stays under the 64 KB
   config limit), textSize: 'sm'|'md'|'lg', font: 'sans'|'mono', spellcheck}`; defaults `''`, `md`, `sans`, on. Each field
@@ -1841,17 +1846,30 @@ and never reloads for this.
    age; on the server backend only with that instance's buster), so stored images already resolve to `blob:` URLs;
    restore the snapshot; render; start probing.
 
+**Spotify in the browser.** The in-browser backend is a Spotify client of its own, in the shape of Outlook.com's:
+`handlers/accounts.ts` signs in with PKCE (`providers/spotifyAuth.ts`, token request shared in `providers/oauthToken.ts`),
+the redirect URI being the site's address, so one Spotify app can list it next to the server's `127.0.0.1` one and keep one
+Client ID. Identity comes from `GET /me`, and the tokens join the Microsoft ones in the `account-tokens` slice (this
+browser only, never exported, not encrypted), so a tab's XSS would reach them as it would Outlook.com's; the scopes reach
+only playback. Each browser signs in on its own, for six months; there is no `prompt=none`, so Reconnect is a click.
+`handlers/music.ts` answers `/api/music/*` from `providers/spotifyClient.ts`. What the server shares between tabs, each
+page keeps for itself: the 3 s cache and the cooldown after a 429. Only a visible tab polls. A browser cannot read
+`Retry-After`, because Spotify exposes no response headers across origins (seen on its 401, not yet on a real 429), so a
+429 waits 30 s, the length of Spotify's rate-limit window. Failures are this browser's `provider` events; what is playing
+is in none of them, and answers about the player (no active device, a refused command) are not recorded, the §17 rule.
+
 **Capabilities (`web/src/capabilities.ts`)** — `getCapabilities()` returns frozen per-load flags: `pagesBuild`,
-`backend`, `remoteServer` (Pages + server), `remoteClient` (the server build opened from another PC, §20), `accounts`
-and `calendar` (every backend: on the browser backend Outlook.com signs in and its calendars sync from Microsoft Graph
-in the page, `web/src/static/handlers/accounts.ts`, `calendar.ts`), `appPasswordAccounts|icsSubscriptions|mail|feeds|music|
+`backend`, `remoteServer` (Pages + server), `remoteClient` (the server build opened from another PC, §20), `accounts`,
+`calendar` and `music` (every backend: on the browser backend Outlook.com and Spotify sign in, its calendars sync from
+Microsoft Graph and the player is called from the page, `web/src/static/handlers/accounts.ts`, `calendar.ts`, `music.ts`),
+`appPasswordAccounts|icsSubscriptions|mail|feeds|
 vault|siteMetaFetch|serverSearchSuggestions` (server backend), `googleAccounts` and `browserBookmarkImport` (server
 backend on the main PC only: off when `remoteClient` is on), `browserBackups` and `launchpadSync` (browser backend: the
 launch pad sync service is offered on Microsoft connections only where the launch pad lives in this browser,
 [design/launchpad-sync.md](design/launchpad-sync.md); its state and **Sync now** are `GET`/`POST /api/sync/launchpad[/now]` of the
 in-browser backend, one sync connection per browser, design 6.10), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
 `backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
-feeds, music) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
+feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
 browser / Switch now / Check again). Without `serverSearchSuggestions` an engine whose suggestions only the server can
 ask (Google, DuckDuckGo, Bing, YouTube) shows none and no request is made, unless this browser turned on **Wikipedia
 suggestions instead** in Settings → Search (`widgets/search/wikipediaFallback.ts`, localStorage
@@ -1963,7 +1981,7 @@ needs nothing more for them (`blob:` and `data:`, §4.3); `connect-src` gains th
 | sessionStorage | `portly:remote-enroll` | `{origin, secret}` of the request this tab waits on at the connect page (one per tab, gone once it ends) |
 | localStorage | `portly:backend-mode:<base>` | `lastMode`: the backend the last decision chose |
 | localStorage | `portly:server-seen:<base>` | `lastServerSeenAt` (epoch ms) |
-| localStorage | `portly:query-cache:static:<base>` | browser backend snapshot, buster `<version>+static`, 24 h |
+| localStorage | `portly:query-cache:static:<base>` | browser backend snapshot, buster `<version>+static`, 24 h; never music |
 | localStorage | `portly:query-cache:local-server:<base>` | server backend snapshot, buster `<version>+local-server:<instanceId>`, 7 days; never `accounts`, `oauth-clients`, mail or music |
 | sessionStorage | `portly:pairing-nonce` | the nonce of this tab's pairing request (one use) |
 | sessionStorage | `portly:mode-switch-toast` | the switch to announce after the reload |

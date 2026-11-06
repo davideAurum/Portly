@@ -13,6 +13,11 @@ gets a new one when its own code changes. Each entry names the extension version
   GitHub, or copies its clone address. It uses a read-only token you create
   ([how](docs/setup/github.md)), and Portly changes nothing on GitHub or on your disk. It works on
   Portly's own page, the Pages site, other PCs and the browser-only site.
+- **Music on the browser-only site.** The Music widget no longer needs Portly on your PC: the site
+  signs in to Spotify and controls it straight from the browser. Add the site's address as a second
+  redirect URI in your Spotify app ([how](docs/setup/spotify.md#where-it-runs)). The sign-in is kept
+  in that browser, not encrypted, and each browser signs in once. With Portly on your PC nothing
+  changes. This route has not yet been tried with a real Spotify account.
 - **An Update button.** Settings → About says when a newer release exists, and **Update** installs
   it, from the main PC or from another PC, with the same backup and rollback as `portly --update`.
   It is on Portly's own page, which the Pages site links to, so another PC connects at the Tailscale

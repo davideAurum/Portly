@@ -5,12 +5,12 @@
  *
  * A new service is one entry in {@link SERVICE_DESCRIPTIONS} and {@link PAGE_SUPPORT}, plus its
  * capability (shared/src/accounts.ts) and its scopes (server: modules/accounts/oauth/<provider>.ts;
- * the browser-only build: static/providers/microsoftAuth.ts). Only services Portly has built are
+ * the browser-only build: static/providers/microsoftAuth.ts or spotifyAuth.ts). Only services Portly has built are
  * listed: nothing "coming later".
  *
  * What this page load can do decides what is offered (`getCapabilities()`): on the in-browser
- * backend only Microsoft (calendar and launch pad sync, signed in from the browser) and Todoist
- * work; launch pad sync works nowhere else (the server's launch pad is not synced); Google,
+ * backend only Microsoft (calendar and launch pad sync) and Spotify (music), both signed in from the
+ * browser, and Todoist work; launch pad sync works nowhere else (the server's launch pad is not synced); Google,
  * Yahoo, CalDAV and IMAP need the Portly server. On another PC's page load (`remoteClient`) the
  * Google, Microsoft and Spotify sign-ins stay on the main PC (their redirect lands there); Yahoo, CalDAV,
  * IMAP and Todoist work from anywhere, because the server keeps the credentials. GitHub (a private

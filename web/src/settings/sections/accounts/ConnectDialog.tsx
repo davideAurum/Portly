@@ -46,6 +46,9 @@ export const STATIC_MICROSOFT_SESSION_NOTE =
 export const SPOTIFY_ACCESS_NOTE =
   'Portly asks only to read what is playing and to control it. Spotify needs Premium for this, and it asks you to sign in again about every six months.';
 
+/** Where a browser sign-in is kept on the in-browser backend. */
+export const STATIC_SPOTIFY_SESSION_NOTE = 'The sign-in is kept in this browser (not encrypted). Each browser signs in on its own.';
+
 export interface ConnectDialogProps {
   /** The connection to set up, or null when closed. */
   connection: ConnectionId | null;
@@ -233,6 +236,7 @@ function SignInStep({ provider, client, picked, onBack }: { provider: OAuthProvi
       ) : null}
       {provider === 'microsoft' && inBrowser ? <p className={styles.intro}>{STATIC_MICROSOFT_SESSION_NOTE}</p> : null}
       {provider === 'spotify' ? <p className={styles.intro}>{SPOTIFY_ACCESS_NOTE}</p> : null}
+      {provider === 'spotify' && inBrowser ? <p className={styles.intro}>{STATIC_SPOTIFY_SESSION_NOTE}</p> : null}
       {picked.includes('launchpadSync') ? <p className={styles.intro}>{LAUNCHPAD_SYNC_PERMISSION_NOTE}</p> : null}
       {locked ? (
         <Banner tone="warning" title="Saved credentials are locked">

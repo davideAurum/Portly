@@ -415,17 +415,17 @@ describe('static build: server-only features', () => {
     expect(screen.queryByText("Can't reach the Portly server")).not.toBeInTheDocument();
   });
 
-  it('offers Microsoft (calendar and launch pad sync) and Todoist on the Accounts page, with this site as the single-page-app redirect URI', async () => {
+  it('offers Microsoft (calendar and launch pad sync), Todoist and Spotify on the Accounts page, with this site as the single-page-app redirect URI', async () => {
     const user = userEvent.setup();
     const { requestsTo } = await renderWithStaticBackend(<Shell />, { route: '#/settings/accounts' });
     expect(await screen.findByText('No accounts yet')).toBeInTheDocument();
-    expect(screen.getByText('Connect Microsoft (Outlook.com) or Todoist below to see your calendars and tasks.')).toBeInTheDocument();
+    expect(screen.getByText('Connect Microsoft (Outlook.com), Todoist or Spotify below to see your calendars and tasks and control your music.')).toBeInTheDocument();
     const tiles = within(screen.getByRole('list', { name: 'Add a connection' })).getAllByRole('button');
-    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Microsoft', 'Connect Todoist', 'Connect GitHub', 'Connect GitHub repositories']);
+    expect(tiles.map((tile) => tile.getAttribute('aria-label'))).toEqual(['Connect Microsoft', 'Connect Todoist', 'Connect Spotify', 'Connect GitHub', 'Connect GitHub repositories']);
     expect(within(tiles[0]!).getByText('Outlook.com calendar and launch pad sync')).toBeInTheDocument();
-    expect(screen.getByText('Google, Spotify, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.')).toBeInTheDocument();
+    expect(screen.getByText('Google, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.')).toBeInTheDocument();
     expect(screen.queryByText("Saved credentials can't be unlocked")).not.toBeInTheDocument();
-    expect(within(screen.getByRole('list', { name: 'App registrations' })).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(screen.getByRole('list', { name: 'App registrations' })).getAllByRole('listitem')).toHaveLength(2);
 
     await user.click(tiles[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Connect Microsoft' });
@@ -434,6 +434,28 @@ describe('static build: server-only features', () => {
     expect(requestsTo('GET /api/oauth-clients/microsoft')[0]).toEqual({ method: 'GET', path: '/api/oauth-clients/microsoft', search: '', status: 200 });
     expect(requestsTo('GET /api/oauth-clients/google')).toHaveLength(0);
     expect(within(dialog).getByRole('button', { name: 'Save and continue' })).toBeDisabled();
+  });
+
+  it('connects Spotify from the browser: this site is the redirect URI, and the sign-in stays in this browser', async () => {
+    const user = userEvent.setup();
+    const { requestsTo } = await renderWithStaticBackend(<Shell />, { route: '#/settings/accounts' });
+    await screen.findByText('No accounts yet');
+    await user.click(screen.getByRole('button', { name: 'Connect Spotify' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Connect Spotify' });
+    expect(await within(dialog).findByRole('form', { name: 'Spotify app registration' })).toBeInTheDocument();
+    expect(within(dialog).getByText('Add the redirect URI below, next to any address already there.')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/127\.0\.0\.1/)).not.toBeInTheDocument();
+    expect(requestsTo('GET /api/oauth-clients/spotify')[0]).toEqual({ method: 'GET', path: '/api/oauth-clients/spotify', search: '', status: 200 });
+  });
+
+  it('runs the Music widget in a persisted layout, with no notice that it needs the server', async () => {
+    const storage = new MemoryStorage();
+    const row: StoredProfile = { id: 'p1', name: 'Home', sort: 0, layout: { version: 1, items: [widget('w1', 'music', 0, 0, 4, 4)] }, createdAt: 1, updatedAt: 1 };
+    await storage.setJson('slice:profiles', [row]);
+    await storage.setJson('slice:settings', { ...defaultSettings(), activeProfileId: 'p1' });
+    await renderWithStaticBackend(<Dashboard />, { storage });
+    expect(await screen.findByText(stubWidgetText('music'))).toBeInTheDocument();
+    expect(screen.queryByText('Music needs the Portly server')).not.toBeInTheDocument();
   });
 
   it('renders the notice frame for a mail instance in a persisted layout, next to working widgets', async () => {

@@ -11,15 +11,16 @@
  *
  * A Pages page load on the `server` backend (hybrid mode: paired with the Portly server on this
  * PC) has every server feature, account setup included. A `browser` backend has no server, so anything
- * that needs one — Google, Spotify and app-password accounts, mail, music, ICS subscriptions, feeds, the credential
- * vault, fetching third-party pages — is off. Outlook.com accounts and their calendars work there
- * too: the browser signs in to Microsoft and reads the calendars from Graph itself
- * (`src/static/handlers/accounts.ts`, `calendar.ts`), so the Calendar widget is there as well.
+ * that needs one — Google and app-password accounts, mail, ICS subscriptions, feeds, the credential
+ * vault, fetching third-party pages — is off. Outlook.com and Spotify accounts work there too: the
+ * browser signs in itself, reads the calendars from Graph and talks to Spotify's player
+ * (`src/static/handlers/accounts.ts`, `calendar.ts`, `music.ts`), so the Calendar and Music widgets
+ * are there as well.
  *
  * A third thing decides a little more: whether the server build was opened from **another PC**,
  * through the HTTPS reverse proxy on the main PC (ARCHITECTURE §4.2 remote branch; decided before
  * the first render by `app/remoteClient.ts`, `setRemoteClient`). Such a page load has every
- * server feature except what stays on the main PC: signing in with Google or Microsoft (the OAuth
+ * server feature except what stays on the main PC: signing in with Google, Microsoft or Spotify (the OAuth
  * redirect lands on the main PC), the vault reset, importing the main PC's browser bookmarks,
  * approving devices and pairings, and the diagnostics report. The Pages build on its server
  * backend counts the same way when that server is Portly on another PC (the browser connected to
@@ -62,7 +63,7 @@ export interface Capabilities {
   mail: boolean;
   /** RSS / Atom feeds widget (feeds are cross-origin: the server fetches them). */
   feeds: boolean;
-  /** Music widget and Spotify accounts (the server keeps the tokens). */
+  /** Music widget and Spotify accounts: the server's, or the browser's own sign-in on the `browser` backend. */
   music: boolean;
   /** The credential vault (and its lock/reset banner). */
   vault: boolean;
@@ -109,7 +110,7 @@ export function capabilitiesFor(pagesBuild: boolean, backend: Backend, remoteCli
     icsSubscriptions: server,
     mail: server,
     feeds: server,
-    music: server,
+    music: true,
     vault: server,
     browserBookmarkImport: mainPc,
     siteMetaFetch: server,
@@ -181,6 +182,6 @@ export function isWidgetTypeAvailable(type: string, caps: Capabilities = getCapa
   return !unavailableWidgetTypes(caps).has(type);
 }
 
-/** Widget types the in-browser backend cannot serve (`mail`, `feeds`, `music`), for the static handlers. */
+/** Widget types the in-browser backend cannot serve (`mail`, `feeds`), for the static handlers. */
 export const BROWSER_UNAVAILABLE_WIDGET_TYPES: ReadonlySet<string> = unavailableWidgetTypes(capabilitiesFor(true, 'browser'));
 

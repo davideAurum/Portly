@@ -23,6 +23,7 @@ browser you have paired with it uses Portly's own data and features while it run
 | **Todoist** — tasks, quick add, complete with undo (token stored in the browser, see below) | — |
 | **GitHub** — the status board of your repositories ([guide](github.md); token stored in the browser, see below) | — |
 | **Calendar** — your **Outlook.com** calendars, read and written straight from the browser through Microsoft Graph (an app registration you own, see [Outlook.com](microsoft.md#browser-only-build-github-pages)); they sync while the page is open | Google, Yahoo and CalDAV calendars, ICS / webcal subscriptions |
+| **Music** — a remote control for Spotify, straight from the browser: needs Premium and a Spotify app of your own ([Spotify](spotify.md#where-it-runs)) | — |
 | **Themes**, background image upload, **profiles**, **export / import** | — |
 | — | **Mail** and **RSS feeds** widgets, Google, Yahoo, CalDAV and IMAP accounts, the credential vault |
 
@@ -48,27 +49,27 @@ with it. The server build's new-tab extension is for Chrome and Edge as well
 ## Where your data lives
 
 - **In this browser, on this device.** Settings, layouts, bookmarks, uploaded images, the
-  Todoist token, the Outlook.com sign-in and a copy of your Outlook.com calendars (30 days back, a
-  year ahead) are stored in the browser's IndexedDB for the site's address. Nothing is sent to
+  Todoist token, the Outlook.com and Spotify sign-ins and a copy of your Outlook.com calendars (30
+  days back, a year ahead) are stored in the browser's IndexedDB for the site's address. Nothing is sent to
   any Portly server (there is none), and nothing to GitHub except what
   [launch pad sync](#launch-pad-sync) writes to your own private repository, if you choose it.
   Another browser, another device, another browser profile — or the same site at a different
   address — starts empty.
 - **A quick-start copy, too.** So the page can show itself at once, it also keeps a snapshot of
-  what it last showed, including the calendar events on screen (titles, places, notes), in the
-  browser's local storage for the site. The snapshot is dropped after 24 hours or when Portly is
+  what it last showed, including the calendar events on screen (titles, places, notes), but never
+  what is playing, in the browser's local storage for the site. The snapshot is dropped after 24 hours or when Portly is
   updated; clearing the site data removes it right away.
 - **Move it with export / import.** **Settings → Import & export** writes a `.json` file with your
   settings, layouts, bookmarks, background image and custom icons; import it on the other
-  computer. The file never contains the Todoist token or the Outlook.com sign-in — set them up
-  again there.
-- **The Todoist token and the Outlook.com sign-in are not encrypted.** The server build keeps
-  them in a vault protected by Windows; here they sit in the browser's site storage, readable by
+  computer. The file never contains the Todoist token or the Outlook.com and Spotify sign-ins — set
+  them up again there.
+- **The Todoist token and the Outlook.com and Spotify sign-ins are not encrypted.** The server build
+  keeps them in a vault protected by Windows; here they sit in the browser's site storage, readable by
   anyone who can use this browser profile (and by browser extensions with site-data access). On a
   shared PC, remove them in **Settings → Accounts** (**Remove** on each row, Todoist included)
   when you are done, or don't connect them at all. A Microsoft sign-in from a web page lasts 24 hours; Portly renews
   it by itself when you open the page while you are still signed in to Microsoft, else the account
-  shows *Reconnect*.
+  shows *Reconnect*. A Spotify sign-in lasts six months, then shows *Reconnect*.
 - **Calendars sync while the page is open.** There is no background job: a calendar on screen
   checks Outlook.com every sync interval (**Settings → Calendars**, 5 minutes by default) and
   right away when you open the page after a while. Several tabs share one sync.
@@ -440,6 +441,7 @@ what keep the data private.
 | Todoist (`api.todoist.com`) | Todoist widget | Your personal token with every request, straight from the browser — the same as the Todoist apps do. |
 | GitHub (`api.github.com`) | GitHub widget, once its token is saved | Your token with every request, straight from the browser. GitHub answers with your repositories' names and status. |
 | Microsoft (`login.microsoftonline.com`, `graph.microsoft.com`) | Outlook.com account and the Calendar widget | The sign-in (your app registration's client id, the one-time code, then token refreshes), and the calendar requests with the account's access token: which calendars you have, the events of the synced window, and the events you create, change or delete. |
+| Spotify (`accounts.spotify.com`, `api.spotify.com`, cover art from `i.scdn.co`) | Spotify account and the Music widget: every 5 seconds while something plays and every 15 otherwise, only while the page is visible | The sign-in (your Spotify app's client id, the one-time code, then token refreshes), the account's access token with each request, and the playback commands you give. Cover art shows your IP address to Spotify's image server. |
 | Microsoft OneDrive (`graph.microsoft.com`, downloads from `my.microsoftpersonalcontent.com`) | Launch pad sync through a Microsoft connection, when it is ticked: a check at page load, on focus and every 5 minutes while the page is visible | The account's access token with each Graph request (downloads carry none); the launch pad file and custom icons, read on each check and written after changes. |
 | GitHub (`api.github.com`) | Launch pad sync through your private repository, once it and a token are saved in **Settings → Accounts**: the check when you save them, then a sync check at page load, on focus and every 5 minutes while the page is visible | Your GitHub token and the repository name with every request; the launch pad file and custom icons, read on each check and written (as commits) after changes. |
 | Wikipedia (`en.wikipedia.org`) | Search suggestions, while **Settings → Search → Search suggestions** is on (it is by default), for an engine with Wikipedia suggestions (the Wikipedia engine, keyword `w`). Only if you also turn on **Wikipedia suggestions instead** (off by default) in place of Google, DuckDuckGo, Bing and YouTube suggestions, which can't be asked from a browser. With the default engines and settings, nothing goes to Wikipedia unless you search with the Wikipedia engine. | What you have typed so far. |

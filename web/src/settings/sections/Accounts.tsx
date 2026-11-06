@@ -139,7 +139,7 @@ function AddConnection({ onConnect }: { onConnect(id: ConnectionId): void }) {
         <p className={styles.intro}>Google, Microsoft and Spotify accounts are connected on the main PC; once connected there, they work here too.</p>
       ) : null}
       {caps.backend === 'browser' ? (
-        <p className={styles.intro}>Google, Spotify, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.</p>
+        <p className={styles.intro}>Google, Yahoo, CalDAV and IMAP accounts need the Portly server on your PC.</p>
       ) : null}
       {caps.remoteClient ? null : <AppRegistrations providers={providers} />}
     </SettingsCard>

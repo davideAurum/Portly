@@ -15,6 +15,7 @@ import * as core from './core.ts';
 import * as github from './github.ts';
 import * as githubSync from './githubSync.ts';
 import * as launchpadSync from './launchpadSync.ts';
+import * as music from './music.ts';
 import * as profiles from './profiles.ts';
 import * as search from './search.ts';
 import * as settings from './settings.ts';
@@ -48,6 +49,7 @@ export const MODULES: readonly HandlerModule[] = Object.freeze([
   launchpadSync,
   accounts,
   calendar,
+  music,
   unavailable,
 ]);
 
@@ -68,6 +70,7 @@ const MODULE_NAMES: ReadonlyMap<HandlerModule, string> = new Map<HandlerModule, 
   [launchpadSync, 'launchpadSync'],
   [accounts, 'accounts'],
   [calendar, 'calendar'],
+  [music, 'music'],
   [unavailable, 'unavailable'],
 ]);
 

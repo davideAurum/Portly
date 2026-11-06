@@ -1,43 +1,46 @@
 /**
- * Accounts module of the static backend: Outlook.com (Microsoft personal accounts) only. A port of
- * server/src/modules/accounts (routes.ts, oauth/flow.ts, the token side of service.ts,
+ * Accounts module of the static backend: Outlook.com (Microsoft personal accounts) and Spotify. A
+ * port of server/src/modules/accounts (routes.ts, oauth/flow.ts, the token side of service.ts,
  * operations.ts) where the browser is the OAuth client: PKCE, the code exchange and refreshes go
- * from the page straight to login.microsoftonline.com (see providers/microsoftAuth.ts).
+ * from the page straight to the provider (see providers/microsoftAuth.ts, providers/spotifyAuth.ts).
  *
- * Routes (same shapes as the server):
- * - `GET  /api/oauth-clients/microsoft` → `{clientId, hasSecret: false, redirectUri}` (the redirect
- *   URI is this site's own address; register it as a *Single-page application*)
- * - `PUT  /api/oauth-clients/microsoft {clientId}` (a secret is refused: public client)
- * - `POST /api/oauth/microsoft/start {accountId?, returnTo?, capabilities?}` → `{authorizeUrl}`; the
- *   services are checked against what the static build offers (the calendar and launch pad sync)
- *   and mapped to their scopes as on the server (a reconnect asks for the account's services plus
- *   the ones named, which is how a service is added: incremental consent)
+ * Routes (same shapes as the server), `:provider` being `microsoft` or `spotify`:
+ * - `GET  /api/oauth-clients/:provider` → `{clientId, hasSecret: false, redirectUri}` (the redirect
+ *   URI is this site's own address; on Microsoft's side, a *Single-page application*)
+ * - `PUT  /api/oauth-clients/:provider {clientId}` (a secret is refused: public client)
+ * - `POST /api/oauth/:provider/start {accountId?, returnTo?, capabilities?}` → `{authorizeUrl}`; the
+ *   services are checked against what the static build offers (Microsoft: the calendar and launch
+ *   pad sync; Spotify: music) and mapped to their scopes as on the server (a reconnect asks for the
+ *   account's services plus the ones named, which is how a service is added: incremental consent)
  * - `GET /api/accounts`, `PATCH /api/accounts/:id`, `DELETE /api/accounts/:id` (its calendars and
  *   their events go with it), `POST /api/accounts/:id/test` (forces a token refresh)
  * Google answers `409 not_configured`; app-password accounts stay in handlers/unavailable.ts. The
- * calendars themselves are handlers/calendar.ts, which borrows {@link getAccessToken}.
+ * calendars themselves are handlers/calendar.ts and the player handlers/music.ts, which borrow
+ * {@link getAccessToken}.
  *
- * Microsoft sends the browser back to the site itself (`<appUrl>?code&state`), not to an API
+ * The provider sends the browser back to the site itself (`<appUrl>?code&state`), not to an API
  * route: main.tsx hands that address to {@link completeAuthorization} before the app renders and
  * then shows the server's `?oauth=<result>` toast.
  *
  * Diagnostics (ARCHITECTURE §17): a sign-in that fails here is this browser's `provider` event (the
- * OAuth `error` code Microsoft answered, or which identity check failed) or `backend` event (it
- * crashed), next to its console line; failed token requests are recorded by `requestToken`. Never a
- * code, token, state or address.
+ * OAuth `error` code the provider answered, or which identity check failed) or `backend` event (it
+ * crashed), next to its console line; failed token requests are recorded by `requestTokenFrom`.
+ * Never a code, token, state or address.
  *
  * Tokens: refresh and access tokens live in the `account-tokens` slice (this browser only, never
  * exported, not encrypted). Refreshes run under a Web Lock per account, re-reading the slice
- * first, so tabs never race on Microsoft's rotating refresh tokens. A single-page app's sign-in
+ * first, so tabs never race on rotating refresh tokens. A Microsoft single-page app's sign-in
  * ends 24 hours after it was made; {@link planSilentReauth} renews it at page load with
  * `prompt=none` before (or once) it runs out, and when that cannot work the account shows
- * "Reconnect needed" as on the server.
+ * "Reconnect needed" as on the server. Spotify has no such renewal: its sign-in lasts six months,
+ * then Reconnect is a click.
  *
  * Scopes: an account keeps the scopes its last sign-in asked for (`requestedScopes`), and its
- * services are those asked for and granted. Refreshes and automatic re-sign-ins ask for no more
- * ({@link signInCapabilities}): Microsoft's `scope` answer lists every permission the account ever
- * gave the registration, from any browser, and a refresh asking for one its sign-in did not ask
- * for fails with `invalid_grant`. Adding a service is a new interactive sign-in.
+ * services are those asked for and granted. On Microsoft, refreshes and automatic re-sign-ins ask
+ * for no more ({@link signInCapabilities}): its `scope` answer lists every permission the account
+ * ever gave the registration, from any browser, and a refresh asking for one its sign-in did not
+ * ask for fails with `invalid_grant`. Adding a service is a new interactive sign-in. Spotify takes
+ * no scope at the token endpoint.
  */
 import {
   AccountUpdateSchema,
@@ -55,6 +58,7 @@ import {
   type OAuthClientInfo,
   type OAuthResult,
   type OAuthStartResponse,
+  type OAuthProvider,
   type ProbeResult,
   type ValidationIssue,
 } from '@portly/shared';
@@ -77,13 +81,24 @@ import {
   grantedScopes,
   microsoftIdentity,
   normalizeScopes,
-  pkceChallenge,
   requestToken,
   scopesFor,
-  type TokenFailure,
-  type TokenSet,
 } from '../providers/microsoftAuth.ts';
 import { errorName, hostOf, recordProviderFailure } from '../providers/diagnostics.ts';
+import { pkceChallenge, type TokenEndpointResult, type TokenFailure, type TokenSet } from '../providers/oauthToken.ts';
+import {
+  SPOTIFY_CLIENT_ID_REGEX,
+  SPOTIFY_DEFAULT_LABEL,
+  SPOTIFY_DISPLAY_NAME,
+  SPOTIFY_SCOPES,
+  SPOTIFY_SESSION_MS,
+  SPOTIFY_TOKEN_ENDPOINT,
+  fetchSpotifyIdentity,
+  requestSpotifyToken,
+  spotifyAuthorizeUrl,
+  spotifyCapabilities,
+  spotifyGrantedScopes,
+} from '../providers/spotifyAuth.ts';
 import { StaticApiError, json, noContent } from '../respond.ts';
 import type { StaticRouter } from '../router.ts';
 import { otherSyncConnection, secondSyncConnection } from '../sync/connections.ts';
@@ -95,8 +110,10 @@ import {
   getOAuthClients,
   getOAuthStates,
   getUpgrades,
+  type BrowserAccountKind,
   type StoredAccount,
   type StoredAccountTokens,
+  type StoredOAuthState,
 } from '../slices.ts';
 
 export const STATE_TTL_MS = 10 * 60 * 1000;
@@ -119,7 +136,10 @@ export const MESSAGES = Object.freeze({
   tokenRejected: 'The provider rejected fresh access; reconnect the account',
 });
 
-const notInStatic = (provider: 'google' | 'spotify'): string => `${provider === 'google' ? 'Google' : 'Spotify'} accounts are not available in the browser-only build.`;
+const PROVIDER_NAMES: Readonly<Record<BrowserAccountKind, string>> = Object.freeze({ microsoft: MICROSOFT_DISPLAY_NAME, spotify: SPOTIFY_DISPLAY_NAME });
+
+/** The services a Spotify sign-in can ask for. */
+const SPOTIFY_STATIC_CAPABILITIES: readonly Capability[] = Object.freeze(['music']);
 
 const CAPABILITY_NAMES: Readonly<Record<Capability, string>> = { calendar: 'Calendar', mail: 'Mail', launchpadSync: 'Launch pad sync', music: 'Music' };
 
@@ -158,6 +178,11 @@ export function calendarAccounts(ctx: StaticContext): StoredAccount[] {
   return orderedAccounts(ctx).filter((a) => a.capabilities.includes('calendar') && a.enabledCapabilities.includes('calendar'));
 }
 
+/** Accounts the Music widget can use: they offer the capability and the user switched it on. */
+export function musicAccounts(ctx: StaticContext): StoredAccount[] {
+  return orderedAccounts(ctx).filter((a) => a.kind === 'spotify' && a.capabilities.includes('music') && a.enabledCapabilities.includes('music'));
+}
+
 /** What a sign-in asked for before the requested scopes were recorded: the calendar was the only service. */
 const LEGACY_SIGN_IN_CAPABILITIES: readonly Capability[] = Object.freeze(['calendar']);
 
@@ -185,6 +210,13 @@ function findAccount(ctx: StaticContext, id: string): StoredAccount | undefined 
 
 function accountNotFound(): StaticApiError {
   return new StaticApiError('not_found', 'Account not found');
+}
+
+/** The account a reconnect names: it has to be one of this provider's. */
+function reconnectTarget(ctx: StaticContext, provider: BrowserAccountKind, id: string): StoredAccount {
+  const account = findAccount(ctx, id);
+  if (account?.kind !== provider) throw accountNotFound();
+  return account;
 }
 
 function orderCapabilities(list: readonly Capability[]): Capability[] {
@@ -217,20 +249,21 @@ function invalid(path: string, message: string): StaticApiError {
 // OAuth client
 // ---------------------------------------------------------------------------
 
-/** The provider route parameter: Microsoft, a "not here" for Google, 404 for anything else. */
-function microsoftParam(value: string | undefined): 'microsoft' {
+/** The provider route parameter: Microsoft or Spotify, a "not here" for Google, 404 for anything else. */
+function providerParam(value: string | undefined): BrowserAccountKind {
   if (!isOAuthProvider(value)) throw new StaticApiError('not_found', 'Unknown OAuth provider');
-  if (value !== 'microsoft') throw new StaticApiError('not_configured', notInStatic(value));
-  return value;
+  const provider: OAuthProvider = value;
+  if (provider === 'google') throw new StaticApiError('not_configured', 'Google accounts are not available in the browser-only build.');
+  return provider;
 }
 
-function clientInfo(ctx: StaticContext): OAuthClientInfo {
-  return { clientId: getOAuthClients(ctx).microsoft?.clientId ?? null, hasSecret: false, redirectUri: ctx.appUrl };
+function clientInfo(ctx: StaticContext, provider: BrowserAccountKind): OAuthClientInfo {
+  return { clientId: getOAuthClients(ctx)[provider]?.clientId ?? null, hasSecret: false, redirectUri: ctx.appUrl };
 }
 
-function requireClientId(ctx: StaticContext, accountId?: string): string {
-  const client = getOAuthClients(ctx).microsoft;
-  if (!client) throw new StaticApiError('not_configured', `Set up the ${MICROSOFT_DISPLAY_NAME} OAuth client first`, undefined, accountId);
+function requireClientId(ctx: StaticContext, provider: BrowserAccountKind, accountId?: string): string {
+  const client = getOAuthClients(ctx)[provider];
+  if (!client) throw new StaticApiError('not_configured', `Set up the ${PROVIDER_NAMES[provider]} OAuth client first`, undefined, accountId);
   return client.clientId;
 }
 
@@ -248,9 +281,9 @@ export interface StartInput {
   loginHint?: string | null;
 }
 
-/** 422 for services the static build does not offer (one issue per service, path `capabilities`). */
-function checkCapabilities(named: readonly Capability[] | undefined): void {
-  const unsupported = (named ?? []).filter((c) => !MICROSOFT_STATIC_CAPABILITIES.includes(c));
+/** 422 for services the static build does not offer through this sign-in (one issue per service, path `capabilities`). */
+function checkCapabilities(named: readonly Capability[] | undefined, offered: readonly Capability[]): void {
+  const unsupported = (named ?? []).filter((c) => !offered.includes(c));
   if (unsupported.length === 0) return;
   const issues: ValidationIssue[] = unsupported.map((c) => ({
     path: 'capabilities',
@@ -271,39 +304,36 @@ function requestedCapabilities(named: readonly Capability[] | undefined, granted
   return requested.length > 0 ? requested : [...MICROSOFT_STATIC_DEFAULT_CAPABILITIES];
 }
 
-/** Stores a pending authorization (PKCE verifier, account, route, services) and returns Microsoft's sign-in URL. */
-export async function startAuthorization(ctx: StaticContext, input: StartInput): Promise<string> {
-  const clientId = requireClientId(ctx);
-  checkCapabilities(input.capabilities);
-  let accountId: string | null = null;
-  let granted: Capability[] | null = null;
-  if (input.accountId !== undefined) {
-    const account = findAccount(ctx, input.accountId);
-    if (!account) throw accountNotFound();
-    accountId = input.accountId;
-    granted = signInCapabilities(account);
-  }
-  const capabilities = requestedCapabilities(input.capabilities, granted);
+type PendingSignIn = Pick<StoredOAuthState, 'provider' | 'accountId' | 'silent' | 'capabilities'> & { returnTo: string | undefined };
+
+/** Stores a pending authorization (PKCE verifier, account, route, services); resolves with what the sign-in URL needs. */
+async function holdSignIn(ctx: StaticContext, signIn: PendingSignIn): Promise<{ state: string; codeChallenge: string }> {
   const codeVerifier = newToken(32);
   const codeChallenge = await pkceChallenge(codeVerifier);
   const state = newToken(32);
   const now = ctx.now();
-  const returnTo = input.returnTo !== undefined && OAUTH_RETURN_TO_REGEX.test(input.returnTo) ? input.returnTo : DEFAULT_OAUTH_RETURN_TO;
+  const returnTo = signIn.returnTo !== undefined && OAUTH_RETURN_TO_REGEX.test(signIn.returnTo) ? signIn.returnTo : DEFAULT_OAUTH_RETURN_TO;
 
   const pending = getOAuthStates(ctx).filter((s) => s.expiresAt > now);
-  pending.push({
-    state,
-    provider: 'microsoft',
-    codeVerifier,
-    accountId,
-    returnTo,
-    silent: input.silent === true,
-    capabilities,
-    createdAt: now,
-    expiresAt: now + STATE_TTL_MS,
-  });
+  pending.push({ ...signIn, state, codeVerifier, returnTo, createdAt: now, expiresAt: now + STATE_TTL_MS });
   ctx.state.set(SLICE.oauthStates, pending.slice(-MAX_PENDING_STATES));
   await ctx.state.commit(SLICE.oauthStates);
+  return { state, codeChallenge };
+}
+
+/** Holds a Microsoft sign-in and returns the address to send the browser to. */
+export async function startAuthorization(ctx: StaticContext, input: StartInput): Promise<string> {
+  const clientId = requireClientId(ctx, 'microsoft');
+  checkCapabilities(input.capabilities, MICROSOFT_STATIC_CAPABILITIES);
+  let accountId: string | null = null;
+  let granted: Capability[] | null = null;
+  if (input.accountId !== undefined) {
+    const account = reconnectTarget(ctx, 'microsoft', input.accountId);
+    accountId = input.accountId;
+    granted = signInCapabilities(account);
+  }
+  const capabilities = requestedCapabilities(input.capabilities, granted);
+  const { state, codeChallenge } = await holdSignIn(ctx, { provider: 'microsoft', accountId, returnTo: input.returnTo, silent: input.silent === true, capabilities });
 
   return authorizeUrl({
     clientId,
@@ -314,6 +344,15 @@ export async function startAuthorization(ctx: StaticContext, input: StartInput):
     silent: input.silent,
     loginHint: input.loginHint,
   });
+}
+
+/** Holds a Spotify sign-in and returns the address to send the browser to. Spotify has one service. */
+export async function startSpotifyAuthorization(ctx: StaticContext, input: StartInput): Promise<string> {
+  const clientId = requireClientId(ctx, 'spotify');
+  checkCapabilities(input.capabilities, SPOTIFY_STATIC_CAPABILITIES);
+  const accountId = input.accountId === undefined ? null : reconnectTarget(ctx, 'spotify', input.accountId).id;
+  const { state, codeChallenge } = await holdSignIn(ctx, { provider: 'spotify', accountId, returnTo: input.returnTo, silent: false, capabilities: [...SPOTIFY_STATIC_CAPABILITIES] });
+  return spotifyAuthorizeUrl({ clientId, redirectUri: ctx.appUrl, state, codeChallenge });
 }
 
 // ---------------------------------------------------------------------------
@@ -334,12 +373,12 @@ export interface CallbackOutcome {
   returnTo: string;
 }
 
-/** Microsoft's sign-in host, all a diagnostic event keeps of its addresses. */
-const SIGN_IN_HOST = hostOf(MICROSOFT_TOKEN_ENDPOINT);
+/** The sign-in host, all a diagnostic event keeps of a provider's addresses. */
+const SIGN_IN_HOSTS: Readonly<Record<BrowserAccountKind, string>> = Object.freeze({ microsoft: hostOf(MICROSOFT_TOKEN_ENDPOINT), spotify: hostOf(SPOTIFY_TOKEN_ENDPOINT) });
 
 /** A sign-in that could not finish because of this browser's own state (storage, a crash). */
-function recordSignInCrash(msg: string, err: unknown): void {
-  recordClientEvent('error', 'backend', msg, { errName: errorName(err), op: 'microsoft sign-in' });
+function recordSignInCrash(msg: string, err: unknown, op = 'sign-in'): void {
+  recordClientEvent('error', 'backend', msg, { errName: errorName(err), op });
 }
 
 /** Completes a sign-in; never throws and never reflects provider text. */
@@ -362,18 +401,19 @@ export async function completeAuthorization(ctx: StaticContext, query: CallbackQ
     await ctx.state.commit(SLICE.oauthStates);
   } catch (err) {
     console.error('[Portly] Could not read the pending sign-in', err);
-    recordSignInCrash('could not read the pending Microsoft sign-in', err);
+    recordSignInCrash('could not read the pending sign-in', err);
     return fallback;
   }
   if (!consumed) return { result: 'expired', returnTo: DEFAULT_OAUTH_RETURN_TO };
   const returnTo = OAUTH_RETURN_TO_REGEX.test(consumed.returnTo) ? consumed.returnTo : DEFAULT_OAUTH_RETURN_TO;
   const quiet = (result: OAuthResult): CallbackOutcome => ({ result: consumed.silent ? null : result, returnTo });
+  const { provider } = consumed;
 
   if (query.error !== undefined) {
     // From the address: kept only when it is a registered-looking OAuth code. An automatic
     // re-sign-in answering `login_required` (or the user declining) is expected now and then.
     const code = typeof query.error === 'string' && /^[a-z_]{1,64}$/.test(query.error) ? query.error : 'error';
-    recordProviderFailure('microsoft', SIGN_IN_HOST, { code }, consumed.silent || code === 'access_denied' ? 'info' : 'warn');
+    recordProviderFailure(provider, SIGN_IN_HOSTS[provider], { code }, consumed.silent || code === 'access_denied' ? 'info' : 'warn');
     return quiet(query.error === 'access_denied' ? 'denied' : 'error');
   }
   if (typeof query.code !== 'string' || query.code.length === 0 || query.code.length > MAX_CODE_LENGTH) return quiet('error');
@@ -381,12 +421,13 @@ export async function completeAuthorization(ctx: StaticContext, query: CallbackQ
   try {
     // A sign-in started before the services were recorded asked for the calendar's scopes.
     const requested = consumed.capabilities ?? [...LEGACY_SIGN_IN_CAPABILITIES];
-    const result = await connect(ctx, { code: query.code, codeVerifier: consumed.codeVerifier, reconnectId: consumed.accountId, requested });
+    const input = { code: query.code, codeVerifier: consumed.codeVerifier, reconnectId: consumed.accountId, requested };
+    const result = await (provider === 'spotify' ? connectSpotify(ctx, input) : connect(ctx, input));
     // A quiet renewal of the same account needs no message; anything else is worth one.
     return consumed.silent && result === 'reconnected' ? { result: null, returnTo } : { result, returnTo };
   } catch (err) {
-    console.error('[Portly] The Microsoft sign-in could not be completed', err);
-    recordSignInCrash('the Microsoft sign-in could not be completed', err);
+    console.error(`[Portly] The ${PROVIDER_NAMES[provider]} sign-in could not be completed`, err);
+    recordSignInCrash(`the ${PROVIDER_NAMES[provider]} sign-in could not be completed`, err, `${provider} sign-in`);
     return quiet('error');
   }
 }
@@ -428,7 +469,7 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
   const verdict = microsoftIdentity(claims, clientId, now);
   if (!verdict.ok) {
     console.warn('[Portly] The Microsoft sign-in was rejected', { reason: verdict.reason });
-    recordProviderFailure('microsoft', SIGN_IN_HOST, { code: `id_token_${verdict.reason}` });
+    recordProviderFailure('microsoft', SIGN_IN_HOSTS.microsoft, { code: `id_token_${verdict.reason}` });
     return 'error';
   }
   const granted = grantedScopes(tokens.scope, requestedScopes);
@@ -444,7 +485,7 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
   const { identity } = verdict;
   const target = reconnectId === null ? undefined : accounts.find((a) => a.id === reconnectId);
   const reconnecting = target !== undefined;
-  const existing = reconnecting && target.externalId === identity.subject ? target : accounts.find((a) => a.externalId === identity.subject);
+  const existing = reconnecting && target.kind === 'microsoft' && target.externalId === identity.subject ? target : accounts.find((a) => a.kind === 'microsoft' && a.externalId === identity.subject);
 
   let accountId: string;
   let result: OAuthResult;
@@ -508,21 +549,100 @@ async function connect(ctx: StaticContext, input: ConnectInput): Promise<OAuthRe
   return result;
 }
 
+/**
+ * A Spotify sign-in (the server's flow for a provider without an id_token): the identity comes from
+ * `GET /me`, and an account matches on it. Its one service starts switched on, unless the user had
+ * switched it off on this account.
+ */
+async function connectSpotify(ctx: StaticContext, input: ConnectInput): Promise<OAuthResult> {
+  const { code, codeVerifier, reconnectId } = input;
+  const clientId = getOAuthClients(ctx).spotify?.clientId;
+  if (!clientId) return 'error';
+
+  const exchange = await requestSpotifyToken({ client_id: clientId, grant_type: 'authorization_code', code, redirect_uri: ctx.appUrl, code_verifier: codeVerifier });
+  if (!exchange.ok) {
+    console.warn('[Portly] Spotify refused the sign-in code', { failure: exchange.failure, status: exchange.status });
+    return 'error';
+  }
+  const tokens = exchange.tokens;
+  const identity = await fetchSpotifyIdentity(tokens.accessToken);
+  if (!identity.ok) return identity.reason === 'not_allowed' ? 'not_allowed' : 'error';
+  const granted = spotifyGrantedScopes(tokens.scope);
+  if (granted === null) return 'error';
+  const capabilities = spotifyCapabilities(granted);
+  if (capabilities.length === 0) return 'denied';
+  if (tokens.refreshToken === null) return 'error';
+
+  // Another tab may have changed accounts since this page loaded.
+  await ctx.state.reload([SLICE.accounts, SLICE.accountTokens]);
+  const accounts = getAccounts(ctx);
+  const target = reconnectId === null ? undefined : accounts.find((a) => a.id === reconnectId);
+  const reconnecting = target !== undefined;
+  const existing = accounts.find((a) => a.kind === 'spotify' && a.externalId === identity.subject);
+  const now = ctx.now();
+  const requestedScopes = [...SPOTIFY_SCOPES].sort();
+
+  let accountId: string;
+  let result: OAuthResult;
+  if (existing) {
+    existing.enabledCapabilities = mergeEnabledCapabilities(existing.capabilities, existing.enabledCapabilities, capabilities);
+    existing.capabilities = capabilities;
+    existing.grantedScopes = granted;
+    existing.requestedScopes = requestedScopes;
+    existing.status = 'ok';
+    existing.statusMessage = null;
+    existing.updatedAt = now;
+    accountId = existing.id;
+    result = !reconnecting || existing.id === target.id ? 'reconnected' : 'different_account';
+  } else {
+    accountId = ctx.newId();
+    accounts.push({
+      id: accountId,
+      kind: 'spotify',
+      label: identity.label ?? SPOTIFY_DEFAULT_LABEL,
+      email: null,
+      externalId: identity.subject,
+      color: null,
+      capabilities,
+      enabledCapabilities: [...capabilities],
+      grantedScopes: granted,
+      requestedScopes,
+      status: 'ok',
+      statusMessage: null,
+      sort: accounts.reduce((max, a) => Math.max(max, a.sort + 1), 0),
+      createdAt: now,
+      updatedAt: now,
+    });
+    result = reconnecting ? 'different_account' : 'connected';
+  }
+
+  getAccountTokens(ctx)[accountId] = {
+    refreshToken: tokens.refreshToken,
+    accessToken: tokens.accessToken,
+    accessRefreshAt: refreshAt(now, tokens.expiresInSec),
+    sessionExpiresAt: now + SPOTIFY_SESSION_MS,
+    silentAttemptAt: null,
+  };
+  await ctx.state.commit(SLICE.accounts, SLICE.accountTokens);
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Automatic re-sign-in
 // ---------------------------------------------------------------------------
 
 /**
- * The sign-in URL for an automatic (`prompt=none`) renewal when an account's sign-in has ended or
- * ends within {@link SILENT_RENEW_BEFORE_MS}, else null. At most one attempt per account per
+ * The sign-in URL for an automatic (`prompt=none`) renewal when a Microsoft account's sign-in has
+ * ended or ends within {@link SILENT_RENEW_BEFORE_MS}, else null. At most one attempt per account per
  * {@link SILENT_RETRY_MS} (recorded before the redirect), so a failing renewal never loops: the
- * account then simply shows "Reconnect needed".
+ * account then simply shows "Reconnect needed". Spotify has no such sign-in.
  */
 export async function planSilentReauth(ctx: StaticContext, returnTo: string): Promise<string | null> {
   if (!getOAuthClients(ctx).microsoft) return null;
   const now = ctx.now();
   const tokens = getAccountTokens(ctx);
   for (const account of orderedAccounts(ctx)) {
+    if (account.kind !== 'microsoft') continue;
     const record = tokens[account.id];
     if (!record) continue;
     const due = account.status === 'reauth' || record.sessionExpiresAt - now < SILENT_RENEW_BEFORE_MS;
@@ -561,8 +681,8 @@ export function withAccountLock<T>(name: string, fn: () => Promise<T>): Promise<
   return next;
 }
 
-function lockName(accountId: string): string {
-  return `portly-static:${import.meta.env.BASE_URL}:microsoft-token:${accountId}`;
+function lockName(account: StoredAccount): string {
+  return `portly-static:${import.meta.env.BASE_URL}:${account.kind}-token:${account.id}`;
 }
 
 function freshToken(record: StoredAccountTokens, now: number): string | null {
@@ -578,12 +698,12 @@ function refreshAt(now: number, lifetimeSec: number): number {
 export interface AccessTokenOptions {
   /** Refresh even when the stored token looks fresh (connection test). */
   force?: boolean;
-  /** Graph refused this token: refresh unless another caller already replaced it. */
+  /** The provider refused this token: refresh unless another caller already replaced it. */
   rejected?: string;
 }
 
 /**
- * A usable Graph access token for the account: the stored one while fresh, else a refresh under
+ * A usable access token for the account: the stored one while fresh, else a refresh under
  * the account's lock. `409 reauth_required` once the sign-in is dead.
  */
 export async function getAccessToken(ctx: StaticContext, accountId: string, options: AccessTokenOptions = {}): Promise<string> {
@@ -595,7 +715,7 @@ export async function getAccessToken(ctx: StaticContext, accountId: string, opti
     const fresh = record ? freshToken(record, ctx.now()) : null;
     if (fresh !== null) return fresh;
   }
-  return withAccountLock(lockName(accountId), async () => {
+  return withAccountLock(lockName(account), async () => {
     // Another tab may have refreshed (and rotated the refresh token) meanwhile.
     await ctx.state.reload([SLICE.accounts, SLICE.accountTokens]);
     const current = findAccount(ctx, accountId);
@@ -612,7 +732,7 @@ export async function getAccessToken(ctx: StaticContext, accountId: string, opti
 }
 
 /**
- * Graph refused a token that was just refreshed (the server's `withToken` after its one retry): the
+ * The provider refused a token that was just refreshed (the server's `withToken` after its one retry): the
  * account must be reconnected. Returns the `409 reauth_required` to throw.
  */
 export async function rejectFreshToken(ctx: StaticContext, accountId: string): Promise<StaticApiError> {
@@ -621,17 +741,22 @@ export async function rejectFreshToken(ctx: StaticContext, accountId: string): P
   return reauthRequired(accountId, MESSAGES.tokenRejected);
 }
 
-async function refresh(ctx: StaticContext, account: StoredAccount, record: StoredAccountTokens, attempt = 0): Promise<string> {
-  const id = account.id;
-  const clientId = requireClientId(ctx, id);
-  const used = record.refreshToken;
-  const result = await requestToken({
+function redeemRefreshToken(account: StoredAccount, clientId: string, refreshToken: string): Promise<TokenEndpointResult> {
+  if (account.kind === 'spotify') return requestSpotifyToken({ client_id: clientId, grant_type: 'refresh_token', refresh_token: refreshToken });
+  return requestToken({
     client_id: clientId,
     grant_type: 'refresh_token',
-    refresh_token: used,
+    refresh_token: refreshToken,
     // Only what the last sign-in asked for: Microsoft refuses a refresh for more (invalid_grant).
     scope: scopesFor(signInCapabilities(account)).join(' '),
   });
+}
+
+async function refresh(ctx: StaticContext, account: StoredAccount, record: StoredAccountTokens, attempt = 0): Promise<string> {
+  const id = account.id;
+  const clientId = requireClientId(ctx, account.kind, id);
+  const used = record.refreshToken;
+  const result = await redeemRefreshToken(account, clientId, used);
   // Re-read after the request: a reload (another tab's change) replaces the slice objects.
   const now = ctx.now();
   const current = findAccount(ctx, id);
@@ -667,7 +792,7 @@ function markError(account: StoredAccount, message: string, now: number): boolea
 }
 
 async function refreshFailure(ctx: StaticContext, account: StoredAccount, record: StoredAccountTokens, failure: TokenFailure, now: number): Promise<never> {
-  const name = MICROSOFT_DISPLAY_NAME;
+  const name = PROVIDER_NAMES[account.kind];
   const id = account.id;
   const fail = async (changed: boolean, error: StaticApiError): Promise<never> => {
     if (changed) await ctx.state.commit(SLICE.accounts, SLICE.accountTokens);
@@ -675,7 +800,7 @@ async function refreshFailure(ctx: StaticContext, account: StoredAccount, record
   };
   switch (failure) {
     case 'invalid_grant': {
-      const message = now >= record.sessionExpiresAt ? MESSAGES.sessionEnded : MESSAGES.grantExpired;
+      const message = account.kind === 'microsoft' && now >= record.sessionExpiresAt ? MESSAGES.sessionEnded : MESSAGES.grantExpired;
       record.accessToken = null;
       record.accessRefreshAt = 0;
       setStatus(account, 'reauth', message, now);
@@ -737,25 +862,23 @@ function failureOf(err: unknown): ProbeResult {
 }
 
 export function register(router: StaticRouter): void {
-  router.get('/api/oauth-clients/:provider', (ctx, { params }) => {
-    microsoftParam(params.provider);
-    return json(clientInfo(ctx));
-  });
+  router.get('/api/oauth-clients/:provider', (ctx, { params }) => json(clientInfo(ctx, providerParam(params.provider))));
 
   router.put('/api/oauth-clients/:provider', async (ctx, { req, params }) => {
-    microsoftParam(params.provider);
+    const provider = providerParam(params.provider);
     const body = await parseJsonBody(req, OAuthClientUpdateSchema);
-    if (!CLIENT_ID_REGEX.test(body.clientId)) throw invalid('clientId', 'Microsoft application (client) IDs are GUIDs');
-    if (body.clientSecret !== undefined) throw invalid('clientSecret', `${MICROSOFT_DISPLAY_NAME} uses a public client; do not enter a client secret`);
-    getOAuthClients(ctx).microsoft = { clientId: body.clientId, updatedAt: ctx.now() };
+    if (provider === 'microsoft' && !CLIENT_ID_REGEX.test(body.clientId)) throw invalid('clientId', 'Microsoft application (client) IDs are GUIDs');
+    if (provider === 'spotify' && !SPOTIFY_CLIENT_ID_REGEX.test(body.clientId)) throw invalid('clientId', 'Spotify client IDs are 32 letters and digits, from the app’s Settings page.');
+    if (body.clientSecret !== undefined) throw invalid('clientSecret', `${PROVIDER_NAMES[provider]} uses a public client; do not enter a client secret`);
+    getOAuthClients(ctx)[provider] = { clientId: body.clientId, updatedAt: ctx.now() };
     await ctx.state.commit(SLICE.oauthClients);
-    return json(clientInfo(ctx));
+    return json(clientInfo(ctx, provider));
   });
 
   router.post('/api/oauth/:provider/start', async (ctx, { req, params }) => {
-    microsoftParam(params.provider);
+    const provider = providerParam(params.provider);
     const body = await parseJsonBody(req, OAuthStartSchema);
-    const response: OAuthStartResponse = { authorizeUrl: await startAuthorization(ctx, body) };
+    const response: OAuthStartResponse = { authorizeUrl: await (provider === 'spotify' ? startSpotifyAuthorization(ctx, body) : startAuthorization(ctx, body)) };
     return json(response);
   });
 
@@ -819,7 +942,7 @@ export function register(router: StaticRouter): void {
     const index = accounts.findIndex((a) => a.id === id);
     if (index === -1) throw accountNotFound();
     accounts.splice(index, 1);
-    // Microsoft has no token revocation endpoint: the stored tokens are simply forgotten.
+    // Neither provider has a token revocation endpoint: the stored tokens are simply forgotten.
     delete getAccountTokens(ctx)[id];
     // Its calendars and their events go with it (the server's ON DELETE CASCADE).
     const calendars = removeAccountCalendars(ctx, id);

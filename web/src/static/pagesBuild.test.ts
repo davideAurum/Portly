@@ -40,9 +40,9 @@ describe('Pages build capabilities', () => {
     expect(getCapabilities().pagesBuild).toBe(false);
   });
 
-  it('the static handlers refuse mail, feeds and music whatever the page backend', () => {
+  it('the static handlers refuse mail and feeds whatever the page backend', () => {
     setPageBackend('server');
-    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['mail', 'feeds', 'music']);
+    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['mail', 'feeds']);
   });
 
   it('turns hybrid mode off without a local server origin', () => {

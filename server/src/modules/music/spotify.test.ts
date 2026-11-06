@@ -1,11 +1,25 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { MusicCommand } from '@portly/shared';
 import { HttpError, ProviderUnauthorizedError } from '../../lib/errors.ts';
 import { ProviderHttpError } from '../../lib/provider-errors.ts';
 import { TITLE, upstreamDevice, upstreamEpisode, upstreamError, upstreamState, upstreamTrack } from './__fixtures__/spotify.ts';
-import { commandCall, mapAllowed, mapDevice, mapItem, mapPlayback, pickArtwork, spotifyFailure } from './providers/spotify.ts';
+import { spotifyFailure } from './providers/spotify.ts';
+import { commandCall, mapAllowed, mapDevice, mapDevices, mapItem, mapPlayback, pickArtwork } from './providers/spotify-mapping.ts';
 
 describe('spotify: mapping', () => {
+  it('is copied byte for byte into the in-browser backend', () => {
+    const read = (p: string) => fs.readFileSync(path.resolve(import.meta.dirname, p), 'utf8');
+    expect(read('../../../../web/src/static/providers/spotifyMapping.ts')).toBe(read('providers/spotify-mapping.ts'));
+  });
+
+  it('lists the devices that can be picked, and none from a body that is no list', () => {
+    expect(mapDevices({ devices: [upstreamDevice(), upstreamDevice({ id: null })] }).map((d) => d.id)).toEqual(['device-desk-01']);
+    expect(mapDevices({ nope: true })).toEqual([]);
+    expect(mapDevices(null)).toEqual([]);
+  });
+
   it('maps a playing track', () => {
     expect(mapPlayback(upstreamState())).toEqual({
       isPlaying: true,
