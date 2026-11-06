@@ -2,6 +2,7 @@
  * Device helpers for tests (other PCs, shared/src/devices.ts): a connected device made straight
  * through the store (request → approve → claim), and the cookie of a `Set-Cookie` list.
  */
+import type { DeviceScope } from '@portly/shared';
 import type { AppContext } from '../context.ts';
 import type { DeviceRecord } from '../security/devices.ts';
 
@@ -12,8 +13,8 @@ export interface TestDevice {
 }
 
 /** A connected device: its request is approved and claimed at once. Throws when the request limit is hit. */
-export function connectTestDevice(ctx: Pick<AppContext, 'devices'>, input: { label?: string; browser?: string } = {}): TestDevice {
-  const created = ctx.devices.createRequest({ label: input.label ?? 'Laptop', browser: input.browser ?? 'Chrome on Windows' });
+export function connectTestDevice(ctx: Pick<AppContext, 'devices'>, input: { label?: string; browser?: string; scope?: DeviceScope } = {}): TestDevice {
+  const created = ctx.devices.createRequest({ label: input.label ?? 'Laptop', browser: input.browser ?? 'Chrome on Windows', scope: input.scope ?? 'full' });
   if (created === null) throw new Error('too many device requests are pending');
   if (ctx.devices.approve(created.record.id) === null) throw new Error('could not approve the device request');
   const claimed = ctx.devices.claim(created.secret);

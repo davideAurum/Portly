@@ -25,10 +25,13 @@
  *    `Origin`, an absent-or-`same-origin` `Sec-Fetch-Site` (`image` routes also `none`),
  *    `X-Portly: 1` (not for `image` routes) and the Content-Type of step 4, then a device cookie
  *    (`__Host-portly_device`) that verifies (else 401 `login_required`) and a route declared
- *    `paired()` or `ownPage()` (else 403 `local_only`). Routes declared `enrollment()` (asking for and polling a
- *    device request) need no cookie; a valid one is still noted. The device's last use is recorded
- *    (at most every 10 min) and the cookie's lifetime renewed then, unless the route set or cleared
- *    the cookie itself or stopped the device. No CORS headers, except for the Pages site:
+ *    the device's scope may call (else 403 `local_only`): `paired()`, `ownPage()` or `anyDevice()`
+ *    for a full device, only `reporter()` or `anyDevice()` for a reporter. Routes declared
+ *    `enrollment()` (asking for and polling a device request) need no cookie; a valid full device's
+ *    is still noted, and a reporter is refused there like everywhere else. A helper app is a native
+ *    client: it sends no `Origin` or `Sec-Fetch-Site`, which this branch accepts. The device's last
+ *    use is recorded (at most every 10 min) and the cookie's lifetime renewed then, unless the route
+ *    set or cleared the cookie itself or stopped the device. No CORS headers, except for the Pages site:
  *    Pages site on another PC (with a remote origin, a device store and `PORTLY_PAGES_URL`): a
  *    remote `/api` request whose `Origin` is exactly the configured Pages origin takes its own
  *    branch, with CORS headers for that origin only, as on the main port. Preflights are answered
@@ -36,7 +39,8 @@
  *    `X-Portly: 1`, a cross-site/same-site/absent `Sec-Fetch-Site`, the Content-Type of step 4,
  *    then the device secret in `X-Portly-Device` (a browser sends no `SameSite=Strict` cookie
  *    cross-site, and any cookie is ignored here) that verifies (else 401 `login_required`) and a
- *    route declared `paired()` (else 403 `local_only`). `enrollment()` routes need no secret.
+ *    route declared `paired()` or `anyDevice()` (else 403 `local_only`). `enrollment()` routes need
+ *    no secret. A reporter's secret is refused here on every route.
  *    The device's last use is recorded as for a cookie; there is no cookie to renew.
  * 4. Non-exempt local `/api` requests need `X-Portly: 1`, an absent-or-allowed `Origin`, an
  *    absent-or-`same-origin` `Sec-Fetch-Site`, and for bodies `Content-Type: application/json`
@@ -466,7 +470,7 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
       return refuse(c, 'login_required', 'This device is not connected to Portly', verdict.reason, verdict.fields);
     }
     const { record } = verdict;
-    if (!deviceMayCall(meta)) return refuse(c, 'local_only', 'Only available on the main PC', 'local_only', { deviceId: record.id });
+    if (!deviceMayCall(meta, record.scope)) return refuse(c, 'local_only', 'Only available on the main PC', 'local_only', { deviceId: record.id });
 
     c.set('deviceId', record.id);
     // Recorded use renews the cookie's lifetime (the value stays; it is set again after the route).
@@ -502,7 +506,7 @@ export function createGate(options: GateOptions): MiddlewareHandler<AppEnv> {
       return refuse(c, 'login_required', 'This device is not connected to Portly', verdict.reason, verdict.fields);
     }
     const { record } = verdict;
-    if (!pagesDeviceMayCall(meta)) return refuse(c, 'local_only', 'Only available on the main PC', 'local_only', { deviceId: record.id });
+    if (!pagesDeviceMayCall(meta, record.scope)) return refuse(c, 'local_only', 'Only available on the main PC', 'local_only', { deviceId: record.id });
 
     c.set('deviceId', record.id);
     devices?.touch(record.id);

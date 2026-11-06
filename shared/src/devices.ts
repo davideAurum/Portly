@@ -59,8 +59,18 @@ export const DeviceLabelSchema = z
   .max(DEVICE_LABEL_MAX)
   .regex(/^[^\p{Cc}\p{Cs}\u2028\u2029\u202A-\u202E\u2066-\u2069]+$/u, 'One line without control, bidi or half-surrogate characters');
 
-/** `POST /api/devices/requests {label}`. */
-export const DeviceRequestCreateSchema = z.object({ label: DeviceLabelSchema }).strict();
+/**
+ * What a connected device may do. `full` is what any connected PC may (ARCHITECTURE §20). `reporter`
+ * is a helper app on a phone, which holds a long-lived secret and gets lost: it may report what is
+ * playing and disconnect itself, and is refused everywhere else (§4.2,
+ * docs/design/phone-now-playing.md).
+ */
+export const DEVICE_SCOPES = ['full', 'reporter'] as const;
+export const DeviceScopeSchema = z.enum(DEVICE_SCOPES);
+export type DeviceScope = z.output<typeof DeviceScopeSchema>;
+
+/** `POST /api/devices/requests {label, scope?}`: a PC sends no scope, a helper app asks for `reporter`. */
+export const DeviceRequestCreateSchema = z.object({ label: DeviceLabelSchema, scope: DeviceScopeSchema.default('full') }).strict();
 export type DeviceRequestCreate = z.output<typeof DeviceRequestCreateSchema>;
 
 export const DeviceRequestCreateResponseSchema = z
@@ -117,6 +127,8 @@ export const DeviceSummarySchema = z
     label: z.string().max(DEVICE_LABEL_MAX),
     /** "Chrome on Windows", from the User-Agent of the request that asked. */
     browser: z.string().max(200),
+    /** Absent from a server older than this field: those have full devices only. */
+    scope: DeviceScopeSchema.default('full'),
     createdAt: IsoDateTime,
     lastUsedAt: IsoDateTime.nullable(),
     /** The device whose cookie this request carries. */
@@ -131,6 +143,8 @@ export const DeviceRequestSummarySchema = z
     code: DeviceCodeSchema,
     label: z.string().max(DEVICE_LABEL_MAX),
     browser: z.string().max(200),
+    /** What approving this request lets the device do (absent from an older server: full). */
+    scope: DeviceScopeSchema.default('full'),
     createdAt: IsoDateTime,
     expiresAt: IsoDateTime,
   })

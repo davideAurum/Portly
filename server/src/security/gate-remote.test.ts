@@ -12,7 +12,7 @@ import { createApp } from '../app.ts';
 import type { AppEnv } from '../context.ts';
 import { getLogContext } from '../lib/log-context.ts';
 import { createMemoryLogger } from '../lib/logger.ts';
-import { RouteTable, enrollment, exempt, multipart, ownPage, paired, samePc } from '../lib/routes.ts';
+import { RouteTable, anyDevice, enrollment, exempt, multipart, ownPage, paired, reporter, samePc } from '../lib/routes.ts';
 import { parseBody } from '../lib/validate.ts';
 import type { ModuleEntry } from '../modules/index.ts';
 import { createTestContext, type TestContext } from '../testing/test-context.ts';
@@ -50,6 +50,8 @@ const remoteModule: ModuleEntry = {
     app.post('/api/this-pc', samePc(), (c) => c.json({ reached: true }));
     app.post('/api/own-page', ownPage(), (c) => c.json({ reached: true }));
     app.post('/api/enroll', enrollment(), (c) => c.json({ deviceId: c.get('deviceId') ?? null, remote: c.get('remoteClient') ?? false }));
+    app.post('/api/report', reporter(), (c) => c.json({ deviceId: c.get('deviceId') ?? null }));
+    app.delete('/api/any-device', anyDevice(), (c) => c.json({ deviceId: c.get('deviceId') ?? null }));
     app.get('/api/raw', paired(), () => new Response('raw', { status: 200, headers: { 'Content-Type': 'text/plain' } }));
     app.delete('/api/leave', paired(), (c) => {
       c.header('Set-Cookie', clearCookieHeader(DEVICE_COOKIE), { append: true });
@@ -197,6 +199,87 @@ describe('request gate: other PCs (remote origin)', () => {
       expect(res.status).toBe(200);
       const anonymous = await testRequest(app, 'POST', '/api/own-page', { headers: remoteHeaders(null) });
       expect(anonymous.status).toBe(401);
+    });
+
+    describe('a reporter (a helper app on a phone)', () => {
+      let phone: { secret: string; record: { id: string } };
+
+      beforeEach(() => {
+        phone = connectTestDevice(ctx, { label: 'Phone', browser: 'Portly helper', scope: 'reporter' });
+      });
+
+      it('reaches its routes as a native client: no Origin, no fetch metadata, its cookie in a plain header', async () => {
+        for (const [method, path] of [
+          ['POST', '/api/report'],
+          ['DELETE', '/api/any-device'],
+        ] as const) {
+          const res = await testRequest(app, method, path, { headers: remoteHeaders(phone.secret) });
+          expect(res.status, path).toBe(200);
+          expect((await res.json()) as unknown, path).toEqual({ deviceId: phone.record.id });
+        }
+      });
+
+      it('is refused everywhere else with 403 local_only, enrollment and images included', async () => {
+        for (const [method, path] of [
+          ['GET', '/api/things'],
+          ['POST', '/api/things'],
+          ['DELETE', '/api/things/x'],
+          ['GET', '/api/icons/abc'],
+          ['POST', '/api/uploads'],
+          ['GET', '/api/raw'],
+          ['POST', '/api/local'],
+          ['POST', '/api/this-pc'],
+          ['POST', '/api/own-page'],
+          ['POST', '/api/enroll'],
+          ['GET', '/api/nope'],
+        ] as const) {
+          const res = await testRequest(app, method, path, { headers: remoteHeaders(phone.secret) });
+          expect(res.status, `${method} ${path}`).toBe(403);
+          expect(await errorCode(res), `${method} ${path}`).toBe('local_only');
+        }
+        expect(refusals().every((l) => l.fields?.reason === 'local_only' && l.fields?.deviceId === phone.record.id)).toBe(true);
+      });
+
+      it('still needs X-Portly, and health stays open as for anyone', async () => {
+        const res = await testRequest(app, 'POST', '/api/report', { headers: remoteHeaders(phone.secret, { 'X-Portly': null }) });
+        expect(res.status).toBe(403);
+        expect(await errorCode(res)).toBe('forbidden');
+        expect((await testRequest(app, 'GET', '/api/health', { headers: remoteHeaders(phone.secret) })).status).toBe(200);
+      });
+
+      it('records use like any device, so a phone in use keeps working past the idle limit', async () => {
+        const res = await testRequest(app, 'POST', '/api/report', { headers: remoteHeaders(phone.secret) });
+        expect(setCookieFor(res, DEVICE_COOKIE)).toBeDefined();
+        now += DEVICE_IDLE_TTL_MS - 1000;
+        expect((await testRequest(app, 'POST', '/api/report', { headers: remoteHeaders(phone.secret) })).status).toBe(200);
+        now += DEVICE_IDLE_TTL_MS - 1000;
+        expect((await testRequest(app, 'POST', '/api/report', { headers: remoteHeaders(phone.secret) })).status).toBe(200);
+        now += DEVICE_IDLE_TTL_MS + 1;
+        expect((await testRequest(app, 'POST', '/api/report', { headers: remoteHeaders(phone.secret) })).status).toBe(401);
+      });
+
+      it('answers 401 once it is revoked, the refusal a helper app waits for', async () => {
+        ctx.devices.revoke(phone.record.id);
+        const res = await testRequest(app, 'POST', '/api/report', { headers: remoteHeaders(phone.secret) });
+        expect(res.status).toBe(401);
+        expect(await errorCode(res)).toBe('login_required');
+      });
+
+      it('keeps everyone else out of a reporter route', async () => {
+        const full = await testRequest(app, 'POST', '/api/report', { headers: remoteHeaders(secret) });
+        expect(full.status).toBe(403);
+        expect(await errorCode(full)).toBe('local_only');
+        const anonymous = await testRequest(app, 'POST', '/api/report', { headers: remoteHeaders(null) });
+        expect(anonymous.status).toBe(401);
+        // A full device may still leave, on the same route a reporter leaves by.
+        expect((await testRequest(app, 'DELETE', '/api/any-device', { headers: remoteHeaders(secret) })).status).toBe(200);
+      });
+
+      it('sees no difference in a local request: a stray cookie on this PC names no device', async () => {
+        const res = await testRequest(app, 'POST', '/api/report', { headers: { Cookie: `${DEVICE_COOKIE}=${phone.secret}` } });
+        expect(res.status).toBe(200);
+        expect((await res.json()) as unknown).toEqual({ deviceId: null });
+      });
     });
 
     it('refuses the OAuth callback on the remote host: sign-in stays on the main PC', async () => {
@@ -517,6 +600,23 @@ describe('request gate: other PCs (remote origin)', () => {
         const health = await testRequest(bothApp, 'GET', '/api/health', { headers: remotePagesHeaders(null, { 'X-Portly': null }) });
         expect(health.status).toBe(200);
         expect(health.headers.get('access-control-allow-origin')).toBe(TEST_PAGES_ORIGIN);
+      });
+
+      it('takes a reporter secret nowhere, enrollment included, and stays off reporter routes itself', async () => {
+        const phone = connectTestDevice(bothCtx, { label: 'Phone', scope: 'reporter' });
+        for (const [method, path] of [
+          ['GET', '/api/things'],
+          ['POST', '/api/enroll'],
+          ['POST', '/api/report'],
+          ['DELETE', '/api/any-device'],
+        ] as const) {
+          const res = await testRequest(bothApp, method, path, { headers: remotePagesHeaders(phone.secret) });
+          expect(res.status, `${method} ${path}`).toBe(403);
+          expect(await errorCode(res), `${method} ${path}`).toBe('local_only');
+        }
+        const full = await testRequest(bothApp, 'POST', '/api/report', { headers: remotePagesHeaders(device.secret) });
+        expect(full.status).toBe(403);
+        expect((await testRequest(bothApp, 'DELETE', '/api/any-device', { headers: remotePagesHeaders(device.secret) })).status).toBe(200);
       });
 
       it('requires X-Portly, cross-site fetch metadata and the Content-Type rules', async () => {

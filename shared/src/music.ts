@@ -136,3 +136,81 @@ export type MusicCommandRequest = z.output<typeof MusicCommandRequestSchema>;
  */
 export const MUSIC_ERROR_REASONS = ['no_account', 'premium_required', 'access_denied', 'no_active_device', 'device_unavailable', 'not_allowed'] as const;
 export type MusicErrorReason = (typeof MUSIC_ERROR_REASONS)[number];
+
+// ---- The phone helper (docs/design/phone-now-playing.md) -------------------------------------
+//
+// A helper app on the owner's phone reads what an app there is playing and reports it, signed in as
+// a `reporter` device. Portly never talks to that app or its service. The report is listening
+// history and comes from podcast feeds, so it is hostile text held in memory only.
+
+/** The apps a report may come from. The helper has its own list; anything else is refused here too. */
+export const PHONE_APPS = ['pocket-casts'] as const;
+export const PhoneAppSchema = z.enum(PHONE_APPS);
+export type PhoneApp = z.output<typeof PhoneAppSchema>;
+
+/** The longest title or show name kept (§4.4's cap for a subject or an event title). */
+export const PHONE_TEXT_MAX = 500;
+/** The longest position or episode accepted: a week, past any real episode. */
+export const PHONE_MAX_POSITION_MS = 7 * 24 * 60 * 60 * 1000;
+/** The fastest playback speed accepted; Android reports 0 for a stopped clock. */
+export const PHONE_MAX_SPEED = 16;
+
+/** Control, line-separator and bidi-override characters, and half of a surrogate pair. */
+const UNSAFE_TEXT = /[\p{Cc}\p{Cs}\u2028\u2029\u202A-\u202E\u2066-\u2069]+/gu;
+
+/**
+ * A title or show name as it may be shown: plain text on one line, cut to {@link PHONE_TEXT_MAX}.
+ * It is cleaned rather than refused, because a stray character in someone's feed should not cost
+ * the owner the whole report.
+ */
+export function cleanPhoneText(raw: string): string {
+  return raw
+    .replace(UNSAFE_TEXT, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, PHONE_TEXT_MAX)
+    .replace(/[\uD800-\uDBFF]$/u, '')
+    .trimEnd();
+}
+
+const PhoneTitleSchema = z.string().transform(cleanPhoneText).pipe(z.string().min(1));
+const PhoneShowSchema = z
+  .string()
+  .transform((raw) => cleanPhoneText(raw) || null)
+  .nullable();
+/** An app's own id for the episode: opaque, short and printable, and never an address. */
+const PhoneEpisodeIdSchema = z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/);
+
+/** `POST /api/music/phone` → 204: the phone's latest state. `stopped` clears what it reported. */
+export const PhoneReportSchema = z.discriminatedUnion('state', [
+  z
+    .object({
+      app: PhoneAppSchema,
+      state: z.enum(['playing', 'paused']),
+      title: PhoneTitleSchema,
+      /** The podcast's name; null when the app gives none. */
+      show: PhoneShowSchema,
+      /** Null when the app does not know the length. */
+      durationMs: z.number().int().min(1).max(PHONE_MAX_POSITION_MS).nullable(),
+      positionMs: z.number().int().min(0).max(PHONE_MAX_POSITION_MS),
+      speed: z.number().min(0).max(PHONE_MAX_SPEED),
+      episodeId: PhoneEpisodeIdSchema.nullable().default(null),
+    })
+    .strict(),
+  z.object({ app: PhoneAppSchema, state: z.literal('stopped') }).strict(),
+]);
+export type PhoneReport = z.output<typeof PhoneReportSchema>;
+
+/** `GET /api/music/phone`: what the phone is playing, or null when it has nothing to show. */
+export interface PhonePlayback {
+  app: PhoneApp;
+  state: 'playing' | 'paused';
+  title: string;
+  show: string | null;
+  durationMs: number | null;
+  /** Where playback is at the moment of this answer. */
+  positionMs: number;
+  speed: number;
+  /** When this began: starting or resuming counts, a later report of the same thing does not. */
+  startedAt: string;
+}

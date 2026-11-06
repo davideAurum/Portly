@@ -5,11 +5,12 @@
  * classified the request (`remoteClient`) and verified a device cookie (`deviceId`).
  *
  * Routes and responses:
- * - `POST /api/devices/requests {label}` [enrollment] → 201 `DeviceRequestCreateResponse` and the
- *   enrollment cookie (`__Host-portly_enroll`; it outlives the request's 10 minutes by the hour the
+ * - `POST /api/devices/requests {label, scope?}` [enrollment] → 201 `DeviceRequestCreateResponse` and
+ *   the enrollment cookie (`__Host-portly_enroll`; it outlives the request's 10 minutes by the hour the
  *   request is retained, so the last poll can still say expired). Only from the remote origin (409
  *   `not_configured` without one, 409 `conflict` from this PC's own page); 429 `rate_limited`
- *   while 3 requests wait.
+ *   while 3 requests wait. A helper app asks for scope `reporter`; a PC sends none and is `full`.
+ *   The approval on this PC sees the scope in the `GET /api/devices` list.
  * - `GET /api/devices/requests/suggestion` [enrollment] → `DeviceNameSuggestionResponse`: the name
  *   the connect screen fills in, from the last `X-Forwarded-For` entry (the sender's tailnet address as
  *   the proxy itself added it; Tailscale Serve replaces a forged header) through `ctx.peerNames` (lib/peer-names.ts:
@@ -31,7 +32,8 @@
  *   from another PC; a device may only disconnect itself (`DELETE /api/device`).
  * - `GET /api/device` [paired] → `DeviceStatusResponse` for the device the gate verified (a request
  *   the gate attributed to no device, such as a local one with a stray cookie → 409 `not_configured`).
- * - `DELETE /api/device` [paired] → 204: the presenting device disconnects itself (cookie cleared).
+ * - `DELETE /api/device` [any-device] → 204: the presenting device, of either scope, disconnects
+ *   itself (cookie cleared).
  *
  * The Pages site opened on another PC (`remotePages`, set by the gate) calls the same routes as
  * CORS requests, where a browser sends no `SameSite=Strict` cookie: it gets the request's secret in
@@ -39,7 +41,7 @@
  * answers with the device secret in `secret`, which it then sends as `X-Portly-Device`. No cookie
  * is set or cleared for it.
  *
- * Logs `info` lines with request and device ids only (`device request created {deviceRequestId}`,
+ * Logs `info` lines with request and device ids only (`device request created {deviceRequestId, scope}`,
  * `device request approved|denied {deviceRequestId}`, `device removed {deviceId, by}`; the store
  * logs `device connected`): never a label, a code or a cookie (§17).
  */
@@ -65,7 +67,7 @@ import {
 import type { AppContext, AppEnv } from '../../context.ts';
 import { msToIso, msToIsoStrict } from '../../db/helpers.ts';
 import { HttpError } from '../../lib/errors.ts';
-import { enrollment, paired, samePc } from '../../lib/routes.ts';
+import { anyDevice, enrollment, paired, samePc } from '../../lib/routes.ts';
 import { userAgentSummary } from '../../lib/user-agent.ts';
 import { parseBody } from '../../lib/validate.ts';
 import { clearCookieHeader, cookieHeader, readCookie } from '../../security/cookies.ts';
@@ -96,6 +98,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     id: record.id,
     label: record.label,
     browser: record.browser,
+    scope: record.scope,
     createdAt: msToIsoStrict(record.createdAt),
     lastUsedAt: msToIso(record.lastUsedAt),
     current: record.id === currentId,
@@ -106,6 +109,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     code: record.code,
     label: record.label,
     browser: record.browser,
+    scope: record.scope,
     createdAt: msToIsoStrict(record.createdAt),
     expiresAt: msToIsoStrict(record.expiresAt),
   });
@@ -149,13 +153,13 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
   app.post('/api/devices/requests', enrollment(), async (c) => {
     if (config.remoteOrigin === null) throw HttpError.of('not_configured', 'Set PORTLY_REMOTE_ORIGIN to let other PCs connect');
     if (c.get('remoteClient') !== true) throw HttpError.of('conflict', "This is Portly's own page on the main PC; it needs no connecting");
-    const { label } = await parseBody(c, DeviceRequestCreateSchema);
-    const created = devices.createRequest({ label, browser: userAgentSummary(c.req.header('user-agent')) });
+    const { label, scope } = await parseBody(c, DeviceRequestCreateSchema);
+    const created = devices.createRequest({ label, scope, browser: userAgentSummary(c.req.header('user-agent')) });
     if (created === null) {
       c.header('Retry-After', String(RETRY_AFTER_SECONDS));
       throw HttpError.of('rate_limited', 'Too many devices are waiting for approval; approve or deny them on the main PC first');
     }
-    log.info('device request created', { deviceRequestId: created.record.id });
+    log.info('device request created', { deviceRequestId: created.record.id, scope });
     const body: DeviceRequestCreateResponse = {
       id: created.record.id,
       code: created.record.code,
@@ -242,7 +246,7 @@ export function register(app: Hono<AppEnv>, ctx: AppContext): void {
     return c.json(body);
   });
 
-  app.delete('/api/device', paired(), (c) => {
+  app.delete('/api/device', anyDevice(), (c) => {
     const secret = presentedSecret(c);
     const record = devices.verify(secret);
     if (record === null || !devices.revokeBySecret(secret, 'disconnected')) throw HttpError.of('login_required');

@@ -270,7 +270,8 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   - **Never logged** (files, rings, reports, browser events, any level): tokens of any kind, passwords, OAuth codes
     and PKCE verifiers, client secrets, pairing tokens and nonces, cookies, Authorization headers, URL credentials;
     request/response bodies and content — mail subjects/senders/bodies, event titles/descriptions/locations, task
-    text and filters, bookmark/page/feed titles, search terms, geocode text, coordinates, browser profile names, user
+    text and filters, bookmark/page/feed titles, what is playing, search terms, geocode text, coordinates, browser
+    profile names, user
     names typed into forms; full URLs (hosts plus a `purpose` for outbound calls, route patterns and query-less
     paths for our API; ICS URLs never leave the vault). imapflow always `logger: false`.
 - **Backups:** daily `VACUUM INTO backups/portly-<YYYY-MM-DD>.db`, keep the last 7; also before import.
@@ -347,7 +348,9 @@ risk in this section first.
 page or the paired Pages site; its device cookie) may call the routes declared `paired()` through the remote port, as
 a paired browser may. Each
 approved PC is fully trusted, like a paired browser: a stolen PC has that access until it is removed in Settings →
-Devices (a 30-day idle expiry bounds a forgotten one; a passkey second factor is a later item). Mitigations: nothing
+Devices (a 30-day idle expiry bounds a forgotten one; a passkey second factor is a later item). The exception is a
+helper app on a phone, which holds a long-lived secret and gets lost: it is a device of scope `reporter`, which may only
+report what is playing and disconnect itself (§4.2, §20). Mitigations: nothing
 opens a LAN socket (the proxy is the user's own, documented as Tailscale Serve inside the tailnet, never Funnel); what
 is decided on this PC stays here (`samePc()` or untagged: approving and removing devices, every pairing route, the OAuth
 client settings, the OAuth start, the vault reset, the browser bookmark import, the diagnostics report); a device may
@@ -405,7 +408,10 @@ with `portly --update` today.
    but `POST /api/pairings`, approving, denying and removing devices, the diagnostics report); `enrollment()` one anyone on the remote port may call without a device
    cookie (asking for and polling a device request, and the name the connect screen fills in; the Pages site may
    not); `ownPage()` one a connected device may call with its cookie, as Portly's own page on this PC may, but never
-   the Pages site on any PC (starting an update, §4.1). Default deny — untagged routes are
+   the Pages site on any PC (starting an update, §4.1); `reporter()` one only a device of scope `reporter` may call
+   (a phone helper's report, §20), never a full device or the Pages site; `anyDevice()` one `paired()` would let in, and
+   a reporter too (a device disconnecting itself). A reporter is refused on every other route, `enrollment()`
+   included. Default deny — untagged routes are
    local-only: `POST /api/pairings`, the OAuth callback and unknown routes.
    `RouteTable.match` **fails closed**: each registration a request matches lets in the callers its tags name, the
    route lets in only the callers every registration agrees on, and that set must be exactly one level's (so a
@@ -418,7 +424,7 @@ with `portly --update` today.
      requested header ∈ {content-type, x-portly, x-portly-token, x-portly-device, x-portly-enroll} → 204, else 403;
      never passed on;
    - `GET /api/health` passes as for anyone (no token);
-   - anything else: route access must be `paired` or `same-pc` (else 403 `local_only`), `X-Portly: 1`, `Sec-Fetch-Site`
+   - anything else: route access must be `paired`, `same-pc` or `any-device` (else 403 `local_only`), `X-Portly: 1`, `Sec-Fetch-Site`
      `cross-site`/`same-site`/absent (the exact Origin match is the real check), a pairing token
      (`X-Portly-Token`) that verifies **and** was issued for that origin (else 401 `pairing_required`), and the
      Content-Type rules of step 4 (image routes too: the page fetches images with the token). The pairing's
@@ -430,8 +436,10 @@ with `portly --update` today.
    is refused (403 `local_only`); every other request needs an absent-or-remote `Origin` (exactly `remoteOrigin`),
    `Sec-Fetch-Site` absent or `same-origin` (`image` routes also `none`), `X-Portly: 1` (not for `image` routes) and the
    Content-Type of step 4, then the device cookie `__Host-portly_device` that verifies (else 401 `login_required`, with
-   the sub-reason logged) and a route a device may call (else 403 `local_only`). `enrollment()` routes need no cookie
-   (a stale one is ignored, a valid one still noted). The device's last use is recorded (at most every 10 min) and the
+   the sub-reason logged) and a route the device's scope may call (else 403 `local_only`): for a full device
+   `paired()`, `enrollment()`, `ownPage()` and `anyDevice()`, for a reporter only `reporter()` and `anyDevice()`.
+   `enrollment()` routes need no cookie (a stale one is ignored, a valid full device's still noted). A helper app is a
+   native client: it sends no `Origin` or `Sec-Fetch-Site`, which this branch accepts. The device's last use is recorded (at most every 10 min) and the
    cookie's lifetime renewed then, unless the route set or cleared the cookie itself or stopped the device. Never
    CORS headers, never preflights — except for the Pages site:
 
@@ -440,8 +448,8 @@ with `portly --update` today.
    (refusals included) and `remotePages`; preflights as in the Pages branch; `GET /api/health` passes; the OAuth
    callback is refused (403 `local_only`); everything else needs `X-Portly: 1`, `Sec-Fetch-Site`
    `cross-site`/`same-site`/absent, the Content-Type of step 4, then the device secret in `X-Portly-Device` that
-   verifies (else 401 `login_required`; any cookie is ignored) and a route a device may call, `ownPage()` routes
-   excepted (else 403 `local_only`). `enrollment()` routes need no secret. The device's last use is recorded as for a cookie; nothing is renewed.
+   verifies (else 401 `login_required`; any cookie is ignored) and a route a full device may call, `ownPage()` routes
+   excepted (else 403 `local_only`; a reporter's secret is refused on every route). `enrollment()` routes need no secret. The device's last use is recorded as for a cookie; nothing is renewed.
 4. Non-exempt `/api` requests must have: `X-Portly: 1`; `Origin` absent or in the origin allowlist;
    `Sec-Fetch-Site` absent or `same-origin` (reject `same-site`, `cross-site`, `none`); for bodies,
    `Content-Type: application/json`, except routes declared multipart (uploads, imports).
@@ -744,6 +752,9 @@ first line is `-- portly:foreign-keys-off` (`FOREIGN_KEYS_OFF_MARKER`, `db/migra
 SQLite documents: in its own transaction after the migrations before it have committed, refused if the switch did not
 take, and rolled back unless `PRAGMA foreign_key_check` finds nothing. Any other migration keeps sharing one transaction.
 
+`008_device_scope.sql`: `scope` on `devices` and `device_requests`, `full` (the default, so every existing PC stays as
+it is) or `reporter` (§20). The store reads any other value as `reporter`, the narrowest.
+
 ---
 
 ## 6. Server structure
@@ -754,7 +765,7 @@ server/src/
   supervisor.ts          autostart supervisor (§3)
   config.ts  app.ts  context.ts
   db/{open,migrate,helpers}.ts, db/migrations/{001_init,002_pairing,003_diagnostics,004_beacon_defaults,
-       005_oauth_state_capabilities,006_devices,007_account_kinds}.sql
+       005_oauth_state_capabilities,006_devices,007_account_kinds,008_device_scope}.sql
   security/{gate,headers,vault,safe-fetch,private-address,dpapi,pairing,foreign-origins,devices,cookies}.ts
   lib/{logger,log-context,health,inflight,provider-errors,exit-codes,startup,ids,errors,cache,scheduler,validate,
        settings,routes,backups,html-scan,image-sniff,ipc,merge-patch,multipart,safe-json,user-agent,
@@ -910,7 +921,7 @@ is scheduled; soccer adds `?fixture=true`) with the league scoreboard (cached 20
 now (30 min before start to 8 h after). Team lists cached 1 day; the static build reads them from `/standings`
 (ESPN's `/teams` sends no CORS header). Plain text only; links https; logos from `a.espncdn.com` only.
 
-**Music** (`shared/src/music.ts`, all [paired]) — `GET /api/music/status[?accountId=]` → `MusicStatus {accountId,
+**Music** (`shared/src/music.ts`, [paired] unless noted) — `GET /api/music/status[?accountId=]` → `MusicStatus {accountId,
 provider, features, playback|null}` (`playback` null: nothing is active on any device) ·
 `GET /api/music/devices[?accountId=]` → `MusicDevice[]` · `POST /api/music/command {accountId?, command}` → 204;
 `command` is one of `play`, `pause`, `next`, `previous`, `seek {positionMs}`, `volume {percent}`, `shuffle {on}`,
@@ -924,6 +935,17 @@ bringing back the state from before a command; the position is moved on by the a
 nothing for that account until the wait is over. What is playing stays in `ctx.memo`, never the SQLite cache or a log.
 The in-browser backend answers the same routes with the same shapes (§16, `web/src/static/handlers/music.ts`).
 
+What the phone is playing (`docs/design/phone-now-playing.md`) — `POST /api/music/phone` [reporter] → 204: the latest
+report of a helper app on a phone (`PhoneReportSchema`): `{app, state: playing|paused, title, show|null, durationMs|null,
+positionMs, speed, episodeId?}` or `{app, state: stopped}`. Titles come from podcast feeds, so both text fields are
+cleaned to one line of plain text and cut to 500 characters; anything the schema does not name, an address included,
+is a 422. One report a second per device, then 429 with `Retry-After`; Portly's own page gets 409 `not_configured` ·
+`GET /api/music/phone` → `PhonePlayback {app, state, title, show|null, durationMs|null, positionMs, speed,
+startedAt}|null`. `modules/music/phone.ts` holds one report, latest wins, in its own memory, never SQLite or a log. A
+playing report with no follow-up for 90 s is gone, a paused one stays 15 minutes, `stopped` clears the reporting
+device's own, and a restart or the reporting device's removal clears it. The position moves on by the report's age
+times the speed, never past the end. The in-browser backend does not answer these two yet (the design's phase 2).
+
 **Pairing** (hybrid mode, §16; `shared/src/pairing.ts`; `samePc()` except `POST /api/pairings`, which is untagged
 and so local-only: another PC has no say over pairings)
 — `GET /api/pairing` → `PairingStatusResponse {paired, pairingId, instanceId, label, createdAt}` for the presenting
@@ -933,7 +955,7 @@ lastUsedAt|null, current}[]}` (`current` = made for the configured origin) · `P
 201 `{redirectUrl}` = `<pagesUrl>#/paired?token=…&nonce=…&instance=…` built from config only (409 `not_configured`
 without a Pages URL) · `DELETE /api/pairings/:id` → 204 / 404.
 
-**Devices** (other PCs, §20; `shared/src/devices.ts`) — `POST /api/devices/requests {label}` [enrollment] → 201
+**Devices** (other PCs, §20; `shared/src/devices.ts`) — `POST /api/devices/requests {label, scope?}` [enrollment] → 201
 `{id, code, expiresAt}` and the enrollment cookie (only from the remote port: 409 `not_configured` without a remote
 origin, 409 `conflict` from this PC's own page; 429 `rate_limited` with `Retry-After` while 3 requests wait) ·
 `GET /api/devices/requests/current` [enrollment] → `{status: pending|approved|denied|expired, id, code, expiresAt,
@@ -941,12 +963,12 @@ device|null}` for the enrollment cookie (`approved` sets the device cookie and c
 before the device's first use, the same device gets a fresh cookie; 404 without a cookie or for one the server does
 not know) · `GET /api/devices/requests/suggestion` [enrollment] → `{label|null}`: the name the connect screen fills
 in, from the last `X-Forwarded-For` entry through Tailscale on this PC (§20; null from this PC's own page, without
-the header, or when Tailscale cannot say) · `GET /api/devices` [paired] → `{remoteOrigin|null, devices: {id, label, browser, createdAt, lastUsedAt|null,
-current}[], requests: {id, code, label, browser, createdAt, expiresAt}[]}` · `POST /api/devices/requests/:id/approve`
+the header, or when Tailscale cannot say) · `GET /api/devices` [paired] → `{remoteOrigin|null, devices: {id, label, browser, scope, createdAt, lastUsedAt|null,
+current}[], requests: {id, code, label, browser, scope, createdAt, expiresAt}[]}` · `POST /api/devices/requests/:id/approve`
 [same-pc] → `{approved: true}` / 404 · `POST /api/devices/requests/:id/deny` [same-pc] → 204 / 404 ·
 `DELETE /api/devices/:id` [same-pc] → 204 / 404 · `GET /api/device` [paired] → `{device: {id, label, createdAt}}` for
-the device the gate verified (none → 409 `not_configured`) · `DELETE /api/device` [paired] → 204 (the device
-disconnects itself; its cookie cleared). Every other route except those listed `samePc()`, `ownPage()` or local-only
+the device the gate verified (none → 409 `not_configured`) · `DELETE /api/device` [any-device] → 204 (the device
+disconnects itself; its cookie cleared). Every other route except those listed `samePc()`, `ownPage()`, `reporter()` or local-only
 in §4.2 is `paired()`; `GET /api/about` and the diagnostics summary blank the paths for a device as for the Pages site.
 
 **Update** (§18; `shared/src/update.ts`, `modules/update`) — `GET /api/update[?refresh=1]` [paired] →
@@ -1069,7 +1091,8 @@ reached; a run already going answers 202 with that run.
 - **music.ts** — `MUSIC_PROVIDERS` (the account kinds that are music providers; each has a `MusicProvider`, `modules/
   music/providers/types.ts`); `MusicStatus`, `MusicPlayback`, `MusicItem`, `MusicDevice`, `MusicFeatures` (what a provider
   can do at all), `MusicAllowedActions` (what it allows right now); `MusicCommandSchema`, `MusicCommandRequestSchema`,
-  `MusicQuerySchema`; `MUSIC_ERROR_REASONS`.
+  `MusicQuerySchema`; `MUSIC_ERROR_REASONS`. For the phone helper: `PHONE_APPS`, `PhoneReportSchema`, `PhonePlayback`,
+  `cleanPhoneText` (a title as it may be shown; cap `PHONE_TEXT_MAX` 500).
 - **sports.ts** — `SPORTS_LEAGUES` (`SportsLeagueInfo {id, sport, league, name, soccer, scoreboardGroups?}`, picker
   order) and the `SportsLeagueId` enum of their ids; `SportsTeamId` (ESPN's numeric id); `SportsTeam {id, league, name,
   shortName, abbreviation, logo|null, logoDark|null, color|null}`; `SportsGame {id, league, date, timeValid,
@@ -2422,6 +2445,15 @@ the paths. A device on Portly's own page, with its cookie, may also start an upd
 any PC (§4.1). The later items (design phase 4): the extension's server address, OAuth sign-in from other PCs, a passkey
 second factor, an optional `Tailscale-User-Login` identity check as defence in depth (the real check with a second
 device showed Serve replaces a forged one from inside the tailnet; any other proxy may pass it through).
+
+**A limited device: the phone helper** (`docs/design/phone-now-playing.md`). A device has a scope. `full` is everything
+above, and every PC is one. `reporter` is a helper app on a phone: it asks with
+`POST /api/devices/requests {label, scope: 'reporter'}` and is approved in the same place. It holds a long-lived secret and
+gets lost, so it may call only `POST /api/music/phone` and `DELETE /api/device`, with its device cookie in a plain
+`Cookie` header. Everywhere else it gets 403 `local_only`, `enrollment()` routes included (a phone asking again leaves
+its old cookie out), and the Pages site gets nowhere with its secret. Full devices and the Pages site are refused on
+the report route. `app.test.ts` sends a reporter through the real gate to every route in `ROUTE_ACCESS`. The 30-day idle
+rule applies and a report counts as use.
 
 **The name the connect screen fills in** (`lib/peer-names.ts`, `GET /api/devices/requests/suggestion`). A browser
 cannot tell a page the computer's name, but Tailscale on this PC can tell who is asking: a Serve proxy sets

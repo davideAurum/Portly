@@ -19,11 +19,11 @@ function devices(overrides: Partial<DevicesResponse> = {}): DevicesResponse {
   return {
     remoteOrigin: 'https://pc.tailnet.example',
     devices: [
-      { id: 'd1', label: 'Laptop', browser: 'Edge on Windows', createdAt: new Date(NOW - 86_400_000).toISOString(), lastUsedAt: new Date(NOW - 60_000).toISOString(), current: false },
-      { id: 'd2', label: 'Desk', browser: 'Chrome on Windows', createdAt: new Date(NOW - 3_600_000).toISOString(), lastUsedAt: null, current: true },
+      { id: 'd1', label: 'Laptop', browser: 'Edge on Windows', scope: 'full', createdAt: new Date(NOW - 86_400_000).toISOString(), lastUsedAt: new Date(NOW - 60_000).toISOString(), current: false },
+      { id: 'd2', label: 'Desk', browser: 'Chrome on Windows', scope: 'full', createdAt: new Date(NOW - 3_600_000).toISOString(), lastUsedAt: null, current: true },
     ],
     requests: [
-      { id: 'r1', code: 'K7Q-4MP', label: 'Tablet', browser: 'Safari on iOS', createdAt: new Date(NOW - 30_000).toISOString(), expiresAt: new Date(NOW + 570_000).toISOString() },
+      { id: 'r1', code: 'K7Q-4MP', label: 'Tablet', browser: 'Safari on iOS', scope: 'full', createdAt: new Date(NOW - 30_000).toISOString(), expiresAt: new Date(NOW + 570_000).toISOString() },
     ],
     ...overrides,
   };
