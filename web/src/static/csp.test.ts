@@ -30,8 +30,8 @@ describe('static build CSP', () => {
     expect(staticCsp('')).not.toContain('sdk.scdn.co');
     expect(directive(staticCsp(''), 'script-src')).toEqual(["'self'"]);
     expect(directive(staticCsp(''), 'frame-src')).toEqual(["'none'"]);
-    // The widget talks to the server, never to Spotify from the page.
-    expect(directive(staticCsp(''), 'connect-src').filter((source) => source.includes('spotify'))).toEqual([]);
+    // The in-browser backend signs in to Spotify and calls its player from the page: those two hosts and no others.
+    expect(directive(staticCsp(''), 'connect-src').filter((source) => source.includes('spotify'))).toEqual(['https://accounts.spotify.com', 'https://api.spotify.com']);
   });
 
   it('allows Portly on another PC through any Tailscale Serve address with hybrid mode on, never one named PC', () => {
