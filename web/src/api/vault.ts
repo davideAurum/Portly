@@ -20,6 +20,7 @@ export function useResetVault() {
         client.invalidateQueries({ queryKey: qk.about() }),
         client.invalidateQueries({ queryKey: qk.oauthClients.all() }),
         client.invalidateQueries({ queryKey: qk.todoist.all() }),
+        client.invalidateQueries({ queryKey: qk.github.all() }),
         invalidateAccountData(client),
       ]);
     },

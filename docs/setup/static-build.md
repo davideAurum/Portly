@@ -21,6 +21,7 @@ browser you have paired with it uses Portly's own data and features while it run
 | **Clock**, **Weather** (Open-Meteo, no key), **Notes** (kept with the layout in this browser, so export/import carries them) | — |
 | **Sports scores** — scores, results and schedules straight from ESPN's public feeds | — |
 | **Todoist** — tasks, quick add, complete with undo (token stored in the browser, see below) | — |
+| **GitHub** — the status board of your repositories ([guide](github.md); token stored in the browser, see below) | — |
 | **Calendar** — your **Outlook.com** calendars, read and written straight from the browser through Microsoft Graph (an app registration you own, see [Outlook.com](microsoft.md#browser-only-build-github-pages)); they sync while the page is open | Google, Yahoo and CalDAV calendars, ICS / webcal subscriptions |
 | **Music** — a remote control for Spotify, straight from the browser: needs Premium and a Spotify app of your own ([Spotify](spotify.md#where-it-runs)) | — |
 | **Themes**, background image upload, **profiles**, **export / import** | — |
@@ -90,6 +91,11 @@ with it. The server build's new-tab extension is for Chrome and Edge as well
   folder named after your Microsoft app registration, which Microsoft can read. Portly doesn't
   encrypt them, and the permission reaches only that folder
   ([Outlook.com](microsoft.md#browser-only-build-github-pages)).
+- **The GitHub repositories token reads everything.** **Settings → Accounts → GitHub repositories**
+  keeps a read-only token that can read all of your repositories, private code included. Here it is
+  stored unencrypted in this browser, on the site's shared address, so a script on any page of that
+  address could read it. It is never exported and is sent only to `api.github.com`. Keep its 90-day
+  expiry, and prefer Portly on a PC, which keeps it encrypted. **Remove** it on a shared PC.
 - **Launch pad sync through GitHub.** **Settings → Accounts → GitHub** keeps
   the name of a *private* repository you create on GitHub and a fine-grained token limited to it
   (Contents: Read and write). Once they are saved, your groups, bookmark titles and addresses, and
@@ -433,6 +439,7 @@ what keep the data private.
 | Open-Meteo (`api.open-meteo.com`, `geocoding-api.open-meteo.com`) | Weather widget | The location you chose, and the text you type when searching for a place. Free for non-commercial use, no key; the data is [CC BY 4.0](https://open-meteo.com/en/license) and the widget shows the required attribution. |
 | OpenStreetMap Nominatim (`nominatim.openstreetmap.org`) | Weather widget using this device's location | Those coordinates, rounded to about 1 km, to show the town's name instead of "Current location". At most once a week per spot; no key. The name is © OpenStreetMap contributors, credited in the widget. |
 | Todoist (`api.todoist.com`) | Todoist widget | Your personal token with every request, straight from the browser — the same as the Todoist apps do. |
+| GitHub (`api.github.com`) | GitHub widget, once its token is saved | Your token with every request, straight from the browser. GitHub answers with your repositories' names and status. |
 | Microsoft (`login.microsoftonline.com`, `graph.microsoft.com`) | Outlook.com account and the Calendar widget | The sign-in (your app registration's client id, the one-time code, then token refreshes), and the calendar requests with the account's access token: which calendars you have, the events of the synced window, and the events you create, change or delete. |
 | Spotify (`accounts.spotify.com`, `api.spotify.com`, cover art from `i.scdn.co`) | Spotify account and the Music widget: every 5 seconds while something plays and every 15 otherwise, only while the page is visible | The sign-in (your Spotify app's client id, the one-time code, then token refreshes), the account's access token with each request, and the playback commands you give. Cover art shows your IP address to Spotify's image server. |
 | Microsoft OneDrive (`graph.microsoft.com`, downloads from `my.microsoftpersonalcontent.com`) | Launch pad sync through a Microsoft connection, when it is ticked: a check at page load, on focus and every 5 minutes while the page is visible | The account's access token with each Graph request (downloads carry none); the launch pad file and custom icons, read on each check and written after changes. |

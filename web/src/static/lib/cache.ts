@@ -1,7 +1,7 @@
 /**
  * In-memory TTL cache for the static backend (port of `createMemoryCache` from
  * server/src/lib/cache.ts): weather forecasts (10 min), geocoding (24 h), search suggestions
- * (5 min) and Todoist projects (5 min). Keys are namespaced `'<module>:...'`. Nothing here is ever
+ * (5 min), Todoist projects (5 min) and the GitHub board (30 s). Keys are namespaced `'<module>:...'`. Nothing here is ever
  * persisted — the page's TanStack cache already survives reloads where that is wanted.
  */
 

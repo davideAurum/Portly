@@ -293,7 +293,7 @@ paired browser, any script running on any page of that origin can read the pairi
 on this PC just like the Portly site can:
 
 - read and change your dashboards, settings, bookmarks and uploads, your Todoist tasks, calendars
-  and mail; connect and remove accounts, set the OAuth clients, reset the vault, list or revoke
+  and mail; read your GitHub repositories' names and status; connect and remove accounts, set the OAuth clients, reset the vault, list or revoke
   paired browsers, and approve or remove your other PCs, if you have set them up (everything is
   done on the site: there is one page). A request from another PC can only come from inside your
   tailnet;

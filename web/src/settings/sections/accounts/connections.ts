@@ -15,13 +15,14 @@
  * Google, Microsoft and Spotify sign-ins stay on the main PC (their redirect lands there); Yahoo, CalDAV,
  * IMAP and Todoist work from anywhere, because the server keeps the credentials. GitHub (a private
  * repository and token for launch pad sync) is offered only when the page's data lives in this
- * browser.
+ * browser. GitHub repositories (a read-only token for the status board) works everywhere, like
+ * Todoist.
  */
 import { CAPABILITIES, OAUTH_PROVIDER_CAPABILITIES, type AccountKind, type Capability, type OAuthProvider } from '@portly/shared';
 import { getCapabilities, type Capabilities } from '../../../capabilities.ts';
 import { CAPABILITY_LABELS } from '../../../ui/accounts/accountKinds.ts';
 
-export type ConnectionId = OAuthProvider | 'yahoo' | 'todoist' | 'github' | 'other';
+export type ConnectionId = OAuthProvider | 'yahoo' | 'todoist' | 'github' | 'github-status' | 'other';
 
 export interface ConnectionInfo {
   id: ConnectionId;
@@ -41,6 +42,7 @@ export const CONNECTIONS: readonly ConnectionInfo[] = Object.freeze([
   { id: 'todoist', title: 'Todoist', mark: { letter: 'T', color: '#dc4c3e' }, available: () => true },
   { id: 'spotify', title: 'Spotify', mark: { letter: 'S', color: '#1db954' }, available: (caps) => caps.music && !caps.remoteClient },
   { id: 'github', title: 'GitHub', mark: { letter: 'G', color: '#24292f' }, available: (caps) => caps.backend === 'browser' },
+  { id: 'github-status', title: 'GitHub repositories', mark: { letter: 'G', color: '#24292f' }, available: () => true },
   { id: 'other', title: 'Other', mark: null, available: (caps) => caps.appPasswordAccounts },
 ]);
 
@@ -55,8 +57,8 @@ export function availableConnections(caps: Capabilities = getCapabilities()): Co
   return CONNECTIONS.filter((c) => c.available(caps));
 }
 
-/** Connections with services to pick (Todoist has one: its tasks; GitHub one: launch pad sync). */
-export type ServiceConnection = Exclude<ConnectionId, 'todoist' | 'github'>;
+/** Connections with services to pick (Todoist has one: its tasks; each GitHub connection one: launch pad sync, the status board). */
+export type ServiceConnection = Exclude<ConnectionId, 'todoist' | 'github' | 'github-status'>;
 
 /** One line per service and connection, shown next to its checkbox or switch. */
 const SERVICE_DESCRIPTIONS: Readonly<Record<ServiceConnection, Readonly<Partial<Record<Capability, string>>>>> = Object.freeze({

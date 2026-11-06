@@ -7,6 +7,12 @@ gets a new one when its own code changes. Each entry names the extension version
 ## Unreleased
 
 ### What's new
+- **GitHub status board.** A new **GitHub** widget lists your repositories with their latest CI
+  result, open pull requests and issues, latest release and last push, with whatever needs attention
+  first. The small **⋯** menu on each row opens the repository in GitHub Desktop, opens its pages on
+  GitHub, or copies its clone address. It uses a read-only token you create
+  ([how](docs/setup/github.md)), and Portly changes nothing on GitHub or on your disk. It works on
+  Portly's own page, the Pages site, other PCs and the browser-only site.
 - **Music on the browser-only site.** The Music widget no longer needs Portly on your PC: the site
   signs in to Spotify and controls it straight from the browser. Add the site's address as a second
   redirect URI in your Spotify app ([how](docs/setup/spotify.md#where-it-runs)). The sign-in is kept

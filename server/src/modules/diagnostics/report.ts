@@ -58,6 +58,7 @@ export const WELL_KNOWN_HOSTS: readonly string[] = [
   'imap.mail.yahoo.com',
   'mail.yahoo.com',
   'api.todoist.com',
+  'api.github.com',
   'accounts.spotify.com',
   'api.spotify.com',
   'api.open-meteo.com',

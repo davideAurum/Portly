@@ -44,6 +44,11 @@ export const qk = {
     tasks: (filter: string) => ['todoist', 'tasks', filter] as const,
     projects: () => ['todoist', 'projects'] as const,
   },
+  github: {
+    all: () => ['github'] as const,
+    token: () => ['github', 'token'] as const,
+    board: () => ['github', 'board'] as const,
+  },
   calendar: {
     all: () => ['calendar'] as const,
     calendars: () => ['calendar', 'calendars'] as const,

@@ -1,7 +1,7 @@
 /**
  * "Connected accounts" (§7 Accounts): one row per account (name, email, status, the services in
  * use as chips; Manage, Reconnect for OAuth accounts, Test and Remove), plus Todoist and GitHub
- * (launch pad sync) while their tokens are saved. Manage renames, recolors and switches services
+ * (launch pad sync, the status board) while their tokens are saved. Manage renames, recolors and switches services
  * on and off; for Google and Microsoft it can also add a service the account was not granted, by
  * signing in again for the extra scopes (incremental consent). Switching a service off never
  * revokes anything at the provider.
@@ -15,6 +15,7 @@ import { useState, type FormEvent } from 'react';
 import { FlaskConical, LogIn, Plus, Settings2, Trash, UserRoundPlus } from 'lucide-react';
 import { CAPABILITIES, type Account, type Capability } from '@portly/shared';
 import { useAccounts, useDeleteAccount, useStartOAuth, useTestAccount, useUpdateAccount } from '../../../api/accounts.ts';
+import { useGitHubToken } from '../../../api/github.ts';
 import { useGitHubSync } from '../../../api/githubSync.ts';
 import { useLaunchpadSync, type LaunchpadSyncInfo } from '../../../api/launchpadSync.ts';
 import { useTodoistToken } from '../../../api/todoist.ts';
@@ -36,6 +37,7 @@ import { Switch } from '../../../ui/Toggles.tsx';
 import { ProviderRegistration } from './AppRegistration.tsx';
 import { connectionServices, serviceDescription } from './connections.ts';
 import { summarizeProbes } from './CredentialForms.tsx';
+import { GitHubStatusRow } from './GitHubStatus.tsx';
 import { GitHubSyncRow } from './GitHubSync.tsx';
 import { LaunchpadSyncNotices, SyncStatusLine, otherSyncConnection, useSyncConnections } from './LaunchpadSync.tsx';
 import { TodoistRow } from './Todoist.tsx';
@@ -44,20 +46,21 @@ import styles from '../../../styles/settings.module.css';
 
 const RETURN_TO = '#/settings/accounts';
 
-export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void }) {
+export function ConnectedAccounts({ onManageTodoist, onManageGitHubStatus }: { onManageTodoist(): void; onManageGitHubStatus(): void }) {
   const accounts = useAccounts();
   const todoist = useTodoistToken();
   const [managing, setManaging] = useState<string | null>(null);
   const list = [...(accounts.data ?? [])].sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label));
   const todoistConnected = todoist.data?.configured === true;
   const githubConnected = useGitHubSync().data?.configured === true;
+  const githubStatusConnected = useGitHubToken().data?.configured === true;
   const sync = useLaunchpadSync().data;
   const managed = list.find((a) => a.id === managing);
 
   let body;
   if (accounts.data === undefined) {
     body = accounts.isError ? <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} /> : <SkeletonList rows={2} />;
-  } else if (list.length === 0 && !todoistConnected && !githubConnected) {
+  } else if (list.length === 0 && !todoistConnected && !githubConnected && !githubStatusConnected) {
     body = (
       <EmptyState
         icon={UserRoundPlus}
@@ -91,6 +94,11 @@ export function ConnectedAccounts({ onManageTodoist }: { onManageTodoist(): void
         {githubConnected ? (
           <li>
             <GitHubSyncRow sync={sync?.connection?.kind === 'github' ? sync : null} />
+          </li>
+        ) : null}
+        {githubStatusConnected ? (
+          <li>
+            <GitHubStatusRow onManage={onManageGitHubStatus} />
           </li>
         ) : null}
       </ul>

@@ -33,6 +33,7 @@ export const DIAGNOSTIC_AREAS = [
   'calendar',
   'mail',
   'todoist',
+  'github',
   'feeds',
   'weather',
   'sports',

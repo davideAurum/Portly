@@ -73,6 +73,17 @@ const ACCOUNT_REMEDIES: Readonly<Partial<Record<HealthCode, string>>> = Object.f
 
 const ACCOUNT_SUBJECT = /^(?:account|calendar-list|calendar|mail):/;
 
+/** The same codes on the GitHub status board's token (subject `github`). */
+const GITHUB_REMEDIES: Readonly<Partial<Record<HealthCode, string>>> = Object.freeze({
+  token_rejected: 'GitHub rejected the token, or it expired. Paste a new one under GitHub repositories → Manage in Settings → Accounts.',
+  insufficient_scope: 'The token may not read what the board shows. Give it read-only access in GitHub, or paste a new token in Settings → Accounts.',
+});
+
+function subjectRemedies(key: string | null): Readonly<Partial<Record<HealthCode, string>>> {
+  if (key === 'github') return GITHUB_REMEDIES;
+  return key !== null && ACCOUNT_SUBJECT.test(key) ? ACCOUNT_REMEDIES : {};
+}
+
 const CODES: ReadonlySet<string> = new Set(HEALTH_CODES);
 
 export function isHealthCode(code: unknown): code is HealthCode {
@@ -85,6 +96,6 @@ export function isHealthCode(code: unknown): code is HealthCode {
  */
 export function remedyFor(code: string | null | undefined, key: string | null = null): HealthRemedy | null {
   if (!isHealthCode(code)) return null;
-  const remedy = (key !== null && ACCOUNT_SUBJECT.test(key) ? ACCOUNT_REMEDIES[code] : undefined) ?? HEALTH_REMEDIES[code];
+  const remedy = subjectRemedies(key)[code] ?? HEALTH_REMEDIES[code];
   return { code, remedy, anchor: `troubleshooting.md#${code}` };
 }

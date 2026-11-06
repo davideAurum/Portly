@@ -8,6 +8,7 @@
  * - Other: CalDAV calendar or IMAP mail, then that server's form.
  * - Todoist: the API token.
  * - GitHub: a private repository and fine-grained token for launch pad sync (browser backend).
+ * - GitHub repositories: a read-only fine-grained token for the status board.
  *
  * Password forms show what Portly's checks found per service, whether the account was added or not.
  */
@@ -28,6 +29,7 @@ import { Checkbox, SegmentedControl } from '../../../ui/Toggles.tsx';
 import { AppRegistrationForm, PROVIDER_INFO, isClientConfigured } from './AppRegistration.tsx';
 import { connectionInfo, connectionServices, defaultPicked, type ConnectionId, type ServiceInfo } from './connections.ts';
 import { CaldavForm, CreatedResult, ImapForm, YahooForm } from './CredentialForms.tsx';
+import { GitHubStatusTokenForm } from './GitHubStatus.tsx';
 import { GitHubSyncForm } from './GitHubSync.tsx';
 import { otherSyncConnection, useSyncConnections } from './LaunchpadSync.tsx';
 import { TodoistTokenForm } from './Todoist.tsx';
@@ -83,6 +85,8 @@ function ConnectFlow({ connection, onClose }: { connection: ConnectionId; onClos
       return <TodoistTokenForm onSaved={onClose} />;
     case 'github':
       return <GitHubSyncForm onSaved={onClose} />;
+    case 'github-status':
+      return <GitHubStatusTokenForm onSaved={onClose} />;
   }
 }
 

@@ -177,7 +177,7 @@ describe('PairPage on Portly’s own page', () => {
     // The lists follow the server's route access: `samePc()` routes are open to the paired site.
     expect(within(can).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       'See and change your dashboards, settings, bookmarks and uploads',
-      'Use your calendars, mail, Todoist tasks, weather and feeds',
+      'Use your calendars, mail, Todoist tasks, GitHub status board, weather and feeds',
       'Connect, rename and remove accounts, and set up OAuth clients',
       'Reset the credential vault',
       'See Portly’s diagnostics and log',

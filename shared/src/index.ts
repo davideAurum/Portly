@@ -12,6 +12,7 @@ export * from './bookmarks.ts';
 export * from './search.ts';
 export * from './weather.ts';
 export * from './todoist.ts';
+export * from './github.ts';
 export * from './calendar.ts';
 export * from './mail.ts';
 export * from './feeds.ts';

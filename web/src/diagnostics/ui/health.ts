@@ -1,7 +1,7 @@
 /**
  * Connections & sync (Settings → Diagnostics, ARCHITECTURE §17): the server's health entries
  * grouped the way a user thinks about them — per account first (the account itself, its calendar
- * list, each calendar, its mail), then per area (ICS calendars, feeds, Todoist, weather, search
+ * list, each calendar, its mail), then per area (ICS calendars, feeds, Todoist, GitHub, weather, search
  * suggestions, sports, scheduled jobs) — with whatever needs attention first. Scheduled jobs are
  * listed from the summary's job stats, joined with their `job:<name>` health entries, so that a job
  * that never ran yet shows too. Also: which job "Run now" starts for a subject, and the log filter
@@ -55,6 +55,7 @@ const AREA_GROUPS: readonly { id: string; title: string; matches(key: string): b
   { id: 'ics', title: 'ICS calendars', matches: (key) => key.startsWith('ics:') },
   { id: 'feeds', title: 'Feeds', matches: (key) => key.startsWith('feed:') },
   { id: 'todoist', title: 'Todoist', matches: (key) => key === 'todoist' || key.startsWith('todoist:') },
+  { id: 'github', title: 'GitHub', matches: (key) => key === 'github' },
   { id: 'weather', title: 'Weather', matches: (key) => key === 'weather' || key.startsWith('weather:') },
   { id: 'search', title: 'Search suggestions', matches: (key) => key.startsWith('suggest:') },
   { id: 'sports', title: 'Sports', matches: (key) => key.startsWith('sports:') },
@@ -86,6 +87,7 @@ function byAttentionThenOrder(a: HealthItem, b: HealthItem): number {
 /** A name for a subject the server gave no label (Todoist, weather, a suggestion provider). */
 function defaultLabel(key: string): string {
   if (key === 'todoist') return 'Todoist';
+  if (key === 'github') return 'GitHub';
   if (key === 'weather') return 'Weather';
   if (key.startsWith('suggest:')) return `Suggestions from ${key.slice('suggest:'.length)}`;
   if (key.startsWith('job:')) return key.slice('job:'.length);

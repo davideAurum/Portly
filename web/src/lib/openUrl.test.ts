@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { assignLocation, isAppRoute, linkProps, openUrl, safeHref } from './openUrl.ts';
+import { assignLocation, githubDesktopHref, isAppRoute, linkProps, openInGitHubDesktop, openUrl, safeHref } from './openUrl.ts';
 
 describe('safeHref', () => {
   it('accepts absolute http(s) URLs and returns them normalized', () => {
@@ -63,6 +63,24 @@ describe('openUrl / assignLocation', () => {
     expect(open).toHaveBeenCalledWith('https://example.com/a', '_blank', 'noopener,noreferrer');
     expect(openUrl('javascript:alert(1)')).toBe(false);
     expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it('builds GitHub Desktop\'s link only from a repository name', () => {
+    expect(githubDesktopHref('octo-tester/portly.site_2')).toBe('x-github-client://openRepo/https://github.com/octo-tester/portly.site_2');
+    for (const bad of ['javascript:alert(1)', 'octo/..', 'a/b/c', 'octo/x?branch=evil', 'octo/x#y', 'https://evil.example/x', 'x-github-client://openRepo/https://evil.example/x']) {
+      expect(githubDesktopHref(bad), bad).toBeUndefined();
+    }
+    // The general gate stays http(s) only: this link never reaches it.
+    expect(safeHref('x-github-client://openRepo/https://github.com/octo-tester/sample')).toBeUndefined();
+  });
+
+  it('openInGitHubDesktop refuses anything else', () => {
+    const assign = vi.fn();
+    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, assign } as Location);
+    expect(openInGitHubDesktop('../../evil')).toBe(false);
+    expect(assign).not.toHaveBeenCalled();
+    expect(openInGitHubDesktop('octo-tester/sample')).toBe(true);
+    expect(assign).toHaveBeenCalledExactlyOnceWith('x-github-client://openRepo/https://github.com/octo-tester/sample');
   });
 
   it('assignLocation only navigates to absolute http(s) URLs', () => {

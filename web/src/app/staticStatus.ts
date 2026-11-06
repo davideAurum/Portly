@@ -66,6 +66,7 @@ const SLICE_QUERY_KEYS: Readonly<Record<string, readonly (readonly string[])[]>>
   // An upload changes nothing a query returns; the settings that reference it do.
   uploads: [['settings']],
   'todoist-token': [['todoist']],
+  'github-status-token': [['github']],
   'github-sync': [['sync', 'github'], ['sync', 'launchpad']],
   backups: [['backups']],
   // Accounts decide which calendars and mail exist, and which connection syncs the launch pad.

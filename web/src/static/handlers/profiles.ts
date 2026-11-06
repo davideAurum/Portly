@@ -58,6 +58,7 @@ export const DEFAULT_WIDGET_SIZE: Readonly<Record<string, { w: number; h: number
   calendar: { w: 4, h: 8 },
   mail: { w: 4, h: 7 },
   todoist: { w: 4, h: 7 },
+  github: { w: 4, h: 7 },
   weather: { w: 4, h: 5 },
   clock: { w: 4, h: 3 },
 });

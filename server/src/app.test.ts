@@ -274,7 +274,7 @@ describe('app: modules', () => {
   });
 
   it('registers every module', () => {
-    expect(MODULES.map((m) => m.name)).toEqual(['core', 'accounts', 'bookmarks', 'search', 'weather', 'todoist', 'calendar', 'mail', 'feeds', 'sports', 'music', 'pairing', 'devices', 'diagnostics', 'update']);
+    expect(MODULES.map((m) => m.name)).toEqual(['core', 'accounts', 'bookmarks', 'search', 'weather', 'todoist', 'github', 'calendar', 'mail', 'feeds', 'sports', 'music', 'pairing', 'devices', 'diagnostics', 'update']);
     const { modules } = createApp(ctx, { webDist: null });
     expect(modules.every((m) => m.ok)).toBe(true);
   });
@@ -357,6 +357,10 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   'POST /api/todoist/tasks/:id/reopen': 'paired',
   'PATCH /api/todoist/tasks/:id': 'paired',
   'GET /api/todoist/projects': 'paired',
+  'GET /api/github/token': 'paired',
+  'PUT /api/github/token': 'paired',
+  'DELETE /api/github/token': 'paired',
+  'GET /api/github/repos': 'paired',
   // calendar
   'GET /api/calendar/calendars': 'paired',
   'PATCH /api/calendar/calendars/:id': 'paired',

@@ -140,7 +140,7 @@ export const PERSIST_DEHYDRATE_OPTIONS = Object.freeze({
  * and the OAuth client settings. That snapshot sits in the storage of an origin every other page
  * of the account shares; the server build keeps them (its origin is its own).
  */
-const REMOTE_SERVER_NON_PERSISTED_ROOTS: ReadonlySet<unknown> = new Set(['accounts', 'oauth-clients']);
+const REMOTE_SERVER_NON_PERSISTED_ROOTS: ReadonlySet<unknown> = new Set(['accounts', 'oauth-clients', 'github']);
 
 export function shouldPersistRemoteServerQuery(query: Query): boolean {
   return !REMOTE_SERVER_NON_PERSISTED_ROOTS.has(query.queryKey[0]) && shouldPersistQuery(query);

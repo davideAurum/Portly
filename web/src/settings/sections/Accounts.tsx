@@ -16,14 +16,15 @@
  * signed in from the browser with a single-page-app registration) and Todoist.
  *
  * Deep links: `#/settings/accounts?focus=todoist` (and the old `#/settings/todoist`) open Todoist:
- * its Manage dialog when it is connected, else its connect dialog. `?focus=spotify` opens Spotify's
- * connect dialog.
+ * its Manage dialog when it is connected, else its connect dialog. `?focus=github-status` does the
+ * same for GitHub repositories. `?focus=spotify` opens Spotify's connect dialog.
  */
 import { useEffect, useState } from 'react';
 import { KeyRound, RotateCcw, Server } from 'lucide-react';
 import { OAUTH_PROVIDERS } from '@portly/shared';
 import { clearHashFocus, hashFocus } from '../../app/router.ts';
 import { useCalendars } from '../../api/calendar.ts';
+import { useGitHubToken } from '../../api/github.ts';
 import { useTodoistToken } from '../../api/todoist.ts';
 import { useResetVault } from '../../api/vault.ts';
 import { getCapabilities } from '../../capabilities.ts';
@@ -37,6 +38,7 @@ import { AppRegistrations } from './accounts/AppRegistration.tsx';
 import { ConnectDialog } from './accounts/ConnectDialog.tsx';
 import { ConnectedAccounts } from './accounts/ConnectedAccounts.tsx';
 import { availableConnections, connectionServices, servicesSummary, type ConnectionId, type ConnectionInfo } from './accounts/connections.ts';
+import { GitHubStatusManageDialog } from './accounts/GitHubStatus.tsx';
 import { TodoistManageDialog } from './accounts/Todoist.tsx';
 import { useVaultLocked } from './accounts/vault.ts';
 import styles from '../../styles/settings.module.css';
@@ -45,31 +47,32 @@ export default function AccountsSettings() {
   const locked = useVaultLocked();
   const [connecting, setConnecting] = useState<ConnectionId | null>(null);
   const [managingTodoist, setManagingTodoist] = useState(false);
-  useTodoistDeepLink(setConnecting, setManagingTodoist);
+  const [managingGitHubStatus, setManagingGitHubStatus] = useState(false);
+  useConnectionDeepLink('todoist', useTodoistToken().data?.configured, setConnecting, setManagingTodoist);
+  useConnectionDeepLink('github-status', useGitHubToken().data?.configured, setConnecting, setManagingGitHubStatus);
   useSpotifyDeepLink(setConnecting);
   return (
     <div className={styles.stack}>
       {locked ? <VaultLockedBanner /> : null}
-      <ConnectedAccounts onManageTodoist={() => setManagingTodoist(true)} />
+      <ConnectedAccounts onManageTodoist={() => setManagingTodoist(true)} onManageGitHubStatus={() => setManagingGitHubStatus(true)} />
       <AddConnection onConnect={setConnecting} />
       <ConnectDialog connection={connecting} onClose={() => setConnecting(null)} />
       <TodoistManageDialog open={managingTodoist} onOpenChange={setManagingTodoist} />
+      <GitHubStatusManageDialog open={managingGitHubStatus} onOpenChange={setManagingGitHubStatus} />
     </div>
   );
 }
 
-/** `?focus=todoist` (or the old Todoist section's address): open Todoist once its state is known. */
-function useTodoistDeepLink(connect: (id: ConnectionId) => void, manage: (open: boolean) => void): void {
-  const [pending, setPending] = useState(() => hashFocus() === 'todoist');
-  const token = useTodoistToken();
-  const configured = token.data?.configured;
+/** `?focus=<id>` (or the old Todoist section's address): open that token connection once its state is known. */
+function useConnectionDeepLink(id: ConnectionId, configured: boolean | undefined, connect: (id: ConnectionId) => void, manage: (open: boolean) => void): void {
+  const [pending, setPending] = useState(() => hashFocus() === id);
   useEffect(() => {
     if (!pending || configured === undefined) return;
     setPending(false);
     clearHashFocus();
     if (configured) manage(true);
-    else connect('todoist');
-  }, [pending, configured, connect, manage]);
+    else connect(id);
+  }, [pending, configured, id, connect, manage]);
 }
 
 /** `?focus=spotify` (the music widget's "Connect Spotify"): open its connect dialog. */
@@ -91,6 +94,8 @@ function tileSummary(connection: ConnectionInfo): string {
       return 'Tasks';
     case 'github':
       return 'Launch pad sync (private repository)';
+    case 'github-status':
+      return 'Status board of your repositories';
     case 'other':
       return 'CalDAV calendar or IMAP mail';
     case 'microsoft':

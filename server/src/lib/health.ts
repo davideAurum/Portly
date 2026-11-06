@@ -1,7 +1,7 @@
 /**
  * Health tracker (ARCHITECTURE §17): the latest outcome of every synced subject — accounts,
- * calendar lists, calendars, ICS feeds, mailboxes, Todoist, feeds, weather, search suggestions and
- * jobs (keys: `account:<id>`, `calendar:<id>`, `feed:<hash>`, `job:<name>` …) — kept in
+ * calendar lists, calendars, ICS feeds, mailboxes, Todoist, GitHub, feeds, weather, search
+ * suggestions and jobs (keys: `account:<id>`, `calendar:<id>`, `feed:<hash>`, `job:<name>` …) — kept in
  * memory, persisted to `diag_health` / `diag_outcomes` (migration 003, machine-local) and logged
  * as transitions. It is the only source of failure, recovery and reminder lines for synced
  * subjects: modules record outcomes (failures through {@link outcomeFromError}) and log debug
@@ -570,7 +570,7 @@ export function outcomeFromError(err: unknown, extra: Partial<Outcome> = {}): Ou
 /**
  * The log-context field that the unit of work behind a health key sets, so the log viewer can
  * show its lines: `account:`/`mail:`/`calendar-list:<id>` → `accountId`; `calendar:`/`ics:<id>` →
- * `calendarId`; `feed:<hash>` → `feed`; `job:<name>` → `job`; `todoist`, `weather`,
+ * `calendarId`; `feed:<hash>` → `feed`; `job:<name>` → `job`; `todoist`, `github`, `weather`,
  * `suggest:<provider>` (and unknown keys) → an area.
  */
 export function contextFieldForKey(key: string): { field: string; value: string } | { area: string } {

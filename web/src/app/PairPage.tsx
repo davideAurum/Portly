@@ -218,7 +218,7 @@ function PairRequest({ nonce }: PairPageProps) {
 
 const CAN: readonly string[] = [
   'See and change your dashboards, settings, bookmarks and uploads',
-  'Use your calendars, mail, Todoist tasks, weather and feeds',
+  'Use your calendars, mail, Todoist tasks, GitHub status board, weather and feeds',
   'Connect, rename and remove accounts, and set up OAuth clients',
   'Reset the credential vault',
   'See Portly’s diagnostics and log',

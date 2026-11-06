@@ -1,11 +1,12 @@
 /**
  * The single URL gate of the web app (§4.4). Every `<a href>`, `window.open` and
- * `location.assign` goes through {@link safeHref}; anything that is not an absolute http(s) URL
+ * `location.assign` goes through {@link safeHref} (GitHub Desktop's link has its own builder,
+ * {@link githubDesktopHref}); anything that is not an absolute http(s) URL
  * without credentials (≤ 2048 chars, no control characters) — or one of the app's own hash
  * routes — is refused, so `javascript:`, `data:`, `vbscript:`, `file:` and friends can never be
  * navigated to, whatever a provider, feed, bookmark or imported file contains.
  */
-import { OAUTH_RETURN_TO_REGEX, isSafeHttpUrl } from '@portly/shared';
+import { GITHUB_WEB_URL, OAUTH_RETURN_TO_REGEX, isSafeHttpUrl, parseGitHubRepoName } from '@portly/shared';
 
 export interface SafeHrefOptions {
   /** Also accept in-app hash routes (`#/settings/accounts`). Default true. */
@@ -68,6 +69,29 @@ export function openUrl(value: unknown, options: { newTab?: boolean } = {}): boo
   } else {
     window.location.assign(href);
   }
+  return true;
+}
+
+/** GitHub Desktop's own link for a repository: it opens the repository there, or offers to clone it. */
+const GITHUB_DESKTOP_LINK = 'x-github-client://openRepo/';
+
+/**
+ * The one address outside http(s) the app may open (§4.4). It is built here from a validated
+ * `owner/name`, never taken from a provider or a stored value, so `safeHref` stays http(s) only.
+ */
+export function githubDesktopHref(fullName: string): string | undefined {
+  const repo = parseGitHubRepoName(fullName);
+  return repo === null ? undefined : `${GITHUB_DESKTOP_LINK}${GITHUB_WEB_URL}/${repo.owner}/${repo.name}`;
+}
+
+/**
+ * Hands a repository to GitHub Desktop (the browser asks first; nothing happens where Desktop isn't
+ * installed). Returns false for a name that is not a repository's.
+ */
+export function openInGitHubDesktop(fullName: string): boolean {
+  const href = githubDesktopHref(fullName);
+  if (href === undefined) return false;
+  window.location.assign(href);
   return true;
 }
 

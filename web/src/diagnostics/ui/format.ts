@@ -85,6 +85,7 @@ const AREA_LABELS: Readonly<Record<DiagnosticArea, string>> = Object.freeze({
   calendar: 'Calendar',
   mail: 'Mail',
   todoist: 'Todoist',
+  github: 'GitHub',
   feeds: 'Feeds',
   weather: 'Weather',
   sports: 'Sports',

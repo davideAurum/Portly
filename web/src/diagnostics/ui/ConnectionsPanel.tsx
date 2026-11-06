@@ -1,7 +1,7 @@
 /**
  * Diagnostics → Connections & sync (ARCHITECTURE §17): every subject the server keeps in sync —
  * accounts with their calendar lists, calendars and mail, then ICS calendars, feeds, Todoist,
- * weather, search suggestions, sports and the scheduled jobs (`health.ts` groups them), whatever
+ * GitHub, weather, search suggestions, sports and the scheduled jobs (`health.ts` groups them), whatever
  * needs attention first. Each one shows a status pill (OK / Degraded / Failing since … / Stale —
  * last checked … / Not checked yet), when it last worked, its error while it lasts (code, HTTP
  * status, Portly's message) with what to do about it (`remedies.ts`), why it fails when that is another

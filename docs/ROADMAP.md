@@ -1650,6 +1650,24 @@ search or playlists in the first step. Spotify works only with Premium (ARCHITEC
   checked. It is one `MusicProvider`, one OAuth spec and an entry in `MUSIC_PROVIDERS`. Its kind needs
   no migration (`007_account_kinds`).
 
+## GitHub status board (beside track B)
+
+Asked for by the owner on 2026-11-04: a widget with the status of every repository of an account and
+a small operations button in the spirit of GitHub Desktop. Built read-only, on both backends: the
+board, and a menu per repository that opens GitHub Desktop or the repository's pages
+([guide](setup/github.md), ARCHITECTURE 10.8).
+
+Left out on purpose, for the owner to decide after using it:
+
+- **Real Fetch, Pull and Push inside Portly.** It needs git on the PC that runs the server, so on a PC
+  connected to the main PC it would act on the main PC's clones, and a route that can push code
+  doesn't sit well with the paired Pages origin (ARCHITECTURE 4.1). Keeping that route off the Pages
+  site means the button appears only on Portly's own page.
+- **GitHub-side actions** (re-run failed CI, merge a pull request, sync a fork). They need a token that
+  can write, which should stay on the server.
+- **CI results through the Actions API**, one request per repository, if the rollup turns out to be
+  empty with fine-grained tokens (first row of the checks table).
+
 ## Track B: multi-PC
 
 One Portly server for several PCs, built beside the phases on the go of 2026-10-21 (D10 asked
@@ -1810,6 +1828,9 @@ date and the outcome once a row has been run for real.
 
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
+| The GitHub widget with a real fine-grained token: saving it, the board, and above all what `statusCheckRollup` gives (GitHub's docs say fine-grained tokens can't use the Checks API, so CI results may show as unknown). The query and parser were run against a real account only with a `gh` login token, which the app refuses; every test uses an in-memory GitHub | this commit, 2026-11-05 | the owner's first token | not yet |
+| **Open in GitHub Desktop** from a real browser: the browser's prompt, then Desktop opening a cloned repository and offering to clone another. The address was read from GitHub Desktop 3.6.10's own code; the tests only check the address is built | this commit, 2026-11-05 | the owner's first token | not yet |
+| The GitHub widget on the published Pages site against the real `api.github.com`: GitHub's CORS answer was checked with a preflight from the command line, not from a browser | this commit, 2026-11-05 | the next Pages publish | not yet |
 | The Update button against the real thing: registering a real `\Portly Updater` task with `install-autostart.ps1`, `schtasks` starting it with no visible window, `install.ps1` stopping `\Portly Server` from inside it, the check against the real GitHub API through the server, a real run writing `update-status.json` and `update.log`, `portly --update --force` setting up a missing task, a real browser being refused `POST /api/update` from the Pages site and allowed from Portly's own page, and the card through a real update from each PC: its look in light, and the other PC's first connect at the Tailscale address. Scripts ran in temporary folders with stand-ins for the task, and the card in a real browser with `/api/update` faked in the page | this commit, 2026-11-05 | the release after next, on the home PC (design/update-button.md section 14) | not yet |
 | The OpenSSH steps of design/remote-update.md section 8 on a real main PC: key sign-in, `portly --update` over SSH, a dropped connection during an update, whether `command=` limits the key; the `\Portly Update` task, never registered; the outage length of a real update; scratch tests and a dry run only | this commit, 2026-11-05 | the owner's SSH setup, after the review of that document | not yet |
 | The "older than this site" notice in a real browser, with its look in light and dark, on the live Pages site against a server that really is older, on a connected PC and in a paired browser, and going away after a real `portly --update`; only component tests with a fake controller ran | this commit, 2026-11-05 | the next time a Pages publish gets ahead of the main PC | not yet |
