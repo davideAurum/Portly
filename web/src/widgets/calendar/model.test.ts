@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Calendar, CalendarEvent } from '@portly/shared';
 import {
+  groupCalendars,
+  selectedCalendarIds,
+  withCalendarsToggled,
   addDaysKey,
   dateKey,
   defaultCalendarId,
@@ -248,5 +251,41 @@ describe('event form', () => {
     expect(defaultCalendarId(list, 'missing')).toBe('b');
     expect(defaultCalendarId([cal('z')], null)).toBe('z');
     expect(defaultCalendarId([], null)).toBe('');
+  });
+});
+
+describe('calendar selection', () => {
+  const c = (id: string, patch: Partial<Calendar> = {}): Calendar => ({
+    id,
+    accountId: 'a1',
+    source: 'google',
+    name: id,
+    color: '#3b82f6',
+    writable: true,
+    providerWritable: true,
+    userReadOnly: false,
+    visible: true,
+    isPrimary: false,
+    sort: 0,
+    displayUrl: null,
+    lastSyncedAt: null,
+    lastError: null,
+    ...patch,
+  });
+  const list = [c('a'), c('b', { visible: false }), c('feed', { accountId: null, source: 'ics' })];
+
+  it('groups by account with ICS feeds apart', () => {
+    const groups = groupCalendars(list, () => 'Mail');
+    expect(groups.map((g) => [g.label, g.calendars.map((x) => x.id)])).toEqual([
+      ['Mail', ['a', 'b']],
+      ['Subscriptions (ICS)', ['feed']],
+    ]);
+  });
+
+  it('toggles calendars and returns to "visible" when the result matches it', () => {
+    expect(selectedCalendarIds(list, 'visible')).toEqual(new Set(['a', 'feed']));
+    expect(withCalendarsToggled(list, 'visible', ['a'], false)).toEqual(['feed']);
+    expect(withCalendarsToggled(list, 'visible', ['b'], true)).toEqual(['a', 'b', 'feed']);
+    expect(withCalendarsToggled(list, ['feed'], ['a'], true)).toBe('visible');
   });
 });

@@ -13,6 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   List,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   RefreshCw,
   Rss,
@@ -51,6 +53,7 @@ import { SegmentedControl } from '../../ui/Toggles.tsx';
 import { Tooltip } from '../../ui/Tooltip.tsx';
 import type { WidgetProps } from '../types.ts';
 import { AgendaView } from './AgendaView.tsx';
+import { CalendarSidebar } from './CalendarSidebar.tsx';
 import { CalendarWidgetContext, type CalendarWidgetContextValue } from './context.tsx';
 import { EventDialog } from './EventDialog.tsx';
 import type { CalendarConfig } from './index.ts';
@@ -64,9 +67,12 @@ import {
   filterEvents,
   formTimes,
   formValuesFromEvent,
+  groupCalendars,
   sameEventTimes,
+  selectedCalendarIds,
   shiftAnchor,
   viewRange,
+  withCalendarsToggled,
   type CalendarView,
   type EventFormValues,
 } from './model.ts';
@@ -180,6 +186,11 @@ export default function CalendarWidget({ config, setConfig, size }: WidgetProps<
   // choice is also saved to the widget config.
   const [view, setView] = useState<CalendarView>(config.view);
   useEffect(() => setView(config.view), [config.view]);
+  // The sidebar's open state and calendar selection work the same way.
+  const [sidebarOpen, setSidebarOpen] = useState(config.sidebar);
+  useEffect(() => setSidebarOpen(config.sidebar), [config.sidebar]);
+  const [calendarIds, setCalendarIds] = useState(config.calendarIds);
+  useEffect(() => setCalendarIds(config.calendarIds), [config.calendarIds]);
   const range = viewRange(view, anchor, config.days, fmt.weekStartsOn);
   const synced = estimatedSyncedWindow(today);
 
@@ -193,7 +204,7 @@ export default function CalendarWidget({ config, setConfig, size }: WidgetProps<
     pollWhileEmpty: calendarAccounts.some((a) => a.status === 'ok'),
     pollKey: calendarAccounts.map((a) => `${a.id}:${a.updatedAt}`).join(','),
   });
-  const eventsQuery = useCalendarEvents({ from: range.from, to: range.to, tz }, { calendars: config.calendarIds });
+  const eventsQuery = useCalendarEvents({ from: range.from, to: range.to, tz }, { calendars: calendarIds });
   const sync = useSyncCalendars();
   const createMutation = useCreateEvent();
   const updateMutation = useUpdateEvent();
@@ -205,10 +216,19 @@ export default function CalendarWidget({ config, setConfig, size }: WidgetProps<
 
   const calendarList = useMemo(() => calendarsQuery.data ?? [], [calendarsQuery.data]);
   const calendars = useMemo(() => new Map(calendarList.map((c) => [c.id, c] as const)), [calendarList]);
-  const selected = useMemo(
-    () => calendarList.filter((c) => (config.calendarIds === 'visible' ? c.visible : config.calendarIds.includes(c.id))),
-    [calendarList, config.calendarIds],
-  );
+  const selectedIds = useMemo(() => selectedCalendarIds(calendarList, calendarIds), [calendarList, calendarIds]);
+  const selected = useMemo(() => calendarList.filter((c) => selectedIds.has(c.id)), [calendarList, selectedIds]);
+  const accountLabels = useMemo(() => new Map((accountsQuery.data ?? []).map((a) => [a.id, a.label] as const)), [accountsQuery.data]);
+  const calendarGroups = useMemo(() => groupCalendars(calendarList, (id) => accountLabels.get(id) ?? 'Account'), [calendarList, accountLabels]);
+  const toggleCalendars = (ids: readonly string[], on: boolean) => {
+    const next = withCalendarsToggled(calendarList, calendarIds, ids, on);
+    setCalendarIds(next);
+    void setConfig({ calendarIds: next });
+  };
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+    void setConfig({ sidebar: !sidebarOpen });
+  };
   const writable = useMemo(() => calendarList.filter((c) => c.writable), [calendarList]);
   const preferredCalendar = settings.data?.calendar.defaultCalendarId ?? null;
 
@@ -383,7 +403,7 @@ export default function CalendarWidget({ config, setConfig, size }: WidgetProps<
       <SkeletonList rows={compact ? 2 : 4} />
     );
   } else {
-    const events = filterEvents(eventsQuery.data.events, calendars, { calendarIds: config.calendarIds, showDeclined: config.showDeclined });
+    const events = filterEvents(eventsQuery.data.events, calendars, { calendarIds, showDeclined: config.showDeclined });
     const firstSync = selected.every((c) => c.lastSyncedAt === null && c.lastError === null) && events.length === 0;
     const month = anchor.slice(0, 7);
     content = firstSync ? (
@@ -405,8 +425,17 @@ export default function CalendarWidget({ config, setConfig, size }: WidgetProps<
     <CalendarWidgetContext.Provider value={context}>
       <div className={styles.root}>
         {headerActions}
+        {showToolbar && sidebarOpen ? <CalendarSidebar groups={calendarGroups} selected={selectedIds} onToggle={toggleCalendars} /> : null}
+        <div className={styles.main}>
         {showToolbar ? (
           <div className={styles.toolbar}>
+            <IconButton
+              icon={sidebarOpen ? PanelLeftClose : PanelLeftOpen}
+              size="sm"
+              aria-label={sidebarOpen ? 'Hide calendar list' : 'Show calendar list'}
+              pressed={sidebarOpen}
+              onClick={toggleSidebar}
+            />
             <div className={styles.nav}>
               <IconButton icon={ChevronLeft} size="sm" aria-label="Previous" disabled={!canPrev} onClick={() => setAnchorState(shiftAnchor(view, anchor, -1, config.days))} />
               <Button size="sm" variant="ghost" onClick={() => setAnchorState(null)} disabled={anchorState === null || anchorState === today}>
@@ -437,6 +466,7 @@ export default function CalendarWidget({ config, setConfig, size }: WidgetProps<
           </div>
         ) : null}
         <div className={styles.content}>{content}</div>
+        </div>
       </div>
 
       {dialog ? (

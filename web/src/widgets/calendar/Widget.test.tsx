@@ -377,6 +377,60 @@ describe('CalendarWidget — writes', () => {
   });
 });
 
+describe('CalendarWidget — sidebar', () => {
+  it('lists calendars by account and hides one with its eye toggle', async () => {
+    const user = userEvent.setup();
+    renderCalendar({ config: { sidebar: true } });
+    const nav = await screen.findByRole('navigation', { name: 'Calendars' });
+    expect(within(nav).getByRole('region', { name: 'Personal Gmail' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Dentist, / })).toBeInTheDocument();
+
+    await user.click(within(nav).getByRole('button', { name: 'Personal: shown' }));
+    expect(within(nav).getByRole('button', { name: 'Personal: hidden' })).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Dentist, / })).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /^Standup, / })).toBeInTheDocument();
+  });
+
+  it('turns a whole account off and on, and saves the selection to the widget config', async () => {
+    const user = userEvent.setup();
+    const setConfig = vi.fn(async () => {});
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+    const header = document.createElement('div');
+    document.body.append(header);
+    renderWithProviders(
+      <Frame actionsTarget={header}>
+        <CalendarWidget instanceId="w-cal" config={config({ sidebar: true })} setConfig={setConfig} size={{ w: 4, h: 8 }} editMode={false} />
+      </Frame>,
+      {
+        apiMocks: {
+          'GET /api/settings': settings(),
+          'GET /api/accounts': [account({ id: 'g1', label: 'Personal Gmail' })],
+          'GET /api/calendar/calendars': [cal('personal'), cal('work')],
+          'GET /api/calendar/events': { events: EVENTS, window: { from: '2026-09-25', to: '2026-10-02' } },
+        },
+      },
+    );
+    await user.click(await screen.findByRole('button', { name: 'Hide all calendars of Personal Gmail' }));
+    expect(setConfig).toHaveBeenLastCalledWith({ calendarIds: [] });
+    expect(await screen.findByText('No calendars selected')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show all calendars of Personal Gmail' }));
+    // Everything back on equals "the visible calendars", so the widget follows Settings again.
+    expect(setConfig).toHaveBeenLastCalledWith({ calendarIds: 'visible' });
+  });
+
+  it('opens and closes from the toolbar and remembers the choice', async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+    expect(await screen.findByRole('button', { name: 'Show calendar list' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Calendars' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show calendar list' }));
+    expect(screen.getByRole('navigation', { name: 'Calendars' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Hide calendar list' }));
+    expect(screen.queryByRole('navigation', { name: 'Calendars' })).not.toBeInTheDocument();
+  });
+});
+
 describe('CalendarSettings (widget)', () => {
   it('switches between visible calendars and an explicit selection', async () => {
     const user = userEvent.setup();
