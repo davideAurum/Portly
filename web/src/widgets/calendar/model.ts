@@ -125,6 +125,53 @@ export function filterEvents(events: readonly CalendarEvent[], calendars: Readon
   });
 }
 
+export interface CalendarGroup {
+  key: string;
+  label: string;
+  calendars: Calendar[];
+}
+
+/** Calendars grouped by account (ICS subscriptions, which have none, form their own group). */
+export function groupCalendars(calendars: readonly Calendar[], accountLabel: (id: string) => string): CalendarGroup[] {
+  const groups = new Map<string, CalendarGroup>();
+  for (const calendar of calendars) {
+    const key = calendar.accountId ?? 'ics';
+    let group = groups.get(key);
+    if (!group) {
+      group = { key, label: calendar.accountId ? accountLabel(calendar.accountId) : 'Subscriptions (ICS)', calendars: [] };
+      groups.set(key, group);
+    }
+    group.calendars.push(calendar);
+  }
+  return [...groups.values()];
+}
+
+/** Ids of the calendars a widget shows for its `calendarIds` setting. */
+export function selectedCalendarIds(calendars: readonly Calendar[], calendarIds: 'visible' | readonly string[]): Set<string> {
+  const explicit = calendarIds === 'visible' ? null : new Set(calendarIds);
+  return new Set(calendars.filter((c) => (explicit ? explicit.has(c.id) : c.visible)).map((c) => c.id));
+}
+
+/**
+ * The `calendarIds` setting after switching `ids` on or off. Falls back to 'visible' when the
+ * result equals the calendars marked visible in Settings, so new calendars keep following it.
+ */
+export function withCalendarsToggled(
+  calendars: readonly Calendar[],
+  calendarIds: 'visible' | readonly string[],
+  ids: readonly string[],
+  on: boolean,
+): 'visible' | string[] {
+  const next = selectedCalendarIds(calendars, calendarIds);
+  for (const id of ids) {
+    if (on) next.add(id);
+    else next.delete(id);
+  }
+  const visible = calendars.filter((c) => c.visible).map((c) => c.id);
+  if (visible.length === next.size && visible.every((id) => next.has(id))) return 'visible';
+  return calendars.map((c) => c.id).filter((id) => next.has(id));
+}
+
 /** Start/end instants (all-day: local midnights). */
 export function eventBounds(event: CalendarEvent): { start: Date; end: Date } {
   if (event.allDay) return { start: keyToDate(event.start), end: keyToDate(event.end) };

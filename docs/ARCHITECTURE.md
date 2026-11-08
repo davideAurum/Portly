@@ -1456,8 +1456,10 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   when the browser is idle, so the view chunk carries no @dnd-kit). Empty state links to import (`#/settings/bookmarks`).
   Ctrl/middle-click opens a new tab. Bookmarks settings, top to bottom: manage groups; preferences; one import &
   export card (import Chrome/Edge/HTML, export a bookmark HTML file).
-- **Calendar** — config `{view: 'agenda'|'week'|'month', days: 1–14, calendarIds: 'visible'|string[], showDeclined}`;
-  agenda default; "now" marker, all-day row, multi-day spans. Event popover: time, location, plain-text description,
+- **Calendar** — config `{view: 'agenda'|'week'|'month', days: 1–14, calendarIds: 'visible'|string[], showDeclined, sidebar}`;
+  agenda default; a collapsible left sidebar (toolbar button, `sidebar`) lists every calendar grouped by account (ICS
+  feeds apart) in its color with an eye toggle per calendar and per account; toggles change this widget's `calendarIds`
+  only (back to 'visible' when they match the calendars marked visible), and below 420px the sidebar floats over the view; "now" marker, all-day row, multi-day spans. Event popover: time, location, plain-text description,
   Join (meetingUrl), Open in provider, Edit/Delete when editable. "+" opens EventDialog (title, writable calendar default
   `settings.calendar.defaultCalendarId`, all-day, local start/end, location, description); recurring instances edit the
   single occurrence, with "Edit series in Google/Outlook" linking to htmlUrl. Calendars settings: grouped by account,

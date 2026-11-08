@@ -10,6 +10,8 @@ export const calendarConfigSchema = z.object({
   /** 'visible' = every calendar marked visible in Settings > Calendars. */
   calendarIds: z.union([z.literal('visible'), z.array(z.string().min(1).max(512)).max(100)]).default('visible'),
   showDeclined: z.boolean().default(false),
+  /** The left sidebar listing calendars by account is open. */
+  sidebar: z.boolean().default(false),
 });
 export type CalendarConfig = z.output<typeof calendarConfigSchema>;
 

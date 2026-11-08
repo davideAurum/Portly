@@ -4,7 +4,6 @@
  */
 import { useMemo } from 'react';
 import { CalendarDays, CalendarRange, List } from 'lucide-react';
-import type { Calendar } from '@portly/shared';
 import { useAccounts } from '../../api/accounts.ts';
 import { useCalendars } from '../../api/calendar.ts';
 import { Field } from '../../ui/Field.tsx';
@@ -13,6 +12,7 @@ import { Checkbox, SegmentedControl, Slider, Switch } from '../../ui/Toggles.tsx
 import type { WidgetSettingsProps } from '../types.ts';
 import type { CalendarConfig } from './index.ts';
 import { eventColorStyle } from './labels.ts';
+import { groupCalendars } from './model.ts';
 import styles from './Calendar.module.css';
 
 const VIEWS = [
@@ -20,23 +20,6 @@ const VIEWS = [
   { value: 'week', label: 'Week', icon: CalendarRange },
   { value: 'month', label: 'Month', icon: CalendarDays },
 ] as const;
-
-export function groupCalendars(
-  calendars: readonly Calendar[],
-  accountLabel: (id: string) => string,
-): { key: string; label: string; calendars: Calendar[] }[] {
-  const groups = new Map<string, { key: string; label: string; calendars: Calendar[] }>();
-  for (const calendar of calendars) {
-    const key = calendar.accountId ?? 'ics';
-    let group = groups.get(key);
-    if (!group) {
-      group = { key, label: calendar.accountId ? accountLabel(calendar.accountId) : 'Subscriptions (ICS)', calendars: [] };
-      groups.set(key, group);
-    }
-    group.calendars.push(calendar);
-  }
-  return [...groups.values()];
-}
 
 export default function CalendarSettings({ value, onChange }: WidgetSettingsProps<CalendarConfig>) {
   const calendars = useCalendars();
