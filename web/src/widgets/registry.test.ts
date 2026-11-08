@@ -40,7 +40,7 @@ describe('widget registry', () => {
       listIcons: true,
       listDensity: 'normal',
     });
-    expect(cfg('calendar')).toEqual({ view: 'agenda', days: 7, calendarIds: 'visible', showDeclined: false });
+    expect(cfg('calendar')).toEqual({ view: 'agenda', days: 7, calendarIds: 'visible', showDeclined: false, sidebar: false });
     expect(cfg('mail')).toEqual({ accountIds: 'all', maxMessages: 10, unreadOnly: false, grouping: 'merged', sidebarCollapsed: false });
     expect(cfg('todoist')).toEqual({ filter: '', showProject: true, showDue: true, sort: 'todoist' });
     expect(cfg('github')).toEqual({ sort: 'attention', showArchived: false, showForks: false });
