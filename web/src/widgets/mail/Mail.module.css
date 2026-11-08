@@ -8,6 +8,135 @@
   padding: 2px var(--hb-space-2) var(--hb-space-2);
 }
 
+/* ---- Account sidebar (several accounts) -------------------------------- */
+
+.shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100%;
+}
+
+.shellBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--hb-space-1);
+  width: clamp(130px, 38%, 190px);
+  padding: 2px var(--hb-space-2) var(--hb-space-2);
+  border-right: 1px solid var(--hb-border);
+  transition: width var(--hb-hover-duration) var(--hb-ease);
+}
+
+.sidebar[data-collapsed='true'] {
+  width: 40px;
+  align-items: center;
+  padding-inline: var(--hb-space-1);
+}
+
+.sidebarHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hb-space-1);
+  min-height: 28px;
+}
+
+.sidebarTitle {
+  padding-left: var(--hb-space-1);
+  font-size: var(--hb-text-xs);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hb-text-muted);
+}
+
+.sidebarList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebarItem {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  min-height: 30px;
+  padding: 0 var(--hb-space-1);
+  border-radius: var(--hb-radius-sm);
+}
+
+.sidebarItem:hover {
+  background: var(--hb-hover);
+}
+
+.sidebarItem[data-hidden='true'] .dot,
+.sidebarItem[data-hidden='true'] .sidebarLabel {
+  opacity: 0.45;
+}
+
+.sidebarLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--hb-text-sm);
+  color: var(--hb-text);
+}
+
+.sidebarCount {
+  flex: none;
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--hb-accent-text);
+}
+
+.sidebarWarn {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--hb-warning);
+}
+
+.railButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--hb-radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.railButton:hover {
+  background: var(--hb-hover);
+}
+
+.railButton[aria-pressed='false'] .dot {
+  opacity: 0.35;
+}
+
+.railButton:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: 1px;
+}
+
+.sidebar[data-collapsed='true'] .sidebarItem {
+  padding: 0;
+}
+
 /* ---- Header badge ------------------------------------------------------ */
 
 .headerActions {
@@ -424,6 +553,7 @@ a.link:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .sidebar,
   .actions,
   .link {
     transition: none;

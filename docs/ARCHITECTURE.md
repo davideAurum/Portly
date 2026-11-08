@@ -1463,8 +1463,12 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   single occurrence, with "Edit series in Google/Outlook" linking to htmlUrl. Calendars settings: grouped by account,
   visible toggle, color override, mark read-only, add/edit/remove ICS, sync interval, default calendar, Sync now,
   last error per calendar.
-- **Mail** — config `{accountIds: 'all'|string[], maxMessages: 5–20, unreadOnly, grouping: 'merged'|'byAccount'}`;
-  header shows total unread; rows: account color dot, sender, subject, snippet (when available), relative time,
+- **Mail** — config `{accountIds: 'all'|string[], maxMessages: 5–20, unreadOnly, grouping: 'merged'|'byAccount',
+  hiddenAccountIds: string[], sidebarCollapsed}`; with two or more accounts (and not at the one-line compact size) a
+  collapsible left sidebar lists them, each with its color, unread count and a visibility switch. Switching one off
+  hides its rows and unread (still fetched, so switching back is instant); the sidebar folds to a rail of dots that
+  still toggle; all hidden → "All accounts hidden" + Show all. Both settings persist in the widget config.
+  Header shows the total unread of the visible accounts; rows: account color dot, sender, subject, snippet (when available), relative time,
   unread weight; hover actions read/unread, archive (if `canArchive`), trash — optimistic with toast; click opens webUrl.
 - **Todoist** — config `{filter: string (default settings.todoist.defaultFilter = 'today | overdue'), title?, showProject,
   showDue, sort: 'todoist'|'due'|'priority'}`; quick-add input; complete checkbox with Undo (reopen); project color chips;

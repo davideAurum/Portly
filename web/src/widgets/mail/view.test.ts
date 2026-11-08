@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MailAccountSummary, MailMessage } from '@portly/shared';
 import { applyMailAction, mailSummaryKey, mailSummaryPath } from '../../api/mail.ts';
-import { accountGroups, failedAccounts, mergedRows, rowHref, senderLabel, totalUnread } from './view.ts';
+import { accountGroups, failedAccounts, mergedRows, rowHref, senderLabel, toggleHidden, totalUnread, visibleSummaries } from './view.ts';
 
 function msg(id: string, accountId: string, date: string, extra: Partial<MailMessage> = {}): MailMessage {
   return {
@@ -109,5 +109,21 @@ describe('optimistic mail actions (applyMailAction)', () => {
     expect(mailSummaryPath({ maxMessages: 7, unreadOnly: false, accountIds: ['x', 'y'] })).toBe(
       '/api/mail/summary?maxMessages=7&unreadOnly=false&accountIds=x%2Cy',
     );
+  });
+});
+
+describe('sidebar visibility', () => {
+  const a = summary('a', []);
+  const b = summary('b', []);
+
+  it('visibleSummaries drops hidden accounts and keeps order', () => {
+    expect(visibleSummaries([a, b], []).map((s) => s.accountId)).toEqual(['a', 'b']);
+    expect(visibleSummaries([a, b], ['a']).map((s) => s.accountId)).toEqual(['b']);
+  });
+
+  it('toggleHidden adds/removes an id and forgets accounts that are gone', () => {
+    expect(toggleHidden([], 'a', false, ['a', 'b'])).toEqual(['a']);
+    expect(toggleHidden(['a'], 'a', true, ['a', 'b'])).toEqual([]);
+    expect(toggleHidden(['gone', 'a'], 'b', false, ['a', 'b'])).toEqual(['a', 'b']);
   });
 });

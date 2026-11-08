@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -93,6 +93,23 @@ function Frame({ children, actionsTarget, openSettings }: { children: ReactNode;
   return <WidgetFrameContext.Provider value={value}>{children}</WidgetFrameContext.Provider>;
 }
 
+/** Applies `setConfig` patches like the grid does, so the widget re-renders with the new config. */
+function StatefulMail({ initial, onPatch }: { initial: MailConfig; onPatch: (patch: Partial<MailConfig>) => void }) {
+  const [current, setCurrent] = useState(initial);
+  return (
+    <MailWidget
+      instanceId="w-mail"
+      config={current}
+      setConfig={async (patch) => {
+        onPatch(patch);
+        setCurrent((c) => ({ ...c, ...patch }));
+      }}
+      size={{ w: 6, h: 8 }}
+      editMode={false}
+    />
+  );
+}
+
 function renderMail(
   summaries: MailAccountSummary[] | ApiMock,
   opts: { config?: Partial<MailConfig>; mocks?: Record<string, ApiMock>; openSettings?: () => void; queryClient?: QueryClient } = {},
@@ -147,6 +164,78 @@ describe('MailWidget: no mail account (PERF-2)', () => {
     );
     expect(await screen.findByText('Connect your mail')).toBeInTheDocument();
     expect(container.querySelector('[data-compact="true"]')).not.toBeNull();
+  });
+});
+
+describe('MailWidget: account sidebar', () => {
+  afterEach(() => vi.useRealTimers());
+
+  function renderSidebar(patch: Partial<MailConfig> = {}, summaries: MailAccountSummary[] = [GMAIL, YAHOO]) {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+    const header = document.createElement('div');
+    document.body.append(header);
+    const patches: Partial<MailConfig>[] = [];
+    renderWithProviders(
+      <Frame actionsTarget={header}>
+        <StatefulMail initial={config(patch)} onPatch={(p) => patches.push(p)} />
+      </Frame>,
+      {
+        apiMocks: {
+          'GET /api/settings': settings(),
+          'GET /api/accounts': [account({ id: 'm1', kind: 'microsoft', label: 'Outlook' }), account({ id: 'g1', label: 'Personal Gmail' })],
+          'GET /api/mail/summary': summaries,
+        },
+      },
+    );
+    return { header, patches };
+  }
+
+  it('lists every account with a visibility switch; switching one off hides its mail and unread', async () => {
+    const user = userEvent.setup();
+    const { header, patches } = renderSidebar();
+    await screen.findByText('Sender g-new');
+    const nav = screen.getByRole('navigation', { name: 'Mail accounts' });
+    expect(within(nav).getByText('Personal Gmail')).toBeInTheDocument();
+    expect(within(nav).getByRole('switch', { name: 'Show Yahoo' })).toBeChecked();
+
+    await user.click(within(nav).getByRole('switch', { name: 'Show Personal Gmail' }));
+    expect(patches).toEqual([{ hiddenAccountIds: ['g1'] }]);
+    expect(screen.queryByText('Sender g-new')).not.toBeInTheDocument();
+    expect(rows()).toHaveLength(1);
+    expect(within(header).getByText('2')).toBeInTheDocument();
+
+    await user.click(within(nav).getByRole('switch', { name: 'Show Personal Gmail' }));
+    expect(await screen.findByText('Sender g-new')).toBeInTheDocument();
+  });
+
+  it('collapses to a rail of dots that still toggles visibility, and remembers the state', async () => {
+    const user = userEvent.setup();
+    const { patches } = renderSidebar();
+    await screen.findByText('Sender g-new');
+    await user.click(screen.getByRole('button', { name: 'Collapse account sidebar' }));
+    expect(patches).toEqual([{ sidebarCollapsed: true }]);
+    const nav = screen.getByRole('navigation', { name: 'Mail accounts' });
+    expect(within(nav).queryByText('Personal Gmail')).not.toBeInTheDocument();
+
+    await user.click(within(nav).getByRole('button', { name: /^Hide Yahoo/ }));
+    expect(patches[1]).toEqual({ hiddenAccountIds: ['y1'] });
+    expect(within(nav).getByRole('button', { name: /^Show Yahoo/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Expand account sidebar' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('says so when every account is hidden, and Show all brings them back', async () => {
+    const user = userEvent.setup();
+    renderSidebar({ hiddenAccountIds: ['g1', 'y1'] });
+    expect(await screen.findByText('All accounts hidden')).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: 'Show all' })[0] as HTMLElement);
+    expect(await screen.findByText('Sender g-new')).toBeInTheDocument();
+  });
+
+  it('has no sidebar with a single account', async () => {
+    renderSidebar({}, [GMAIL]);
+    await screen.findByText('Sender g-new');
+    expect(screen.queryByRole('navigation', { name: 'Mail accounts' })).not.toBeInTheDocument();
   });
 });
 

@@ -2,7 +2,8 @@
  * Mail widget (§10.8): total unread in the header; recent messages merged newest-first or grouped
  * by account; rows with the account color, sender, subject, snippet (when the provider has one),
  * relative time and unread weight. Hover/focus actions: read/unread (toast + Undo), archive (when
- * the account supports it) and trash — all optimistic. A row opens the message (or the account's
+ * the account supports it) and trash — all optimistic. With several accounts a collapsible left
+ * sidebar lists them with visibility switches (`hiddenAccountIds`, `sidebarCollapsed` in config). A row opens the message (or the account's
  * webmail) in a new tab through `safeHref`. Accounts that fail show their own error row
  * (Reconnect for `reauth_required`); no mail account at all → a CTA to Settings › Accounts.
  * Everything provider-supplied is rendered as plain React text. An account whose error changes is
@@ -17,6 +18,8 @@ import {
   Mail,
   MailCheck,
   MailOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   Settings2,
   Trash2,
@@ -36,10 +39,21 @@ import { EmptyState } from '../../ui/EmptyState.tsx';
 import { QueryView, StaleIndicator, type QueryViewMeta } from '../../ui/ErrorState.tsx';
 import { RelativeTime } from '../../ui/RelativeTime.tsx';
 import { SkeletonList } from '../../ui/Skeleton.tsx';
+import { Switch } from '../../ui/Toggles.tsx';
 import type { WidgetProps } from '../types.ts';
 import { reportMailAccountErrors } from './diagnostics.ts';
 import type { MailConfig } from './index.ts';
-import { accountGroups, failedAccounts, mergedRows, rowHref, senderLabel, totalUnread, type MailRow } from './view.ts';
+import {
+  accountGroups,
+  failedAccounts,
+  mergedRows,
+  rowHref,
+  senderLabel,
+  toggleHidden,
+  totalUnread,
+  visibleSummaries,
+  type MailRow,
+} from './view.ts';
 import styles from './Mail.module.css';
 
 type RunAction = (input: MailActionInput) => void;
@@ -48,7 +62,7 @@ function countLabel(n: number): string {
   return n > 999 ? '999+' : String(n);
 }
 
-export default function MailWidget({ config, size }: WidgetProps<MailConfig>) {
+export default function MailWidget({ config, setConfig, size }: WidgetProps<MailConfig>) {
   const frame = useWidgetFrame();
   // Short or narrow cards use the one-line states (DoD #5: renders at the 3×4 minimum).
   const compact = size.h <= 3 || size.w <= 3;
@@ -85,7 +99,7 @@ export default function MailWidget({ config, size }: WidgetProps<MailConfig>) {
         summaries.length === 0 ? (
           <NoAccountsSelected compact={compact} canOpenSettings={frame.canOpenSettings} openSettings={frame.openSettings} />
         ) : (
-          <MailContent summaries={summaries} config={config} meta={meta} run={run} compact={compact} />
+          <MailContent summaries={summaries} config={config} meta={meta} run={run} compact={compact} setConfig={setConfig} />
         )
       }
     </QueryView>
@@ -98,9 +112,143 @@ interface MailContentProps {
   meta: QueryViewMeta;
   run: RunAction;
   compact: boolean;
+  setConfig: (patch: Partial<MailConfig>) => Promise<void>;
 }
 
-function MailContent({ summaries, config, meta, run, compact }: MailContentProps) {
+function MailContent({ summaries: all, config, meta, run, compact, setConfig }: MailContentProps) {
+  const multi = all.length > 1;
+  const summaries = multi ? visibleSummaries(all, config.hiddenAccountIds) : all;
+  const showSidebar = multi && !compact;
+  const body =
+    summaries.length === 0 ? (
+      <AllHidden compact={compact} onShowAll={() => void setConfig({ hiddenAccountIds: [] })} />
+    ) : (
+      <MailBody summaries={summaries} config={config} meta={meta} run={run} compact={compact} />
+    );
+  if (!showSidebar) return body;
+  return (
+    <div className={styles.shell}>
+      <AccountSidebar
+        summaries={all}
+        hiddenIds={config.hiddenAccountIds}
+        collapsed={config.sidebarCollapsed}
+        onCollapsedChange={(sidebarCollapsed) => void setConfig({ sidebarCollapsed })}
+        onVisibleChange={(accountId, visible) =>
+          void setConfig({
+            hiddenAccountIds: toggleHidden(
+              config.hiddenAccountIds,
+              accountId,
+              visible,
+              all.map((s) => s.accountId),
+            ),
+          })
+        }
+        onShowAll={() => void setConfig({ hiddenAccountIds: [] })}
+      />
+      <div className={styles.shellBody}>{body}</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Account sidebar
+// ---------------------------------------------------------------------------
+
+interface AccountSidebarProps {
+  summaries: MailAccountSummary[];
+  hiddenIds: readonly string[];
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+  onVisibleChange: (accountId: string, visible: boolean) => void;
+  onShowAll: () => void;
+}
+
+function AccountSidebar({ summaries, hiddenIds, collapsed, onCollapsedChange, onVisibleChange, onShowAll }: AccountSidebarProps) {
+  const listId = useId();
+  const hidden = new Set(hiddenIds);
+  const hiddenCount = summaries.filter((s) => hidden.has(s.accountId)).length;
+  const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
+  return (
+    <nav className={styles.sidebar} data-collapsed={collapsed ? 'true' : undefined} aria-label="Mail accounts" data-no-grid-drag="">
+      <div className={styles.sidebarHead}>
+        {collapsed ? null : <span className={styles.sidebarTitle}>Accounts</span>}
+        <IconButton
+          size="sm"
+          icon={ToggleIcon}
+          aria-label={collapsed ? 'Expand account sidebar' : 'Collapse account sidebar'}
+          aria-expanded={!collapsed}
+          aria-controls={listId}
+          onClick={() => onCollapsedChange(!collapsed)}
+        />
+      </div>
+      <ul id={listId} className={styles.sidebarList}>
+        {summaries.map((summary) => {
+          const visible = !hidden.has(summary.accountId);
+          const color = accountColor({ id: summary.accountId, color: summary.color });
+          const unread = !summary.error && summary.unread > 0 ? summary.unread : 0;
+          return (
+            <li key={summary.accountId} className={styles.sidebarItem} data-hidden={visible ? undefined : 'true'}>
+              {collapsed ? (
+                <button
+                  type="button"
+                  className={styles.railButton}
+                  aria-pressed={visible}
+                  aria-label={`${visible ? 'Hide' : 'Show'} ${summary.label}${unread > 0 ? `, ${unread} unread` : ''}`}
+                  title={`${summary.label}${visible ? '' : ' (hidden)'}`}
+                  onClick={() => onVisibleChange(summary.accountId, !visible)}
+                >
+                  <span className={styles.dot} style={{ backgroundColor: color }} aria-hidden="true" />
+                </button>
+              ) : (
+                <>
+                  <span className={styles.dot} style={{ backgroundColor: color }} aria-hidden="true" />
+                  <span className={styles.sidebarLabel} title={summary.email ?? summary.label}>
+                    {summary.label}
+                  </span>
+                  {summary.error ? <CircleAlert className={styles.sidebarWarn} aria-label="Has a problem" /> : null}
+                  {unread > 0 ? (
+                    <span className={styles.sidebarCount} title={`${unread} unread`}>
+                      {countLabel(unread)}
+                    </span>
+                  ) : null}
+                  <Switch
+                    size="sm"
+                    checked={visible}
+                    onCheckedChange={(next) => onVisibleChange(summary.accountId, next)}
+                    aria-label={`Show ${summary.label}`}
+                  />
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {hiddenCount > 0 && !collapsed ? (
+        <Button size="sm" variant="ghost" onClick={onShowAll}>
+          Show all
+        </Button>
+      ) : null}
+    </nav>
+  );
+}
+
+function AllHidden({ compact, onShowAll }: { compact: boolean; onShowAll: () => void }) {
+  return (
+    <EmptyState
+      icon={Mail}
+      compact={compact}
+      title="All accounts hidden"
+      body="Switch an account on in the sidebar to see its mail."
+      action={
+        <Button size="sm" onClick={onShowAll}>
+          Show all
+        </Button>
+      }
+    />
+  );
+}
+
+function MailBody({ summaries, config, meta, run, compact }: Omit<MailContentProps, 'setConfig'>) {
   const total = totalUnread(summaries);
   const header = (
     <WidgetActions>

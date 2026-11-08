@@ -10,6 +10,10 @@ export const mailConfigSchema = z.object({
   maxMessages: z.number().int().min(MIN_MAIL_MESSAGES).max(MAX_MAIL_MESSAGES).default(10),
   unreadOnly: z.boolean().default(false),
   grouping: z.enum(['merged', 'byAccount']).default('merged'),
+  /** Accounts switched off in the sidebar: still fetched (so a switch is instant), not shown. */
+  hiddenAccountIds: z.array(z.string().min(1).max(512)).max(50).default([]),
+  /** The account sidebar is folded to a narrow rail of colored dots. */
+  sidebarCollapsed: z.boolean().default(false),
 });
 export type MailConfig = z.output<typeof mailConfigSchema>;
 

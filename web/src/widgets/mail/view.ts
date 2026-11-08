@@ -20,6 +20,22 @@ function time(message: MailMessage): number {
   return Number.isNaN(ms) ? 0 : ms;
 }
 
+/** The accounts not switched off in the sidebar (server order kept). */
+export function visibleSummaries(summaries: readonly MailAccountSummary[], hiddenIds: readonly string[]): MailAccountSummary[] {
+  if (hiddenIds.length === 0) return [...summaries];
+  const hidden = new Set(hiddenIds);
+  return summaries.filter((s) => !hidden.has(s.accountId));
+}
+
+/** `hiddenIds` with `accountId` switched on or off; ids of accounts no longer listed are dropped. */
+export function toggleHidden(hiddenIds: readonly string[], accountId: string, visible: boolean, knownIds: readonly string[]): string[] {
+  const known = new Set(knownIds);
+  const next = new Set(hiddenIds.filter((id) => known.has(id)));
+  if (visible) next.delete(accountId);
+  else next.add(accountId);
+  return [...next];
+}
+
 /** Unread messages across the accounts that loaded. */
 export function totalUnread(summaries: readonly MailAccountSummary[]): number {
   return summaries.reduce((sum, s) => sum + (s.error ? 0 : Math.max(0, s.unread)), 0);
