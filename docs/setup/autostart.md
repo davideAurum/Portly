@@ -184,8 +184,8 @@ Chrome's own task manager (**Shift+Esc** in Chrome) lists the Portly tabs; those
 browser, not to these processes.
 
 The copies are refreshed when the `node.exe` they came from changes (after a Node.js update):
-by `install-autostart.ps1`, by `portly --start` (while Portly is stopped) and when
-`portly --rebuild` (`update.ps1`) restarts Portly. A browser start doesn't refresh them (the launcher only asks Task Scheduler to run the
+by `install-autostart.ps1`, by `portly start` (while Portly is stopped) and when
+`portly update` (`update.ps1`) restarts Portly. A browser start doesn't refresh them (the launcher only asks Task Scheduler to run the
 task), so until then Portly keeps running the older Node.js; `status.ps1` warns about it. If the
 copy can't be made or isn't allowed to run (some managed PCs only allow programs from Program
 Files), the installer says so and the task runs `node.exe` itself — Portly works the same, it
@@ -211,7 +211,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\status.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\status.ps1 -LogLines 40
 ```
 
-`status.ps1` (or `portly --status` / `portly --settings` once `scripts\install-cli.ps1` has installed the command) starts with the health check, then shows the task state, its mode and last result, the extension ID from the manifest,
+`status.ps1` (or `portly status` / `portly status --full` once `scripts\install-cli.ps1` has installed the command) starts with the health check, then shows the task state, its mode and last result, the extension ID from the manifest,
 whether the launcher is registered for Chrome and Edge (registry key present, manifest and files
 in place, `allowed_origins` naming the current extension ID, `node.exe` still there; it warns when
 the installed `launcher.mjs` differs from this checkout's, i.e. the installer wasn't re-run after an

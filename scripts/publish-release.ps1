@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Publishes a package built by scripts\build-release.ps1 as a GitHub release of the public
-    Portly repository, where install.ps1 and portly --update find it (docs\setup\releases.md).
+    Portly repository, where install.ps1 and portly update find it (docs\setup\releases.md).
 
 .DESCRIPTION
     1. Reads <OutDir>\portly-release.json and checks the package next to it: its SHA-256 and size
@@ -188,7 +188,7 @@ function Invoke-PublishRelease {
         throw "gh release create failed (is commit $($commit.Substring(0, 12)) pushed to $ReleaseRepo?): $($created.Text.Trim())"
     }
     Write-PtOk "Published: $($created.Text.Trim())"
-    Write-PtInfo "Install: irm https://<your Pages site>/install.ps1 | iex   (or portly --update on installed PCs)"
+    Write-PtInfo "Install: irm https://<your Pages site>/install.ps1 | iex   (or portly update on installed PCs)"
     return 0
 }
 

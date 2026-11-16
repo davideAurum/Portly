@@ -21,8 +21,8 @@
     it can be used from other scripts (-View Settings always exits 0).
 
 .PARAMETER View
-    All (default): both sections. Status or Settings: just that one (portly --status and
-    portly --settings).
+    All (default): both sections (portly status --full). Status or Settings: just that one
+    (portly status shows Status).
 
 .PARAMETER Port
     Port to check (1024-65535). Defaults to PORTLY_PORT, else 5757.
@@ -44,12 +44,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
-
-function Write-StatusSection {
-    param([Parameter(Mandatory)][string]$Title)
-    Write-Host ''
-    Write-Host $Title -ForegroundColor White
-}
 
 function Format-StatusFile {
     param([Parameter(Mandatory)][string]$File)
@@ -100,11 +94,11 @@ function Invoke-Status {
     $health = $null
     if ($showStatus) {
         $health = Test-PtHealth -Port $checkPort -TimeoutSeconds 2
-        Write-StatusSection 'Portly status'
+        Write-PtSection 'Portly status'
         if ($health.Ok) {
-            Write-Host ('  {0,-15}: {1}' -f 'Health', "OK - $(Format-PtHealth $health)") -ForegroundColor Green
+            Write-PtFieldState 'Health' (Format-PtHealth $health) -State Ok -PlainPrefix 'OK - '
         } else {
-            Write-Host ('  {0,-15}: {1}' -f 'Health', (Format-PtHealth $health)) -ForegroundColor Yellow
+            Write-PtFieldState 'Health' (Format-PtHealth $health) -State Warn
             if ($null -ne $health.Listeners -and $health.Listeners.Count -gt 0) {
                 Write-PtField 'Port used by' (Format-PtPortOwners $health.Listeners)
             }
@@ -121,11 +115,11 @@ function Invoke-Status {
                 try { $releaseInfo = Get-PtReleaseInfo -RepoRoot $repoRoot } catch { }
                 if ($null -ne $releaseInfo) {
                     $updater = Get-PtUpdaterTask
-                    Write-PtField 'Updater' $(if ($null -ne $updater) { "$($updater.State)" } else { 'not set up (portly --update --force sets it up)' })
+                    Write-PtField 'Updater' $(if ($null -ne $updater) { "$($updater.State)" } else { 'not set up (portly update --force sets it up)' })
                 }
                 $taskProgram = Get-PtTaskProgram -Task $task
                 if ($taskProgram -and -not (Test-Path -LiteralPath $taskProgram -PathType Leaf)) {
-                    Write-Warning "The task's program no longer exists: $taskProgram. Re-run scripts\install-autostart.ps1."
+                    Write-PtWarn "The task's program no longer exists: $taskProgram. Re-run scripts\install-autostart.ps1."
                 } elseif (Test-PtRuntimeProgram -Path $taskProgram) {
                     # Portly's copies of node.exe: still the build of the node.exe they came from?
                     $runtimeDir = Split-Path -Parent $taskProgram
@@ -133,7 +127,7 @@ function Invoke-Status {
                     if ($null -ne $record -and (Test-Path -LiteralPath $record.Source -PathType Leaf)) {
                         $runtimePlan = Get-PtRuntimePlan -NodeExe $record.Source -Destination $runtimeDir
                         if ($runtimePlan.State -ne 'current') {
-                            Write-Warning ("$PortlySupervisorProgram and $PortlyServerProgram are not the same build as $($record.Source) any more " +
+                            Write-PtWarn ("$PortlySupervisorProgram and $PortlyServerProgram are not the same build as $($record.Source) any more " +
                                 '(Node.js was updated?). Run scripts\install-autostart.ps1 again to refresh them (it restarts Portly).')
                         }
                     }
@@ -152,27 +146,27 @@ function Invoke-Status {
             $hostOk = @($hostStatus | Where-Object { $_.Registered -and @($_.Problems).Count -eq 0 })
             $hostBad = @($hostStatus | Where-Object { -not ($_.Registered -and @($_.Problems).Count -eq 0) })
             if ($hostBad.Count -eq 0) {
-                Write-PtField 'Native host' "OK ($(@($hostOk | ForEach-Object { $_.Browser }) -join ', '))"
+                Write-PtFieldState 'Native host' "OK ($(@($hostOk | ForEach-Object { $_.Browser }) -join ', '))" -State Ok
             } else {
                 foreach ($entry in $hostBad) {
                     $label = "Host ($($entry.Browser))"
                     if (-not $entry.Registered) {
                         Write-PtField $label "not registered ($($entry.Key))"
                     } else {
-                        Write-Host ('  {0,-15}: {1}' -f $label, "PROBLEM - $($entry.ManifestPath)") -ForegroundColor Yellow
+                        Write-PtFieldState $label "PROBLEM - $($entry.ManifestPath)" -State Warn
                         foreach ($problem in @($entry.Problems)) { Write-Host "                   - $problem" -ForegroundColor Yellow }
                     }
                 }
             }
             if ($mode -eq 'Browser' -and $hostOk.Count -eq 0) {
-                Write-Warning ('The task is in Browser mode but no browser can start it (the native host is missing or broken). ' +
+                Write-PtWarn ('The task is in Browser mode but no browser can start it (the native host is missing or broken). ' +
                     'Run scripts\install-autostart.ps1 again.')
             } elseif ($hostOk.Count -lt 2 -and $null -ne $task) {
                 Write-PtInfo 'Run scripts\install-autostart.ps1 again to (re)register the native host for both browsers.'
             }
             $launcherCurrent = Test-PtInstalledLauncherCurrent -InstalledDir (Get-PtNativeHostDir) -RepoRoot $repoRoot
             if ($launcherCurrent -is [bool] -and -not $launcherCurrent) {
-                Write-Warning ("The installed launcher ($(Join-Path (Get-PtNativeHostDir) 'launcher.mjs')) differs from this checkout's " +
+                Write-PtWarn ("The installed launcher ($(Join-Path (Get-PtNativeHostDir) 'launcher.mjs')) differs from this checkout's " +
                     'native-host\launcher.mjs (Portly was updated?). Run scripts\install-autostart.ps1 again to update it.')
             }
         }
@@ -184,27 +178,27 @@ function Invoke-Status {
                 $node = Resolve-PtNode -RepoRoot $repoRoot
                 $config = Test-PtServerConfig -NodeExe $node.Path -RepoRoot $repoRoot -Scope $scope
                 if ($config.Ok) {
-                    Write-PtField 'Configuration' 'valid'
+                    Write-PtFieldState 'Configuration' 'valid' -State Ok
                 } else {
-                    Write-Host ('  {0,-15}: {1}' -f 'Configuration', "INVALID - $($config.Error)") -ForegroundColor Red
+                    Write-PtFieldState 'Configuration' "INVALID - $($config.Error)" -State Bad
                 }
             } catch {
                 Write-PtField 'Configuration' "not checked ($($_.Exception.Message))"
             }
         }
         if ($health.Ok -and $health.Vault -eq 'locked') {
-            Write-Warning 'The credential vault is locked: open Portly > Settings > Accounts and follow the banner.'
+            Write-PtWarn 'The credential vault is locked: open Portly > Settings > Accounts and follow the banner.'
         }
     }
 
     if ($showSettings) {
-        Write-StatusSection 'Portly settings'
+        Write-PtSection 'Portly settings'
         Write-PtField 'Port' $portText
         Write-PtField 'URL' "http://localhost:$checkPort"
         $release = $null
         try { $release = Get-PtReleaseInfo -RepoRoot $repoRoot } catch { }
         if ($null -ne $release) {
-            Write-PtField 'Installed' "release $($release.version), Node.js $(Get-PtProperty $release 'node') (portly --update)"
+            Write-PtField 'Installed' "release $($release.version), Node.js $(Get-PtProperty $release 'node') (portly update)"
             Write-PtField 'Program' $repoRoot
         } else {
             Write-PtField 'Checkout' $repoRoot
@@ -234,7 +228,7 @@ function Invoke-Status {
                         $updaterAction = @($updater.Actions)[0]
                         Write-PtField 'Updater' "$($updaterAction.Execute) $($updaterAction.Arguments)"
                     } else {
-                        Write-PtField 'Updater' 'not set up (portly --update --force sets it up)'
+                        Write-PtField 'Updater' 'not set up (portly update --force sets it up)'
                     }
                 }
             }
@@ -251,7 +245,7 @@ function Invoke-Status {
         $pagesUrl = Get-PtEnvValue -Name 'PORTLY_PAGES_URL' -Scope Task
         $pagesRepo = Get-PtEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task
         $pagesUrlText = if ($pagesUrl) { "$pagesUrl (PORTLY_PAGES_URL)" } else { 'not set (PORTLY_PAGES_URL: the Pages site cannot use this server)' }
-        $pagesRepoText = if ($pagesRepo) { "$pagesRepo (PORTLY_PAGES_REPO)" } else { 'not set (PORTLY_PAGES_REPO: portly --rebuild skips publishing)' }
+        $pagesRepoText = if ($pagesRepo) { "$pagesRepo (PORTLY_PAGES_REPO)" } else { 'not set (PORTLY_PAGES_REPO: portly update skips publishing)' }
         Write-PtField 'Pages site' $pagesUrlText
         if ($null -eq $release) { Write-PtField 'Pages repo' $pagesRepoText }
         # The variables the task sees (user/machine scope), like the Pages settings above. The default

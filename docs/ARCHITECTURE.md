@@ -381,7 +381,7 @@ and have the site start it, with nobody choosing to. On Portly's own page the co
 so a person still has to click. A stolen device secret works as a cookie only from inside the tailnet. Accepted: a
 stolen approved PC can start an update when one is available, until it is removed; a release that starts but breaks
 the remote port leaves other PCs out until someone is at the main PC; a person clicking Update on a bad release, as
-with `portly --update` today.
+with `portly update` today.
 
 ### 4.2 Request gate (global middleware, `app.use('*', …)`, in this order)
 1. Reject (400) if the raw request path (the target as received, query and fragment cut off; an absolute-form target
@@ -1718,7 +1718,7 @@ copies of Node.js"):
 - `install-autostart.ps1` makes or refreshes them before registering the task: not usable (cannot be written, blocked by
   policy, wrong version) → the task runs node.exe itself, with a warning; usable but not current (Portly runs from
   them) → registered with the copy and refreshed again once the running processes are stopped (still not usable then →
-  re-registered with node.exe). `Start-PtTask` (`update.ps1` restart, `portly --start`, `try-branch.ps1` restore) first runs `Sync-PtTaskRuntime`: when the task's program is
+  re-registered with node.exe). `Start-PtTask` (`update.ps1` restart, `portly start`, `try-branch.ps1` restore) first runs `Sync-PtTaskRuntime`: when the task's program is
   `portly-supervisor.exe` and the copies are missing or another build than `runtime.json`'s source, it refreshes them
   (quiet when current; a line when it did something or could not; `-DryRun` only says it). A browser start goes
   through `schtasks /run` only, so it does not refresh them; `status.ps1` warns when they are another build than
@@ -1995,7 +1995,7 @@ site can be ahead of the server it uses; `apiVersion` only says whether the two 
 server-backend Pages page with the status `connected` compares `state.server.version` with its own `__APP_VERSION__`
 (`localServer/version.ts`, with the order in `shared/src/version.ts`: semver, prereleases included, no dependency) and, when the server is older,
 `app/StatusBanners.tsx` shows an info notice, the last in its order: "Your main PC runs 0.2.0-alpha.6; this site is
-0.2.0-alpha.7. Run `portly --update` on your main PC." ("This PC runs …" for a paired browser). It is read-only: it uses
+0.2.0-alpha.7. Run `portly update` on your main PC." ("This PC runs …" for a paired browser). It is read-only: it uses
 what the probes already learned, so it adds no request and no server code, and it has no update action. The version is
 untrusted input: anything but a well-formed version of at most 40 characters shows nothing, so such text never reaches
 the page, and neither does `0.0.0`, which a server reports when it can't read its own version. A server on the same or a
@@ -2354,7 +2354,7 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
   a moved junction keeps its absolute target.
 - **Scripts in a release install** (`Get-PtReleaseInfo` = `release.json` present): `Resolve-PtNode` prefers
   `<root>/runtime/node.exe` over PATH (source of the task's named copies §12, `launcher.cmd`, config check);
-  `portly --update` runs a temporary copy of `install.ps1` with `-InstallDir` = the parent of `app`, `--rebuild`
+  `portly update` runs a temporary copy of `install.ps1` with `-InstallDir` = the parent of `app`, `--rebuild`
   refuses (it is `update.ps1`, checkout only), `--version` names the install kind; `install-cli.ps1` skips the
   `PORTLY_PAGES_REPO` warning; `status.ps1` shows the release version.
 - **Install/update** (`scripts/install.ps1`, self-contained, also `irm | iex`): `portly-release.json` from
@@ -2369,7 +2369,7 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
   PowerShell 5.1's `Move-Item` falls back to moving file by file and stops half way at a file in use; on failure the old
   version is relinked and started again), relinks and runs `install-autostart.ps1 -Trigger <mode> -NodePath <app>/runtime/node.exe`. The mode is
   `install.ps1 -Trigger` when given, otherwise the installed task's (Logon when it has a trigger, else Browser;
-  Browser for a new install); `portly --update` never passes `-Trigger`, so it keeps the mode. If that fails, `app` →
+  Browser for a new install); `portly update` never passes `-Trigger`, so it keeps the mode. If that fails, `app` →
   `app.failed`, `app.previous` → `app`, the backup is copied back as `portly.db` (`-wal`/`-shm` with it; the failed
   version's files move to `<data>/backups/portly-failed-<version>-<time>.db`, newest three kept), and the old version's
   `install-autostart.ps1` runs with the same mode. On an

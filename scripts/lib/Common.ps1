@@ -59,30 +59,286 @@ $PortlyEnvNames = @('PORTLY_PORT', 'PORTLY_BIND', 'PORTLY_ORIGIN', 'PORTLY_DATA_
 # --------------------------------------------------------------------------------------------
 # Output
 # --------------------------------------------------------------------------------------------
+#
+# Two looks (scripts\README.md, "The look"). In a terminal that understands ANSI escapes, the
+# "Harbor" theme: 24-bit colors, icons, spinners and progress bars. Everywhere else (output
+# redirected to a file or another program, the scheduled tasks' logs, NO_COLOR or PORTLY_PLAIN
+# set, the ISE) plain text with the fixed prefixes (==>, OK, ERROR:) that logs and the
+# self-checks read. PORTLY_FANCY=1 forces the theme on, for trying it out.
+#
+# This file is ASCII-only, so the icons are built from their code points.
+
+$script:PtFancy = $null
+$PtPalette = @{
+    Teal  = '46;196;182'     # headings, steps, the bar
+    Deep  = '27;127;121'     # rules, secondary accents
+    Coral = '255;107;107'    # errors, the anchor
+    Amber = '255;183;77'     # warnings
+    Mint  = '123;224;173'    # success
+    Mist  = '138;155;168'    # labels, hints, the bar's track
+    Foam  = '232;246;244'    # emphasis
+    Sand  = '214;222;226'    # body text
+}
+$PtIcons = @{
+    Anchor  = [string][char]0x2693
+    Dot     = [string][char]0x25CF
+    Ring    = [string][char]0x25CB
+    Diamond = [string][char]0x25C6
+    Check   = [string][char]0x2714
+    Warn    = [string][char]0x26A0
+    Cross   = [string][char]0x2716
+    Arrow   = [string][char]0x279C
+    Middot  = [string][char]0x00B7
+    Full    = [string][char]0x2588
+    Light   = [string][char]0x2591
+    Rule    = [string][char]0x2500
+}
+$PtSpinnerFrames = @(0x280B, 0x2819, 0x2839, 0x2838, 0x283C, 0x2834, 0x2826, 0x2827, 0x2807, 0x280F | ForEach-Object { [string][char]$_ })
+
+# True when the Harbor theme is on (decided once per script).
+function Test-PtFancyOutput {
+    if ($null -ne $script:PtFancy) { return $script:PtFancy }
+    $script:PtFancy = $false
+    if ($env:PORTLY_FANCY -eq '1') {
+        $script:PtFancy = $true
+    } elseif (-not ($env:NO_COLOR -or $env:PORTLY_PLAIN -or $env:TERM -eq 'dumb') -and $Host.Name -eq 'ConsoleHost') {
+        $redirected = $true
+        try { $redirected = [System.Console]::IsOutputRedirected } catch { }
+        $vt = $Host.UI.PSObject.Properties['SupportsVirtualTerminal']
+        $script:PtFancy = (-not $redirected) -and ($null -ne $vt) -and [bool]$vt.Value
+    }
+    return $script:PtFancy
+}
+
+# $Text in a palette color (bold and dim optional); $Text unchanged in plain output.
+function Format-PtStyle {
+    param([Parameter(Mandatory)][string]$Color, [AllowEmptyString()][string]$Text, [switch]$Bold, [switch]$Dim)
+    if (-not (Test-PtFancyOutput) -or $Text -eq '') { return $Text }
+    $e = [char]27
+    $attributes = ''
+    if ($Bold) { $attributes += "$e[1m" }
+    if ($Dim) { $attributes += "$e[2m" }
+    return "$attributes$e[38;2;$($PtPalette[$Color])m$Text$e[0m"
+}
+
+# A bar of $Width cells, $Fraction (0-1) of them filled.
+function Format-PtBar {
+    param([Parameter(Mandatory)][double]$Fraction, [int]$Width = 24)
+    $filled = [int][Math]::Round([Math]::Max(0, [Math]::Min(1, $Fraction)) * $Width)
+    return (Format-PtStyle Teal ($PtIcons.Full * $filled)) + (Format-PtStyle Mist ($PtIcons.Light * ($Width - $filled)) -Dim)
+}
+
+# Redraws the current line with a spinner frame and $Text (fancy output only).
+function Write-PtSpinnerLine {
+    param([Parameter(Mandatory)][int]$Frame, [AllowEmptyString()][string]$Text)
+    if (-not (Test-PtFancyOutput)) { return }
+    $e = [char]27
+    $glyph = Format-PtStyle Teal $PtSpinnerFrames[$Frame % $PtSpinnerFrames.Count] -Bold
+    Write-Host -NoNewline "`r$e[2K$glyph $Text"
+}
+
+function Clear-PtSpinnerLine {
+    if (-not (Test-PtFancyOutput)) { return }
+    $e = [char]27
+    Write-Host -NoNewline "`r$e[2K"
+}
+
+function Set-PtCursorVisible {
+    param([Parameter(Mandatory)][bool]$Visible)
+    if (-not (Test-PtFancyOutput)) { return }
+    $e = [char]27
+    Write-Host -NoNewline $(if ($Visible) { "$e[?25h" } else { "$e[?25l" })
+}
+
+# "1m 05s" / "12s".
+function Format-PtElapsed {
+    param([Parameter(Mandatory)][System.TimeSpan]$Span)
+    if ($Span.TotalMinutes -ge 1) { return ('{0}m {1:00}s' -f [int][Math]::Floor($Span.TotalMinutes), $Span.Seconds) }
+    return ('{0}s' -f [int][Math]::Floor($Span.TotalSeconds))
+}
+
+# The first line of a command's output: the anchor, "Portly", the version and a subtitle.
+function Write-PtBanner {
+    param([Parameter(Mandatory)][string]$Version, [string]$Subtitle = '')
+    if (-not (Test-PtFancyOutput)) { return }
+    $line = (Format-PtStyle Coral $PtIcons.Anchor) + ' ' + (Format-PtStyle Foam 'Portly' -Bold) + ' ' + (Format-PtStyle Teal $Version)
+    if ($Subtitle) { $line += '  ' + (Format-PtStyle Mist "$($PtIcons.Middot) $Subtitle") }
+    Write-Host ''
+    Write-Host $line
+    Write-Host (Format-PtStyle Deep ($PtIcons.Rule * 60) -Dim)
+}
+
+function Write-PtSection {
+    param([Parameter(Mandatory)][string]$Title)
+    Write-Host ''
+    if (Test-PtFancyOutput) {
+        Write-Host ((Format-PtStyle Teal $PtIcons.Diamond) + ' ' + (Format-PtStyle Foam $Title -Bold))
+    } else {
+        Write-Host $Title -ForegroundColor White
+    }
+}
 
 function Write-PtStep {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Message)
+    if (Test-PtFancyOutput) {
+        Write-Host ((Format-PtStyle Teal $PtIcons.Arrow -Bold) + ' ' + (Format-PtStyle Foam $Message -Bold))
+        return
+    }
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
 function Write-PtOk {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Message)
+    if (Test-PtFancyOutput) {
+        Write-Host ((Format-PtStyle Mint $PtIcons.Check -Bold) + ' ' + (Format-PtStyle Mint $Message))
+        return
+    }
     Write-Host "OK  $Message" -ForegroundColor Green
 }
 
 function Write-PtInfo {
     param([string]$Message = '')
+    if (Test-PtFancyOutput) {
+        Write-Host ('  ' + (Format-PtStyle Sand $Message))
+        return
+    }
     Write-Host "    $Message"
 }
 
 function Write-PtField {
     param([Parameter(Mandatory)][string]$Name, [AllowEmptyString()][string]$Value)
+    if (Test-PtFancyOutput) {
+        Write-Host ('  ' + (Format-PtStyle Mist ('{0,-15}' -f $Name)) + ' ' + (Format-PtStyle Sand $Value))
+        return
+    }
     Write-Host ('  {0,-15}: {1}' -f $Name, $Value)
+}
+
+# A field whose value is good (Ok), worth a look (Warn) or wrong (Bad): a colored dot in the
+# theme; in plain output "<PlainPrefix><Value>" in green, yellow or red, as before.
+function Write-PtFieldState {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [AllowEmptyString()][string]$Value,
+        [Parameter(Mandatory)][ValidateSet('Ok', 'Warn', 'Bad')][string]$State,
+        [string]$PlainPrefix = ''
+    )
+    $color = (@{ Ok = 'Mint'; Warn = 'Amber'; Bad = 'Coral' })[$State]
+    if (Test-PtFancyOutput) {
+        $icon = if ($State -eq 'Ok') { $PtIcons.Dot } else { $PtIcons.Ring }
+        Write-Host ('  ' + (Format-PtStyle Mist ('{0,-15}' -f $Name)) + ' ' + (Format-PtStyle $color "$icon $Value"))
+        return
+    }
+    $consoleColor = (@{ Ok = 'Green'; Warn = 'Yellow'; Bad = 'Red' })[$State]
+    Write-Host ('  {0,-15}: {1}' -f $Name, "$PlainPrefix$Value") -ForegroundColor $consoleColor
 }
 
 function Write-PtFailure {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Message)
+    if (Test-PtFancyOutput) {
+        Write-Host ((Format-PtStyle Coral $PtIcons.Cross -Bold) + ' ' + (Format-PtStyle Coral $Message))
+        return
+    }
     Write-Host "ERROR: $Message" -ForegroundColor Red
+}
+
+# A warning: Write-Warning in plain output (so it still reads "WARNING: ..."), amber in the theme.
+function Write-PtWarn {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Message)
+    if (Test-PtFancyOutput) {
+        Write-Host ((Format-PtStyle Amber $PtIcons.Warn -Bold) + ' ' + (Format-PtStyle Amber $Message))
+        return
+    }
+    Write-Warning $Message
+}
+
+# One line of another Portly script's plain output, shown in the theme: its ==>, OK, ERROR: and
+# WARNING: prefixes become the matching icons. Returns the step text for a ==> line, else $null.
+function Write-PtRelayedLine {
+    param([AllowEmptyString()][string]$Line, [switch]$StdErr)
+    if ($StdErr) { Write-Host (Format-PtStyle Coral $Line); return $null }
+    if ($Line -match '^==> (.*)$') { Write-PtStep $Matches[1]; return $Matches[1] }
+    if ($Line -match '^OK  (.*)$') { Write-PtOk $Matches[1]; return $null }
+    if ($Line -match '^ERROR: (.*)$') { Write-PtFailure $Matches[1]; return $null }
+    if ($Line -match '^WARNING: (.*)$') { Write-PtWarn $Matches[1]; return $null }
+    if ($Line -match '^    (.*)$') { Write-PtInfo $Matches[1]; return $null }
+    Write-Host (Format-PtStyle Mist $Line)
+    return $null
+}
+
+# One command-line argument quoted for ProcessStartInfo.Arguments (the MSVC rules).
+function ConvertTo-PtProcessArgument {
+    param([AllowEmptyString()][string]$Value)
+    if ($Value -ne '' -and $Value -notmatch '[\s"]') { return $Value }
+    $escaped = $Value -replace '(\\*)"', '$1$1\"'
+    $escaped = $escaped -replace '(\\+)$', '$1$1'
+    return '"' + $escaped + '"'
+}
+
+# Runs a program with its output read here line by line: each line is shown in the theme (see
+# Write-PtRelayedLine), and while the program is quiet a spinner shows the current step and how
+# long it has taken. Returns the exit code. For fancy output; plain output runs programs directly.
+function Invoke-PtStreamedProcess {
+    param(
+        [Parameter(Mandatory)][string]$FilePath,
+        [AllowEmptyCollection()][string[]]$Arguments = @(),
+        [string]$WorkingDirectory,
+        [string]$Activity = 'Working'
+    )
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $FilePath
+    $startInfo.Arguments = (@($Arguments | ForEach-Object { ConvertTo-PtProcessArgument $_ }) -join ' ')
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    if ($WorkingDirectory) { $startInfo.WorkingDirectory = $WorkingDirectory }
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    $step = $Activity
+    $stepStarted = [System.DateTime]::UtcNow
+    $frame = 0
+    Set-PtCursorVisible $false
+    try {
+        $outTask = $process.StandardOutput.ReadLineAsync()
+        $errTask = $process.StandardError.ReadLineAsync()
+        while ($null -ne $outTask -or $null -ne $errTask) {
+            $moved = $false
+            if ($null -ne $outTask -and $outTask.IsCompleted) {
+                $moved = $true
+                $line = $outTask.Result
+                if ($null -eq $line) {
+                    $outTask = $null
+                } else {
+                    Clear-PtSpinnerLine
+                    $newStep = Write-PtRelayedLine -Line $line
+                    if ($null -ne $newStep) { $step = $newStep; $stepStarted = [System.DateTime]::UtcNow }
+                    $outTask = $process.StandardOutput.ReadLineAsync()
+                }
+            }
+            if ($null -ne $errTask -and $errTask.IsCompleted) {
+                $moved = $true
+                $line = $errTask.Result
+                if ($null -eq $line) {
+                    $errTask = $null
+                } else {
+                    Clear-PtSpinnerLine
+                    $null = Write-PtRelayedLine -Line $line -StdErr
+                    $errTask = $process.StandardError.ReadLineAsync()
+                }
+            }
+            if (-not $moved) {
+                $elapsed = Format-PtElapsed ([System.DateTime]::UtcNow - $stepStarted)
+                Write-PtSpinnerLine -Frame $frame -Text ((Format-PtStyle Sand $step) + '  ' + (Format-PtStyle Mist $elapsed -Dim))
+                $frame++
+                Start-Sleep -Milliseconds 80
+            }
+        }
+        $process.WaitForExit()
+        return $process.ExitCode
+    } finally {
+        Clear-PtSpinnerLine
+        Set-PtCursorVisible $true
+        $process.Dispose()
+    }
 }
 
 # --------------------------------------------------------------------------------------------
@@ -481,21 +737,44 @@ function Test-PtHealth {
 }
 
 # Polls /api/health once a second until it answers, the timeout passes, or $ContinueWhile
-# returns false. Returns the last Test-PtHealth result.
+# returns false. Returns the last Test-PtHealth result. In the fancy output a spinner and a bar
+# of the time allowed run meanwhile.
 function Wait-PtHealth {
     param(
         [Parameter(Mandatory)][int]$Port,
         [Parameter(Mandatory)][int]$TimeoutSeconds,
-        [scriptblock]$ContinueWhile
+        [scriptblock]$ContinueWhile,
+        [string]$Activity = 'Waiting for Portly to answer'
     )
-    $deadline = [System.DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
-    do {
-        $last = Test-PtHealth -Port $Port -TimeoutSeconds 2
-        if ($last.Ok) { return $last }
-        if ($null -ne $ContinueWhile -and -not (& $ContinueWhile)) { return $last }
-        Start-Sleep -Milliseconds 1000
-    } while ([System.DateTime]::UtcNow -lt $deadline)
-    return $last
+    $started = [System.DateTime]::UtcNow
+    $deadline = $started.AddSeconds($TimeoutSeconds)
+    $fancy = Test-PtFancyOutput
+    $frame = 0
+    Set-PtCursorVisible $false
+    try {
+        do {
+            $last = Test-PtHealth -Port $Port -TimeoutSeconds 2
+            if ($last.Ok) { return $last }
+            if ($null -ne $ContinueWhile -and -not (& $ContinueWhile)) { return $last }
+            if (-not $fancy) {
+                Start-Sleep -Milliseconds 1000
+                continue
+            }
+            $next = [System.DateTime]::UtcNow.AddMilliseconds(1000)
+            while ([System.DateTime]::UtcNow -lt $next) {
+                $elapsed = [System.DateTime]::UtcNow - $started
+                $bar = Format-PtBar -Fraction ($elapsed.TotalSeconds / $TimeoutSeconds) -Width 24
+                Write-PtSpinnerLine -Frame $frame -Text ((Format-PtStyle Sand $Activity) + '  ' + $bar + '  ' +
+                    (Format-PtStyle Mist "$(Format-PtElapsed ([System.TimeSpan]::FromSeconds([Math]::Min($elapsed.TotalSeconds, $TimeoutSeconds)))) / ${TimeoutSeconds}s" -Dim))
+                $frame++
+                Start-Sleep -Milliseconds 80
+            }
+        } while ([System.DateTime]::UtcNow -lt $deadline)
+        return $last
+    } finally {
+        Clear-PtSpinnerLine
+        Set-PtCursorVisible $true
+    }
 }
 
 function Format-PtHealth {

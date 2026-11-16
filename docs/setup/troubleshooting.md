@@ -93,21 +93,21 @@ Properties → Environment Variables), open a new PowerShell window and try agai
 | The installer warns about a temporary `node.exe` path | You use a Node version manager whose shims live in a per-shell temp folder (e.g. fnm). Pass a permanent path: `-NodePath 'C:\path\to\node.exe'`. |
 | `Stop-ScheduledTask` didn't stop Portly | It only ends the hidden console host. Use `uninstall-autostart.ps1`, or re-run the installer to restart it. |
 | Task Manager shows Portly as `node.exe`, not `portly-supervisor.exe` / `portly-server.exe` | The installer couldn't make the copies (it said so: "Could not make Portly's copies of node.exe", for example on a PC that only allows programs from Program Files). `status.ps1 -View Settings` shows what the task runs as. Re-run the installer; if the copies still can't be made, Portly keeps running as `node.exe` and works the same. See [In Task Manager](autostart.md#in-task-manager). |
-| `status.ps1` warns that `portly-supervisor.exe` and `portly-server.exe` are not the same build as `node.exe` any more | Node.js was updated since the copies were made, so Portly still runs the older Node.js. Re-run the installer (it restarts Portly with fresh copies); `portly --rebuild` also refreshes them when it restarts Portly. |
+| `status.ps1` warns that `portly-supervisor.exe` and `portly-server.exe` are not the same build as `node.exe` any more | Node.js was updated since the copies were made, so Portly still runs the older Node.js. Re-run the installer (it restarts Portly with fresh copies); `portly update` also refreshes them when it restarts Portly. |
 | `supervisor.log`: *could not make the server program* | The supervisor couldn't create `portly-server.exe` next to `portly-supervisor.exe`, so the server runs as `portly-supervisor.exe` (two processes of that name in Task Manager). The line's `errCode` says why; re-run the installer to make the copies again. |
 
 ### Updating
 
 **The Updates card says "The updater is not set up"** in Settings → About: the **Portly Updater** task
-is missing. Run `portly --update --force` on the main PC, which registers it again. What an update
+is missing. Run `portly update --force` on the main PC, which registers it again. What an update
 printed is in `<data folder>\logs\update.log`.
 
-**"The term 'Get-FileHash' is not recognized"** from `portly --update` in PowerShell 7
+**"The term 'Get-FileHash' is not recognized"** from `portly update` in PowerShell 7
 Versions up to 0.2.0-alpha.5 stop there, before they change anything. Run the update through
 Windows PowerShell instead. You only need this once: the versions after it fix the problem.
 
 ```powershell
-powershell -NoProfile -Command "portly --update"
+powershell -NoProfile -Command "portly update"
 ```
 
 ### Vault locked

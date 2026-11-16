@@ -52,7 +52,7 @@ const FAILURES: Readonly<Record<UpdateRunCode, ReactNode>> = {
   not_newer: 'There was nothing newer to install.',
   did_not_start: (
     <>
-      Portly did not start after the update. Check the main PC with <code>portly --status</code>.
+      Portly did not start after the update. Check the main PC with <code>portly status</code>.
     </>
   ),
   unknown: 'The update stopped before it finished.',
@@ -73,21 +73,21 @@ function unavailable(status: UpdateStatusResponse): ReactNode {
   if (status.availability === 'checkout') {
     return (
       <>
-        This is a Git checkout. Use <code>portly --rebuild</code>.
+        This is a Git checkout. Use <code>portly update</code>.
       </>
     );
   }
   if (status.availability === 'unsupervised') {
     return (
       <>
-        Portly was not started by its scheduled task. Use <code>portly --update</code> on the main PC.
+        Portly was not started by its scheduled task. Use <code>portly update</code> on the main PC.
       </>
     );
   }
   if (status.availability === 'no-task') {
     return (
       <>
-        The updater is not set up. Run <code>portly --update --force</code> on the main PC.
+        The updater is not set up. Run <code>portly update --force</code> on the main PC.
       </>
     );
   }
@@ -121,7 +121,7 @@ function RunProgress({ run, away, gaveUp }: { run: UpdateRun; away: boolean; gav
   if (gaveUp) {
     return (
       <Banner tone="warning" title="Portly has not come back">
-        Check the main PC, or run <code>portly --status</code> there.
+        Check the main PC, or run <code>portly status</code> there.
       </Banner>
     );
   }
@@ -233,7 +233,7 @@ export function UpdatesCard({ reload = reloadPage }: { reload?: () => void }) {
         <p className={styles.intro}>
           {ownPageLink === null ? (
             <>
-              Run <code>portly --update</code> on the main PC.
+              Run <code>portly update</code> on the main PC.
             </>
           ) : (
             `Updates start from Portly's own page, not from this site.${

@@ -3,7 +3,7 @@
 A **release package** is one zip, `portly-<version>-win-x64.zip`, that installs and runs Portly
 on Windows without Git, Node.js, npm or administrator rights. People install it with
 `scripts\install.ps1` (served from the Pages site, so `irm <site>/install.ps1 | iex` works on a new
-PC) and update it with `portly --update`. A Git checkout
+PC) and update it with `portly update`. A Git checkout
 ([SETUP.md](../SETUP.md#from-the-source-code)) is for developing Portly.
 
 Published releases: [github.com/davideAurum/Portly/releases](https://github.com/davideAurum/Portly/releases).
@@ -42,7 +42,7 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
   `%LOCALAPPDATA%\Portly\node`, the names Task Manager then shows, see
   [In Task Manager](autostart.md#in-task-manager)) and `app\scripts\install-cli.ps1`, and open the
   browser's extensions page for **Load unpacked** → `app\extension`.
-- **Update** (`portly --update`, which runs a temporary copy of the installed `install.ps1`; or
+- **Update** (`portly update`, which runs a temporary copy of the installed `install.ps1`; or
   running `install.ps1` again): the same version is skipped unless `-Force`. Otherwise it disables
   and stops the scheduled task (when it runs this install) until the folders are swapped, so a
   Portly tab that notices the server is gone can't start the old version again in the meantime.
@@ -66,12 +66,12 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
   account, first remove it from the one that has it with `scripts\uninstall-autostart.ps1` there
   (its data stays), and later put it back with `scripts\install-autostart.ps1`.
 - **From Settings → About.** In a release install, the **Updates** card says when a newer release
-  exists, and **Update** does the same as `portly --update`, through a second scheduled task,
+  exists, and **Update** does the same as `portly update`, through a second scheduled task,
   **Portly Updater**. It only moves to a newer version, and it writes its output to
   `<data folder>\logs\update.log`. Update is on Portly's own page, which the Pages site links to
   ([why](other-pcs.md#updating-the-main-pc-from-another-pc)). The first version with the button has
-  to be installed with `portly --update`, because the task comes with it.
-- **Only one install runs at a time.** A second `portly --update` stops at once and says so, even
+  to be installed with `portly update`, because the task comes with it.
+- **Only one install runs at a time.** A second `portly update` stops at once and says so, even
   from another window or an SSH login.
 - **Already a Git checkout on this PC?** One Portly per Windows user: installing a release
   replaces the scheduled task and launcher of the checkout with the release's. Stop using the

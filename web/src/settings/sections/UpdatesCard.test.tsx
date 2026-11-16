@@ -81,9 +81,9 @@ describe('what the card says', () => {
   });
 
   it.each([
-    ['checkout', 'This is a Git checkout. Use portly --rebuild.'],
-    ['unsupervised', 'Portly was not started by its scheduled task. Use portly --update on the main PC.'],
-    ['no-task', 'The updater is not set up. Run portly --update --force on the main PC.'],
+    ['checkout', 'This is a Git checkout. Use portly update.'],
+    ['unsupervised', 'Portly was not started by its scheduled task. Use portly update on the main PC.'],
+    ['no-task', 'The updater is not set up. Run portly update --force on the main PC.'],
   ] as const)('%s: says what to do instead, with no button', async (availability, text) => {
     renderWithProviders(<UpdatesCard />, { apiMocks: { 'GET /api/update': { ...AVAILABLE, availability, latest: null, updateAvailable: false } } });
     await waitFor(() => expect(card()).toHaveTextContent(text));
@@ -119,7 +119,7 @@ describe('what the card says', () => {
     ['checksum_mismatch', 'The download was damaged, so nothing was installed.'],
     ['file_in_use', 'A file in use stopped the update, so nothing changed.'],
     ['not_newer', 'There was nothing newer to install.'],
-    ['did_not_start', 'Portly did not start after the update. Check the main PC with portly --status.'],
+    ['did_not_start', 'Portly did not start after the update. Check the main PC with portly status.'],
     ['unknown', 'The update stopped before it finished.'],
   ] as const)('reports a failure (%s), the installed version and Try again', async (code, text) => {
     renderWithProviders(<UpdatesCard />, { apiMocks: { 'GET /api/update': { ...AVAILABLE, run: run({ state: 'failed', code }) } } });
@@ -204,7 +204,7 @@ describe('on the Pages site', () => {
     setLocalServerController(fakeLocalServer({ backend: 'server', status: 'connected', server: { ...SERVER, appUrl: null }, paired: true }).controller);
     renderWithProviders(<UpdatesCard />, { apiMocks: { 'GET /api/update': AVAILABLE } });
     expect(await screen.findByText('Portly 0.2.0-alpha.9 is available.')).toBeInTheDocument();
-    expect(card()).toHaveTextContent('Run portly --update on the main PC.');
+    expect(card()).toHaveTextContent('Run portly update on the main PC.');
     expect(screen.queryByRole('link', { name: /Open Portly's own page/ })).not.toBeInTheDocument();
   });
 
@@ -265,7 +265,7 @@ describe('following a run', () => {
     vi.stubGlobal('fetch', away);
     await tick(NO_ANSWER_LIMIT_MS + UPDATE_POLL_MS);
     expect(screen.getByText('Portly has not come back')).toBeInTheDocument();
-    expect(card()).toHaveTextContent('Check the main PC, or run portly --status there.');
+    expect(card()).toHaveTextContent('Check the main PC, or run portly status there.');
     const calls = away.mock.calls.length;
     await tick(UPDATE_POLL_MS);
     expect(away.mock.calls.length).toBeGreaterThan(calls);

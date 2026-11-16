@@ -268,7 +268,7 @@ try {
         Start-PtTask
         $back = Wait-PtHealth -Port $port -TimeoutSeconds 60
         if ($back.Ok) { Write-PtOk "Your Portly is $(Format-PtHealth $back)" }
-        else { Write-PtFailure "Your Portly did not come back: $(Format-PtHealth $back). Try: portly --start" }
+        else { Write-PtFailure "Your Portly did not come back: $(Format-PtHealth $back). Try: portly start" }
     } else {
         Write-PtInfo "No '$PortlyTaskName' task is installed: start your Portly the way you usually do."
     }

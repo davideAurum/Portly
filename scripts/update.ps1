@@ -29,7 +29,7 @@
     Do not restart the server (the new page is still served: web\dist is read from disk).
 
 .PARAMETER AllowDirty
-    Build and publish uncommitted changes too (by default they are refused). `portly --update
+    Build and publish uncommitted changes too (by default they are refused). `portly update
     --allow-dirty` in a checkout.
 
 .PARAMETER DryRun
@@ -153,7 +153,7 @@ function Invoke-Update {
     if ($dirtyCount -gt 0) {
         if (-not $AllowDirty) {
             throw ("This checkout has $dirtyCount uncommitted change(s) (git status). Commit or discard them first, so that what is built and " +
-                'published is a commit; or re-run with -AllowDirty (portly --update --allow-dirty) to build and publish them as they are.')
+                'published is a commit; or re-run with -AllowDirty (portly update --allow-dirty) to build and publish them as they are.')
         }
         Write-Warning "Building and publishing $dirtyCount uncommitted change(s) as they are (-AllowDirty)."
     }
