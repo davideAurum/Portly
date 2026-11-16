@@ -330,6 +330,43 @@ describe('migrations', () => {
     });
   });
 
+  describe('008_device_scope', () => {
+    /** Migrates up to 007, then stores a device and a request as an existing install has them. */
+    function populatedAt007(target: Db): void {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portly-mig-'));
+      try {
+        for (const m of listMigrations().filter((m) => m.number < 8)) fs.copyFileSync(m.file, path.join(dir, m.name));
+        migrate(target, { dirs: [dir] });
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+      target.run("INSERT INTO devices (id, label, secret_hash, browser, created_at) VALUES ('d1', 'Laptop', 'hash-1', 'Chrome on Windows', 1)");
+      target.run(
+        `INSERT INTO device_requests (id, code, secret_hash, label, browser, created_at, expires_at, status)
+         VALUES ('r1', 'K7Q-4MP', 'hash-2', 'Desk', 'Chrome on Windows', 1, 2, 'pending')`,
+      );
+    }
+
+    it('keeps every existing device and request full, and changes nothing else about them', () => {
+      populatedAt007(db);
+      const before = db.get('SELECT * FROM devices');
+      expect(migrate(db)).toEqual(['008_device_scope.sql']);
+      expect(db.get('SELECT * FROM devices')).toEqual({ ...before, scope: 'full' });
+      expect(db.get<{ scope: string }>('SELECT scope FROM device_requests')?.scope).toBe('full');
+    });
+
+    it('holds only the known scopes, and a new row without one is full', () => {
+      populatedAt007(db);
+      migrate(db);
+      db.run("INSERT INTO devices (id, label, secret_hash, browser, created_at, scope) VALUES ('d2', 'Phone', 'hash-3', 'x', 1, 'reporter')");
+      db.run("INSERT INTO devices (id, label, secret_hash, browser, created_at) VALUES ('d3', 'PC', 'hash-4', 'x', 1)");
+      expect(db.get<{ scope: string }>("SELECT scope FROM devices WHERE id = 'd3'")?.scope).toBe('full');
+      expect(() => db.run("INSERT INTO devices (id, label, secret_hash, browser, created_at, scope) VALUES ('d4', 'x', 'hash-5', 'x', 1, 'admin')")).toThrow();
+      expect(() => db.run("UPDATE device_requests SET scope = 'admin'")).toThrow();
+      expect(() => db.run("UPDATE devices SET scope = NULL WHERE id = 'd1'")).toThrow();
+    });
+  });
+
   describe('007_account_kinds', () => {
     const ACCOUNT_COLUMNS = [
       'id', 'kind', 'label', 'email', 'external_id', 'config', 'capabilities', 'enabled_capabilities', 'granted_scopes', 'color', 'sort',
@@ -372,7 +409,7 @@ describe('migrations', () => {
       expect(before.accounts).toHaveLength(5);
       expect(before.calendars).toHaveLength(6);
       expect(before.events).toHaveLength(5);
-      expect(migrate(db)).toEqual(['007_account_kinds.sql']);
+      expect(migrate(db)).toContain('007_account_kinds.sql');
       expect(snapshot(db)).toEqual(before);
       expect(db.all<{ name: string }>('PRAGMA table_info(accounts)').map((c) => c.name)).toEqual(ACCOUNT_COLUMNS);
     });
@@ -384,7 +421,7 @@ describe('migrations', () => {
       try {
         populatedAt006(fileDb);
         const before = snapshot(fileDb);
-        expect(migrate(fileDb)).toEqual(['007_account_kinds.sql']);
+        expect(migrate(fileDb)).toContain('007_account_kinds.sql');
         fileDb.close();
         const reopened = openDb(file);
         try {

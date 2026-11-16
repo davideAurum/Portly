@@ -1648,9 +1648,19 @@ search or playlists in the first step. Spotify works only with Premium (ARCHITEC
   a5a6e8c4…e1c0, Release workflow run 42164422694), with the Pages site published from it (d9c6044)
   and the privacy page republished (portly-site ade66d5). First run with a real account still owed
   (the table below).
-- **M.4 A second provider** (M). Not started, and which one is open: no other service's API has been
-  checked. It is one `MusicProvider`, one OAuth spec and an entry in `MUSIC_PROVIDERS`. Its kind needs
-  no migration (`007_account_kinds`).
+- **M.4 A second provider** (M). Not started, and which one is open. It is one `MusicProvider`, one
+  OAuth spec and an entry in `MUSIC_PROVIDERS`. Its kind needs no migration (`007_account_kinds`).
+  Pocket Casts was checked on 2026-11-06 and cannot be one: it has no public API for a user's account
+  (M.5).
+- **M.5 Pocket Casts from the phone** (L). Proposed on 2026-11-06. The owner listens on an Android
+  phone, so a small helper app reads what Pocket Casts is playing and reports it through Tailscale,
+  signed in as a limited device. View-only at first. Design and phases:
+  [phone-now-playing.md](design/phone-now-playing.md). Phase 0 passed on the owner's phone on
+  2026-11-06 with a throwaway app, so reading Pocket Casts works. Phase 1 is built: the limited
+  `reporter` device and both `/api/music/phone` routes. Phase 2 is built: the Music widget shows the
+  episode, Settings → Devices labels phones, the browser-only site answers `null`, and Diagnostics says
+  when the last report came. No helper app exists yet, so nothing real reports, and phase 3 waits for
+  the owner's go.
 
 ## GitHub status board (beside track B)
 
@@ -1835,6 +1845,13 @@ date and the outcome once a row has been run for real.
 | --- | --- | --- | --- |
 | The mail widget's account sidebar in a real browser with real accounts: its look in light and dark, the collapsed rail, narrow cards, and the saved choices surviving a reload and the Pages build; only component tests ran | this commit, 2026-11-08 | the owner's next look at the widget | not yet |
 | The GitHub widget with a real fine-grained token: saving it, the board, and above all what `statusCheckRollup` gives (GitHub's docs say fine-grained tokens can't use the Checks API, so CI results may show as unknown). The query and parser were run against a real account only with a `gh` login token, which the app refuses; every test uses an in-memory GitHub | this commit, 2026-11-05 | the owner's first token | 2026-11-06 on 0.2.0-alpha.8: the owner saved a real fine-grained token and the board works. The dots show real results, filled green on repositories with passing CI and hollow gray on those with no checks, so `statusCheckRollup` answers with a fine-grained token. Not yet seen: a failing or running result, because no repository had one |
+| A phone really sending a report: the helper app doesn't exist yet, so the full run of the server side (29 of 29, on a scratch server) used this PC's curl with the phone unplugged. Also never run: a reporter connecting through the real Tailscale Serve address | 8ebe243, 2026-11-06 | M.5 phase 3 | not yet |
+| The Pages site on the main PC showing a report in hybrid mode, and a connected PC showing it through Tailscale; the widget was seen only on Portly's own page on this PC, and the gate lets both through in tests | 8ebe243, 2026-11-06 | M.5 phase 3 | not yet |
+| The phone's player beside a real Spotify account: what shows when both play, or when Spotify needs reconnecting. The rules are tested with a fake Spotify; the scratch run had no account connected | this commit, 2026-11-06 | M.5 phase 3 | not yet |
+| The browser-only site answering the phone question in a real browser: its `null` was covered by a unit test and the build only, so the Music widget on that site with no paired server was not looked at | this commit, 2026-11-06 | M.5 phase 3 | not yet |
+| Whether Android keeps the helper's listener alive for a day on battery, whether Tailscale stays connected on the phone all day and on mobile data, and what that costs in battery. Phase 0 saw minutes with the phone plugged in; the one-day reading of the test app's *Background check* lines is still owed | 8ebe243, 2026-11-06 | M.5, the one-day phone test, then phase 3 | not yet |
+| Whether the helper can send with the screen off and the phone idle: the test app has no internet permission, so phase 0 could not show it. If it can't, the helper may need a battery exemption | 8ebe243, 2026-11-06 | M.5 phase 3 | not yet |
+| Whether a command from another app reaches Pocket Casts' session | 8ebe243, 2026-11-06 | M.5 phase 4, if it is chosen | not yet |
 | The GitHub widget on the published Pages site against the real `api.github.com`: GitHub's CORS answer was checked with a preflight from the command line, not from a browser | this commit, 2026-11-05 | the owner's first token on the published site | 2026-11-05 on 0.2.0-alpha.8 (b751661): the browser-only build reached `api.github.com` in the desktop app's browser pane under the real CSP, from the local preview and with no token. The published site itself: not yet |
 | The Update button against the real thing: registering a real `\Portly Updater` task with `install-autostart.ps1`, `schtasks` starting it with no visible window, `install.ps1` stopping `\Portly Server` from inside it, the check against the real GitHub API through the server, a real run writing `update-status.json` and `update.log`, `portly --update --force` setting up a missing task, a real browser being refused `POST /api/update` from the Pages site and allowed from Portly's own page, and the card through a real update from each PC: its look in light, and the other PC's first connect at the Tailscale address. Scripts ran in temporary folders with stand-ins for the task, and the card in a real browser with `/api/update` faked in the page | this commit, 2026-11-05 | the release after 0.2.0-alpha.8, on the home PC (design/update-button.md section 14) | not yet |
 | The OpenSSH steps of design/remote-update.md section 8 on a real main PC: key sign-in, `portly --update` over SSH, a dropped connection during an update, whether `command=` limits the key; the `\Portly Update` task, never registered; the outage length of a real update; scratch tests and a dry run only | this commit, 2026-11-05 | the owner's SSH setup, after the review of that document | not yet |

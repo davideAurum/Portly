@@ -123,6 +123,65 @@ describe('devices routes', () => {
       expect(ctx.devices.listRequests()).toEqual([]);
     });
 
+    it('validates the scope (422): only the known ones, and a PC that sends none is full', async () => {
+      for (const scope of ['admin', '', 7, null]) {
+        const res = await json<ErrorBody>('POST', '/api/devices/requests', { headers: remoteHeaders(null), body: { label: 'Laptop', scope } });
+        expect(res.status, JSON.stringify(scope)).toBe(422);
+      }
+      expect(ctx.devices.listRequests()).toEqual([]);
+      await ask('Laptop');
+      expect(ctx.devices.listRequests().map((r) => r.scope)).toEqual(['full']);
+    });
+
+    it('connects a helper app as a reporter, native-client style, and tells the main PC what it is', async () => {
+      // No Origin and no fetch metadata: the cookies travel as plain headers.
+      const asked = await testRequest(app, 'POST', '/api/devices/requests', {
+        headers: remoteHeaders(null, { 'User-Agent': 'Portly helper' }),
+        body: { label: 'Phone', scope: 'reporter' },
+      });
+      expect(asked.status).toBe(201);
+      const { id } = (await asked.json()) as DeviceRequestCreateResponse;
+      const enroll = cookieValueOf(setCookieFor(asked, ENROLL_COOKIE) ?? '');
+
+      const listed = await json<DevicesResponse>('GET', '/api/devices');
+      expect(DevicesResponseSchema.parse(listed.body)).toEqual(listed.body);
+      expect(listed.body.requests.map((r) => [r.label, r.scope])).toEqual([['Phone', 'reporter']]);
+
+      expect((await testRequest(app, 'POST', `/api/devices/requests/${id}/approve`)).status).toBe(200);
+      const answer = await poll(enroll);
+      expect(answer.body.status).toBe('approved');
+      const secret = cookieValueOf(setCookieFor(answer.res, DEVICE_COOKIE) ?? '');
+      expect(ctx.devices.verify(secret)?.scope).toBe('reporter');
+
+      const after = await json<DevicesResponse>('GET', '/api/devices');
+      expect(after.body.devices.map((d) => [d.label, d.scope, d.lastUsedAt])).toEqual([['Phone', 'reporter', null]]);
+
+      // It may leave, and may not look at the list of devices.
+      expect((await testRequest(app, 'GET', '/api/devices', { headers: remoteHeaders(secret) })).status).toBe(403);
+      expect((await testRequest(app, 'GET', '/api/device', { headers: remoteHeaders(secret) })).status).toBe(403);
+      const left = await testRequest(app, 'DELETE', '/api/device', { headers: remoteHeaders(secret) });
+      expect(left.status).toBe(204);
+      expect(setCookieFor(left, DEVICE_COOKIE)).toBe(`${DEVICE_COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0`);
+      expect(ctx.devices.verify(secret)).toBeNull();
+    });
+
+    it('reads an answer from an older server, which names no scope, as full', () => {
+      const at = new Date(now).toISOString();
+      const device = { id: 'd1', label: 'Laptop', browser: 'Edge on Windows', createdAt: at, lastUsedAt: null, current: false };
+      const request = { id: 'r1', code: 'K7Q-4MP', label: 'Tablet', browser: 'Safari on iOS', createdAt: at, expiresAt: at };
+      const read = DevicesResponseSchema.parse({ remoteOrigin: null, devices: [device], requests: [request] });
+      expect(read.devices[0]?.scope).toBe('full');
+      expect(read.requests[0]?.scope).toBe('full');
+    });
+
+    it('lets a device that lost its reporter cookie ask again: the old cookie is simply left out', async () => {
+      const phone = connectTestDevice(ctx, { label: 'Phone', scope: 'reporter' });
+      const stale = await testRequest(app, 'POST', '/api/devices/requests', { headers: remoteHeaders(phone.secret), body: { label: 'Phone', scope: 'reporter' } });
+      expect(stale.status).toBe(403);
+      await ask('Phone');
+      expect(ctx.devices.listRequests()).toHaveLength(1);
+    });
+
     it('refuses a fourth pending request with 429 and Retry-After', async () => {
       for (let i = 0; i < MAX_PENDING_DEVICE_REQUESTS; i++) await ask(`PC ${i}`);
       const res = await json<ErrorBody>('POST', '/api/devices/requests', { headers: remoteHeaders(null), body: { label: 'one more' } });
@@ -252,7 +311,7 @@ describe('devices routes', () => {
       expect(list.body).toEqual({
         remoteOrigin: TEST_REMOTE_ORIGIN,
         devices: [],
-        requests: [{ id: body.id, code: body.code, label: 'Laptop', browser: 'Chrome on Windows', createdAt: new Date(now).toISOString(), expiresAt: body.expiresAt }],
+        requests: [{ id: body.id, code: body.code, label: 'Laptop', browser: 'Chrome on Windows', scope: 'full', createdAt: new Date(now).toISOString(), expiresAt: body.expiresAt }],
       });
       expect(DevicesResponseSchema.parse(list.body)).toEqual(list.body);
 
@@ -282,7 +341,7 @@ describe('devices routes', () => {
       const mine = await json<DevicesResponse>('GET', '/api/devices', { headers: remoteHeaders(secret) });
       expect(mine.status).toBe(200);
       expect(mine.body.devices).toEqual([
-        { id: connected.body.device?.id, label: 'Laptop', browser: 'Chrome on Windows', createdAt: new Date(now).toISOString(), lastUsedAt: new Date(now).toISOString(), current: true },
+        { id: connected.body.device?.id, label: 'Laptop', browser: 'Chrome on Windows', scope: 'full', createdAt: new Date(now).toISOString(), lastUsedAt: new Date(now).toISOString(), current: true },
       ]);
       expect((await json<DevicesResponse>('GET', '/api/devices')).body.devices[0]?.current).toBe(false);
       // Used once, the enrollment cookie is spent.

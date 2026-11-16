@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { MusicStatus } from '@portly/shared';
-import { MUSIC_IDLE_REFETCH_MS, MUSIC_PLAYING_REFETCH_MS, isMusicBlocked, musicErrorReason, musicRefetchMs } from '../../api/music.ts';
+import type { MusicPlayback, MusicStatus, PhonePlayback } from '@portly/shared';
+import { MUSIC_IDLE_REFETCH_MS, MUSIC_PLAYING_REFETCH_MS, isMusicBlocked, musicErrorReason, musicRefetchMs, phoneRefetchMs } from '../../api/music.ts';
 import { ApiError } from '../../api/client.ts';
-import { applyCommand, artistLine, formatTime, livePosition, musicTier, nextRepeatMode, repeatLabel, withLivePosition } from './model.ts';
+import { applyCommand, artistLine, formatTime, livePosition, musicTier, nextRepeatMode, phoneIsShown, phoneItem, repeatLabel, withLivePosition } from './model.ts';
 
 const ITEM = { kind: 'track', title: 'A', artists: ['One', 'Two'], album: null, durationMs: 200_000, artworkUrl: null, url: null } as const;
 const DEVICE = { id: 'd1', name: 'Desk', type: 'computer', active: true, restricted: false, volumePercent: 40 } as const;
@@ -32,6 +32,12 @@ describe('music model', () => {
     expect(livePosition(10_000, false, 1_000, 3_500, 200_000)).toBe(10_000);
     expect(livePosition(199_000, true, 1_000, 9_000, 200_000)).toBe(200_000);
     expect(livePosition(10_000, true, 5_000, 1_000, 200_000)).toBe(10_000);
+  });
+
+  it('moves it on at the speed it plays', () => {
+    expect(livePosition(10_000, true, 1_000, 5_000, 200_000, 1.5)).toBe(16_000);
+    expect(livePosition(10_000, true, 1_000, 5_000, 200_000, 0)).toBe(10_000);
+    expect(livePosition(199_000, true, 1_000, 5_000, 200_000, 2)).toBe(200_000);
   });
 
   it('brings a status up to now, so an optimistic update cannot throw the bar back', () => {
@@ -92,8 +98,62 @@ describe('music model', () => {
   });
 });
 
+describe('the phone or the music service', () => {
+  const AT = Date.parse('2026-11-06T10:00:00Z');
+  const phone = (state: PhonePlayback['state'], startedAgoMs = 60_000): PhonePlayback => ({
+    app: 'pocket-casts',
+    state,
+    title: 'Episode 12',
+    show: 'Tales of the Harbour',
+    durationMs: 1_800_000,
+    positionMs: 60_000,
+    speed: 1,
+    startedAt: new Date(AT - startedAgoMs).toISOString(),
+  });
+  const spotify = (isPlaying: boolean, positionMs = 30_000): MusicPlayback => ({ ...STATUS.playback!, isPlaying, positionMs });
+
+  it('shows the phone when there is nothing else', () => {
+    expect(phoneIsShown(phone('playing'), null, AT)).toBe(true);
+    expect(phoneIsShown(phone('paused'), null, AT)).toBe(true);
+  });
+
+  it('shows whichever is playing', () => {
+    expect(phoneIsShown(phone('playing'), spotify(false), AT)).toBe(true);
+    expect(phoneIsShown(phone('paused'), spotify(true), AT)).toBe(false);
+  });
+
+  it('shows the one that started last when both are playing', () => {
+    expect(phoneIsShown(phone('playing', 10_000), spotify(true, 30_000), AT)).toBe(true);
+    expect(phoneIsShown(phone('playing', 60_000), spotify(true, 30_000), AT)).toBe(false);
+  });
+
+  it('shows the phone when both are paused: Spotify’s pause can be hours old, the phone’s is not', () => {
+    expect(phoneIsShown(phone('paused', 600_000), spotify(false), AT)).toBe(true);
+  });
+
+  it('puts a report in the shape the player takes, with no art and no link', () => {
+    expect(phoneItem(phone('playing'))).toEqual({ kind: 'episode', title: 'Episode 12', artists: ['Tales of the Harbour'], album: null, durationMs: 1_800_000, artworkUrl: null, url: null });
+    expect(phoneItem({ ...phone('playing'), show: null, durationMs: null })).toMatchObject({ artists: [], durationMs: 0 });
+  });
+});
+
 describe('music polling', () => {
   const api = (status: number, code: string, details?: unknown) => new ApiError(status, code as 'conflict', 'x', details);
+
+  it('looks at the phone often while it plays, rarely otherwise', () => {
+    const report = { app: 'pocket-casts', title: 'A', show: null, durationMs: null, positionMs: 0, speed: 1, startedAt: '2026-11-06T10:00:00.000Z' } as const;
+    expect(phoneRefetchMs({ ...report, state: 'playing' }, null)).toBe(MUSIC_PLAYING_REFETCH_MS);
+    expect(phoneRefetchMs({ ...report, state: 'paused' }, null)).toBe(MUSIC_IDLE_REFETCH_MS);
+    expect(phoneRefetchMs(null, null)).toBe(MUSIC_IDLE_REFETCH_MS);
+    expect(phoneRefetchMs(undefined, null)).toBe(MUSIC_IDLE_REFETCH_MS);
+  });
+
+  it('stops looking at the phone when an older server refuses the route, but not through an outage', () => {
+    expect(phoneRefetchMs(undefined, api(404, 'not_found'))).toBe(false);
+    expect(phoneRefetchMs(undefined, api(403, 'local_only'))).toBe(false);
+    expect(phoneRefetchMs(undefined, api(502, 'provider_error'))).toBe(MUSIC_IDLE_REFETCH_MS);
+    expect(phoneRefetchMs(undefined, new Error('offline'))).toBe(MUSIC_IDLE_REFETCH_MS);
+  });
 
   it('polls often while playing, rarely otherwise', () => {
     expect(musicRefetchMs(STATUS, null)).toBe(MUSIC_PLAYING_REFETCH_MS);

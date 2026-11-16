@@ -12,6 +12,8 @@
  *   PC" badge for the page's own device, and **Remove**, which stops its cookie at once. Other PCs
  *   are managed from the main PC (its own page or the paired Pages site): on another PC only
  *   **Disconnect this PC** is offered, which removes that PC's own device.
+ * - *Connected phones*, once there is one: `reporter` devices, which can report what is playing and
+ *   nothing else (docs/design/phone-now-playing.md). Their requests say so before they are approved.
  *
  * The list is polled every few seconds while the page is open, so a request shows up by itself.
  * On a page load whose data lives in this browser (the Pages build's browser backend) there is no
@@ -19,7 +21,7 @@
  * links to the connect page (`#/connect`) for Portly on another PC.
  */
 import { useState, type ReactNode } from 'react';
-import { Check, Laptop, MonitorSmartphone, Trash2, X } from 'lucide-react';
+import { Check, Laptop, MonitorSmartphone, Smartphone, Trash2, X } from 'lucide-react';
 import type { DeviceRequestSummary, DeviceSummary } from '@portly/shared';
 import { useApproveDevice, useDenyDevice, useDevices, useDisconnectDevice, useRevokeDevice } from '../../api/devices.ts';
 import { getCapabilities } from '../../capabilities.ts';
@@ -36,6 +38,9 @@ import { SkeletonList } from '../../ui/Skeleton.tsx';
 import { toast } from '../../ui/toast.ts';
 import pairStyles from '../../app/PairPage.module.css';
 import styles from '../../styles/settings.module.css';
+
+/** Stands where a PC's browser would: a helper app has none, and this is what matters about it. */
+const REPORTER_BADGE = 'Reports what is playing';
 
 /** Most recently active first (last use, else connection time). */
 function byRecentUse(a: DeviceSummary, b: DeviceSummary): number {
@@ -121,6 +126,8 @@ function DevicesOnServer() {
   }
 
   const list = [...data.devices].sort(byRecentUse);
+  const pcs = list.filter((device) => device.scope !== 'reporter');
+  const phones = list.filter((device) => device.scope === 'reporter');
   return (
     <div className={styles.stack}>
       <SettingsCard
@@ -144,7 +151,7 @@ function DevicesOnServer() {
         title="Waiting for approval"
         description={
           canDecide
-            ? 'Approve a request only when the code here matches the one on that PC’s screen.'
+            ? 'Approve a request only when the code here matches the one on that device’s screen.'
             : 'Requests are approved on the main PC.'
         }
       >
@@ -169,16 +176,34 @@ function DevicesOnServer() {
         title="Connected PCs"
         description={caps.remoteClient ? 'PCs that may use Portly on the main PC. They are managed there.' : 'PCs that may use Portly here. Removing one stops it at once.'}
       >
-        {list.length === 0 ? (
+        {pcs.length === 0 ? (
           <EmptyState icon={Laptop} title="No other PC is connected" body="Once you approve a request, that PC shows up here." />
         ) : (
           <ul className={styles.list} aria-label="Connected PCs">
-            {list.map((device) => (
+            {pcs.map((device) => (
               <DeviceRow key={device.id} device={device} />
             ))}
           </ul>
         )}
       </SettingsCard>
+
+      {phones.length > 0 ? (
+        <SettingsCard
+          id="connected-phones"
+          title="Connected phones"
+          description={
+            caps.remoteClient
+              ? 'Phones that report what is playing, and can do nothing else. They are managed on the main PC.'
+              : 'Phones that report what is playing, and can do nothing else. Removing one stops it at once.'
+          }
+        >
+          <ul className={styles.list} aria-label="Connected phones">
+            {phones.map((device) => (
+              <DeviceRow key={device.id} device={device} />
+            ))}
+          </ul>
+        </SettingsCard>
+      ) : null}
     </div>
   );
 }
@@ -187,13 +212,15 @@ function RequestRow({ request, canDecide }: { request: DeviceRequestSummary; can
   const approve = useApproveDevice();
   const deny = useDenyDevice();
   const busy = approve.isPending || deny.isPending;
+  const reporter = request.scope === 'reporter';
+  const Icon = reporter ? Smartphone : MonitorSmartphone;
   return (
     <li className={styles.listItem}>
-      <MonitorSmartphone aria-hidden="true" width={18} height={18} />
+      <Icon aria-hidden="true" width={18} height={18} />
       <div className={styles.grow}>
         <div className={styles.inlineRow}>
           <span className={styles.itemTitle}>{request.label}</span>
-          <Badge tone="neutral">{request.browser}</Badge>
+          <Badge tone="neutral">{reporter ? REPORTER_BADGE : request.browser}</Badge>
         </div>
         <span className={styles.itemMeta}>
           Code <span className={styles.mono}>{request.code}</span>
@@ -202,6 +229,7 @@ function RequestRow({ request, canDecide }: { request: DeviceRequestSummary; can
           {' · '}
           expires <RelativeTime date={request.expiresAt} />
         </span>
+        {reporter ? <div className={styles.itemMeta}>This device can only report what is playing. It can’t see or change anything else in Portly.</div> : null}
       </div>
       {canDecide ? (
         <div className={styles.itemActions}>
@@ -242,6 +270,8 @@ function DeviceRow({ device }: { device: DeviceSummary }) {
   const remote = getCapabilities().remoteClient;
   const offered = remote ? device.current : true;
   const label = remote ? 'Disconnect this PC' : `Remove ${device.label}`;
+  const reporter = device.scope === 'reporter';
+  const Icon = reporter ? Smartphone : Laptop;
   let meta: ReactNode;
   if (device.lastUsedAt === null) meta = 'never used';
   else
@@ -252,11 +282,11 @@ function DeviceRow({ device }: { device: DeviceSummary }) {
     );
   return (
     <li className={styles.listItem}>
-      <Laptop aria-hidden="true" width={18} height={18} />
+      <Icon aria-hidden="true" width={18} height={18} />
       <div className={styles.grow}>
         <div className={styles.inlineRow}>
           <span className={styles.itemTitle}>{device.label}</span>
-          <Badge tone="neutral">{device.browser}</Badge>
+          <Badge tone="neutral">{reporter ? REPORTER_BADGE : device.browser}</Badge>
           {device.current ? <Badge tone="success">This PC</Badge> : null}
         </div>
         <span className={styles.itemMeta}>
@@ -279,7 +309,9 @@ function DeviceRow({ device }: { device: DeviceSummary }) {
         description={
           device.current
             ? 'This PC stops using Portly at once and sees the connect screen again. To use Portly here again, ask to connect and approve the request on the main PC.'
-            : 'That PC can no longer use Portly. To let it in again, it asks to connect and you approve the new request here.'
+            : reporter
+              ? 'That phone stops reporting what is playing. To let it in again, it asks to connect and you approve the new request here.'
+              : 'That PC can no longer use Portly. To let it in again, it asks to connect and you approve the new request here.'
         }
         confirmLabel={remote ? 'Disconnect' : 'Remove'}
         destructive

@@ -38,6 +38,59 @@ describe('device store', () => {
     expect(new Set(Array.from({ length: 50 }, newDeviceCode)).size).toBeGreaterThan(40);
   });
 
+  describe('scope', () => {
+    it('is full unless the request says otherwise', () => {
+      const { secret, id } = connect();
+      expect(store.verify(secret)?.scope).toBe('full');
+      expect(store.list().find((d) => d.id === id)?.scope).toBe('full');
+    });
+
+    it('carries a reporter from the request to the device, and stays when the cookie is handed out again', () => {
+      const created = store.createRequest({ label: 'Phone', browser: 'Portly helper', scope: 'reporter' })!;
+      expect(created.record.scope).toBe('reporter');
+      expect(store.listRequests()[0]?.scope).toBe('reporter');
+      store.approve(created.record.id);
+      const claimed = store.claim(created.secret)!;
+      expect(claimed.record.scope).toBe('reporter');
+      expect(store.verify(claimed.secret)?.scope).toBe('reporter');
+      const again = store.claim(created.secret)!;
+      expect(again.record.scope).toBe('reporter');
+      expect(store.verify(again.secret)?.scope).toBe('reporter');
+      expect(store.verify(claimed.secret)).toBeNull();
+    });
+
+    it('survives a reload from the database', () => {
+      const created = store.createRequest({ label: 'Phone', browser: 'x', scope: 'reporter' })!;
+      store.approve(created.record.id);
+      const { secret } = store.claim(created.secret)!;
+      const fresh = createDeviceStore({ db, log, now: () => now });
+      expect(fresh.verify(secret)?.scope).toBe('reporter');
+    });
+
+    it('reads a scope this code does not know as the narrowest', () => {
+      const { secret, id } = connect();
+      db.exec('PRAGMA ignore_check_constraints = ON');
+      db.run(`UPDATE devices SET scope = 'admin' WHERE id = ?`, [id]);
+      db.exec('PRAGMA ignore_check_constraints = OFF');
+      const fresh = createDeviceStore({ db, log, now: () => now });
+      expect(fresh.verify(secret)?.scope).toBe('reporter');
+    });
+  });
+
+  describe('isConnected', () => {
+    it('follows the same rule as verify: working, revoked, unknown and idle too long', () => {
+      const { id } = connect();
+      expect(store.isConnected(id)).toBe(true);
+      expect(store.isConnected('nobody')).toBe(false);
+      store.revoke(id);
+      expect(store.isConnected(id)).toBe(false);
+      const idle = connect('Forgotten');
+      now += DEVICE_IDLE_TTL_MS + 1;
+      expect(store.isConnected(idle.id)).toBe(false);
+      expect(store.verify(idle.secret)).toBeNull();
+    });
+  });
+
   it('creates a pending request with a code, storing only the hash of its secret', () => {
     const created = store.createRequest({ label: 'Laptop', browser: 'Chrome on Windows' });
     expect(created).not.toBeNull();

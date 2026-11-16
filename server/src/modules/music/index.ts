@@ -9,23 +9,28 @@
  * - `GET  /api/music/status[?accountId=]`   → `MusicStatus` (`playback` null: nothing is active)
  * - `GET  /api/music/devices[?accountId=]`  → `MusicDevice[]`
  * - `POST /api/music/command {accountId?, command}` → 204
+ * - `GET  /api/music/phone`                 → `PhonePlayback | null` (phone.ts)
+ * - `POST /api/music/phone {PhoneReport}`   → 204, declared `reporter()`: only a helper app on a
+ *   phone, signed in as a device of that scope. Portly's own page and full devices are refused.
  *
  * Errors: no account → 409 `not_configured` (`details.reason: 'no_account'`); an account to
  * reconnect → 409 `reauth_required`; the rest as listed at `MUSIC_ERROR_REASONS` in shared. A 429
  * answer carries `Retry-After`.
  */
 import type { Hono } from 'hono';
-import { MusicCommandRequestSchema, MusicQuerySchema } from '@portly/shared';
+import { MusicCommandRequestSchema, MusicQuerySchema, PhoneReportSchema } from '@portly/shared';
 import type { AppContext, AppEnv } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
-import { paired } from '../../lib/routes.ts';
+import { paired, reporter } from '../../lib/routes.ts';
 import { parseBody, parseQuery } from '../../lib/validate.ts';
+import { createPhoneReports } from './phone.ts';
 import { createMusicService, type MusicServiceOptions } from './service.ts';
 
 export const prefixes = ['/api/music'] as const;
 
 export function register(app: Hono<AppEnv>, ctx: AppContext, options: MusicServiceOptions = {}): void {
   const service = createMusicService(ctx, options);
+  const phone = createPhoneReports(ctx, { now: options.now });
 
   // A 429 (from the provider or the cooldown) tells the browser when to try again.
   app.use('/api/music/*', async (c, next) => {
@@ -47,6 +52,16 @@ export function register(app: Hono<AppEnv>, ctx: AppContext, options: MusicServi
 
   app.post('/api/music/command', paired(), async (c) => {
     await service.command(await parseBody(c, MusicCommandRequestSchema));
+    return c.body(null, 204);
+  });
+
+  app.get('/api/music/phone', paired(), (c) => c.json(phone.current()));
+
+  app.post('/api/music/phone', reporter(), async (c) => {
+    // The gate lets Portly's own page reach every route; only a device has something to report.
+    const deviceId = c.get('deviceId');
+    if (deviceId === undefined) throw HttpError.of('not_configured', 'Only the helper app on a phone reports what is playing');
+    phone.report(deviceId, await parseBody(c, PhoneReportSchema));
     return c.body(null, 204);
   });
 }

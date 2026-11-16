@@ -1,6 +1,25 @@
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
-import { BODY_LIMITS, RouteTable, deviceMayCall, enrollment, exempt, multipart, ownPage, paired, pagesDeviceMayCall, pagesMayCall, routeMetaOf, samePc } from './routes.ts';
+import {
+  BODY_LIMITS,
+  RouteTable,
+  anyDevice,
+  deviceMayCall,
+  enrollment,
+  exempt,
+  multipart,
+  ownPage,
+  paired,
+  pagesDeviceMayCall,
+  pagesMayCall,
+  reporter,
+  routeMetaOf,
+  samePc,
+  type RouteMeta,
+} from './routes.ts';
+
+const fullDeviceMayCall = (meta: RouteMeta): boolean => deviceMayCall(meta, 'full');
+const fullPagesDeviceMayCall = (meta: RouteMeta): boolean => pagesDeviceMayCall(meta, 'full');
 
 describe('route metadata', () => {
   it('records tagged handlers with their method and pattern', () => {
@@ -117,7 +136,7 @@ describe('route access levels', () => {
     expect(settings).toEqual({ access: 'paired' });
     expect(local).toEqual({});
     expect([reset, enroll, settings, local].map(pagesMayCall)).toEqual([true, false, true, false]);
-    expect([reset, enroll, settings, local].map(deviceMayCall)).toEqual([false, true, true, false]);
+    expect([reset, enroll, settings, local].map(fullDeviceMayCall)).toEqual([false, true, true, false]);
   });
 
   it('records ownPage(): another PC on Portly\'s own page, never the Pages site on any PC', () => {
@@ -132,8 +151,65 @@ describe('route access levels', () => {
     const settings = table.match('GET', '/api/settings');
     expect(update).toEqual({ access: 'own-page' });
     expect([update, enroll, settings].map(pagesMayCall)).toEqual([false, false, true]);
-    expect([update, enroll, settings].map(pagesDeviceMayCall)).toEqual([false, true, true]);
-    expect([update, enroll, settings].map(deviceMayCall)).toEqual([true, true, true]);
+    expect([update, enroll, settings].map(fullPagesDeviceMayCall)).toEqual([false, true, true]);
+    expect([update, enroll, settings].map(fullDeviceMayCall)).toEqual([true, true, true]);
+  });
+
+  it('records reporter() and anyDevice(): a reporter calls only those, a full device only the second', () => {
+    const app = new Hono();
+    app.post('/api/report', reporter(), (c) => c.text('ok'));
+    app.delete('/api/device', anyDevice(), (c) => c.text('ok'));
+    app.get('/api/settings', paired(), (c) => c.text('ok'));
+    app.post('/api/enroll', enrollment(), (c) => c.text('ok'));
+    app.post('/api/update', ownPage(), (c) => c.text('ok'));
+    app.post('/api/vault/reset', samePc(), (c) => c.text('ok'));
+    app.post('/api/pairings', (c) => c.text('ok'));
+    const table = new RouteTable();
+    table.collect(app);
+    const report = table.match('POST', '/api/report');
+    const leave = table.match('DELETE', '/api/device');
+    expect(report).toEqual({ access: 'reporter' });
+    expect(leave).toEqual({ access: 'any-device' });
+    const others = [
+      table.match('GET', '/api/settings'),
+      table.match('POST', '/api/enroll'),
+      table.match('POST', '/api/update'),
+      table.match('POST', '/api/vault/reset'),
+      table.match('POST', '/api/pairings'),
+      table.match('GET', '/api/unknown'),
+    ];
+
+    const asReporter = (meta: RouteMeta): boolean => deviceMayCall(meta, 'reporter');
+    expect([report, leave].map(asReporter)).toEqual([true, true]);
+    expect(others.map(asReporter)).toEqual(others.map(() => false));
+
+    expect([report, leave].map(fullDeviceMayCall)).toEqual([false, true]);
+    expect([report, leave].map(pagesMayCall)).toEqual([false, true]);
+    expect([report, leave].map(fullPagesDeviceMayCall)).toEqual([false, true]);
+
+    // The Pages site on another PC never gets anywhere with a reporter's secret.
+    const refused = (meta: RouteMeta): boolean => pagesDeviceMayCall(meta, 'reporter');
+    expect([report, leave, ...others].map(refused)).toEqual([report, leave, ...others].map(() => false));
+  });
+
+  it('keeps reporter routes closed under overlapping registrations', () => {
+    const table = new RouteTable();
+    table.record({ method: 'POST', pattern: '/api/x/:id', access: 'paired' });
+    table.record({ method: 'POST', pattern: '/api/x/report', access: 'reporter' });
+    // Paired and reporter share no caller, so an overlap opens the route to no one.
+    expect(table.match('POST', '/api/x/report')).toEqual({});
+    // Any-device over paired narrows to paired: the reporter loses it.
+    const narrowed = new RouteTable();
+    narrowed.record({ method: 'DELETE', pattern: '/api/y/:id', access: 'paired' });
+    narrowed.record({ method: 'DELETE', pattern: '/api/y/self', access: 'any-device' });
+    expect(narrowed.match('DELETE', '/api/y/self')).toEqual({ access: 'paired' });
+    // And an untagged route under a reporter pattern stays local.
+    const app = new Hono();
+    app.post('/api/z/:id', reporter(), (c) => c.text('ok'));
+    app.post('/api/z/plain', (c) => c.text('ok'));
+    const untagged = new RouteTable();
+    untagged.collect(app);
+    expect(untagged.match('POST', '/api/z/plain')).toEqual({});
   });
 
   it('keeps an own-page route closed under overlapping registrations', () => {

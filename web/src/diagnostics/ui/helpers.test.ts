@@ -146,6 +146,12 @@ describe('remedies', () => {
 });
 
 describe('groupHealth', () => {
+  it('gives the phone helper a group and a name of its own', () => {
+    const groups = groupHealth(diagnosticsSummary({ jobs: [], health: [healthEntry('phone:device-1', { label: null })] }));
+    expect(groups.map((g) => g.title)).toEqual(['Phone helper']);
+    expect(groups[0]!.items.map((i) => i.label)).toEqual(['Phone helper']);
+  });
+
   const summary = diagnosticsSummary({
     jobs: [jobInfo('calendar:sync'), jobInfo('calendar:ics'), jobInfo('core:backup', { lastOk: null, lastFinishedAt: null, runs: 0 })],
     health: [

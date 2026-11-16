@@ -1,5 +1,5 @@
 /** The music widget's pure logic (§10.8 Music): no React, no network. */
-import type { MusicCommand, MusicItem, MusicRepeatMode, MusicStatus } from '@portly/shared';
+import type { MusicCommand, MusicItem, MusicPlayback, MusicRepeatMode, MusicStatus, PhonePlayback } from '@portly/shared';
 
 /** The widget's height decides its layout. */
 export type MusicTier = 'compact' | 'normal' | 'large';
@@ -18,10 +18,28 @@ export function formatTime(ms: number): string {
   return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`;
 }
 
-/** Where playback is now, moved on from the last answer while playing. */
-export function livePosition(positionMs: number, isPlaying: boolean, receivedAt: number, now: number, durationMs: number): number {
-  const moved = isPlaying ? positionMs + Math.max(0, now - receivedAt) : positionMs;
+/** Where playback is now, moved on from the last answer while playing, at the speed it plays. */
+export function livePosition(positionMs: number, isPlaying: boolean, receivedAt: number, now: number, durationMs: number, speed = 1): number {
+  const moved = isPlaying ? positionMs + Math.max(0, now - receivedAt) * speed : positionMs;
   return Math.min(moved, Math.max(durationMs, 0));
+}
+
+/**
+ * Whether the widget shows the phone rather than the music service (design 6): whichever is playing,
+ * and if both are, the one that started last. If neither is, the phone: its pause lasts 15 minutes,
+ * and a paused Spotify session can sit there for hours. Spotify gives no start time, so its item's
+ * is worked out from the position. That makes a new song count as starting, and a resumed one not.
+ */
+export function phoneIsShown(phone: PhonePlayback, provider: MusicPlayback | null, providerReceivedAt: number): boolean {
+  if (provider === null) return true;
+  const phonePlaying = phone.state === 'playing';
+  if (phonePlaying !== provider.isPlaying) return phonePlaying;
+  return !phonePlaying || Date.parse(phone.startedAt) >= providerReceivedAt - provider.positionMs;
+}
+
+/** The phone's episode in the shape the player's parts take. A report carries no art and no link. */
+export function phoneItem(phone: PhonePlayback): MusicItem {
+  return { kind: 'episode', title: phone.title, artists: phone.show === null ? [] : [phone.show], album: null, durationMs: phone.durationMs ?? 0, artworkUrl: null, url: null };
 }
 
 /**

@@ -16,12 +16,13 @@ import {
 import { HttpError } from './lib/errors.ts';
 import { getLogContext } from './lib/log-context.ts';
 import { createMemoryLogger, createTestLogger } from './lib/logger.ts';
-import { exempt } from './lib/routes.ts';
+import { deviceMayCall, exempt, pagesDeviceMayCall, pagesMayCall } from './lib/routes.ts';
 import { MODULES, type ModuleEntry } from './modules/index.ts';
 import { berlinForecast, springfieldGeocode } from './modules/weather/__fixtures__/open-meteo.ts';
 import { isApiPath } from './security/gate.ts';
 import { createTestContext, type TestContext } from './testing/test-context.ts';
-import { TEST_PAGES_ENV, TEST_PAGES_ORIGIN, pagesHeaders, testRequest } from './testing/test-request.ts';
+import { connectTestDevice } from './testing/test-devices.ts';
+import { TEST_PAGES_ENV, TEST_PAGES_ORIGIN, TEST_REMOTE_ENV, pagesHeaders, remoteHeaders, testRequest } from './testing/test-request.ts';
 
 describe('app: static files and SPA fallback', () => {
   let dist: string;
@@ -221,6 +222,38 @@ describe('app: modules', () => {
     }
   });
 
+  it('refuses a reporter on every route of the real app but its two, through the real gate', async () => {
+    ctx.close();
+    ctx = createTestContext({ env: { ...TEST_REMOTE_ENV } });
+    const { app } = createApp(ctx, { webDist: null });
+    const { secret } = connectTestDevice(ctx, { label: 'Phone', scope: 'reporter' });
+    const reachable = Object.entries(ROUTE_ACCESS).filter(([, access]) => access === 'reporter' || access === 'any-device');
+    expect(reachable.map(([route]) => route).sort()).toEqual(['DELETE /api/device', 'POST /api/music/phone']);
+    let refused = 0;
+    for (const [route, access] of Object.entries(ROUTE_ACCESS)) {
+      if (route === 'GET /api/health' || access === 'reporter' || access === 'any-device') continue;
+      const [method = '', pattern = ''] = route.split(' ');
+      const path = pattern.replace(/:[A-Za-z]+/g, 'sample-id');
+      const res = await testRequest(app, method, path, { headers: remoteHeaders(secret) });
+      expect(res.status, route).toBe(403);
+      expect(((await res.json()) as { error: { code: string } }).error.code, route).toBe('local_only');
+      refused += 1;
+    }
+    expect(refused).toBe(Object.keys(ROUTE_ACCESS).length - 3);
+  });
+
+  it('leaves full devices and the Pages site where they were, and gives a reporter nothing through the site', () => {
+    const { routes } = createApp(ctx, { webDist: null });
+    for (const [route, access] of Object.entries(ROUTE_ACCESS)) {
+      const [method = '', pattern = ''] = route.split(' ');
+      const meta = routes.match(method, pattern.replace(/:[A-Za-z]+/g, 'sample-id'));
+      expect(deviceMayCall(meta, 'full'), route).toBe(['paired', 'enrollment', 'own-page', 'any-device'].includes(access));
+      expect(pagesDeviceMayCall(meta, 'full'), route).toBe(['paired', 'enrollment', 'any-device'].includes(access));
+      expect(pagesMayCall(meta), route).toBe(['paired', 'same-pc', 'any-device'].includes(access));
+      expect(pagesDeviceMayCall(meta, 'reporter'), route).toBe(false);
+    }
+  });
+
   it('lets the paired Pages site use paired routes only (default-deny)', async () => {
     ctx.close();
     ctx = createTestContext({ env: { ...TEST_PAGES_ENV } });
@@ -285,11 +318,12 @@ describe('app: modules', () => {
  * connected devices (other PCs); `same-pc` = Portly's own page and the paired Pages site (both on
  * this PC), never another PC; `enrollment` = anyone on the remote origin (asking to connect, polling the
  * answer and the name suggestion need no cookie) and
- * Portly's own page, never the Pages site; `local` = Portly's own page on this PC only. Health and
+ * Portly's own page, never the Pages site; `reporter` = a device of that scope only (a helper app on
+ * a phone); `any-device` = `paired` and reporters; `local` = Portly's own page on this PC only. Health and
  * the OAuth callback are exempt routes (no token, no pairing, no cookie); they are listed as local
  * because they are not declared with an access tag.
  */
-const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' | 'own-page' | 'local'>> = {
+const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' | 'own-page' | 'reporter' | 'any-device' | 'local'>> = {
   // core
   'GET /api/health': 'local',
   'GET /api/about': 'paired',
@@ -386,6 +420,8 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   'GET /api/music/status': 'paired',
   'GET /api/music/devices': 'paired',
   'POST /api/music/command': 'paired',
+  'GET /api/music/phone': 'paired',
+  'POST /api/music/phone': 'reporter',
   // pairing
   'GET /api/pairing': 'same-pc',
   'DELETE /api/pairing': 'same-pc',
@@ -402,7 +438,7 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   'POST /api/devices/requests/:id/deny': 'same-pc',
   'DELETE /api/devices/:id': 'same-pc',
   'GET /api/device': 'paired',
-  'DELETE /api/device': 'paired',
+  'DELETE /api/device': 'any-device',
   // diagnostics (paired: the Pages site is the main UI; the report with this PC's paths and log files stays on this PC)
   'GET /api/diagnostics/summary': 'paired',
   'GET /api/diagnostics/logs': 'paired',

@@ -20,6 +20,7 @@
  */
 import type { MiddlewareHandler } from 'hono';
 import { TrieRouter } from 'hono/router/trie-router';
+import type { DeviceScope } from '@portly/shared';
 
 /** Gate exemption kinds (§4.2 step 3). */
 export type ExemptKind = 'health' | 'image' | 'oauth-callback';
@@ -34,22 +35,30 @@ export type BodyKind = 'json' | 'upload' | 'import';
  *   device request); the Pages site on this PC may not call these;
  * - `own-page`: a connected device on Portly's own page (its device cookie, on the remote origin),
  *   and never the Pages site on any PC, so the code asking is code this server served, not code
- *   GitHub Pages served (starting an update, §18).
+ *   GitHub Pages served (starting an update, §18);
+ * - `reporter`: a device of scope `reporter` (a phone helper reporting what is playing), and never
+ *   a full device or the Pages site. Such a route keeps Portly's own page out by itself, by wanting
+ *   the device the gate verified;
+ * - `any-device`: everyone `paired` lets in, and reporters too (a device disconnecting itself).
  * Untagged routes are local-only. {@link RouteTable.match} fails closed to the most restrictive.
+ * A reporter is refused from every level but the last two, `enrollment` included.
  */
-export type RouteAccess = 'paired' | 'same-pc' | 'enrollment' | 'own-page';
+export type RouteAccess = 'paired' | 'same-pc' | 'enrollment' | 'own-page' | 'reporter' | 'any-device';
 
 /**
  * Who, besides Portly's own page on this PC, each access level lets in: `pages` the paired Pages
  * site on this PC, `pages-device` the Pages site on another PC (its device secret), `device`
- * another PC on Portly's own page (its device cookie), `anon` anyone on the remote origin.
+ * another PC on Portly's own page (its device cookie), `anon` anyone on the remote origin,
+ * `reporter` a device of that scope (its device cookie).
  */
-type Caller = 'pages' | 'pages-device' | 'device' | 'anon';
+type Caller = 'pages' | 'pages-device' | 'device' | 'anon' | 'reporter';
 const CALLERS: Readonly<Record<RouteAccess, readonly Caller[]>> = Object.freeze({
   paired: ['pages', 'pages-device', 'device'],
   'same-pc': ['pages'],
   enrollment: ['pages-device', 'device', 'anon'],
   'own-page': ['device'],
+  reporter: ['reporter'],
+  'any-device': ['pages', 'pages-device', 'device', 'reporter'],
 });
 
 function intersect(a: ReadonlySet<Caller>, b: ReadonlySet<Caller>): Set<Caller> {
@@ -65,22 +74,29 @@ function accessFor(callers: ReadonlySet<Caller>): RouteAccess | undefined {
   if (key === 'pages') return 'same-pc';
   if (key === 'anon,device,pages-device') return 'enrollment';
   if (key === 'device') return 'own-page';
+  if (key === 'reporter') return 'reporter';
+  if (key === 'device,pages,pages-device,reporter') return 'any-device';
   return undefined;
 }
 
 /** True when the paired Pages site may call a route with this access. */
 export function pagesMayCall(meta: RouteMeta): boolean {
-  return meta.access === 'paired' || meta.access === 'same-pc';
+  return meta.access === 'paired' || meta.access === 'same-pc' || meta.access === 'any-device';
 }
 
-/** True when another PC on Portly's own page (its device cookie) may call a route with this access. */
-export function deviceMayCall(meta: RouteMeta): boolean {
-  return meta.access === 'paired' || meta.access === 'enrollment' || meta.access === 'own-page';
+/** True when a device of this scope, with its device cookie, may call a route with this access. */
+export function deviceMayCall(meta: RouteMeta, scope: DeviceScope): boolean {
+  if (scope === 'full') return meta.access === 'paired' || meta.access === 'enrollment' || meta.access === 'own-page' || meta.access === 'any-device';
+  return meta.access === 'reporter' || meta.access === 'any-device';
 }
 
-/** True when the Pages site on another PC (its device secret) may call a route with this access. */
-export function pagesDeviceMayCall(meta: RouteMeta): boolean {
-  return meta.access === 'paired' || meta.access === 'enrollment';
+/**
+ * True when the Pages site on another PC, with this device's secret, may call a route with this
+ * access. Never for a reporter: its secret stays in the helper app, and no page has a use for it.
+ */
+export function pagesDeviceMayCall(meta: RouteMeta, scope: DeviceScope): boolean {
+  if (scope !== 'full') return false;
+  return meta.access === 'paired' || meta.access === 'enrollment' || meta.access === 'any-device';
 }
 
 export interface RouteMeta {
@@ -148,7 +164,17 @@ export function ownPage(): MiddlewareHandler {
   return tag({ access: 'own-page' });
 }
 
-/** Metadata attached to a handler by {@link exempt}/{@link multipart}/{@link paired}/{@link samePc}/{@link enrollment}/{@link ownPage}, if any. */
+/** Declares the route as callable by a device of scope `reporter`, and never a full device or the Pages site. */
+export function reporter(): MiddlewareHandler {
+  return tag({ access: 'reporter' });
+}
+
+/** Like {@link paired}, and callable by a device of scope `reporter` too. */
+export function anyDevice(): MiddlewareHandler {
+  return tag({ access: 'any-device' });
+}
+
+/** Metadata attached to a handler by {@link exempt}/{@link multipart} or an access tag, if any. */
 export function routeMetaOf(handler: unknown): RouteMeta | undefined {
   if (typeof handler !== 'function') return undefined;
   const direct = (handler as TaggedHandler)[META_KEY];

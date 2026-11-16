@@ -571,7 +571,7 @@ export function outcomeFromError(err: unknown, extra: Partial<Outcome> = {}): Ou
  * The log-context field that the unit of work behind a health key sets, so the log viewer can
  * show its lines: `account:`/`mail:`/`calendar-list:<id>` → `accountId`; `calendar:`/`ics:<id>` →
  * `calendarId`; `feed:<hash>` → `feed`; `job:<name>` → `job`; `todoist`, `github`, `weather`,
- * `suggest:<provider>` (and unknown keys) → an area.
+ * `suggest:<provider>`, `phone:<deviceId>` (and unknown keys) → an area.
  */
 export function contextFieldForKey(key: string): { field: string; value: string } | { area: string } {
   const colon = key.indexOf(':');
@@ -596,6 +596,7 @@ export function contextFieldForKey(key: string): { field: string; value: string 
   }
   if (prefix === 'suggest') return { area: 'search' };
   if (prefix === 'feed') return { area: 'feeds' };
+  if (prefix === 'phone') return { area: 'music' };
   return { area: AREA_SET.has(prefix) ? prefix : 'server' };
 }
 

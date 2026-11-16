@@ -16,6 +16,9 @@
  *   rebuilt after every write. A device not used within {@link DEVICE_IDLE_TTL_MS} is expired on
  *   the spot (its row stays, marked `expired`). `explain(secret)` tells the gate why a cookie is
  *   refused: malformed, never issued, or revoked/expired/evicted/disconnected (and when).
+ * - A device has a scope, chosen by the request it came from: `full`, or `reporter` for a helper app
+ *   that may only report what is playing (lib/routes.ts decides what each may call). A value this
+ *   code does not know reads as `reporter`, the narrowest.
  * - `touch(id)` records use at most once per {@link TOUCH_INTERVAL_MS} and says whether it did
  *   (the gate renews the cookie then). Every write and listing first expires the devices idle for
  *   longer than {@link DEVICE_IDLE_TTL_MS} (so the list and the device cap never count them) and
@@ -33,6 +36,7 @@ import {
   DeviceSecretSchema,
   MAX_DEVICES,
   MAX_PENDING_DEVICE_REQUESTS,
+  type DeviceScope,
 } from '@portly/shared';
 import { asNullableString, asNumber, asString } from '../db/helpers.ts';
 import type { Db } from '../db/open.ts';
@@ -56,6 +60,7 @@ export interface DeviceRecord {
   id: string;
   label: string;
   browser: string;
+  scope: DeviceScope;
   /** Epoch ms. */
   createdAt: number;
   /** Epoch ms of the last recorded use (see {@link TOUCH_INTERVAL_MS}), or null. */
@@ -73,6 +78,7 @@ export interface DeviceRequestRecord {
   code: string;
   label: string;
   browser: string;
+  scope: DeviceScope;
   createdAt: number;
   expiresAt: number;
   status: DeviceRequestState;
@@ -90,7 +96,7 @@ export interface DeviceStore {
    * A new pending request and its enrollment secret (the only time it exists in clear), or null
    * when {@link MAX_PENDING_DEVICE_REQUESTS} are already waiting.
    */
-  createRequest(input: { label: string; browser: string }): { secret: string; record: DeviceRequestRecord } | null;
+  createRequest(input: { label: string; browser: string; scope?: DeviceScope }): { secret: string; record: DeviceRequestRecord } | null;
   /** The request an enrollment secret belongs to, whatever its status, or null (expired ones included while retained). */
   requestBySecret(secret: string): DeviceRequestRecord | null;
   /** True when the request has passed its expiry time. */
@@ -111,6 +117,8 @@ export interface DeviceStore {
   verify(secret: string): DeviceRecord | null;
   /** Like {@link verify}, but says why a secret is not valid. */
   explain(secret: string): DeviceCheck;
+  /** True while the device with this id works: {@link verify}'s rule, for a caller without its secret. */
+  isConnected(id: string): boolean;
   /** Records a use of the device; true when it wrote (at most once per {@link TOUCH_INTERVAL_MS}). */
   touch(id: string): boolean;
   /** Every working device, newest first. */
@@ -153,6 +161,11 @@ export function newDeviceCode(): string {
   return `${out.slice(0, 3)}-${out.slice(3)}`;
 }
 
+/** The stored scope; fails closed to the narrowest for a value this code does not know. */
+function toScope(value: unknown): DeviceScope {
+  return value === 'full' ? 'full' : 'reporter';
+}
+
 function toDevice(row: Record<string, unknown>): DeviceRecord {
   const lastUsed = row.last_used_at;
   const revokedAt = row.revoked_at;
@@ -161,6 +174,7 @@ function toDevice(row: Record<string, unknown>): DeviceRecord {
     id: asString(row.id),
     label: asString(row.label),
     browser: asString(row.browser),
+    scope: toScope(row.scope),
     createdAt: asNumber(row.created_at),
     lastUsedAt: lastUsed === null || lastUsed === undefined ? null : asNumber(lastUsed),
     revokedAt: revokedAt === null || revokedAt === undefined ? null : asNumber(revokedAt),
@@ -175,14 +189,15 @@ function toRequest(row: Record<string, unknown>): DeviceRequestRecord {
     code: asString(row.code),
     label: asString(row.label),
     browser: asString(row.browser),
+    scope: toScope(row.scope),
     createdAt: asNumber(row.created_at),
     expiresAt: asNumber(row.expires_at),
     status: status === 'approved' || status === 'denied' || status === 'claimed' ? status : 'pending',
   };
 }
 
-const DEVICE_COLUMNS = 'id, label, secret_hash, browser, created_at, last_used_at, revoked_at, revoked_by';
-const REQUEST_COLUMNS = 'id, code, label, browser, created_at, expires_at, status';
+const DEVICE_COLUMNS = 'id, label, secret_hash, browser, scope, created_at, last_used_at, revoked_at, revoked_by';
+const REQUEST_COLUMNS = 'id, code, label, browser, scope, created_at, expires_at, status';
 
 export function createDeviceStore(options: DeviceStoreOptions): DeviceStore {
   const { db, log } = options;
@@ -273,14 +288,15 @@ export function createDeviceStore(options: DeviceStoreOptions): DeviceStore {
         code,
         label: input.label.slice(0, DEVICE_LABEL_MAX),
         browser: input.browser.slice(0, MAX_BROWSER_SUMMARY),
+        scope: input.scope ?? 'full',
         createdAt: at,
         expiresAt: at + DEVICE_REQUEST_TTL_MS,
         status: 'pending',
       };
       db.run(
-        `INSERT INTO device_requests (id, code, secret_hash, label, browser, created_at, expires_at, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-        [record.id, record.code, hashSecret(secret), record.label, record.browser, record.createdAt, record.expiresAt],
+        `INSERT INTO device_requests (id, code, secret_hash, label, browser, scope, created_at, expires_at, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        [record.id, record.code, hashSecret(secret), record.label, record.browser, record.scope, record.createdAt, record.expiresAt],
       );
       return { secret, record: { ...record } };
     },
@@ -342,6 +358,7 @@ export function createDeviceStore(options: DeviceStoreOptions): DeviceStore {
         id: newId(),
         label: request.label,
         browser: request.browser,
+        scope: request.scope,
         createdAt: at,
         lastUsedAt: null,
         revokedAt: null,
@@ -363,9 +380,9 @@ export function createDeviceStore(options: DeviceStoreOptions): DeviceStore {
           log?.info('least recently used devices removed to make room', { count: evicted.length, deviceIds: evicted });
         }
         db.run(
-          `INSERT INTO devices (id, label, secret_hash, browser, created_at, last_used_at, revoked_at, revoked_by)
-           VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)`,
-          [record.id, record.label, hashSecret(deviceSecret), record.browser, record.createdAt],
+          `INSERT INTO devices (id, label, secret_hash, browser, scope, created_at, last_used_at, revoked_at, revoked_by)
+           VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+          [record.id, record.label, hashSecret(deviceSecret), record.browser, record.scope, record.createdAt],
         );
         db.run(`UPDATE device_requests SET status = 'claimed', device_id = ? WHERE id = ?`, [record.id, request.id]);
       });
@@ -380,6 +397,11 @@ export function createDeviceStore(options: DeviceStoreOptions): DeviceStore {
     },
 
     explain,
+
+    isConnected(id) {
+      const record = load().byId.get(id);
+      return record !== undefined && check(record).status === 'ok';
+    },
 
     touch(id) {
       const record = load().byId.get(id);

@@ -176,6 +176,32 @@ a.title:hover {
   min-width: 0;
 }
 
+/* The phone's player has no controls: its credit sits where they would. */
+.credit {
+  grid-area: controls;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-1);
+  min-width: 0;
+  margin: 0;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-muted);
+}
+
+.creditIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.creditText {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .slider {
   min-width: 0;
 }

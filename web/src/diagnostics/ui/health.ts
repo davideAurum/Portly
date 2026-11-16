@@ -2,7 +2,7 @@
  * Connections & sync (Settings → Diagnostics, ARCHITECTURE §17): the server's health entries
  * grouped the way a user thinks about them — per account first (the account itself, its calendar
  * list, each calendar, its mail), then per area (ICS calendars, feeds, Todoist, GitHub, weather, search
- * suggestions, sports, scheduled jobs) — with whatever needs attention first. Scheduled jobs are
+ * suggestions, sports, the phone helper, scheduled jobs) — with whatever needs attention first. Scheduled jobs are
  * listed from the summary's job stats, joined with their `job:<name>` health entries, so that a job
  * that never ran yet shows too. Also: which job "Run now" starts for a subject, and the log filter
  * of "Show related log lines".
@@ -59,6 +59,7 @@ const AREA_GROUPS: readonly { id: string; title: string; matches(key: string): b
   { id: 'weather', title: 'Weather', matches: (key) => key === 'weather' || key.startsWith('weather:') },
   { id: 'search', title: 'Search suggestions', matches: (key) => key.startsWith('suggest:') },
   { id: 'sports', title: 'Sports', matches: (key) => key.startsWith('sports:') },
+  { id: 'phone', title: 'Phone helper', matches: (key) => key.startsWith('phone:') },
   { id: 'jobs', title: 'Scheduled jobs', matches: (key) => key.startsWith('job:') },
 ];
 const OTHER_GROUP = { id: 'other', title: 'Other' };
@@ -90,6 +91,7 @@ function defaultLabel(key: string): string {
   if (key === 'github') return 'GitHub';
   if (key === 'weather') return 'Weather';
   if (key.startsWith('suggest:')) return `Suggestions from ${key.slice('suggest:'.length)}`;
+  if (key.startsWith('phone:')) return 'Phone helper';
   if (key.startsWith('job:')) return key.slice('job:'.length);
   return key;
 }

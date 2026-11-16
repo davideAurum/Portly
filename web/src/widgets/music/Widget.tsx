@@ -10,6 +10,8 @@
  * - Sliders send one command when let go, not one per step of the drag.
  * - Not connected → CTA to Spotify in Settings → Accounts; an account to reconnect → the frame's
  *   usual Reconnect; refused by Spotify → its reason, with Retry.
+ * - What the phone reports (docs/design/phone-now-playing.md) shows in {@link PhonePlayer}, with or
+ *   without a music service. It is view-only, so it has no controls, and no Spotify logo.
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import {
@@ -30,9 +32,9 @@ import {
   Volume2,
   type LucideIcon,
 } from 'lucide-react';
-import type { MusicCommand, MusicDevice, MusicDeviceType, MusicItem, MusicPlayback, MusicStatus } from '@portly/shared';
+import type { MusicCommand, MusicDevice, MusicDeviceType, MusicItem, MusicPlayback, MusicStatus, PhonePlayback } from '@portly/shared';
 import { isApiError } from '../../api/client.ts';
-import { isMusicBlocked, useMusicCommand, useMusicDevices, useMusicStatus } from '../../api/music.ts';
+import { isMusicBlocked, useMusicCommand, useMusicDevices, useMusicPhone, useMusicStatus } from '../../api/music.ts';
 import { WidgetActions } from '../../grid/WidgetContext.tsx';
 import { linkProps, safeHref } from '../../lib/openUrl.ts';
 import { useNow } from '../../lib/useNow.ts';
@@ -46,8 +48,8 @@ import { errorMessage } from '../../ui/toast.ts';
 import { Slider } from '../../ui/Toggles.tsx';
 import type { WidgetProps } from '../types.ts';
 import type { MusicConfig } from './index.ts';
-import { artistLine, formatTime, livePosition, musicTier, nextRepeatMode, repeatLabel, type MusicTier } from './model.ts';
-import { MUSIC_PROVIDER_INFO, type MusicProviderInfo } from './providers.tsx';
+import { artistLine, formatTime, livePosition, musicTier, nextRepeatMode, phoneIsShown, phoneItem, repeatLabel, type MusicTier } from './model.ts';
+import { MUSIC_PROVIDER_INFO, PHONE_APP_NAMES, type MusicProviderInfo } from './providers.tsx';
 import styles from './Music.module.css';
 
 /** Spotify in Settings → Accounts: its connect dialog. */
@@ -66,14 +68,27 @@ type SendCommand = (command: MusicCommand) => void;
 export default function MusicWidget({ config, size }: WidgetProps<MusicConfig>) {
   const accountId = config.accountId;
   const status = useMusicStatus(accountId);
+  const phone = useMusicPhone();
   const tier = musicTier(size.h);
   const compact = tier === 'compact';
+  const blocked = isMusicBlocked(status.error);
 
-  // Setup problems can't fix themselves: show them instead of a stale player.
-  if (status.data === undefined || isMusicBlocked(status.error)) {
+  const report = phone.data ?? null;
+  if (report !== null && phoneIsShown(report, blocked ? null : (status.data?.playback ?? null), status.dataUpdatedAt)) {
     return (
       <div className={styles.root}>
-        {status.isError ? (
+        <WidgetActions>{phone.isError ? <StaleIndicator updatedAt={phone.dataUpdatedAt} error={phone.error} onRetry={() => void phone.refetch()} /> : null}</WidgetActions>
+        <PhonePlayer phone={report} receivedAt={phone.dataUpdatedAt} tier={tier} />
+      </div>
+    );
+  }
+
+  // Setup problems can't fix themselves: show them instead of a stale player. They wait for the
+  // phone's answer, or the connect card would flash up before an episode.
+  if (status.data === undefined || blocked) {
+    return (
+      <div className={styles.root}>
+        {status.isError && !phone.isPending ? (
           <MusicError error={status.error} onRetry={() => void status.refetch()} compact={compact} />
         ) : (
           <SkeletonList rows={compact ? 1 : 2} />
@@ -265,7 +280,14 @@ function Player({ accountId, status, playback, provider, receivedAt, tier, wide 
         {features.devices && compact ? <DevicePicker accountId={accountId} playback={playback} send={send} iconOnly /> : null}
       </div>
       {!compact && item !== null ? (
-        <SeekBar key={item.url ?? item.title} item={item} playback={playback} receivedAt={receivedAt} disabled={!features.seek || !allowed.seek} send={send} />
+        <SeekBar
+          key={item.url ?? item.title}
+          durationMs={item.durationMs}
+          positionMs={playback.positionMs}
+          isPlaying={playback.isPlaying}
+          receivedAt={receivedAt}
+          onSeek={features.seek && allowed.seek ? (positionMs) => send({ type: 'seek', positionMs }) : undefined}
+        />
       ) : null}
       {!compact && (features.devices || showVolume) ? (
         <div className={styles.footer}>
@@ -277,7 +299,38 @@ function Player({ accountId, status, playback, provider, receivedAt, tier, wide 
   );
 }
 
-function Artwork({ item, provider, large }: { item: MusicItem | null; provider: MusicProviderInfo; large: boolean }) {
+// ---------------------------------------------------------------------------
+// Playing on the phone
+// ---------------------------------------------------------------------------
+
+/** What the phone is playing: view-only, with the app and the state in words, since no button shows them. */
+function PhonePlayer({ phone, receivedAt, tier }: { phone: PhonePlayback; receivedAt: number; tier: MusicTier }) {
+  const provider = { name: PHONE_APP_NAMES[phone.app] };
+  const item = phoneItem(phone);
+  const isPlaying = phone.state === 'playing';
+  // The state goes first: a narrow widget cuts the end of this line off.
+  const credit = `${isPlaying ? '' : 'Paused · '}${provider.name}, on your phone`;
+  return (
+    <div className={styles.player} data-tier={tier}>
+      <Artwork item={item} provider={provider} large={tier === 'large'} />
+      <div className={styles.meta}>
+        <Title item={item} provider={provider} />
+        {phone.show === null ? null : <p className={styles.artists}>{phone.show}</p>}
+      </div>
+      <p className={styles.credit}>
+        <Smartphone aria-hidden="true" className={styles.creditIcon} />
+        <span className={styles.creditText} title={credit}>
+          {credit}
+        </span>
+      </p>
+      {tier !== 'compact' && phone.durationMs !== null ? (
+        <SeekBar durationMs={phone.durationMs} positionMs={phone.positionMs} isPlaying={isPlaying} speed={phone.speed} receivedAt={receivedAt} />
+      ) : null}
+    </div>
+  );
+}
+
+function Artwork({ item, provider, large }: { item: MusicItem | null; provider: Pick<MusicProviderInfo, 'name'>; large: boolean }) {
   // The failed address, not a flag: the next item's art gets its own try.
   const [failed, setFailed] = useState<string | null>(null);
   const art = item?.artworkUrl ?? null;
@@ -303,7 +356,7 @@ function Artwork({ item, provider, large }: { item: MusicItem | null; provider: 
   );
 }
 
-function Title({ item, provider }: { item: MusicItem | null; provider: MusicProviderInfo }) {
+function Title({ item, provider }: { item: MusicItem | null; provider: Pick<MusicProviderInfo, 'name'> }) {
   if (item === null) return <p className={styles.title}>{provider.name}</p>;
   const link = linkProps(item.url);
   if (!link) return <p className={styles.title} title={item.title}>{item.title}</p>;
@@ -339,18 +392,29 @@ function CommitSlider({ value, onCommit, ...slider }: { value: number; onCommit(
   );
 }
 
-function SeekBar({ item, playback, receivedAt, disabled, send }: { item: MusicItem; playback: MusicPlayback; receivedAt: number; disabled: boolean; send: SendCommand }) {
+interface SeekBarProps {
+  durationMs: number;
+  positionMs: number;
+  isPlaying: boolean;
+  /** The playback speed, where it is known. */
+  speed?: number;
+  receivedAt: number;
+  /** Without it the bar only shows the position. */
+  onSeek?: ((positionMs: number) => void) | undefined;
+}
+
+function SeekBar({ durationMs, positionMs, isPlaying, speed, receivedAt, onSeek }: SeekBarProps) {
   const now = useNow(1000).getTime();
-  const position = livePosition(playback.positionMs, playback.isPlaying, receivedAt, now, item.durationMs);
-  const duration = formatTime(item.durationMs);
+  const position = livePosition(positionMs, isPlaying, receivedAt, now, durationMs, speed);
+  const duration = formatTime(durationMs);
   return (
     <CommitSlider
       aria-label="Position"
       value={Math.floor(position / 1000)}
-      max={Math.max(1, Math.floor(item.durationMs / 1000))}
+      max={Math.max(1, Math.floor(durationMs / 1000))}
       format={(seconds) => `${formatTime(seconds * 1000)} / ${duration}`}
-      disabled={disabled}
-      onCommit={(seconds) => send({ type: 'seek', positionMs: seconds * 1000 })}
+      disabled={onSeek === undefined}
+      onCommit={(seconds) => onSeek?.(seconds * 1000)}
     />
   );
 }
