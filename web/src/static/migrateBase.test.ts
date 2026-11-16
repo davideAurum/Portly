@@ -47,7 +47,8 @@ describe('migrateLegacyBase', () => {
     expect(local.data.get(next.seen)).toBe('9');
     expect(local.data.get(remoteAddressKey(NEW_BASE))).toBe('https://pc.ts.net');
     expect(local.data.has(baseMigratedKey(NEW_BASE))).toBe(true);
-    expect(local.data.get(old.pairing)).toBe('P');
+    expect(local.data.has(old.pairing)).toBe(false);
+    expect((await factory.databases()).map((d) => d.name)).not.toContain('portly-static:/');
 
     const copy = await IndexedDbStorage.open(factory, `portly-static:${NEW_BASE}`);
     expect(await copy.getJson('settings')).toEqual({ theme: 'dark' });

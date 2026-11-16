@@ -347,10 +347,32 @@ function ConvertTo-SetupPagesUrl {
 
 # -PagesUrl: saves the address as the user environment variable PORTLY_PAGES_URL ('off' removes
 # it), and in this process too, so install-autostart.ps1 checks and starts the server with it.
+# The Pages site moved from the root of davideaurum.github.io to /portly/: a saved address that is
+# exactly the old root (any case, trailing '/' optional) becomes the new one; any other value, or
+# none, gives $null (as install.ps1's Get-InstMovedPagesUrl).
+function Get-SetupMovedPagesUrl {
+    param([AllowNull()][string]$Current)
+    if ([string]::IsNullOrWhiteSpace($Current)) { return $null }
+    $text = $Current.Trim()
+    if (-not $text.EndsWith('/')) { $text += '/' }
+    if ($text -ieq 'https://davideaurum.github.io/') { return 'https://davideaurum.github.io/portly/' }
+    return $null
+}
+
 function Set-SetupPagesUrl {
-    if ([string]::IsNullOrWhiteSpace($PagesUrl)) { return }
     $prefix = if ($DryRun) { '[dry run] ' } else { '' }
     $name = 'PORTLY_PAGES_URL'
+    if ([string]::IsNullOrWhiteSpace($PagesUrl)) {
+        $moved = Get-SetupMovedPagesUrl -Current ([System.Environment]::GetEnvironmentVariable($name, 'User'))
+        if ($null -ne $moved) {
+            Write-SetupStep "${prefix}Pages site moved: changing the user environment variable $name to $moved"
+            if (-not $DryRun) {
+                [System.Environment]::SetEnvironmentVariable($name, $moved, 'User')
+                Set-Item -LiteralPath "Env:$name" -Value $moved
+            }
+        }
+        return
+    }
     if (Test-SetupPagesOff) {
         Write-SetupStep "${prefix}Pages site off: removing the user environment variable $name"
         if (-not $DryRun) {

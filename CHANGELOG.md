@@ -4,7 +4,11 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
-## Unreleased
+## 0.2.0-alpha.9 (not released yet)
+
+The ninth alpha: the Pages site moves to `/portly/`, and the install is two steps. Ships with new-tab
+extension 0.5.4 (changed: click Reload on Portly New Tab). Nothing here has been tried on a second PC
+yet.
 
 ### Changes
 - **New-tab extension 0.5.4 (Reload it).** On a PC without the Portly server (step 1 of the install
@@ -13,9 +17,9 @@ gets a new one when its own code changes. Each entry names the extension version
 - **The Pages site moves to `/portly/`.** The install command is now
   `irm https://davideaurum.github.io/portly/install.ps1 | iex` (same for `setup.ps1` and
   `get-extension.ps1`). The first visit to the new address copies this browser's pairing, saved PC
-  address, browser copy and browser-only sign-ins over once; the old data stays where it was.
-  `portly --update` changes a saved Pages address to the new one only if it is exactly the old site
-  root. Add the new sign-in addresses (`https://davideaurum.github.io/portly/...`) at Spotify,
+  address, browser copy and browser-only sign-ins over once, then deletes the old copy.
+  `portly --update` (and `setup.ps1`) changes a saved Pages address to the new one only if it is
+  exactly the old site root. Add the new sign-in addresses (`https://davideaurum.github.io/portly/...`) at Spotify,
   Microsoft and Google before the site is published.
 - `publish-static.ps1 -Subfolder portly` publishes into `portly/` and replaces only that folder.
 

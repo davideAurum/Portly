@@ -9,8 +9,10 @@
  * - the copy kept in the browser (database `portly-static:/`: settings, launch pad, uploads and the
  *   browser-only sign-ins), into `portly-static:/portly/` - only while the new database is empty,
  *   so data already made at the new address is never replaced.
- * The old data is left where it is. The marker `portly:base-migrated:<base>` is written only when
- * everything went through, so a failed run is tried again on the next page load.
+ * Afterwards the old keys and the old database are deleted, so no second copy of the data (the
+ * sign-ins among it) stays behind at an address nothing uses any more. The marker
+ * `portly:base-migrated:<base>` is written only when everything went through, so a failed run is
+ * tried again on the next page load (the old data is deleted only after the copy succeeded).
  */
 import { clientEventsStorageKey } from '../diagnostics/clientLog.ts';
 import { remoteAddressKey } from '../localServer/remote.ts';
@@ -53,6 +55,17 @@ function copyLocalStorage(local: StorageLike | null, base: string): void {
     const value = readItem(local, from);
     if (value === null || readItem(local, to) !== null) continue;
     writeItem(local, to, value);
+  }
+}
+
+function removeOldLocalStorage(local: StorageLike | null, base: string): void {
+  if (local === null) return;
+  for (const [from] of migratedLocalKeys(base)) {
+    try {
+      local.removeItem(from);
+    } catch {
+      // Storage refused; the copy itself is done.
+    }
   }
 }
 
@@ -104,6 +117,16 @@ async function readLegacy(db: IDBDatabase): Promise<LegacyData> {
   return { json, blobs };
 }
 
+/** Deletes a database; an open connection in another tab only delays it, so it never fails the move. */
+function deleteDatabase(factory: IDBFactory, name: string): Promise<void> {
+  return new Promise((resolve) => {
+    const req = factory.deleteDatabase(name);
+    req.onsuccess = () => resolve();
+    req.onerror = () => resolve();
+    req.onblocked = () => resolve();
+  });
+}
+
 async function copyDatabase(factory: IDBFactory, base: string): Promise<void> {
   const oldDb = await openExisting(factory, `portly-static:${LEGACY_BASE}`);
   if (oldDb === null) return;
@@ -133,6 +156,8 @@ export async function migrateLegacyBase(deps: BaseMigrationDeps): Promise<BaseMi
   try {
     copyLocalStorage(local, base);
     if (factory !== null) await copyDatabase(factory, base);
+    removeOldLocalStorage(local, base);
+    if (factory !== null) await deleteDatabase(factory, `portly-static:${LEGACY_BASE}`);
   } catch (err) {
     console.error('[Portly] Could not copy this browser’s data from the old address', err);
     return 'failed';

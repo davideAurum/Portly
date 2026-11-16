@@ -16,7 +16,7 @@ reloads the page. Guide: [docs/setup/pages-local-server.md](../../../docs/setup/
 addresses share one origin, so it copies the pairing and backend hints, the saved address of another
 PC and the diagnostics log (localStorage), and the browser copy (IndexedDB `portly-static:/`, which
 holds the browser-only sign-ins) to the new base. It never replaces data the new address already
-holds, never creates the old database, leaves the old data in place, and sets the marker
+holds, never creates the old database, deletes the old keys and database once the copy went through, and sets the marker
 `portly:base-migrated:<base>` only when everything went through, so a failed run is tried again.
 
 ## How a request flows

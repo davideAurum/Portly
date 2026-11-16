@@ -963,6 +963,11 @@ $installErrors = $null
 $installAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'install.ps1'), [ref]$installTokens, [ref]$installErrors)
 $installMoved = @($installAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-InstMovedPagesUrl' }, $false))
 Assert-That -Name 'install.ps1 defines Get-InstMovedPagesUrl' -Condition ($installMoved.Count -eq 1) -Detail "$($installMoved.Count) found"
+$setupAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'setup.ps1'), [ref]$installTokens, [ref]$installErrors)
+$setupMoved = @($setupAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-SetupMovedPagesUrl' }, $false))
+Assert-That -Name 'setup.ps1 defines Get-SetupMovedPagesUrl, which changes only the exact old root' -Condition (
+    $setupMoved.Count -eq 1 -and (& { . ([scriptblock]::Create($setupMoved[0].Extent.Text)); (Get-SetupMovedPagesUrl -Current 'https://davideaurum.github.io') -eq 'https://davideaurum.github.io/portly/' -and
+        $null -eq (Get-SetupMovedPagesUrl -Current 'https://davideaurum.github.io/portly/') -and $null -eq (Get-SetupMovedPagesUrl -Current 'https://me.github.io/') -and $null -eq (Get-SetupMovedPagesUrl -Current $null) })) -Detail "$($setupMoved.Count) found"
 if ($installMoved.Count -eq 1) {
     . ([scriptblock]::Create($installMoved[0].Extent.Text))
     $movedOk = (Get-InstMovedPagesUrl -Current 'https://davideaurum.github.io/') -eq 'https://davideaurum.github.io/portly/' -and
