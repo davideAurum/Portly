@@ -16,7 +16,7 @@
  * terminated — names the step it happened in. The sub-steps of `connect()` (TCP/TLS connect,
  * greeting, STARTTLS, login) are read from the client's public state ({@link connectPhase}).
  */
-import type { ImapSecurity } from '@portly/shared';
+import type { ImapSecurity, MailFolder } from '@portly/shared';
 import type { ImapMessageRef } from './imap-id.ts';
 import type { MailAction } from './types.ts';
 
@@ -119,17 +119,23 @@ export type ImapClientFactory = (params: ImapConnectionParams) => ImapClientLike
 
 export const TRASH_FALLBACK_NAMES = ['Trash', 'Deleted Items', 'Deleted Messages', 'Bin'] as const;
 export const ARCHIVE_FALLBACK_NAMES = ['Archive'] as const;
+export const SENT_FALLBACK_NAMES = ['Sent', 'Sent Items', 'Sent Messages', 'Sent Mail'] as const;
+export const DRAFTS_FALLBACK_NAMES = ['Drafts', 'Draft'] as const;
+export const JUNK_FALLBACK_NAMES = ['Junk', 'Spam', 'Junk E-mail', 'Junk Email', 'Bulk Mail', 'Bulk'] as const;
 
 export interface ImapFolders {
   trash: string | null;
   archive: string | null;
+  sent: string | null;
+  drafts: string | null;
+  junk: string | null;
 }
 
 function selectable(entry: ImapListEntry): boolean {
   return !entry.flags.has('\\Noselect') && !entry.flags.has('\\NonExistent') && entry.path.toUpperCase() !== 'INBOX';
 }
 
-function bySpecialUse(entries: readonly ImapListEntry[], use: '\\Trash' | '\\Archive'): string | null {
+function bySpecialUse(entries: readonly ImapListEntry[], use: '\\Trash' | '\\Archive' | '\\Sent' | '\\Drafts' | '\\Junk'): string | null {
   // Server-reported attributes only (SPECIAL-USE / XLIST), never imapflow's localized name guesses.
   const match = entries.find(
     (e) => selectable(e) && (e.flags.has(use) || (e.specialUse === use && e.specialUseSource !== undefined && e.specialUseSource !== 'name')),
@@ -153,6 +159,9 @@ export function resolveFolders(entries: readonly ImapListEntry[]): ImapFolders {
   return {
     trash: bySpecialUse(entries, '\\Trash') ?? byName(entries, TRASH_FALLBACK_NAMES),
     archive: bySpecialUse(entries, '\\Archive') ?? byName(entries, ARCHIVE_FALLBACK_NAMES),
+    sent: bySpecialUse(entries, '\\Sent') ?? byName(entries, SENT_FALLBACK_NAMES),
+    drafts: bySpecialUse(entries, '\\Drafts') ?? byName(entries, DRAFTS_FALLBACK_NAMES),
+    junk: bySpecialUse(entries, '\\Junk') ?? byName(entries, JUNK_FALLBACK_NAMES),
   };
 }
 
@@ -407,16 +416,17 @@ export const UNREAD_SCAN_WINDOW = 1000;
 export const IMAP_FETCH_QUERY: ImapFetchQuery = Object.freeze({ uid: true, flags: true, envelope: true, internalDate: true });
 
 export type ImapJob =
-  | { op: 'list'; maxMessages: number; unreadOnly: boolean; folders: ImapFolders | null }
+  | { op: 'list'; maxMessages: number; unreadOnly: boolean; folder?: MailFolder; folders: ImapFolders | null }
   | { op: 'act'; ref: ImapMessageRef; action: MailAction; folders: ImapFolders | null }
   | { op: 'probe' };
 
 export interface ImapListOutput {
   op: 'list';
   folders: ImapFolders;
-  /** `STATUS INBOX (UNSEEN)`, when the server reported a number. */
+  /** `STATUS <mailbox> (UNSEEN)`, when the server reported a number. */
   unseen: number | null;
-  mailbox: { path: string; uidValidity: bigint };
+  /** The listed mailbox; null when the account has no such folder (an empty listing). */
+  mailbox: { path: string; uidValidity: bigint } | null;
   /** At most `maxMessages` + a few (the main thread filters, sorts and maps). */
   fetched: ImapFetched[];
   movable: boolean;
@@ -448,6 +458,22 @@ function trimFetched(f: ImapFetched): ImapFetched {
   return out;
 }
 
+/** The mailbox path of a folder, or null when the server has none. */
+function folderPath(folders: ImapFolders, folder: MailFolder): string | null {
+  switch (folder) {
+    case 'sent':
+      return folders.sent;
+    case 'drafts':
+      return folders.drafts;
+    case 'spam':
+      return folders.junk;
+    case 'trash':
+      return folders.trash;
+    case 'inbox':
+      return 'INBOX';
+  }
+}
+
 async function resolveFoldersOf(client: ImapClientLike, cached: ImapFolders | null, report: ImapProgress): Promise<ImapFolders> {
   if (cached) return cached;
   report('list');
@@ -456,14 +482,18 @@ async function resolveFoldersOf(client: ImapClientLike, cached: ImapFolders | nu
 
 async function listJob(client: ImapClientLike, job: Extract<ImapJob, { op: 'list' }>, report: ImapProgress): Promise<ImapListOutput> {
   const folders = await resolveFoldersOf(client, job.folders, report);
+  const path = folderPath(folders, job.folder ?? 'inbox');
+  if (path === null) {
+    return { op: 'list', folders, unseen: null, mailbox: null, fetched: [], movable: clientMoveStrategy(client) !== null };
+  }
   // STATUS before selecting: RFC 3501 discourages STATUS on the selected mailbox.
   report('status');
-  const status = await client.status('INBOX', { unseen: true });
+  const status = await client.status(path, { unseen: true });
   report('examine');
-  const lock = await client.getMailboxLock('INBOX', { readOnly: true, acquireTimeout: 15_000 });
+  const lock = await client.getMailboxLock(path, { readOnly: true, acquireTimeout: 15_000 });
   try {
     const mailbox = client.mailbox;
-    if (!mailbox) throw new ImapOpError(502, 'provider_error', 'The inbox could not be opened');
+    if (!mailbox) throw new ImapOpError(502, 'provider_error', 'The folder could not be opened');
     let fetched: ImapFetched[] = [];
     if (job.unreadOnly) {
       if (mailbox.exists > 0) {

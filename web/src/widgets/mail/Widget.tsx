@@ -3,7 +3,9 @@
  * by account; rows with the account color, sender, subject, snippet (when the provider has one),
  * relative time and unread weight. Hover/focus actions: read/unread (toast + Undo), archive (when
  * the account supports it) and trash — all optimistic. With several accounts a collapsible left
- * sidebar lists them with visibility switches (`hiddenAccountIds`, `sidebarCollapsed` in config). A row opens the message (or the account's
+ * sidebar lists them with visibility switches (`hiddenAccountIds`, `sidebarCollapsed` in config). Folder
+ * chips above the list (Inbox, Sent, Drafts, Spam, Trash; `folders` in config, at least one on) choose
+ * which folders every account lists; with several on, each row carries its folder. A row opens the message (or the account's
  * webmail) in a new tab through `safeHref`. Accounts that fail show their own error row
  * (Reconnect for `reauth_required`); no mail account at all → a CTA to Settings › Accounts.
  * Everything provider-supplied is rendered as plain React text. An account whose error changes is
@@ -25,7 +27,7 @@ import {
   Trash2,
   Unplug,
 } from 'lucide-react';
-import type { MailAccountSummary } from '@portly/shared';
+import { MAIL_FOLDERS, type MailAccountSummary, type MailFolder } from '@portly/shared';
 import { isApiError } from '../../api/client.ts';
 import { useAccounts } from '../../api/accounts.ts';
 import { useMailActions, useMailSummary, type MailActionInput, type MailSummaryParams } from '../../api/mail.ts';
@@ -45,10 +47,13 @@ import { reportMailAccountErrors } from './diagnostics.ts';
 import type { MailConfig } from './index.ts';
 import {
   accountGroups,
+  FOLDER_LABELS,
   failedAccounts,
+  folderOf,
   mergedRows,
   rowHref,
   senderLabel,
+  toggleFolder,
   toggleHidden,
   totalUnread,
   visibleSummaries,
@@ -68,8 +73,8 @@ export default function MailWidget({ config, setConfig, size }: WidgetProps<Mail
   const compact = size.h <= 3 || size.w <= 3;
   const noneSelected = Array.isArray(config.accountIds) && config.accountIds.length === 0;
   const params = useMemo<MailSummaryParams>(
-    () => ({ maxMessages: config.maxMessages, unreadOnly: config.unreadOnly, accountIds: config.accountIds }),
-    [config.maxMessages, config.unreadOnly, config.accountIds],
+    () => ({ maxMessages: config.maxMessages, unreadOnly: config.unreadOnly, accountIds: config.accountIds, folders: config.folders }),
+    [config.maxMessages, config.unreadOnly, config.accountIds, config.folders],
   );
   // The (persisted) account list tells a new tab at once when there is no mail account at all,
   // so the summary is not requested (it could only answer 409) and no skeleton flashes.
@@ -119,12 +124,19 @@ function MailContent({ summaries: all, config, meta, run, compact, setConfig }: 
   const multi = all.length > 1;
   const summaries = multi ? visibleSummaries(all, config.hiddenAccountIds) : all;
   const showSidebar = multi && !compact;
-  const body =
+  const foldersBar = compact ? null : <FolderBar folders={config.folders} onChange={(folders) => void setConfig({ folders })} />;
+  const list =
     summaries.length === 0 ? (
       <AllHidden compact={compact} onShowAll={() => void setConfig({ hiddenAccountIds: [] })} />
     ) : (
       <MailBody summaries={summaries} config={config} meta={meta} run={run} compact={compact} />
     );
+  const body = (
+    <>
+      {foldersBar}
+      {list}
+    </>
+  );
   if (!showSidebar) return body;
   return (
     <div className={styles.shell}>
@@ -146,6 +158,34 @@ function MailContent({ summaries: all, config, meta, run, compact, setConfig }: 
         onShowAll={() => void setConfig({ hiddenAccountIds: [] })}
       />
       <div className={styles.shellBody}>{body}</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Folder chips
+// ---------------------------------------------------------------------------
+
+function FolderBar({ folders, onChange }: { folders: readonly MailFolder[]; onChange: (folders: MailFolder[]) => void }) {
+  return (
+    <div className={styles.folderBar} role="group" aria-label="Folders" data-no-grid-drag="">
+      {MAIL_FOLDERS.map((folder) => {
+        const on = folders.includes(folder);
+        const last = on && folders.length === 1;
+        return (
+          <button
+            key={folder}
+            type="button"
+            className={styles.chip}
+            aria-pressed={on}
+            aria-disabled={last ? 'true' : undefined}
+            title={last ? 'At least one folder stays on' : undefined}
+            onClick={() => onChange(toggleFolder(folders, folder, !on))}
+          >
+            {FOLDER_LABELS[folder]}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -250,6 +290,8 @@ function AllHidden({ compact, onShowAll }: { compact: boolean; onShowAll: () => 
 
 function MailBody({ summaries, config, meta, run, compact }: Omit<MailContentProps, 'setConfig'>) {
   const total = totalUnread(summaries);
+  const showFolder = config.folders.length > 1;
+  const inboxOnly = config.folders.length === 1 && config.folders[0] === 'inbox';
   const header = (
     <WidgetActions>
       <span className={styles.headerActions}>
@@ -269,7 +311,15 @@ function MailBody({ summaries, config, meta, run, compact }: Omit<MailContentPro
       <div className={styles.root}>
         {header}
         {accountGroups(summaries, config.maxMessages).map(({ summary, rows }) => (
-          <AccountGroup key={summary.accountId} summary={summary} rows={rows} unreadOnly={config.unreadOnly} run={run} onRetry={meta.refetch} />
+          <AccountGroup
+            key={summary.accountId}
+            summary={summary}
+            rows={rows}
+            unreadOnly={config.unreadOnly}
+            showFolder={showFolder}
+            run={run}
+            onRetry={meta.refetch}
+          />
         ))}
       </div>
     );
@@ -293,12 +343,12 @@ function MailBody({ summaries, config, meta, run, compact }: Omit<MailContentPro
       {rows.length > 0 ? (
         <ul className={styles.list} aria-label="Recent messages">
           {rows.map((row) => (
-            <MessageRow key={`${row.summary.accountId}:${row.message.id}`} row={row} run={run} showAccount={multiAccount} />
+            <MessageRow key={`${row.summary.accountId}:${row.message.id}`} row={row} run={run} showAccount={multiAccount} showFolder={showFolder} />
           ))}
         </ul>
       ) : failed.length < summaries.length ? (
         <div className={styles.fill}>
-          <InboxEmpty unreadOnly={config.unreadOnly} compact={compact} />
+          <InboxEmpty unreadOnly={config.unreadOnly} inboxOnly={inboxOnly} compact={compact} />
         </div>
       ) : null}
     </div>
@@ -309,8 +359,9 @@ function MailBody({ summaries, config, meta, run, compact }: Omit<MailContentPro
 // Rows
 // ---------------------------------------------------------------------------
 
-function MessageRow({ row, run, showAccount }: { row: MailRow; run: RunAction; showAccount: boolean }) {
+function MessageRow({ row, run, showAccount, showFolder }: { row: MailRow; run: RunAction; showAccount: boolean; showFolder: boolean }) {
   const { message, summary } = row;
+  const folder = folderOf(message);
   const sender = senderLabel(message.from);
   const subject = message.subject || '(no subject)';
   const color = accountColor({ id: summary.accountId, color: summary.color });
@@ -332,6 +383,12 @@ function MessageRow({ row, run, showAccount }: { row: MailRow; run: RunAction; s
             {sender}
           </span>{' '}
           <RelativeTime className={styles.time} date={message.date} />
+          {showFolder ? (
+            <>
+              {' '}
+              <span className={styles.folderTag}>{FOLDER_LABELS[folder]}</span>
+            </>
+          ) : null}
         </span>{' '}
         <span className={styles.line2}>
           <span className={[styles.subject, message.subject ? '' : styles.noSubject].filter(Boolean).join(' ')}>{subject}</span>
@@ -363,9 +420,9 @@ function MessageRow({ row, run, showAccount }: { row: MailRow; run: RunAction; s
           aria-label={message.unread ? 'Mark as read' : 'Mark as unread'}
           onClick={() => act(message.unread ? 'read' : 'unread')}
         />
-        {summary.canArchive ? <IconButton size="sm" icon={Archive} aria-label="Archive" onClick={() => act('archive')} /> : null}
+        {summary.canArchive && folder === 'inbox' ? <IconButton size="sm" icon={Archive} aria-label="Archive" onClick={() => act('archive')} /> : null}
         {/* §4.10: no resolvable trash target → no action (absent = available). */}
-        {summary.canTrash !== false ? <IconButton size="sm" icon={Trash2} aria-label="Move to trash" onClick={() => act('trash')} /> : null}
+        {summary.canTrash !== false && folder !== 'trash' ? <IconButton size="sm" icon={Trash2} aria-label="Move to trash" onClick={() => act('trash')} /> : null}
       </div>
     </li>
   );
@@ -375,11 +432,12 @@ interface AccountGroupProps {
   summary: MailAccountSummary;
   rows: MailRow[];
   unreadOnly: boolean;
+  showFolder: boolean;
   run: RunAction;
   onRetry: () => void;
 }
 
-function AccountGroup({ summary, rows, unreadOnly, run, onRetry }: AccountGroupProps) {
+function AccountGroup({ summary, rows, unreadOnly, showFolder, run, onRetry }: AccountGroupProps) {
   const headingId = useId();
   const webmail = linkProps(summary.webmailUrl);
   return (
@@ -406,7 +464,7 @@ function AccountGroup({ summary, rows, unreadOnly, run, onRetry }: AccountGroupP
       ) : rows.length > 0 ? (
         <ul className={styles.list} aria-labelledby={headingId}>
           {rows.map((row) => (
-            <MessageRow key={row.message.id} row={row} run={run} showAccount={false} />
+            <MessageRow key={row.message.id} row={row} run={run} showAccount={false} showFolder={showFolder} />
           ))}
         </ul>
       ) : (
@@ -445,13 +503,13 @@ function AccountNotice({ summary, onRetry }: { summary: MailAccountSummary; onRe
   );
 }
 
-function InboxEmpty({ unreadOnly, compact }: { unreadOnly: boolean; compact: boolean }) {
+function InboxEmpty({ unreadOnly, inboxOnly, compact }: { unreadOnly: boolean; inboxOnly: boolean; compact: boolean }) {
   return (
     <EmptyState
       icon={MailCheck}
       compact={compact}
-      title={unreadOnly ? 'No unread mail' : 'Your inbox is empty'}
-      body={unreadOnly ? "You're all caught up." : 'New messages will show up here.'}
+      title={unreadOnly ? 'No unread mail' : inboxOnly ? 'Your inbox is empty' : 'No messages'}
+      body={unreadOnly ? "You're all caught up." : inboxOnly ? 'New messages will show up here.' : 'Nothing in the selected folders.'}
     />
   );
 }

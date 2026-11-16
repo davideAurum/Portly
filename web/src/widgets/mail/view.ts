@@ -2,7 +2,7 @@
  * Pure view logic of the mail widget: grouping (merged by date / by account), unread totals,
  * sender labels and the link a row opens (message link, else the account's webmail inbox).
  */
-import type { MailAccountSummary, MailAddress, MailMessage } from '@portly/shared';
+import { MAIL_FOLDERS, type MailAccountSummary, type MailAddress, type MailFolder, type MailMessage } from '@portly/shared';
 import { safeHref } from '../../lib/openUrl.ts';
 
 export interface MailRow {
@@ -18,6 +18,27 @@ export interface MailGroup {
 function time(message: MailMessage): number {
   const ms = Date.parse(message.date);
   return Number.isNaN(ms) ? 0 : ms;
+}
+
+export const FOLDER_LABELS: Readonly<Record<MailFolder, string>> = Object.freeze({
+  inbox: 'Inbox',
+  sent: 'Sent',
+  drafts: 'Drafts',
+  spam: 'Spam',
+  trash: 'Trash',
+});
+
+/** `folders` with `folder` switched on or off, in the fixed folder order; the last folder cannot be switched off. */
+export function toggleFolder(folders: readonly MailFolder[], folder: MailFolder, on: boolean): MailFolder[] {
+  const next = new Set(folders);
+  if (on) next.add(folder);
+  else if (next.size > 1) next.delete(folder);
+  return MAIL_FOLDERS.filter((f) => next.has(f));
+}
+
+/** The folder a message came from (older answers carry none: the inbox). */
+export function folderOf(message: MailMessage): MailFolder {
+  return message.folder ?? 'inbox';
 }
 
 /** The accounts not switched off in the sidebar (server order kept). */

@@ -524,3 +524,80 @@ describe('MailWidget: diagnostic events', () => {
     expect(widgetEvents()).toHaveLength(2);
   });
 });
+
+describe('MailWidget: folder chips', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const SENT = msg('g-sent', 'g1', 5, { folder: 'sent', subject: 'Sent thing' });
+  const TRASHED = msg('g-trash', 'g1', 6, { folder: 'trash', subject: 'Trashed thing' });
+  const INBOX = msg('g-in', 'g1', 7, { subject: 'Inbox thing' });
+
+  const summary = (accountId: string, messages: MailMessage[], extra: Partial<MailAccountSummary> = {}): MailAccountSummary => ({
+    ...GMAIL,
+    accountId,
+    unread: 0,
+    messages,
+    ...extra,
+  });
+
+  function renderFolders(patch: Partial<MailConfig> = {}, summaries: MailAccountSummary[] = [summary('g1', [SENT, TRASHED, INBOX], { label: 'Personal Gmail' })]) {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+    const header = document.createElement('div');
+    document.body.append(header);
+    const patches: Partial<MailConfig>[] = [];
+    const result = renderWithProviders(
+      <Frame actionsTarget={header}>
+        <StatefulMail initial={config(patch)} onPatch={(p) => patches.push(p)} />
+      </Frame>,
+      {
+        apiMocks: {
+          'GET /api/settings': settings(),
+          'GET /api/accounts': [account({ id: 'g1', label: 'Personal Gmail' })],
+          'GET /api/mail/summary': summaries,
+        },
+      },
+    );
+    return { ...result, patches };
+  }
+
+  it('shows the folder chips with only the inbox on, and no folder tag on rows', async () => {
+    renderFolders({}, [summary('g1', [INBOX])]);
+    await screen.findByText('Inbox thing');
+    const bar = screen.getByRole('group', { name: 'Folders' });
+    expect(within(bar).getByRole('button', { name: 'Inbox' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(bar).getByRole('button', { name: 'Sent' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByText('Inbox', { selector: 'span' })).not.toBeInTheDocument();
+  });
+
+  it('toggling a folder on requests it, tags rows with their folder and hides archive/trash where they make no sense', async () => {
+    const user = userEvent.setup();
+    const { patches, requests } = renderFolders();
+    await screen.findByText('Inbox thing');
+    await user.click(within(screen.getByRole('group', { name: 'Folders' })).getByRole('button', { name: 'Sent' }));
+    await user.click(within(screen.getByRole('group', { name: 'Folders' })).getByRole('button', { name: 'Trash' }));
+    expect(patches).toEqual([{ folders: ['inbox', 'sent'] }, { folders: ['inbox', 'sent', 'trash'] }]);
+    await waitFor(() => expect(requests.some((r) => r.search.includes('folders=inbox%2Csent%2Ctrash'))).toBe(true));
+
+    const list = within(screen.getByRole('list', { name: 'Recent messages' }));
+    const sentRow = list.getByText('Sent thing').closest('li') as HTMLElement;
+    expect(within(sentRow).getByText('Sent', { selector: 'span' })).toBeInTheDocument();
+    expect(within(sentRow).getByRole('button', { name: 'Move to trash' })).toBeInTheDocument();
+    expect(within(sentRow).queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
+    const trashRow = list.getByText('Trashed thing').closest('li') as HTMLElement;
+    expect(within(trashRow).queryByRole('button', { name: 'Move to trash' })).not.toBeInTheDocument();
+    const inboxRow = list.getByText('Inbox thing').closest('li') as HTMLElement;
+    expect(within(inboxRow).getByRole('button', { name: 'Archive' })).toBeInTheDocument();
+  });
+
+  it('keeps at least one folder on', async () => {
+    const user = userEvent.setup();
+    const { patches } = renderFolders({}, [summary('g1', [INBOX])]);
+    await screen.findByText('Inbox thing');
+    const inbox = within(screen.getByRole('group', { name: 'Folders' })).getByRole('button', { name: 'Inbox' });
+    await user.click(inbox);
+    expect(patches).toEqual([{ folders: ['inbox'] }]);
+    expect(inbox).toHaveAttribute('aria-pressed', 'true');
+    expect(inbox).toHaveAttribute('aria-disabled', 'true');
+  });
+});

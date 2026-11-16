@@ -601,3 +601,126 @@ describe('diagnostics: health mail:<accountId>, log context, action lines', () =
     expect(t.ctx.health.get('mail:g1')).toBeNull();
   });
 });
+
+describe('GET /api/mail/summary?folders=…', () => {
+  const stub = (folder: string, subject: string, date: string, unread = 3): MailProvider => ({
+    list: async (_account, options) => ({
+      unread,
+      messages:
+        options.folder === folder || (folder === 'inbox' && options.folder === undefined)
+          ? [{ id: `${folder}-1`, accountId: 'g1', from: { name: 'A', address: 'a@example.com' }, subject, snippet: null, date, unread: false, webUrl: null }]
+          : [],
+      canArchive: true,
+    }),
+    act: async () => {},
+  });
+
+  /** One provider answering every folder: the folder name is the subject. */
+  const byFolder = (failing: readonly string[] = []): MailProvider => ({
+    list: async (_account, options) => {
+      const folder = options.folder ?? 'inbox';
+      if (failing.includes(folder)) throw new HttpError(502, 'provider_error', 'folder failed');
+      const day = ['inbox', 'sent', 'drafts', 'spam', 'trash'].indexOf(folder) + 1;
+      return {
+        unread: folder === 'inbox' ? 4 : 99,
+        messages: [
+          {
+            id: `${folder}-1`,
+            accountId: 'g1',
+            from: { name: 'A', address: 'a@example.com' },
+            subject: folder,
+            snippet: null,
+            date: `2026-09-0${day}T10:00:00.000Z`,
+            unread: false,
+            ...(folder === 'inbox' ? {} : { folder: folder as 'sent' }),
+            webUrl: null,
+          },
+        ],
+        canArchive: true,
+      };
+    },
+    act: async () => {},
+  });
+
+  it('lists only the inbox by default and merges the requested folders newest first', async () => {
+    t = testbed([GMAIL], { providers: { google: byFolder() } });
+    expect((await t.summary()).body[0]?.messages.map((m) => m.subject)).toEqual(['inbox']);
+    const res = await t.summary('?folders=inbox,sent,trash');
+    expect(res.body[0]?.messages.map((m) => m.subject)).toEqual(['trash', 'sent', 'inbox']);
+    expect(res.body[0]?.messages.find((m) => m.subject === 'sent')?.folder).toBe('sent');
+    // Only the inbox count is reported, and 0 without the inbox.
+    expect(res.body[0]?.unread).toBe(4);
+    expect((await t.summary('?folders=sent,spam')).body[0]?.unread).toBe(0);
+  });
+
+  it('a failing non-inbox folder stays empty; a failing inbox fails the account; all failing does too', async () => {
+    t = testbed([GMAIL], { providers: { google: byFolder(['sent']) } });
+    const partial = (await t.summary('?folders=inbox,sent')).body[0];
+    expect(partial?.error).toBeUndefined();
+    expect(partial?.messages.map((m) => m.subject)).toEqual(['inbox']);
+    expect((await t.summary('?folders=sent')).body[0]?.error?.code).toBe('provider_error');
+    t.ctx.close();
+    t = testbed([GMAIL], { providers: { google: byFolder(['inbox']) } });
+    expect((await t.summary('?folders=inbox,sent')).body[0]?.error?.code).toBe('provider_error');
+  });
+
+  it('caches each folder separately and repeats nothing', async () => {
+    let calls = 0;
+    const counting: MailProvider = {
+      list: async (_a, options) => {
+        calls++;
+        return { unread: 0, messages: [], canArchive: true, ...(options.folder === undefined ? {} : {}) };
+      },
+      act: async () => {},
+    };
+    t = testbed([GMAIL], { providers: { google: counting } });
+    await t.summary('?folders=inbox,sent,inbox');
+    expect(calls).toBe(2);
+    await t.summary('?folders=sent');
+    expect(calls).toBe(2);
+    await t.summary('?folders=drafts');
+    expect(calls).toBe(3);
+  });
+
+  it('rejects an unknown folder', async () => {
+    t = testbed([GMAIL], { providers: { google: stub('inbox', 'x', '2026-09-01T00:00:00.000Z') } });
+    expect((await t.summary('?folders=inbox,outbox')).status).toBe(422);
+  });
+});
+
+describe('mail folders on the real providers', () => {
+  it('Gmail lists the folder label (spam and trash included) and skips the inbox count', async () => {
+    t = testbed([GMAIL]);
+    const res = await t.summary('?folders=sent,trash');
+    expect(res.body[0]?.error).toBeUndefined();
+    const urls = (t.ctx.fakeFetch?.calls ?? []).map((c) => c.url);
+    expect(urls.some((u) => u.includes('messages?labelIds=SENT&maxResults='))).toBe(true);
+    expect(urls.some((u) => u.includes('labelIds=TRASH') && u.includes('includeSpamTrash=true'))).toBe(true);
+    expect(urls.some((u) => u.includes('/labels/INBOX'))).toBe(false);
+    expect(res.body[0]?.messages.every((m) => m.folder === 'sent' || m.folder === 'trash')).toBe(true);
+  });
+
+  it('Graph lists the well-known folder', async () => {
+    t = testbed([OUTLOOK], {
+      routes: [
+        { match: `${GRAPH_API}/me/mailFolders/sentitems?`, respond: { json: GRAPH_INBOX } },
+        { match: `${GRAPH_API}/me/mailFolders/sentitems/messages?`, respond: { json: GRAPH_MESSAGES } },
+      ],
+    });
+    const res = await t.summary('?folders=sent');
+    expect(res.body[0]?.error).toBeUndefined();
+    expect(res.body[0]?.messages.length).toBeGreaterThan(0);
+    expect(res.body[0]?.messages.every((m) => m.folder === 'sent')).toBe(true);
+  });
+
+  it('IMAP lists Sent from its special-use mailbox and treats a missing Drafts folder as empty', async () => {
+    t = testbed([YAHOO]);
+    t.imap.list.push({ path: 'Sent', name: 'Sent', parentPath: '', flags: new Set(['\Sent']), specialUse: '\Sent', specialUseSource: 'extension' });
+    t.imap.mailboxes.set('Sent', { path: 'Sent', uidValidity: 7n, messages: [message(1, { seen: true, subject: 'Out' })] });
+    const res = await t.summary('?folders=sent,drafts');
+    const yahoo = res.body[0] as MailAccountSummary;
+    expect(yahoo.error).toBeUndefined();
+    expect(yahoo.messages.map((m) => [m.subject, m.folder])).toEqual([['Out', 'sent']]);
+    expect(yahoo.unread).toBe(0);
+  });
+});

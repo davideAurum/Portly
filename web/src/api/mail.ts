@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
-import type { MailAccountSummary } from '@portly/shared';
+import type { MailAccountSummary, MailFolder } from '@portly/shared';
 import { toast, toastError, toastUndo } from '../ui/toast.ts';
 import { apiGet, apiPath, apiPost, isApiError } from './client.ts';
 import { qk } from './keys.ts';
@@ -18,17 +18,33 @@ export interface MailSummaryParams {
   maxMessages: number;
   unreadOnly: boolean;
   accountIds: 'all' | readonly string[];
+  /** Folders to list per account; the inbox when omitted. */
+  folders?: readonly MailFolder[];
+}
+
+const FOLDER_ORDER: readonly MailFolder[] = ['inbox', 'sent', 'drafts', 'spam', 'trash'];
+
+/** The requested folders in a fixed order, or null for the default (inbox only). */
+function folderList(params: MailSummaryParams): MailFolder[] | null {
+  const wanted = FOLDER_ORDER.filter((f) => params.folders?.includes(f));
+  return wanted.length === 0 || (wanted.length === 1 && wanted[0] === 'inbox') ? null : wanted;
 }
 
 /** Query key of one widget's summary (prefix `qk.mail.summary()`). */
 export function mailSummaryKey(params: MailSummaryParams) {
   const accountIds = params.accountIds === 'all' ? 'all' : [...params.accountIds].sort().join(',');
-  return [...qk.mail.summary(), { maxMessages: params.maxMessages, unreadOnly: params.unreadOnly, accountIds }] as const;
+  const folders = folderList(params)?.join(',');
+  return [
+    ...qk.mail.summary(),
+    { maxMessages: params.maxMessages, unreadOnly: params.unreadOnly, accountIds, ...(folders === undefined ? {} : { folders }) },
+  ] as const;
 }
 
 export function mailSummaryPath(params: MailSummaryParams): string {
   const search = new URLSearchParams({ maxMessages: String(params.maxMessages), unreadOnly: String(params.unreadOnly) });
   if (params.accountIds !== 'all') search.set('accountIds', params.accountIds.join(','));
+  const folders = folderList(params);
+  if (folders !== null) search.set('folders', folders.join(','));
   return `/api/mail/summary?${search}`;
 }
 
@@ -71,18 +87,20 @@ export function applyMailAction(summaries: readonly MailAccountSummary[], input:
     if (summary.accountId !== input.accountId) return summary;
     const target = summary.messages.find((m) => m.id === input.messageId);
     if (!target) return summary;
+    // The summary's unread count is the inbox's; other folders' messages do not move it.
+    const inInbox = (target.folder ?? 'inbox') === 'inbox';
     if (input.action === 'read' || input.action === 'unread') {
       const unread = input.action === 'unread';
       if (target.unread === unread) return summary;
       return {
         ...summary,
-        unread: Math.max(0, summary.unread + (unread ? 1 : -1)),
+        unread: inInbox ? Math.max(0, summary.unread + (unread ? 1 : -1)) : summary.unread,
         messages: summary.messages.map((m) => (m.id === input.messageId ? { ...m, unread } : m)),
       };
     }
     return {
       ...summary,
-      unread: Math.max(0, summary.unread - (target.unread ? 1 : 0)),
+      unread: inInbox ? Math.max(0, summary.unread - (target.unread ? 1 : 0)) : summary.unread,
       messages: summary.messages.filter((m) => m.id !== input.messageId),
     };
   });

@@ -41,7 +41,7 @@ describe('widget registry', () => {
       listDensity: 'normal',
     });
     expect(cfg('calendar')).toEqual({ view: 'agenda', days: 7, calendarIds: 'visible', showDeclined: false, sidebar: false });
-    expect(cfg('mail')).toEqual({ accountIds: 'all', maxMessages: 10, unreadOnly: false, grouping: 'merged', sidebarCollapsed: false, hiddenAccountIds: [] });
+    expect(cfg('mail')).toEqual({ accountIds: 'all', maxMessages: 10, unreadOnly: false, grouping: 'merged', sidebarCollapsed: false, hiddenAccountIds: [], folders: ['inbox'] });
     expect(cfg('todoist')).toEqual({ filter: '', showProject: true, showDue: true, sort: 'todoist' });
     expect(cfg('github')).toEqual({ sort: 'attention', showArchived: false, showForks: false });
     expect(cfg('weather')).toEqual({ location: null, useDeviceLocation: false, show: { hourly: true, daily: true }, units: 'inherit' });

@@ -901,7 +901,10 @@ optional `calendarIds=a,b` (≤ 200) = exactly those calendars, hidden ones incl
 at most 5,000 events / 4 M chars of event text per response, earliest first, `truncated: true` when cut) ·
 `POST /api/calendar/events` · `PATCH|DELETE /api/calendar/events/:id` (single instance) · `POST /api/calendar/sync`.
 
-**Mail** — `GET /api/mail/summary` → `MailAccountSummary[]` · `POST /api/mail/:accountId/messages/:id/read {read}` ·
+**Mail** — `GET /api/mail/summary?maxMessages&unreadOnly&accountIds&folders` → `MailAccountSummary[]` (`folders`: a
+comma list of `inbox` (default), `sent`, `drafts`, `spam`, `trash`; each account lists every folder asked for, merged
+newest first, each message carrying its `folder`; `unread` stays the inbox's count, 0 without the inbox; a folder that
+fails or does not exist on an account is empty unless it is the inbox or the only folder) · `POST /api/mail/:accountId/messages/:id/read {read}` ·
 `POST /api/mail/:accountId/messages/:id/archive` · `POST /api/mail/:accountId/messages/:id/trash`.
 
 **Feeds** — `GET /api/feeds?url=` → `Feed` (`shared/src/feeds.ts`). Fetched with `safeFetch('public')` (≤ 5 MB,
@@ -1491,7 +1494,10 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   visible toggle, color override, mark read-only, add/edit/remove ICS, sync interval, default calendar, Sync now,
   last error per calendar.
 - **Mail** — config `{accountIds: 'all'|string[], maxMessages: 5–20, unreadOnly, grouping: 'merged'|'byAccount',
-  hiddenAccountIds: string[], sidebarCollapsed}`; with two or more accounts (and not at the one-line compact size) a
+  hiddenAccountIds: string[], sidebarCollapsed, folders: ('inbox'|'sent'|'drafts'|'spam'|'trash')[] (default inbox, at
+  least one)}`; folder chips above the list toggle which folders every account lists (a request per folder and account, cached
+  separately; with several on, rows show their folder; archive only on inbox rows, trash not on trash rows; Gmail maps
+  them to system labels, Outlook.com to its well-known folders, IMAP to RFC 6154 special-use or common names); with two or more accounts (and not at the one-line compact size) a
   collapsible left sidebar lists them, each with its color, unread count and a visibility switch. Switching one off
   hides its rows and unread (still fetched, so switching back is instant); the sidebar folds to a rail of dots that
   still toggle; all hidden → "All accounts hidden" + Show all. Both settings persist in the widget config.

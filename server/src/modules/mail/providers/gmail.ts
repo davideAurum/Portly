@@ -6,7 +6,7 @@
  * `gmail.list`, `gmail.get`, `gmail.modify`, `gmail.trash`.
  */
 import { z } from 'zod';
-import type { Account, MailMessage } from '@portly/shared';
+import type { Account, MailFolder, MailMessage } from '@portly/shared';
 import { HttpError } from '../../../lib/errors.ts';
 import { cleanSubject, decodeSnippet, parseFromHeader, toIsoDate } from '../text.ts';
 import { gmailMessageUrl } from '../weburl.ts';
@@ -60,9 +60,20 @@ export function mapGmailMessage(raw: unknown, account: Pick<Account, 'id' | 'ema
   };
 }
 
-export function gmailListUrl(maxMessages: number, unreadOnly: boolean): string {
-  const params = new URLSearchParams({ labelIds: 'INBOX', maxResults: String(maxMessages) });
+/** The Gmail system label of each folder. */
+export const GMAIL_FOLDER_LABELS: Readonly<Record<MailFolder, string>> = Object.freeze({
+  inbox: 'INBOX',
+  sent: 'SENT',
+  drafts: 'DRAFT',
+  spam: 'SPAM',
+  trash: 'TRASH',
+});
+
+export function gmailListUrl(maxMessages: number, unreadOnly: boolean, folder: MailFolder = 'inbox'): string {
+  const params = new URLSearchParams({ labelIds: GMAIL_FOLDER_LABELS[folder], maxResults: String(maxMessages) });
   if (unreadOnly) params.append('labelIds', 'UNREAD');
+  // Gmail leaves spam and trash out of a listing unless asked.
+  if (folder === 'spam' || folder === 'trash') params.set('includeSpamTrash', 'true');
   return `${GMAIL_API}/messages?${params}`;
 }
 
@@ -76,11 +87,12 @@ export function createGmailProvider(deps: RestDeps & { now?: () => number }): Ma
   const now = deps.now ?? Date.now;
 
   return {
-    async list(account, { maxMessages, unreadOnly, signal, onStage }) {
+    async list(account, { maxMessages, unreadOnly, folder = 'inbox', signal, onStage }) {
       const get = (url: string, purpose: string) => restCall(deps, NAME, account.id, url, { kind: 'list', purpose, signal, onStage });
+      // Only the inbox's unread count is shown, so the other folders skip the label request.
       const [labelData, listData] = await Promise.all([
-        get(`${GMAIL_API}/labels/INBOX`, 'gmail.labels'),
-        get(gmailListUrl(maxMessages, unreadOnly), 'gmail.list'),
+        folder === 'inbox' ? get(`${GMAIL_API}/labels/INBOX`, 'gmail.labels') : Promise.resolve(null),
+        get(gmailListUrl(maxMessages, unreadOnly, folder), 'gmail.list'),
       ]);
 
       const refs = (ListSchema.safeParse(listData).data?.messages ?? [])
@@ -99,7 +111,8 @@ export function createGmailProvider(deps: RestDeps & { now?: () => number }): Ma
       });
       const messages = resources
         .map((r) => (r === null ? null : mapGmailMessage(r, account, now)))
-        .filter((m): m is MailMessage => m !== null);
+        .filter((m): m is MailMessage => m !== null)
+        .map((m) => (folder === 'inbox' ? m : { ...m, folder }));
 
       const counted = LabelSchema.safeParse(labelData).data?.messagesUnread;
       return {

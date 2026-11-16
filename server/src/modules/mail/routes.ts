@@ -2,15 +2,16 @@
  * HTTP routes of the mail module (§7 Mail). All are non-exempt JSON routes (§4.2), declared
  * `paired()` (the paired Pages site may use them too).
  *
- * - `GET /api/mail/summary?maxMessages=5..20&unreadOnly=true|false&accountIds=a,b`
+ * - `GET /api/mail/summary?maxMessages=5..20&unreadOnly=true|false&accountIds=a,b&folders=inbox,sent`
  *   → `MailAccountSummary[]` (200 with per-account `error`s; 409 `not_configured` when no account
- *   has mail enabled). `accountIds` is optional and only narrows the result. Each item carries
+ *   has mail enabled). `accountIds` is optional and only narrows the result; `folders` (inbox, sent,
+ *   drafts, spam, trash; default inbox) picks the folders listed per account, merged newest first. Each item carries
  *   `canTrash` (false when the account has no resolvable trash target, §4.10).
  * - `POST /api/mail/:accountId/messages/:id/read {read}` · `…/archive` · `…/trash` → 204.
  */
 import type { Context, Hono } from 'hono';
 import { z } from 'zod';
-import { EntityId, MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES, MailReadSchema } from '@portly/shared';
+import { EntityId, MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES, MailFolderSchema, MailReadSchema } from '@portly/shared';
 import type { AppEnv } from '../../context.ts';
 import { HttpError } from '../../lib/errors.ts';
 import { paired } from '../../lib/routes.ts';
@@ -39,6 +40,19 @@ export const SummaryQuerySchema = z.object({
             .filter((s) => s.length > 0),
     )
     .pipe(z.array(EntityId).max(50).optional()),
+  folders: z
+    .string()
+    .max(200)
+    .optional()
+    .transform((v) =>
+      v === undefined
+        ? undefined
+        : v
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0),
+    )
+    .pipe(z.array(MailFolderSchema).max(5).optional()),
 });
 
 function params(c: Context<AppEnv>): { accountId: string; messageId: string } {
