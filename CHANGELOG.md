@@ -4,7 +4,7 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
-## 0.2.0-alpha.9 (not released yet)
+## 0.2.0-alpha.9 (2026-11-16)
 
 The ninth alpha: the Pages site moves to `/portly/`, and the install is two steps. Ships with new-tab
 extension 0.5.4 (changed: click Reload on Portly New Tab). Nothing here has been tried on a second PC
