@@ -61,15 +61,21 @@
   min-height: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto auto 1fr;
+  grid-template-rows: auto auto auto auto;
   grid-template-areas:
     'art meta'
     'art controls'
     'seek seek'
     'footer footer';
-  gap: var(--hb-space-1) var(--hb-space-3);
-  padding: 0 var(--hb-space-3) var(--hb-space-2);
+  /* Centred as a block, so spare height becomes even margin instead of a hole in the middle. */
+  align-content: center;
+  gap: var(--hb-space-1) var(--hb-space-4);
+  padding: 0 var(--hb-space-4) var(--hb-space-3);
   overflow: hidden;
+}
+
+.player > .slider {
+  margin-top: var(--hb-space-2);
 }
 
 .player[data-tier='compact'] {
@@ -96,11 +102,12 @@
   overflow: hidden;
   border-radius: 4px;
   background: var(--hb-surface-2);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
 }
 
 .player[data-tier='normal'] .artFrame {
-  width: 80px;
-  height: 80px;
+  width: 104px;
+  height: 104px;
 }
 
 .artFrame[data-large='true'] {
@@ -147,8 +154,9 @@
 }
 
 .title {
-  font-size: var(--hb-text-md);
-  font-weight: 650;
+  font-size: var(--hb-text-lg);
+  font-weight: 700;
+  line-height: 1.25;
   color: var(--hb-text);
   text-decoration: none;
 }
@@ -172,8 +180,14 @@ a.title:hover {
   align-self: start;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--hb-space-1);
   min-width: 0;
+  margin-top: var(--hb-space-1);
+}
+
+.player:not([data-tier='compact']) .meta {
+  align-self: end;
+  padding-bottom: 2px;
 }
 
 /* The phone's player has no controls: its credit sits where they would. */
@@ -212,7 +226,8 @@ a.title:hover {
 
 .footer {
   grid-area: footer;
-  align-self: end;
+  align-self: start;
+  margin-top: var(--hb-space-1);
   display: flex;
   align-items: center;
   justify-content: space-between;
