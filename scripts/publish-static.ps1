@@ -50,8 +50,17 @@
 
 .PARAMETER Base
     URL path the site is served from: '/<repo>/' for a project site
-    (https://<user>.github.io/<repo>/), '/' (the default) for a user site or a custom domain.
-    Must start and end with '/'.
+    (https://<user>.github.io/<repo>/), '/' (the default) for a user site or a custom domain; with
+    -Subfolder, '/<Subfolder>/' (the default then). Must start and end with '/'.
+
+.PARAMETER Subfolder
+    Publish into a folder of the repository (for example `portly`, served at
+    https://<user>.github.io/portly/) and manage only that folder: every other file of the
+    repository is left alone. Once, when the repository root still holds an earlier root publish of
+    Portly (its index.html is a Portly build), those files are removed by name (index.html, assets,
+    install.ps1, setup.ps1, get-extension.ps1, the extension download, the files of web\public);
+    CNAME, README.md, .nojekyll, .gitattributes and anything else stay. .nojekyll and .gitattributes
+    are written at the root. Use it for a <user>.github.io repository that may hold other pages.
 
 .PARAMETER Message
     Commit message. Default: "Publish Portly <version> (<date>)".
@@ -79,7 +88,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$PublicRepoPath,
-    [ValidateNotNullOrEmpty()][string]$Base = '/',
+    [ValidateNotNullOrEmpty()][string]$Base,
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]*$')][string]$Subfolder,
     [ValidateNotNullOrEmpty()][string]$Message,
     [switch]$DryRun,
     [switch]$NoPush,
@@ -87,6 +97,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $PSBoundParameters.ContainsKey('Base')) {
+    $Base = '/'
+    if ($PSBoundParameters.ContainsKey('Subfolder')) { $Base = "/$Subfolder/" }
+}
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 
 # Files of the public repository that are not part of the build and survive a publish.
@@ -200,12 +214,29 @@ function Get-HbPublishedNames {
     return , $names.ToArray()
 }
 
+# -Subfolder mode: the tracked files at the repository root that an earlier root publish of Portly
+# left (by name, never the kept files, .nojekyll or .gitattributes). Only while the root index.html
+# is still a Portly build, so this happens once and never touches pages put there later.
+function Get-HbLegacyRootFiles {
+    param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Tracked, [AllowNull()][string]$RootIndexText)
+    if ($Tracked -cnotcontains 'index.html' -or $null -eq $RootIndexText -or $RootIndexText -notmatch $HbBuildMarker) { return , @() }
+    $published = Get-HbPublishedNames -RepoRoot $RepoRoot
+    $names = @($published | Where-Object { @($HbPublishKeep + @($HbNoJekyll, $HbGitAttributes)) -cnotcontains $_ })
+    $files = @($Tracked | Where-Object { $names -ccontains ($_ -split '/', 2)[0] })
+    return , $files
+}
+
 # Prints each tracked file a publish deletes (before anything is deleted).
 function Write-HbRemovalList {
     param([Parameter(Mandatory)][object]$Plan)
     $keptText = ''
     if ($Plan.Kept.Count -gt 0) { $keptText = "; kept: $($Plan.Kept -join ', ')" }
-    Write-HbField -Name 'Remove' -Value "$($Plan.ToRemove.Count) tracked file(s)$keptText"
+    if ($Plan.Subfolder) {
+        $inFolder = $Plan.ToRemove.Count - $Plan.Legacy.Count
+        Write-HbField -Name 'Remove' -Value "$inFolder tracked file(s) of $($Plan.Subfolder)/ and $($Plan.Legacy.Count) old Portly file(s) at the root$keptText"
+    } else {
+        Write-HbField -Name 'Remove' -Value "$($Plan.ToRemove.Count) tracked file(s)$keptText"
+    }
     foreach ($file in $Plan.ToRemove) { Write-HbInfo "- $file" }
 }
 
@@ -285,7 +316,8 @@ function Update-HbPublishTree {
         [Parameter(Mandatory)][string]$Git,
         [Parameter(Mandatory)][string]$TargetRoot,
         [Parameter(Mandatory)][string]$DistStatic,
-        [AllowEmptyCollection()][string[]]$ToRemove = @()
+        [AllowEmptyCollection()][string[]]$ToRemove = @(),
+        [AllowEmptyString()][string]$Subfolder = ''
     )
     $attributesPath = Join-Path $TargetRoot $HbGitAttributes
     $existingAttributes = $null
@@ -294,13 +326,20 @@ function Update-HbPublishTree {
         $null = Invoke-HbGit -Git $Git -Directory $TargetRoot -Arguments (@('rm', '-r', '-q', '--') + $ToRemove)
     }
     $buildEntries = @(Get-ChildItem -LiteralPath $DistStatic -Force)
-    $buildEntries | Copy-Item -Destination $TargetRoot -Recurse -Force
+    $destination = $TargetRoot
+    if ($Subfolder -ne '') {
+        $destination = Join-Path $TargetRoot $Subfolder
+        $null = New-Item -ItemType Directory -Path $destination -Force
+    }
+    $buildEntries | Copy-Item -Destination $destination -Recurse -Force
     $noJekyll = Join-Path $TargetRoot $HbNoJekyll
     if (-not (Test-Path -LiteralPath $noJekyll -PathType Leaf)) {
         [System.IO.File]::WriteAllText($noJekyll, '')
     }
     [System.IO.File]::WriteAllText($attributesPath, (Get-HbGitAttributesText -Existing $existingAttributes))
-    $stagePaths = @(@($buildEntries | ForEach-Object { $_.Name }) + @($HbNoJekyll, $HbGitAttributes) | Select-Object -Unique)
+    $stagedBuild = @($buildEntries | ForEach-Object { $_.Name })
+    if ($Subfolder -ne '') { $stagedBuild = @($Subfolder) }
+    $stagePaths = @($stagedBuild + @($HbNoJekyll, $HbGitAttributes) | Select-Object -Unique)
     $null = Invoke-HbGit -Git $Git -Directory $TargetRoot -Arguments (@('add', '-A', '--') + $stagePaths)
     return , $stagePaths
 }
@@ -424,11 +463,43 @@ function Get-PublishPlan {
     }
     $toRemove = @($tracked | Where-Object { $HbPublishKeep -notcontains $_ })
     $kept = @($tracked | Where-Object { $HbPublishKeep -contains $_ })
+    $legacy = @()
+    if ($Subfolder) {
+        # Only the site's own folder is replaced; the root keeps everything but an earlier root publish of Portly.
+        $prefix = "$Subfolder/"
+        $owned = @($tracked | Where-Object { $_.StartsWith($prefix, [System.StringComparison]::Ordinal) })
+        $rootIndexText = $null
+        if ($tracked -ccontains 'index.html') {
+            if ($sync.Behind -gt 0) {
+                $rootIndexText = (Invoke-HbGit -Git $gitExe -Directory $targetRoot -Arguments @('show', "$upstreamName`:index.html")).Lines -join "`n"
+            } elseif (Test-Path -LiteralPath (Join-Path $targetRoot 'index.html') -PathType Leaf) {
+                $rootIndexText = [System.IO.File]::ReadAllText((Join-Path $targetRoot 'index.html'))
+            }
+        }
+        $legacy = Get-HbLegacyRootFiles -RepoRoot $repoRoot -Tracked $tracked -RootIndexText $rootIndexText
+        $toRemove = @($owned + $legacy)
+        $kept = @($tracked | Where-Object { $toRemove -cnotcontains $_ })
+    }
 
     # Publishing deletes every tracked file but CNAME and README.md. Allow that only for an empty
     # repository or an earlier Portly publish - never for another site's pages (a privacy page,
     # a verification file, a user site) unless -ReplaceEverything says so.
-    if ($toRemove.Count -gt 0 -and -not $ReplaceEverything) {
+    if ($Subfolder -and $owned.Count -gt 0 -and -not $ReplaceEverything) {
+        $ownedIndex = ''
+        if ($owned -ccontains "$Subfolder/index.html") {
+            if ($sync.Behind -gt 0) {
+                $ownedIndex = (Invoke-HbGit -Git $gitExe -Directory $targetRoot -Arguments @('show', "$upstreamName`:$Subfolder/index.html")).Lines -join "`n"
+            } else {
+                $ownedPath = Join-Path $targetRoot "$Subfolder\index.html"
+                if (Test-Path -LiteralPath $ownedPath -PathType Leaf) { $ownedIndex = [System.IO.File]::ReadAllText($ownedPath) }
+            }
+        }
+        if ($ownedIndex -notmatch $HbBuildMarker) {
+            throw ("The folder $Subfolder/ of $targetRoot is not an earlier Portly publish (its index.html is missing or has no <meta name=`"portly-build`" content=`"static`">). " +
+                'Publishing replaces everything in it. Use another -Subfolder, or re-run with -ReplaceEverything.')
+        }
+    }
+    if (-not $Subfolder -and $toRemove.Count -gt 0 -and -not $ReplaceEverything) {
         $publishedNames = Get-HbPublishedNames -RepoRoot $repoRoot
         $foreign = @($tracked | Where-Object { $publishedNames -cnotcontains ($_ -split '/', 2)[0] })
         $reason = $null
@@ -462,9 +533,13 @@ function Get-PublishPlan {
     # GitHub Pages serves <user>/<user>.github.io at '/' and any other repository at '/<repo>/'
     # (a custom domain, i.e. a CNAME file, at '/'): any other -Base builds a page that stays blank.
     $gitHub = Get-HbGitHubRepo -RemoteUrl $remoteUrl
+    if ($Subfolder -and $Base -cne "/$Subfolder/" -and $null -eq $gitHub) {
+        throw "With -Subfolder $Subfolder, -Base must be /$Subfolder/ (got $Base)."
+    }
     if ($null -ne $gitHub -and $tracked -cnotcontains 'CNAME') {
         $expectedBase = "/$($gitHub.Repo)/"
         if ([string]::Equals($gitHub.Repo, "$($gitHub.User).github.io", [System.StringComparison]::OrdinalIgnoreCase)) { $expectedBase = '/' }
+        if ($Subfolder) { $expectedBase = "$expectedBase$Subfolder/" }
         if (-not [string]::Equals($Base, $expectedBase, [System.StringComparison]::OrdinalIgnoreCase)) {
             throw ("origin is github.com/$($gitHub.User)/$($gitHub.Repo), which GitHub Pages serves at https://$($gitHub.User.ToLowerInvariant()).github.io$expectedBase, " +
                 "so -Base must be $expectedBase (got $Base); with another base the site stays blank. " +
@@ -493,6 +568,8 @@ function Get-PublishPlan {
         Tracked       = $tracked
         ToRemove      = $toRemove
         Kept          = $kept
+        Legacy        = $legacy
+        Subfolder     = $Subfolder
         CommitMessage = $commitMessage
         Version       = $version
         PagesUrl      = Get-HbPagesUrl -RemoteUrl $remoteUrl -BasePath $Base
@@ -532,7 +609,9 @@ if ($DryRun) {
             "the clone is behind $($plan.Upstream) or has diverged from it; a real run stops at the fetch. Check the connection and the remote.")
     }
     Write-HbRemovalList -Plan $plan
-    Write-HbField -Name 'Copy' -Value "web\dist-static\* + $HbNoJekyll + $HbGitAttributes"
+    $copyTo = ''
+    if ($plan.Subfolder) { $copyTo = " into $($plan.Subfolder)/ (the other files of the repository are not touched)" }
+    Write-HbField -Name 'Copy' -Value "web\dist-static\*$copyTo + $HbNoJekyll + $HbGitAttributes"
     foreach ($file in $buildFiles) { Write-HbInfo "+ $file" }
     Write-HbInfo "+ $HbGitAttributes  ($(@($HbGitAttributesLines | Select-Object -Skip 1) -join ', '); lines of its own that the clone has are kept)"
     Write-HbField -Name 'Commit' -Value "`"$($plan.CommitMessage)`"  (skipped when nothing changed)"
@@ -574,7 +653,7 @@ try {
 
     Write-HbStep "Replacing the contents of $($plan.TargetRoot) (branch $($plan.Branch))"
     Write-HbRemovalList -Plan $plan
-    $null = Update-HbPublishTree -Git $plan.Git -TargetRoot $plan.TargetRoot -DistStatic $plan.DistStatic -ToRemove $plan.ToRemove
+    $null = Update-HbPublishTree -Git $plan.Git -TargetRoot $plan.TargetRoot -DistStatic $plan.DistStatic -ToRemove $plan.ToRemove -Subfolder $plan.Subfolder
     Write-HbInfo "removed $($plan.ToRemove.Count) tracked file(s), copied $($buildFiles.Count) file(s) + $HbNoJekyll + $HbGitAttributes"
 
     # Exit code 0: the index matches HEAD (nothing to commit); 1: something is staged.

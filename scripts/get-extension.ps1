@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Downloads the Portly New Tab extension from the Pages site into a folder, ready for
+    Step 1 of the install, for every PC: downloads the Portly New Tab extension from the Pages site into a folder, ready for
     Load unpacked in Chrome or Edge, or updates a folder it filled before. Needs no Git, Node.js,
     npm or administrator rights, and installs no server.
 
@@ -16,13 +16,17 @@
        needs a Reload.
     5. New install: shows the Load unpacked steps, puts the folder path on the clipboard and
        opens the browser's extensions page.
+    6. Checks Tailscale (read-only; also with -DryRun): installed, and signed in and connected. It
+       says what is missing; it installs nothing. A new install then opens <SiteUrl>#/connect in
+       the browser, where this PC is connected to the main PC (docs\setup\other-pcs.md). The main PC
+       itself then runs step 2, install.ps1, which installs the server.
 
     The browser still has to load the folder itself: Chrome and Edge do not let a script install
     an extension that is not in their store. Self-contained, so it also runs as `irm <url> | iex`.
     See docs\setup\extension.md.
 
 .PARAMETER SiteUrl
-    The Pages site to download from (default https://davideaurum.github.io/). https only (http
+    The Pages site to download from (default https://davideaurum.github.io/portly/). https only (http
     for localhost, 127.0.0.1 or [::1]).
 
 .PARAMETER Destination
@@ -47,10 +51,10 @@
     portly-extension.json).
 
 .EXAMPLE
-    irm https://davideaurum.github.io/get-extension.ps1 | iex
+    irm https://davideaurum.github.io/portly/get-extension.ps1 | iex
 
 .EXAMPLE
-    & ([scriptblock]::Create((irm https://davideaurum.github.io/get-extension.ps1))) -Destination D:\Portly\extension
+    & ([scriptblock]::Create((irm https://davideaurum.github.io/portly/get-extension.ps1))) -Destination D:\Portly\extension
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File .\get-extension.ps1 -ZipPath .\portly-extension.zip
@@ -58,7 +62,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$SiteUrl = 'https://davideaurum.github.io/',
+    [string]$SiteUrl = 'https://davideaurum.github.io/portly/',
     [string]$Destination = (Join-Path $env:LOCALAPPDATA 'Programs\Portly\extension'),
     [string]$ZipPath,
     [string]$Sha256,
@@ -207,6 +211,59 @@ function Move-ExtFolder {
     }
 }
 
+# Where tailscale.exe is: the PATH, then the usual install folders; $null when it is not installed.
+function Find-ExtTailscale {
+    $command = Get-Command -Name 'tailscale.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $command) { return $command.Source }
+    foreach ($root in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+        if ([string]::IsNullOrWhiteSpace($root)) { continue }
+        $candidate = Join-Path $root 'Tailscale\tailscale.exe'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+    }
+    return $null
+}
+
+# Read-only. State: 'missing' (not installed), 'stopped' (installed, not signed in or not connected),
+# 'connected'. Never throws.
+function Get-ExtTailscaleState {
+    try {
+        $exe = Find-ExtTailscale
+        if ($null -eq $exe) { return 'missing' }
+        $previous = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try { $null = & $exe status 2>&1 } finally { $ErrorActionPreference = $previous }
+        if ($LASTEXITCODE -eq 0) { return 'connected' }
+        return 'stopped'
+    } catch {
+        return 'stopped'
+    }
+}
+
+function Show-ExtTailscale {
+    $state = Get-ExtTailscaleState
+    Write-ExtStep 'Tailscale (how this PC reaches the main PC)'
+    switch ($state) {
+        'connected' { Write-ExtOk 'Tailscale is installed and connected.' }
+        'stopped' { Write-ExtInfo 'Tailscale is installed but not connected: open it, sign in with the same account as the main PC, then run this again or continue below.' }
+        default { Write-ExtInfo 'Tailscale is not installed. Install it from https://tailscale.com/download and sign in with the same account as the main PC (only needed to use Portly on another PC).' }
+    }
+}
+
+# Opens $Url in Chrome, else Edge (the first one found); nothing when neither is installed.
+function Open-ExtBrowser {
+    param([Parameter(Mandatory)][string]$Url, [switch]$Wait)
+    foreach ($browser in @('chrome.exe', 'msedge.exe')) {
+        $key = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$browser"
+        try {
+            $path = (Get-Item -LiteralPath $key -ErrorAction Stop).GetValue('')
+            if ($path -and (Test-Path -LiteralPath $path -PathType Leaf)) {
+                Start-Process -FilePath $path -ArgumentList $Url
+                return
+            }
+        } catch { }
+    }
+}
+
 function Show-ExtSteps {
     param([Parameter(Mandatory)][string]$Dir, [Parameter(Mandatory)][string]$Site)
     Write-ExtStep 'Last step, by hand: load the extension in Chrome or Edge'
@@ -216,6 +273,7 @@ function Show-ExtSteps {
     Write-ExtInfo '4. Open a new tab and keep the new tab page the extension set.'
     Write-ExtInfo 'Without Portly on this PC: Details -> Extension options -> New tab opens:'
     Write-ExtInfo "The Pages site, address $Site"
+    Write-ExtInfo "5. Connect this PC to the main PC: $($Site)#/connect"
     if ($NoBrowser) { return }
     try { Set-Clipboard -Value $Dir; Write-ExtInfo '(The folder path is on the clipboard.)' } catch { }
     foreach ($browser in @(@{ Exe = 'chrome.exe'; Url = 'chrome://extensions' }, @{ Exe = 'msedge.exe'; Url = 'edge://extensions' })) {
@@ -224,10 +282,12 @@ function Show-ExtSteps {
             $path = (Get-Item -LiteralPath $key -ErrorAction Stop).GetValue('')
             if ($path -and (Test-Path -LiteralPath $path -PathType Leaf)) {
                 Start-Process -FilePath $path -ArgumentList $browser.Url
-                return
+                break
             }
         } catch { }
     }
+    # The connect page opens in the same browser, after the extensions page.
+    Open-ExtBrowser -Url "$($Site)#/connect"
 }
 
 function Invoke-ExtMain {
@@ -266,6 +326,7 @@ function Invoke-ExtMain {
             Write-ExtStep "[dry run] Would $action in $dest"
             Write-ExtInfo "Package: $($package.Package)"
             Write-ExtInfo "SHA-256: $(if ($package.Sha256) { $package.Sha256 } else { 'none to check against' })"
+            Show-ExtTailscale
             Write-ExtOk 'Dry run finished; nothing was changed.'
             return 0
         }
@@ -317,6 +378,7 @@ function Invoke-ExtMain {
         if ($null -ne $installedVersion) {
             Write-ExtOk "Updated Portly New Tab $installedVersion -> $newVersion in $dest"
             Write-ExtInfo 'Click Reload on Portly New Tab in chrome://extensions (or edge://extensions).'
+            Show-ExtTailscale
             return 0
         }
         Write-ExtOk "Portly New Tab $newVersion is in $dest"
@@ -324,6 +386,7 @@ function Invoke-ExtMain {
             Write-ExtInfo "Portly is also installed on this PC, with the extension in $release."
             Write-ExtInfo 'Load only one of the two folders: both are the same extension.'
         }
+        Show-ExtTailscale
         Show-ExtSteps -Dir $dest -Site $site
         return 0
     } finally {

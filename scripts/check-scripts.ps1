@@ -944,7 +944,7 @@ Write-Host 'Browser-only build and publish-static.ps1' -ForegroundColor White
 # function, the helpers that work the clone (fetch and fast-forward, the .gitattributes, the
 # replacement of the tracked files) and the lists they use are loaded from the script without
 # running it.
-$publishFunctionNames = @('Invoke-HbGit', 'Get-HbPublishedNames', 'Get-HbPublishSyncState', 'Invoke-HbPublishFastForward', 'Get-HbGitAttributesText', 'Update-HbPublishTree')
+$publishFunctionNames = @('Invoke-HbGit', 'Get-HbPublishedNames', 'Get-HbPublishSyncState', 'Invoke-HbPublishFastForward', 'Get-HbGitAttributesText', 'Update-HbPublishTree', 'Get-HbLegacyRootFiles')
 $publishVariableNames = @('$HbPublishKeep', '$HbNoJekyll', '$HbGitAttributes', '$HbGitAttributesLines')
 $publishTokens = $null
 $publishErrors = $null
@@ -957,6 +957,47 @@ $publishNodes = @($publishAst.FindAll({
 Assert-That -Name "publish-static.ps1 defines $($publishFunctionNames -join ', ') and $($publishVariableNames -join ', ')" -Condition (
     $publishNodes.Count -eq ($publishFunctionNames.Count + $publishVariableNames.Count)) -Detail "$($publishNodes.Count) found"
 foreach ($node in $publishNodes) { . ([scriptblock]::Create($node.Extent.Text)) }
+# install.ps1's rewrite of a saved Pages address after the site moved to /portly/: only the exact old root.
+$installTokens = $null
+$installErrors = $null
+$installAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'install.ps1'), [ref]$installTokens, [ref]$installErrors)
+$installMoved = @($installAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-InstMovedPagesUrl' }, $false))
+Assert-That -Name 'install.ps1 defines Get-InstMovedPagesUrl' -Condition ($installMoved.Count -eq 1) -Detail "$($installMoved.Count) found"
+if ($installMoved.Count -eq 1) {
+    . ([scriptblock]::Create($installMoved[0].Extent.Text))
+    $movedOk = (Get-InstMovedPagesUrl -Current 'https://davideaurum.github.io/') -eq 'https://davideaurum.github.io/portly/' -and
+        (Get-InstMovedPagesUrl -Current ' HTTPS://DavidEAurum.github.io ') -eq 'https://davideaurum.github.io/portly/'
+    $movedKept = $null -eq (Get-InstMovedPagesUrl -Current 'https://davideaurum.github.io/portly/') -and
+        $null -eq (Get-InstMovedPagesUrl -Current 'https://davideaurum.github.io/portly-site/') -and
+        $null -eq (Get-InstMovedPagesUrl -Current 'https://me.github.io/') -and
+        $null -eq (Get-InstMovedPagesUrl -Current '') -and $null -eq (Get-InstMovedPagesUrl -Current $null)
+    Assert-That -Name 'install.ps1 changes a saved Pages address only when it is exactly the old root (any case, trailing slash optional)' -Condition ($movedOk -and $movedKept) -Detail "changed=$movedOk kept=$movedKept"
+}
+# install.ps1 step 2: step 1's extension folder (<root>\extension) is refilled from the app, not loaded twice.
+$syncNames = @('Get-InstProperty', 'Get-InstAttributes', 'Remove-InstLinks', 'Remove-InstAppFolder', 'Move-InstFolder', 'Sync-InstSharedExtension')
+$syncNodes = @($installAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $syncNames -contains $node.Name }, $false))
+Assert-That -Name "install.ps1 defines $($syncNames -join ', ')" -Condition ($syncNodes.Count -eq $syncNames.Count) -Detail "$($syncNodes.Count) found"
+if ($syncNodes.Count -eq $syncNames.Count) {
+    foreach ($node in $syncNodes) { . ([scriptblock]::Create($node.Extent.Text)) }
+    $InstMoveAttempts = 3
+    $syncRoot = Join-Path $workDir 'sync-root'
+    $syncApp = Join-Path $syncRoot 'app'
+    $null = New-Item -ItemType Directory -Path (Join-Path $syncApp 'extension') -Force
+    [System.IO.File]::WriteAllText((Join-Path $syncApp 'extension\manifest.json'), '{"name":"Portly New Tab","version":"2.0.0"}')
+    $syncNone = Sync-InstSharedExtension -Root $syncRoot -AppDir $syncApp
+    $syncShared = Join-Path $syncRoot 'extension'
+    $null = New-Item -ItemType Directory -Path $syncShared -Force
+    [System.IO.File]::WriteAllText((Join-Path $syncShared 'manifest.json'), '{"name":"Something else","version":"1.0.0"}')
+    $syncOther = Sync-InstSharedExtension -Root $syncRoot -AppDir $syncApp
+    [System.IO.File]::WriteAllText((Join-Path $syncShared 'manifest.json'), '{"name":"Portly New Tab","version":"1.0.0"}')
+    [System.IO.File]::WriteAllText((Join-Path $syncShared 'stale.txt'), 'old')
+    $syncDone = Sync-InstSharedExtension -Root $syncRoot -AppDir $syncApp
+    Assert-That -Name 'install.ps1 step 2 leaves a missing or foreign extension folder alone and refills the one from step 1 (stale files gone, no leftovers)' -Condition (
+        $null -eq $syncNone -and $null -eq $syncOther -and $syncDone -eq $syncShared -and
+        ([System.IO.File]::ReadAllText((Join-Path $syncShared 'manifest.json'))).Contains('2.0.0') -and
+        -not (Test-Path -LiteralPath (Join-Path $syncShared 'stale.txt')) -and
+        -not (Test-Path -LiteralPath "$syncShared.new") -and -not (Test-Path -LiteralPath "$syncShared.previous")) -Detail "none=$syncNone other=$syncOther done=$syncDone"
+}
 $distStatic = Join-Path $repoRoot 'web\dist-static'
 if (Test-Path -LiteralPath (Join-Path $distStatic 'index.html') -PathType Leaf) {
     $publishedNames = Get-HbPublishedNames -RepoRoot $repoRoot
@@ -1393,8 +1434,8 @@ try {
                 $uninstall.Text.Contains('Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher') -and
                 $uninstall.Text.Contains('Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher') -and
                 $uninstall.Text.Contains((Get-HbNativeHostDir)) -and $uninstall.Text.Contains((Get-HbRuntimeDir))) -Detail $uninstall.Text
-            Assert-That -Name 'uninstall-autostart.ps1 -DryRun names the updater task' -Condition (
-                $uninstall.Text.Contains('Updater task') -and $uninstall.Text.Contains('updater task')) -Detail $uninstall.Text
+            Assert-That -Name 'uninstall-autostart.ps1 -DryRun names the updater task ("no updater task to unregister" when there is none, or the task to stop and unregister)' -Condition (
+                $uninstall.Text.Contains('Updater task') -and ($uninstall.Text.Contains('updater task') -or $uninstall.Text.Contains("the task 'Portly Updater'"))) -Detail $uninstall.Text
             Assert-That -Name 'uninstall-autostart.ps1 removes the native host before it stops and unregisters the task' -Condition (
                 $hostStep -ge 0 -and $taskStep -gt $hostStep) -Detail $uninstall.Text
 
@@ -1557,6 +1598,7 @@ try {
             $extDry = & $run 'get-extension.ps1' ($extArgs + @('-DryRun'))
             Assert-That -Name 'get-extension.ps1 -DryRun names the version and changes nothing' -Condition (
                 $extDry.ExitCode -eq 0 -and $extDry.Text.Contains("Would put Portly New Tab $extVersion in $extDest") -and
+                $extDry.Text.Contains('Tailscale (how this PC reaches the main PC)') -and
                 $extDry.Text.Contains('Dry run finished; nothing was changed.') -and -not (Test-Path -LiteralPath $extDest)) -Detail $extDry.Text
             $extFirst = & $run 'get-extension.ps1' $extArgs
             Assert-That -Name 'get-extension.ps1 -ZipPath checks the SHA-256, unpacks the extension (no tests or tools) and shows the Load unpacked steps' -Condition (
@@ -1695,6 +1737,19 @@ try {
                 $publishCustomDomain = & $run 'publish-static.ps1' @('-PublicRepoPath', $pagesRepo, '-Base', '/', '-DryRun')
                 Assert-That -Name 'publish-static.ps1 accepts -Base / for a repository with a CNAME file (custom domain)' -Condition (
                     $publishCustomDomain.ExitCode -eq 0) -Detail $publishCustomDomain.Text
+
+                # -Subfolder portly: only portly/ is replaced; the old Portly root files go once; other files stay.
+                $subRepo = & $newPagesRepo 'publish-sub' @{ 'index.html' = $markerIndex; 'assets/app.js' = 'app'; '.nojekyll' = ''; 'CNAME' = 'portly.example.invalid'; 'other.html' = 'mine' }
+                $subBefore = & $gitStatus $subRepo
+                $publishSub = & $run 'publish-static.ps1' @('-PublicRepoPath', $subRepo, '-Subfolder', 'portly', '-DryRun', '-NoPush')
+                $subText = & $flat $publishSub.Text
+                Assert-That -Name 'publish-static.ps1 -Subfolder portly -DryRun builds for /portly/, lists the old Portly root files, keeps other.html and CNAME, and changes nothing' -Condition (
+                    $publishSub.ExitCode -eq 0 -and $publishSub.Text.Contains('PORTLY_STATIC_BASE=/portly/') -and
+                    $publishSub.Text.Contains('- index.html') -and $publishSub.Text.Contains('- assets/app.js') -and
+                    -not $publishSub.Text.Contains('- other.html') -and -not $publishSub.Text.Contains('- CNAME') -and
+                    $subText.Contains('Dry run complete') -and $subBefore -eq '' -and (& $gitStatus $subRepo) -eq '') -Detail $publishSub.Text
+                $publishSubBad = & $run 'publish-static.ps1' @('-PublicRepoPath', $subRepo, '-Subfolder', '../x', '-DryRun', '-NoPush')
+                Assert-That -Name 'publish-static.ps1 refuses a -Subfolder that is not a plain folder name' -Condition ($publishSubBad.ExitCode -ne 0) -Detail $publishSubBad.Text
 
                 # -DryRun before the first build: a copy of the script in a scratch checkout without web\dist-static.
                 $unbuilt = Join-Path $workDir "publish-unbuilt-$label"

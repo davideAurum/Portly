@@ -63,7 +63,9 @@ Without `PORTLY_REMOTE_ORIGIN`, Portly behaves exactly as before: one PC, loopba
 
 ## Connecting another PC
 
-There are two ways in, and both reach the same Portly on the main PC.
+There are two ways in, and both reach the same Portly on the main PC. On the other PC, run **step 1**
+of the install first (`irm https://davideaurum.github.io/portly/get-extension.ps1 | iex`): it loads the
+extension, checks Tailscale and opens the connect page of the Pages site. The main PC ran step 2.
 
 **Through your Pages site (one address on every PC).** Needs a Pages site set on the main PC
 (`PORTLY_PAGES_URL`, see [Pages site with Portly on this PC](pages-local-server.md)), so that its

@@ -21,11 +21,17 @@
        version is started again.
     5. Links node_modules\@portly\shared to the package's shared folder (a junction).
     6. With -PagesUrl: saves the Pages site's address as PORTLY_PAGES_URL (as setup.ps1 does).
+       On an update without -PagesUrl: a saved address that is exactly the old site root
+       (https://davideaurum.github.io/) is changed to https://davideaurum.github.io/portly/, where
+       the site now lives. Any other address is left alone.
     7. Runs app\scripts\install-autostart.ps1 with app\runtime\node.exe (the scheduled task, run as
        copies of that node.exe named portly-supervisor.exe and portly-server.exe, and the launcher
        the new-tab extension uses; starts Portly and waits for it), then
        app\scripts\install-cli.ps1 (the portly command).
-    8. New install: shows how to load the new-tab extension from <InstallDir>\app\extension.
+    8. Step 2 of 2 (step 1 is get-extension.ps1, which every PC runs). When step 1's extension
+       folder (<InstallDir>\extension, Portly New Tab) exists, it is filled with this version's
+       extension, so the browser keeps loading that one folder; nothing is loaded a second time.
+       Otherwise a new install shows how to load the new-tab extension from <InstallDir>\app\extension.
        Update: says when the extension changed and needs a Reload.
 
     With -OnlyNewer -StatusFile (portly --update --unattended, run by the Portly Updater task), only
@@ -88,10 +94,10 @@
     but the small portly-release.json).
 
 .EXAMPLE
-    irm https://davideaurum.github.io/install.ps1 | iex
+    irm https://davideaurum.github.io/portly/install.ps1 | iex
 
 .EXAMPLE
-    & ([scriptblock]::Create((irm https://davideaurum.github.io/install.ps1))) -PagesUrl https://me.github.io/
+    & ([scriptblock]::Create((irm https://davideaurum.github.io/portly/install.ps1))) -PagesUrl https://me.github.io/
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -ZipPath .\portly-0.2.0-alpha.1-win-x64.zip
@@ -442,8 +448,28 @@ function ConvertTo-InstPagesUrl {
     return "$($uri.GetLeftPart([System.UriPartial]::Authority))$path"
 }
 
+# The Pages site moved from the root of davideaurum.github.io to /portly/. An update changes a saved
+# PORTLY_PAGES_URL only when it is exactly the old root (any case, with or without the trailing '/').
+function Get-InstMovedPagesUrl {
+    param([AllowNull()][string]$Current)
+    if ([string]::IsNullOrWhiteSpace($Current)) { return $null }
+    $text = $Current.Trim()
+    if (-not $text.EndsWith('/')) { $text += '/' }
+    if ($text -ieq 'https://davideaurum.github.io/') { return 'https://davideaurum.github.io/portly/' }
+    return $null
+}
+
 function Set-InstPagesUrl {
-    if ([string]::IsNullOrWhiteSpace($PagesUrl)) { return }
+    if ([string]::IsNullOrWhiteSpace($PagesUrl)) {
+        $name = 'PORTLY_PAGES_URL'
+        $moved = Get-InstMovedPagesUrl -Current ([System.Environment]::GetEnvironmentVariable($name, 'User'))
+        if ($null -ne $moved) {
+            Write-InstStep "Pages site moved: changing the user environment variable $name to $moved"
+            [System.Environment]::SetEnvironmentVariable($name, $moved, 'User')
+            Set-Item -LiteralPath "Env:$name" -Value $moved
+        }
+        return
+    }
     $name = 'PORTLY_PAGES_URL'
     if ($PagesUrl.Trim() -eq 'off') {
         Write-InstStep "Pages site off: removing the user environment variable $name"
@@ -472,8 +498,42 @@ function Invoke-InstAutostart {
     return (Invoke-InstScript -AppDir $AppDir -Script 'install-autostart.ps1' -Arguments @('-Trigger', $Mode, '-NodePath', $node))
 }
 
+# Step 1 (get-extension.ps1) puts the extension in <Root>\extension. When that folder holds Portly New
+# Tab it is made a copy of the app's extension, so the browser keeps loading the one folder. Returns
+# its path, or $null when step 1 was not run here (or the folder holds something else).
+function Sync-InstSharedExtension {
+    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$AppDir)
+    $shared = Join-Path $Root 'extension'
+    $manifestPath = Join-Path $shared 'manifest.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { return $null }
+    try { $manifest = [System.IO.File]::ReadAllText($manifestPath) | ConvertFrom-Json } catch { return $null }
+    if ((Get-InstProperty $manifest 'name') -ne 'Portly New Tab') { return $null }
+    $source = Join-Path $AppDir 'extension'
+    if (-not (Test-Path -LiteralPath (Join-Path $source 'manifest.json') -PathType Leaf)) { return $null }
+    $staged = "$shared.new"
+    $old = "$shared.previous"
+    Remove-InstAppFolder -Path $staged
+    Remove-InstAppFolder -Path $old
+    Copy-Item -LiteralPath $source -Destination $staged -Recurse
+    Move-InstFolder -From $shared -To $old
+    try {
+        Move-InstFolder -From $staged -To $shared
+    } catch {
+        Move-InstFolder -From $old -To $shared
+        throw
+    }
+    Remove-InstAppFolder -Path $old
+    return $shared
+}
+
 function Show-InstExtensionSteps {
-    param([Parameter(Mandatory)][string]$AppDir)
+    param([Parameter(Mandatory)][string]$AppDir, [AllowNull()][string]$Shared = $null)
+    if ($Shared) {
+        Write-InstStep 'Step 2 of 2 is done: the extension from step 1 is now this version'
+        Write-InstInfo "Its folder, $Shared, was filled with this version's extension; the browser keeps loading that one."
+        Write-InstInfo 'Click Reload on Portly New Tab in chrome://extensions (or edge://extensions); nothing is loaded again.'
+        return
+    }
     $extension = Join-Path $AppDir 'extension'
     Write-InstStep 'Last step, by hand: load the new-tab extension in Chrome or Edge'
     Write-InstInfo '1. Open chrome://extensions (Edge: edge://extensions).'
@@ -852,7 +912,8 @@ function Invoke-InstMain {
                 Write-InstStep 'The portly command: scripts\install-cli.ps1'
                 if ((Invoke-InstScript -AppDir $app -Script 'install-cli.ps1') -ne 0) { $failed += 'install-cli.ps1' }
             }
-            Show-InstExtensionSteps -AppDir $app
+            $shared = Sync-InstSharedExtension -Root $root -AppDir $app
+            Show-InstExtensionSteps -AppDir $app -Shared $shared
             if ($failed.Count -gt 0) {
                 Write-InstFailure "Portly is installed, but $($failed -join ' and ') failed (see above). Fix that and run this again."
                 return 1
@@ -917,6 +978,8 @@ function Invoke-InstMain {
             if ((Invoke-InstScript -AppDir $app -Script 'install-cli.ps1') -ne 0) { Write-Warning 'install-cli.ps1 failed (see above).' }
         }
         Write-InstOk "Updated Portly $installedVersion -> $newVersion. The previous version is kept in $previous."
+        $shared = Sync-InstSharedExtension -Root $root -AppDir $app
+        if ($shared) { Write-InstInfo "The extension folder from step 1, $shared, now holds this version too." }
         # Last, so it is still on screen when the output ends (the scripts above print a lot).
         $oldExtension = "$(Get-InstProperty $installed 'extensionVersion')"
         $newExtension = "$(Get-InstProperty $new 'extensionVersion')"

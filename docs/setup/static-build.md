@@ -346,7 +346,8 @@ for byte whatever the clone's line-ending setting) in and stages exactly those f
 | Option | Meaning |
 | --- | --- |
 | `-PublicRepoPath <folder>` | The local clone of the public repository (required; its checked-out branch is the one Pages deploys from). Everything tracked in it except `CNAME` and `README.md` is deleted. |
-| `-Base </repo/>` | The site's URL path; default `/`. Same rule as `PORTLY_STATIC_BASE`. |
+| `-Base </repo/>` | The site's URL path; default `/` (`/<name>/` with `-Subfolder`). Same rule as `PORTLY_STATIC_BASE`. |
+| `-Subfolder <name>` | Publish into the folder `<name>/` of the repository (for example `portly` for `https://<user>.github.io/portly/`) and replace only that folder; other files and sites in the repository stay. The first time, the old Portly files at the repository root are removed by name, once, while the root `index.html` is still a Portly build. |
 | `-Message "<text>"` | Commit message; default `Publish Portly <version> (<date>)`. |
 | `-DryRun` | Fetch the upstream, print the plan — what would be fast-forwarded, built, removed, copied, committed, pushed — and change nothing else (no build either). It refuses exactly what a real run refuses. |
 | `-NoPush` | Commit, but leave the push to you. |

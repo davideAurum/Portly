@@ -7,8 +7,9 @@ you connect.
 
 Setup takes three parts — the first is enough to try it out:
 
-1. **Install it** — from a release package ([Install](#install)), or from the source code
-   ([developers](#from-the-source-code)).
+1. **Install it, in two steps** ([Install](#install)): **step 1** on every PC (the new-tab
+   extension, and a check that Tailscale is there), **step 2** on the main PC only (the server).
+   Developers can use the source code instead ([from the source code](#from-the-source-code)).
 2. **Make it your browser's home** — the [new-tab extension](setup/extension.md) and
    [autostart](setup/autostart.md) (when the browser opens, or at sign-in).
 3. **Connect accounts** — whichever you use (see [Connect your accounts](#connect-your-accounts)).
@@ -17,19 +18,35 @@ Setup takes three parts — the first is enough to try it out:
 
 ## Install
 
-The release package carries everything Portly needs, its own Node.js included: no Git, Node.js,
-npm or administrator rights. In PowerShell:
+Two steps. Neither needs Git, Node.js, npm or administrator rights.
+
+**Step 1, every PC: the extension.** In PowerShell:
 
 ```powershell
-irm https://davideaurum.github.io/install.ps1 | iex
+irm https://davideaurum.github.io/portly/get-extension.ps1 | iex
+```
+
+It downloads the new-tab extension into `%LOCALAPPDATA%\Programs\Portly\extension`, checks Tailscale
+(installed, signed in and connected; it installs nothing) and opens the browser's extensions page
+for the one manual step (**Developer mode** → **Load unpacked** → that folder, which it puts on the
+clipboard), then the Pages site's connect page. On a PC that is not the main PC, step 1 is all you
+need: connect it to the main PC there ([Using Portly from your other PCs](setup/other-pcs.md)). If a
+new tab finds no Portly and no launcher on this PC, it opens that connect page by itself.
+
+**Step 2, the main PC only: the server.** The release package carries everything Portly needs, its
+own Node.js included. In PowerShell:
+
+```powershell
+irm https://davideaurum.github.io/portly/install.ps1 | iex
 ```
 
 It downloads the latest release, checks its SHA-256, installs it into
-`%LOCALAPPDATA%\Programs\Portly\app`, turns on autostart, installs the `portly` command and opens
-the browser's extensions page for the one manual step (**Developer mode** → **Load unpacked** →
-`%LOCALAPPDATA%\Programs\Portly\app\extension`, which it puts on the clipboard). Options, for
-example a Pages site:
-`& ([scriptblock]::Create((irm https://davideaurum.github.io/install.ps1))) -PagesUrl https://<user>.github.io/`
+`%LOCALAPPDATA%\Programs\Portly\app`, turns on autostart and installs the `portly` command. It uses
+the extension folder from step 1: that folder is filled with this version's extension, so the
+browser keeps loading the one folder and you click **Reload** instead of loading anything again. If
+you skipped step 1, step 2 shows the same manual step, with
+`%LOCALAPPDATA%\Programs\Portly\app\extension`. Options, for example a Pages site:
+`& ([scriptblock]::Create((irm https://davideaurum.github.io/portly/install.ps1))) -PagesUrl https://<user>.github.io/`
 (`-DryRun` shows what it would do; all options: `Get-Help` on `scripts\install.ps1`).
 
 After the extension is loaded:
@@ -50,10 +67,8 @@ After the extension is loaded:
 doesn't start. Click **Reload** on the extension when it says the extension changed. Details,
 and how releases are built and published: [Releases](setup/releases.md).
 
-**Just the new tab page:** on a PC where you don't want Portly itself, run
-`irm https://davideaurum.github.io/get-extension.ps1 | iex`. It downloads only the extension, and
-you then load it and point it at your Pages site
-([Get the extension on a PC without the code](setup/extension.md#get-the-extension-on-a-pc-without-the-code)).
+**Just the new tab page:** step 1 alone is that. More on it, and on pointing it at your Pages site:
+[Get the extension on a PC without the code](setup/extension.md#get-the-extension-on-a-pc-without-the-code).
 
 ## Coming from Homebase
 
@@ -84,14 +99,14 @@ for the one manual step (Load unpacked → the `extension` folder). On a PC with
 PowerShell:
 
 ```powershell
-irm https://davideaurum.github.io/setup.ps1 | iex
+irm https://davideaurum.github.io/portly/setup.ps1 | iex
 ```
 
 The script comes from the Pages site: the static build adds a copy, so every publish updates it.
 To pass options:
 
 ```powershell
-& ([scriptblock]::Create((irm https://davideaurum.github.io/setup.ps1))) -InstallDir D:\Portly -DryRun
+& ([scriptblock]::Create((irm https://davideaurum.github.io/portly/setup.ps1))) -InstallDir D:\Portly -DryRun
 ```
 
 If you already have a checkout, run it from there:
@@ -104,7 +119,7 @@ If you use a Portly Pages site ([hybrid mode](setup/pages-local-server.md)), add
 `-PagesUrl https://<user>.github.io/`: setup saves it as `PORTLY_PAGES_URL` before it starts
 Portly, and new tabs then open that site (the extension follows Portly on this PC). Without it,
 new tabs open Portly itself at `http://localhost:5757`. `-PagesUrl off` turns the Pages site off
-again. Use a site you publish yourself: `https://davideaurum.github.io/` is the developer's own,
+again. Use a site you publish yourself: `https://davideaurum.github.io/portly/` is the developer's own,
 and a Portly paired with a site trusts whatever that site publishes, so never point `-PagesUrl` at
 a site you don't control.
 
@@ -148,8 +163,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1
 
 ## Make it your New Tab page
 
-A release install has done step 2 already; load the extension from
-`%LOCALAPPDATA%\Programs\Portly\app\extension`.
+Steps 1 and 2 of the install did this already; the extension is in
+`%LOCALAPPDATA%\Programs\Portly\extension` (or `app\extension` if you skipped step 1).
 
 1. **[Install the extension](setup/extension.md)** in Chrome or Edge (Developer mode →
    Load unpacked → the `extension` folder). New tabs now follow Portly on this PC: they open
@@ -273,7 +288,7 @@ commit; `--allow-dirty` builds and publishes them as they are, and `--dry-run` s
 To see a change before you commit or merge it, run `portly --dev` in the checkout (a worktree
 works too), or `portly --dev <folder>` from anywhere. It builds that checkout and runs it on a
 copy of your data, with your normal Portly paused until you press Enter (it is
-`scripts	ry-branch.ps1`; `--pages-port`, `--keep-data`, `--skip-build` and `--dry-run` are
+`scripts\try-branch.ps1`; `--pages-port`, `--keep-data`, `--skip-build` and `--dry-run` are
 passed on). Nothing is published and your real data is only read.
 
 Or by hand:

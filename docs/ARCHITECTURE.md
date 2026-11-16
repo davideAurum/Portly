@@ -316,8 +316,8 @@ OneDrive app folder (`Files.ReadWrite.AppFolder`, nothing else of the drive; a w
 renewed at page load), and the GitHub repository and fine-grained token (the `github-sync` slice), which reaches what
 the user limited it to (Portly can't check that it is one repository) until it expires or is revoked. Any script on
 any page of `https://<user>.github.io`, and any extension with access to the site, can read them, and with them the
-launch pad and its history. *Decided 2026-10-29 (ROADMAP D9):* the site stays at `https://davideaurum.github.io/` for
-0.2.0-alpha.2 and the risk is accepted, since only the owner's own repositories publish there; revisit when anyone
+launch pad and its history. *Decided 2026-10-29 (ROADMAP D9):* the site stayed at `https://davideaurum.github.io/` for
+0.2.0-alpha.2 (it moves to `/portly/` in 0.2.0-alpha.9, which isolates nothing; see below) and the risk is accepted, since only the owner's own repositories publish there; revisit when anyone
 else uses the site. Moving the app under a path such as `/portly-site/` would not isolate it: browsers keep storage
 per origin (scheme, host, port), not per path; only a custom domain used only for the site (or a separate account)
 would. Mitigations: classic GitHub tokens are refused (the only classic scope that reaches a private repository

@@ -44,6 +44,8 @@ import { PINNED_EXTENSION_ID, START_KIND, START_KINDS_THAT_STOP, isStaleExtensio
  * Pages target: how long the tab waits for the service worker to acknowledge the warm-up request
  * before it opens the Pages site anyway.
  */
+/** The Pages site a new tab opens at its connect page when no Portly and no launcher is on this PC and no address is set. */
+export const DEFAULT_SITE_URL = 'https://davideaurum.github.io/portly/';
 export const WARM_UP_ACK_TIMEOUT_MS = 300;
 
 /** Automatic re-checks after a failure: every 5 s, at most 12 times (one minute). */
@@ -214,6 +216,8 @@ export function createNewTabPage(env) {
   let opens = null;
   /** @type {import('./portly.js').ServerSite | null} the stored record of the server's Pages site */
   let knownSite = null;
+  /** @type {string | null} the Pages site address from the options (none by default) */
+  let configuredSite = null;
   let checking = false;
   let redirected = false;
   let destroyed = false;
@@ -464,6 +468,18 @@ export function createNewTabPage(env) {
     if (isCurrentLaunch(seq)) els.startingDetail.textContent = STARTING_SLOW_TEXT;
   }
 
+  /** No Portly answers and there is no launcher: opens the Pages site at its connect page. */
+  function openConnectPage() {
+    redirected = true;
+    launching = false;
+    clearLaunchTimers();
+    cancelAutoRetry();
+    opens = TARGET.pages;
+    setState(STATE.redirecting);
+    const site = configuredSite ?? knownSite?.pagesUrl ?? DEFAULT_SITE_URL;
+    env.location.replace(`${site}#/connect`);
+  }
+
   /**
    * Asks the launcher to start Portly (one request) and polls /api/health until it answers,
    * the launcher says it can't help, or the time is up. Ignored while an attempt is running.
@@ -495,6 +511,12 @@ export function createNewTabPage(env) {
     }
     if (!isCurrentLaunch(seq)) return outcome;
     hostOutcome = outcome;
+    // No launcher on this PC (step 2 of the install was not run here): the Pages site's connect page
+    // is the way in, unless the options pin "Portly on this PC".
+    if (outcome.kind === START_KIND.notInstalled && target !== TARGET.local && !isStaleExtensionId(env.extensionId ?? null)) {
+      openConnectPage();
+      return outcome;
+    }
     // Nothing was started: stop waiting. Otherwise ("running", "starting", or no clear answer)
     // keep polling — /api/health is the source of truth.
     if (START_KINDS_THAT_STOP.has(outcome.kind)) endLaunch('launcher');
@@ -591,6 +613,7 @@ export function createNewTabPage(env) {
     port = settings.port;
     target = settings.target;
     knownSite = settings.serverSite;
+    configuredSite = settings.pagesUrl ?? null;
     renderPort();
     if (destroyed) return null;
     const plan = resolveNewTab(settings);

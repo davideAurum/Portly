@@ -806,6 +806,34 @@ describe('new tab: starting Portly', () => {
     assert.equal(t.runtime.calls.length, 2);
   });
 
+  it('no Portly and no launcher, target auto: opens the Pages site at its connect page (the default site when none is set)', async () => {
+    const t = setup({ storage: createStorage({}), fetch: createFetch(down), runtime: createNativeRuntime({ error: NATIVE_ERRORS.notFound }) });
+    await t.page.start();
+    await flush();
+    assert.deepEqual(t.location.replaced, ['https://davideaurum.github.io/portly/#/connect']);
+    assert.equal(t.page.opens, 'pages');
+    assert.equal(t.state(), 'redirecting');
+  });
+
+  it('no Portly and no launcher: uses the configured site, else the one the server reported', async () => {
+    const configured = setup({ storage: createStorage({ pagesUrl: 'https://me.example/p/' }), fetch: createFetch(down), runtime: createNativeRuntime({ error: NATIVE_ERRORS.notFound }) });
+    await configured.page.start();
+    await flush();
+    assert.deepEqual(configured.location.replaced, ['https://me.example/p/#/connect']);
+    const reported = setup({ storage: createStorage({ serverSite: { port: 5757, pagesUrl: 'https://me.example/q/' }, target: 'auto' }), fetch: createFetch(down), runtime: createNativeRuntime({ error: NATIVE_ERRORS.notFound }) });
+    reported.page.start();
+    await flush();
+    assert.ok(reported.location.replaced.every((url) => url.startsWith('https://me.example/q/')), String(reported.location.replaced));
+  });
+
+  it('no Portly and no launcher, target local: keeps the install instructions', async () => {
+    const t = setup({ storage: createStorage({ target: 'local' }), fetch: createFetch(down), runtime: createNativeRuntime({ error: NATIVE_ERRORS.notFound }) });
+    await t.page.start();
+    await flush();
+    assert.deepEqual(t.location.replaced, []);
+    assert.deepEqual(t.visibleHelp(), [HELP.install]);
+  });
+
   it('without native messaging: the plain fallback, no "Try starting again"', async () => {
     const t = setup({ fetch: createFetch(down) });
     await t.page.start();

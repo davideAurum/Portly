@@ -4,6 +4,21 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## Unreleased
+
+### Changes
+- **New-tab extension 0.5.4 (Reload it).** On a PC without the Portly server (step 1 of the install
+  only), a new tab with nothing answering now opens the Pages site's connect page instead of the
+  "launcher isn't installed" card. Pinning the options to "Portly on this PC" keeps that card.
+- **The Pages site moves to `/portly/`.** The install command is now
+  `irm https://davideaurum.github.io/portly/install.ps1 | iex` (same for `setup.ps1` and
+  `get-extension.ps1`). The first visit to the new address copies this browser's pairing, saved PC
+  address, browser copy and browser-only sign-ins over once; the old data stays where it was.
+  `portly --update` changes a saved Pages address to the new one only if it is exactly the old site
+  root. Add the new sign-in addresses (`https://davideaurum.github.io/portly/...`) at Spotify,
+  Microsoft and Google before the site is published.
+- `publish-static.ps1 -Subfolder portly` publishes into `portly/` and replaces only that folder.
+
 ## 0.2.0-alpha.8 (2026-11-05)
 
 The eighth alpha: a GitHub status board, Music without Portly on your PC, and an Update button. Ships

@@ -51,7 +51,7 @@ On a PC where you only want the new tab page (no Portly server, no Git or Node.j
 extension from the Pages site. In PowerShell:
 
 ```powershell
-irm https://davideaurum.github.io/get-extension.ps1 | iex
+irm https://davideaurum.github.io/portly/get-extension.ps1 | iex
 ```
 
 It downloads `portly-extension.zip`, checks its SHA-256 and that it really is Portly New Tab (same
@@ -60,6 +60,10 @@ opens the browser's extensions page and puts the folder path on the clipboard, r
 below. The browser still has to load the folder itself: Chrome and Edge don't let a script install
 an extension that isn't in their store.
 
+- **Step 1 of the install, on every PC.** The script also checks Tailscale (installed, signed in and
+  connected; it installs nothing) and, after a new install, opens the Pages site's connect page
+  (`#/connect`) in the browser, where this PC is connected to the main PC. The main PC then runs
+  step 2, `install.ps1`, which installs the server.
 - **Without Portly on this PC**, set the extension's options to **New tab opens → The Pages site**
   with your site's address (see [What new tabs open](#what-new-tabs-open)). New tabs then open the
   browser-only Pages site, which keeps its data in this browser.
@@ -68,11 +72,11 @@ an extension that isn't in their store.
 - **Options:** `-Destination <folder>` puts it elsewhere (keep it there: the browser loads it from
   that folder), `-SiteUrl https://<user>.github.io/` downloads from another Pages site, and
   `-DryRun` only says what it would do. To pass them:
-  `& ([scriptblock]::Create((irm https://davideaurum.github.io/get-extension.ps1))) -DryRun`.
+  `& ([scriptblock]::Create((irm https://davideaurum.github.io/portly/get-extension.ps1))) -DryRun`.
 - If you also install Portly itself later, load only one of the folders (they are the same
   extension). A release install keeps its own copy in `%LOCALAPPDATA%\Programs\Portly\app\extension`.
 
-You can also download `https://davideaurum.github.io/portly-extension.zip` in the browser and unzip
+You can also download `https://davideaurum.github.io/portly/portly-extension.zip` in the browser and unzip
 it yourself into a folder you keep.
 
 ## Install in Google Chrome

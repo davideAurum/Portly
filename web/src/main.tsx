@@ -38,6 +38,23 @@ function recordUncaughtErrors(): void {
   });
 }
 
+/**
+ * Pages build at `/portly/`: copy this browser's data from the old address (`/`) once, before
+ * anything reads the new keys (static/migrateBase.ts). A failed copy is tried again at the next load.
+ */
+async function migrateOldAddress(): Promise<void> {
+  try {
+    const { migrateLegacyBase } = await import('./static/migrateBase.ts');
+    await migrateLegacyBase({
+      base: import.meta.env.BASE_URL,
+      local: browserLocalStorage(),
+      indexedDB: typeof indexedDB === 'undefined' ? null : indexedDB,
+    });
+  } catch (err) {
+    console.error('[Portly] Could not copy this browser’s data from the old address', err);
+  }
+}
+
 // Pages build: the server's redirect back after pairing carries the token in the address. Save it
 // (when the nonce matches) and take it out of the address before anything else happens.
 const pairingReturn: PairingReturnResult = __PORTLY_STATIC__
@@ -238,6 +255,8 @@ async function start(): Promise<void> {
   if (__PORTLY_STATIC__) {
     // Before the first dynamic import, which is itself a chunk that may be gone after a deploy.
     reloadOnMissingChunks();
+    // Before anything reads this address's keys (the next decision already does).
+    if (import.meta.env.BASE_URL !== '/') await migrateOldAddress();
     // A page load that will stay on this browser's copy (hybrid mode off, framed, or the hints say
     // so: boot.ts decides from the same ones) fetches the in-browser backend's code alongside the
     // boot chunk rather than after it. Loading the module opens nothing; its failure is reported

@@ -80,7 +80,11 @@ The extension's privacy statement is the "The new-tab extension" section of
      `location.replace('http://localhost:<port>/?src=newtab')`.
    - It doesn't → the page asks the launcher once (`{"action":"start","port":<port>}`), shows
      **Starting Portly…**, and polls `/api/health` every 400 ms for up to 30 s, then redirects.
-     - Launcher not installed (`…host not found.`) or the task is missing (`task_missing`) → the
+     - Launcher not installed (`…host not found.`) → unless the target is `local` (or the extension
+       runs under a stale ID), the tab opens the Pages site at `#/connect` (the options' address, else
+       the one `serverSite` names, else `DEFAULT_SITE_URL` in `lib/newtab-page.js`): this PC has
+       step 1 of the install but not the server.
+     - Launcher not installed with the target `local`, or the task is missing (`task_missing`) → the
        fallback with instructions to run `scripts\install-autostart.ps1`
        (`docs\setup\autostart.md`).
      - ID mismatch (`…is forbidden.` or `bad_origin`) → the fallback with this extension's ID and

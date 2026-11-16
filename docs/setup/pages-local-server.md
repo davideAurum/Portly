@@ -9,7 +9,7 @@ the copy it keeps in this browser. This is called *hybrid mode*.
 
 Pair Portly only with a Pages site you publish and control yourself. A paired site can use your
 Portly's data and accounts, and so can any script that site ever publishes:
-`https://davideaurum.github.io/` is the developer's own site, not one to pair with.
+`https://davideaurum.github.io/portly/` is the developer's own site, not one to pair with.
 
 - **Two separate sets of data, no syncing.** What you change while the site uses Portly on this
   PC is saved on the server; what you change while it uses this browser's copy stays in this
