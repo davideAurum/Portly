@@ -113,7 +113,7 @@ function Get-PublishChangelogNotes {
 }
 
 function Invoke-PublishRelease {
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($OutDir)) { $OutDir = Join-Path $repoRoot 'dist-release' }
     $out = [System.IO.Path]::GetFullPath($OutDir)
     $manifestPath = Join-Path $out 'portly-release.json'
@@ -156,8 +156,8 @@ function Invoke-PublishRelease {
         }
         $Notes = $section.Text + "`n`n" + "Package: Windows x64, commit $($commit.Substring(0, 12)), Node.js $($inside.node)."
     }
-    Write-HbStep "Release notes of Portly $version"
-    foreach ($line in ($Notes -split "\r?\n")) { Write-HbInfo $line }
+    Write-PtStep "Release notes of Portly $version"
+    foreach ($line in ($Notes -split "\r?\n")) { Write-PtInfo $line }
 
     $command = Get-Command -Name 'gh.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $command) { throw 'The GitHub CLI (gh) is not installed: https://cli.github.com/ (winget install GitHub.cli), then gh auth login.' }
@@ -177,9 +177,9 @@ function Invoke-PublishRelease {
     try {
         $arguments = @('release', 'create', "v$version", $zip, $manifestPath, '--repo', $ReleaseRepo, '--target', $commit,
             '--title', "Portly $version", '--notes-file', $notesFile, '--latest')
-        Write-HbStep "$(if ($DryRun) { '[dry run] ' } else { '' })Publishing Portly $version to https://github.com/$ReleaseRepo/releases"
-        Write-HbInfo "gh $(($arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' ')"
-        if ($DryRun) { Write-HbOk 'Dry run finished; nothing was published.'; return 0 }
+        Write-PtStep "$(if ($DryRun) { '[dry run] ' } else { '' })Publishing Portly $version to https://github.com/$ReleaseRepo/releases"
+        Write-PtInfo "gh $(($arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' ')"
+        if ($DryRun) { Write-PtOk 'Dry run finished; nothing was published.'; return 0 }
         $created = Invoke-PublishGh -Arguments $arguments
     } finally {
         Remove-Item -LiteralPath $notesFile -Force -ErrorAction SilentlyContinue
@@ -187,8 +187,8 @@ function Invoke-PublishRelease {
     if ($created.ExitCode -ne 0) {
         throw "gh release create failed (is commit $($commit.Substring(0, 12)) pushed to $ReleaseRepo?): $($created.Text.Trim())"
     }
-    Write-HbOk "Published: $($created.Text.Trim())"
-    Write-HbInfo "Install: irm https://<your Pages site>/install.ps1 | iex   (or portly --update on installed PCs)"
+    Write-PtOk "Published: $($created.Text.Trim())"
+    Write-PtInfo "Install: irm https://<your Pages site>/install.ps1 | iex   (or portly --update on installed PCs)"
     return 0
 }
 
@@ -196,6 +196,6 @@ try {
     $code = Invoke-PublishRelease | Select-Object -Last 1
     exit ([int]$code)
 } catch {
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     exit 1
 }

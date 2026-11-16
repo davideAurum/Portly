@@ -120,7 +120,7 @@ export function StaleIndicator({ updatedAt, error, always = false, onRetry }: St
     <span className={styles.stale} data-failed={failed ? 'true' : undefined} role="status">
       {failed ? <TriangleAlert aria-hidden="true" /> : null}
       <span>{label}</span>
-      {failed ? <span className="hb-visually-hidden">. Refresh failed: {errorMessage(error)}</span> : null}
+      {failed ? <span className="pt-visually-hidden">. Refresh failed: {errorMessage(error)}</span> : null}
     </span>
   );
   if (!failed) return content;

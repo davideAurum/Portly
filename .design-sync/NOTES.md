@@ -14,7 +14,7 @@ Project: "Portly UI" (projectId in config.json). Shape: package, no Storybook.
   loads. Without it every card throws `ReferenceError: __PORTLY_STATIC__ is not defined`.
   If vite.config.ts gains a new `define`, add it there.
 - `index.ts` imports `web/src/styles/tokens.css` then `base.css` (same order as `main.tsx`), so the
-  `--hb-*` tokens and base styles ride in `_ds_bundle.css` with the CSS-module styles.
+  `--pt-*` tokens and base styles ride in `_ds_bundle.css` with the CSS-module styles.
 - Render check: no Playwright browser cache on this PC; run with
   `DS_CHROMIUM_PATH="C:/Program Files/Google/Chrome/Application/chrome.exe"` (playwright library
   only, installed into `.ds-sync/` with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`).
@@ -29,8 +29,8 @@ Project: "Portly UI" (projectId in config.json). Shape: package, no Storybook.
 
 ## Preview authoring
 - `body::before` paints the user's backdrop (dark teal gradient by default), so cards are dark.
-  Previews put controls on a glass widget panel (inline styles with `--hb-glass`,
-  `--hb-glass-border`, `--hb-shadow`, `--hb-radius-lg`, `--hb-space-4`), matching WidgetFrame.
+  Previews put controls on a glass widget panel (inline styles with `--pt-glass`,
+  `--pt-glass-border`, `--pt-shadow`, `--pt-radius-lg`, `--pt-space-4`), matching WidgetFrame.
 - Icons: import from `lucide-react` in previews; `icon` props take the component (`icon={Plus}`),
   MenuItem's `icon` takes an element (`icon={<Pencil />}`).
 - Overlays (Menu, Dialog, ConfirmDialog, Popover, Tooltip) render open via `defaultOpen` /
@@ -48,7 +48,7 @@ Project: "Portly UI" (projectId in config.json). Shape: package, no Storybook.
   errors with `<Field error="...">`. In a FieldGrid give every field help text, or none, or the
   controls don't line up.
 - Checkbox/Switch are controlled: static cells pass `checked` + `onCheckedChange={() => {}}`.
-- SettingsCard paints its own `--hb-surface` card; no glass Panel around it.
+- SettingsCard paints its own `--pt-surface` card; no glass Panel around it.
 - React Query: ErrorState and ReconnectButton call `useAccount()` and throw "No QueryClient set"
   without a provider. `.design-sync/pkg/QueryProvider.tsx` exports `PortlyQueryProvider` from the
   bundle; the ErrorState preview wraps itself in it (imported from '@portly/ui', so it shares the

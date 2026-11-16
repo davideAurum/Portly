@@ -64,7 +64,7 @@ export function AddWidgetDialog({ open, onOpenChange, onAdd }: AddWidgetDialogPr
                 <span className={styles.catalogAdd} aria-hidden="true">
                   {adding === def.type ? <Spinner size={16} /> : <Plus />}
                 </span>
-                <span className="hb-visually-hidden">Add {def.title}</span>
+                <span className="pt-visually-hidden">Add {def.title}</span>
               </button>
             </li>
           );

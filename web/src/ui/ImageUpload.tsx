@@ -131,7 +131,7 @@ export function ImageUpload({
           id={inputId}
           type="file"
           accept={UPLOAD_ACCEPT}
-          className="hb-visually-hidden"
+          className="pt-visually-hidden"
           disabled={disabled || busy}
           aria-label={aria['aria-label']}
           aria-labelledby={aria['aria-label'] ? undefined : field?.labelId}

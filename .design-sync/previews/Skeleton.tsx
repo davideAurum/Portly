@@ -3,9 +3,9 @@ import type { CSSProperties, ReactNode } from 'react';
 
 // Skeletons stand in for widget content on first load, inside a glass widget panel.
 const panel: CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 'var(--hb-space-3)',
-  padding: 'var(--hb-space-4)', borderRadius: 'var(--hb-radius-lg)', border: '1px solid var(--hb-glass-border)',
-  background: 'var(--hb-glass)', boxShadow: 'var(--hb-shadow)', color: 'var(--hb-text)',
+  display: 'flex', flexDirection: 'column', gap: 'var(--pt-space-3)',
+  padding: 'var(--pt-space-4)', borderRadius: 'var(--pt-radius-lg)', border: '1px solid var(--pt-glass-border)',
+  background: 'var(--pt-glass)', boxShadow: 'var(--pt-shadow)', color: 'var(--pt-text)',
 };
 const Widget = ({ title, children }: { title: string; children: ReactNode }) => (
   <div style={panel}>
@@ -34,14 +34,14 @@ export const TextLines = () => (
 
 export const WeatherCard = () => (
   <Widget title="Weather">
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--hb-space-3)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pt-space-3)' }}>
       <Skeleton width={48} height={48} round />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
         <Skeleton width="40%" height={22} />
         <Skeleton width="65%" height={10} />
       </div>
     </div>
-    <div style={{ display: 'flex', gap: 'var(--hb-space-2)' }}>
+    <div style={{ display: 'flex', gap: 'var(--pt-space-2)' }}>
       {[0, 1, 2, 3, 4].map((i) => (
         <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
           <Skeleton width={24} height={9} />

@@ -11,9 +11,9 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--hb-space-3);
-  padding: var(--hb-space-3) 0;
-  border-bottom: 1px solid var(--hb-border);
+  gap: var(--pt-space-3);
+  padding: var(--pt-space-3) 0;
+  border-bottom: 1px solid var(--pt-border);
 }
 
 .row:last-child {
@@ -29,7 +29,7 @@
 .name {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
   font-weight: 600;
 }
@@ -45,16 +45,16 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 10px;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .error {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-danger);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-danger);
   overflow-wrap: anywhere;
 }
 
@@ -70,8 +70,8 @@
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-warning);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-warning);
   overflow-wrap: anywhere;
 }
 
@@ -94,9 +94,9 @@
   gap: 3px;
   padding: 0 2px;
   border: 0;
-  border-radius: var(--hb-radius-sm);
+  border-radius: var(--pt-radius-sm);
   background: none;
-  color: var(--hb-accent-text);
+  color: var(--pt-accent-text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -107,7 +107,7 @@
 }
 
 .inlineAction:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: 1px;
 }
 
@@ -121,40 +121,40 @@
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--hb-space-2) var(--hb-space-3);
+  gap: var(--pt-space-2) var(--pt-space-3);
 }
 
 .toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .syncGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--hb-space-4);
+  gap: var(--pt-space-4);
 }
 
 .addForm {
   display: grid;
-  gap: var(--hb-space-3);
-  padding-top: var(--hb-space-3);
-  border-top: 1px solid var(--hb-border);
+  gap: var(--pt-space-3);
+  padding-top: var(--pt-space-3);
+  border-top: 1px solid var(--pt-border);
 }
 
 .addRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
 }
 
 .hint {
   margin: 0;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .hint a {
@@ -164,7 +164,7 @@
 .cardTitle {
   display: inline-flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }
 
 .link {
@@ -172,16 +172,16 @@
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-accent-soft);
-  color: var(--hb-accent-text);
-  font-size: var(--hb-text-sm);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-accent-soft);
+  color: var(--pt-accent-text);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
 }
 
 .link:hover {
   text-decoration: none;
-  background: color-mix(in srgb, var(--hb-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--pt-accent) 22%, transparent);
 }
 
 .link svg {

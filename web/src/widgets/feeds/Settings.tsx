@@ -32,9 +32,9 @@ export default function FeedsSettings({ value, onChange }: WidgetSettingsProps<F
 
   return (
     <div className={styles.stack}>
-      <div className={styles.group} role="group" aria-labelledby="hb-feeds-list">
+      <div className={styles.group} role="group" aria-labelledby="pt-feeds-list">
         <div className={styles.groupHeader}>
-          <p id="hb-feeds-list" className={styles.groupLabel}>
+          <p id="pt-feeds-list" className={styles.groupLabel}>
             Feeds
           </p>
           <span className={styles.count}>

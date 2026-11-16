@@ -201,7 +201,7 @@ function ImportExportCard({ onReport }: { onReport(source: string, report: Bookm
           id={fileInputId}
           type="file"
           accept=".html,.htm,text/html"
-          className="hb-visually-hidden"
+          className="pt-visually-hidden"
           onChange={(event) => {
             pick(event.currentTarget.files?.[0]);
             event.currentTarget.value = '';

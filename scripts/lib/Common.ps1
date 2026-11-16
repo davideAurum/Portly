@@ -11,14 +11,14 @@ Set-StrictMode -Version 3.0
 # through a .cmd file (the portly command) inherits them, and then loads PowerShell 7's
 # Microsoft.PowerShell.Utility, which has no Get-FileHash for it. PowerShell 7 corrects the
 # variable only for a powershell.exe it starts itself.
-function Get-HbWindowsModulePath {
+function Get-PtWindowsModulePath {
     param([string]$Value)
     $folders = @($Value -split ';' | Where-Object {
             $_ -and $_ -notmatch '\\PowerShell\\([0-9][^\\]*\\)?Modules\\?$' -and $_ -notmatch '\\Microsoft\.PowerShell_[^\\]+\\Modules\\?$'
         })
     return ($folders -join ';')
 }
-if ($PSVersionTable.PSEdition -eq 'Desktop') { $env:PSModulePath = Get-HbWindowsModulePath -Value $env:PSModulePath }
+if ($PSVersionTable.PSEdition -eq 'Desktop') { $env:PSModulePath = Get-PtWindowsModulePath -Value $env:PSModulePath }
 
 $PortlyTaskName = 'Portly Server'
 $PortlyTaskPath = '\'
@@ -28,7 +28,7 @@ $PortlyUpdaterDescription = 'Installs the newest Portly release when asked to fr
 $PortlyUpdaterTimeLimitMinutes = 15
 $PortlyDefaultPort = 5757
 # The Node.js major Portly runs on: the one package.json pins in engines.node (">=24 <25"), which
-# npm's engine-strict enforces, so Resolve-HbNode refuses any other major too (older or newer).
+# npm's engine-strict enforces, so Resolve-PtNode refuses any other major too (older or newer).
 # check-scripts.ps1 keeps it equal to package.json, scripts\release\node-runtime.json, ci.yml and
 # $SetupNodeMajor in setup.ps1 (which cannot dot-source this file). A new major changes them all.
 $PortlyNodeMajor = 24
@@ -60,27 +60,27 @@ $PortlyEnvNames = @('PORTLY_PORT', 'PORTLY_BIND', 'PORTLY_ORIGIN', 'PORTLY_DATA_
 # Output
 # --------------------------------------------------------------------------------------------
 
-function Write-HbStep {
+function Write-PtStep {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Message)
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
-function Write-HbOk {
+function Write-PtOk {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Message)
     Write-Host "OK  $Message" -ForegroundColor Green
 }
 
-function Write-HbInfo {
+function Write-PtInfo {
     param([string]$Message = '')
     Write-Host "    $Message"
 }
 
-function Write-HbField {
+function Write-PtField {
     param([Parameter(Mandatory)][string]$Name, [AllowEmptyString()][string]$Value)
     Write-Host ('  {0,-15}: {1}' -f $Name, $Value)
 }
 
-function Write-HbFailure {
+function Write-PtFailure {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Message)
     Write-Host "ERROR: $Message" -ForegroundColor Red
 }
@@ -89,24 +89,24 @@ function Write-HbFailure {
 # Small utilities
 # --------------------------------------------------------------------------------------------
 
-function Test-HbWindows {
+function Test-PtWindows {
     return [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 }
 
-function Get-HbRepoRoot {
+function Get-PtRepoRoot {
     param([Parameter(Mandatory)][string]$ScriptRoot)
     return [System.IO.Path]::GetFullPath((Join-Path $ScriptRoot '..'))
 }
 
 # Session worktrees (.claude\worktrees\<name>) are deleted when their session ends, so nothing
 # long-lived (builds, the portly command) may point into one.
-function Test-HbWorktreePath {
+function Test-PtWorktreePath {
     param([Parameter(Mandatory)][string]$Path)
     return $Path -match '\\\.claude\\worktrees\\'
 }
 
 # Property value or $null (safe under Set-StrictMode for objects from ConvertFrom-Json).
-function Get-HbProperty {
+function Get-PtProperty {
     param($Object, [Parameter(Mandatory)][string]$Name)
     if ($null -eq $Object) { return $null }
     $property = $Object.PSObject.Properties[$Name]
@@ -114,7 +114,7 @@ function Get-HbProperty {
     return $property.Value
 }
 
-function Get-HbExceptionChain {
+function Get-PtExceptionChain {
     param($ErrorOrException)
     $exception = $ErrorOrException
     if ($exception -is [System.Management.Automation.ErrorRecord]) { $exception = $exception.Exception }
@@ -127,13 +127,13 @@ function Get-HbExceptionChain {
 }
 
 # True when an error is Windows' "Access is denied" (HRESULT 0x80070005).
-function Test-HbAccessDenied {
+function Test-PtAccessDenied {
     param($ErrorOrException)
     if ($null -eq $ErrorOrException) { return $false }
     if ($ErrorOrException -is [System.Management.Automation.ErrorRecord]) {
         if ("$($ErrorOrException.FullyQualifiedErrorId)" -match '0x80070005') { return $true }
     }
-    foreach ($exception in @(Get-HbExceptionChain $ErrorOrException)) {
+    foreach ($exception in @(Get-PtExceptionChain $ErrorOrException)) {
         if ($exception.HResult -eq -2147024891) { return $true }
         if ($exception -is [System.UnauthorizedAccessException]) { return $true }
         if ("$($exception.Message)" -match 'Access is denied|0x80070005') { return $true }
@@ -141,9 +141,9 @@ function Test-HbAccessDenied {
     return $false
 }
 
-function Write-HbAccessDeniedHint {
+function Write-PtAccessDeniedHint {
     param([Parameter(Mandatory)][string]$ScriptPath, [string]$Arguments = '')
-    Write-HbFailure 'Windows denied access (0x80070005) while managing the scheduled task.'
+    Write-PtFailure 'Windows denied access (0x80070005) while managing the scheduled task.'
     Write-Host ''
     Write-Host 'Another Windows account on this PC may already have Portly: scheduled task names are shared' -ForegroundColor Yellow
     Write-Host 'by the whole PC, so only one account can have the "Portly Server" task today. If so, use that' -ForegroundColor Yellow
@@ -163,10 +163,10 @@ function Write-HbAccessDeniedHint {
 
 # True when an error is Windows' "being used by another process" (a sharing violation, HRESULT
 # 0x80070020): another program has the file open and does not share the access asked for.
-function Test-HbSharingViolation {
+function Test-PtSharingViolation {
     param($ErrorOrException)
     if ($null -eq $ErrorOrException) { return $false }
-    foreach ($exception in @(Get-HbExceptionChain $ErrorOrException)) {
+    foreach ($exception in @(Get-PtExceptionChain $ErrorOrException)) {
         if ($exception.HResult -eq -2147024864) { return $true }
     }
     return $false
@@ -179,7 +179,7 @@ function Test-HbSharingViolation {
 # Windows PowerShell 5.1 opens the file for writing to do that, which fails while any other program
 # has it open without sharing write access, for example a virus scanner reading a program that was
 # just copied. (PowerShell 7 asks only for attribute access, and setting attributes never conflicts.)
-function Invoke-HbSharingRetry {
+function Invoke-PtSharingRetry {
     param(
         [Parameter(Mandatory)][scriptblock]$Action,
         [ValidateRange(1, 10)][int]$Attempts = 5,
@@ -190,7 +190,7 @@ function Invoke-HbSharingRetry {
         try {
             return (& $Action)
         } catch {
-            if (-not (Test-HbSharingViolation $_)) { throw }
+            if (-not (Test-PtSharingViolation $_)) { throw }
         }
         Start-Sleep -Milliseconds $delay
         $delay *= 2
@@ -204,7 +204,7 @@ function Invoke-HbSharingRetry {
 
 # Environment value as the current process sees it ('Process') or as the scheduled task will
 # see it at logon ('Task': the user variable, else the machine variable).
-function Get-HbEnvValue {
+function Get-PtEnvValue {
     param(
         [Parameter(Mandatory)][string]$Name,
         [ValidateSet('Process', 'Task')][string]$Scope = 'Process'
@@ -222,7 +222,7 @@ function Get-HbEnvValue {
 }
 
 # Same rule as the server: an integer 1-65535, digits only.
-function ConvertTo-HbPort {
+function ConvertTo-PtPort {
     param([AllowNull()][AllowEmptyString()][string]$Value, [string]$Source = 'port')
     $trimmed = "$Value".Trim()
     if ($trimmed -notmatch '^[0-9]{1,5}$') {
@@ -235,25 +235,25 @@ function ConvertTo-HbPort {
     return $port
 }
 
-function Get-HbPortSetting {
+function Get-PtPortSetting {
     param([ValidateSet('Process', 'Task')][string]$Scope = 'Process')
-    $raw = Get-HbEnvValue -Name 'PORTLY_PORT' -Scope $Scope
+    $raw = Get-PtEnvValue -Name 'PORTLY_PORT' -Scope $Scope
     if ($null -eq $raw) {
         return [pscustomobject]@{ Port = $PortlyDefaultPort; Source = 'default' }
     }
     $label = if ($Scope -eq 'Task') { 'PORTLY_PORT (user/machine environment variable)' } else { 'PORTLY_PORT' }
-    return [pscustomobject]@{ Port = (ConvertTo-HbPort -Value $raw -Source $label); Source = $label }
+    return [pscustomobject]@{ Port = (ConvertTo-PtPort -Value $raw -Source $label); Source = $label }
 }
 
 # The server resolves a relative PORTLY_DATA_DIR against its working directory, which is the
 # repository root for the task, start.ps1 and `npm start` - so the same is done here (never
 # against this PowerShell process's .NET current directory).
-function Get-HbDataDir {
+function Get-PtDataDir {
     param(
         [ValidateSet('Process', 'Task')][string]$Scope = 'Process',
         [Parameter(Mandatory)][string]$RepoRoot
     )
-    $raw = Get-HbEnvValue -Name 'PORTLY_DATA_DIR' -Scope $Scope
+    $raw = Get-PtEnvValue -Name 'PORTLY_DATA_DIR' -Scope $Scope
     if ($null -ne $raw) {
         if (-not [System.IO.Path]::IsPathRooted($raw)) { $raw = Join-Path $RepoRoot $raw }
         return [System.IO.Path]::GetFullPath($raw)
@@ -262,14 +262,14 @@ function Get-HbDataDir {
     return (Join-Path $localAppData 'Portly')
 }
 
-function Get-HbLogFile {
+function Get-PtLogFile {
     param([Parameter(Mandatory)][string]$DataDir)
     return (Join-Path (Join-Path $DataDir 'logs') 'server.log')
 }
 
 # The supervisor (autostart) writes its own log next to server.log: restarts, "another Portly
 # is already running", and why it stopped.
-function Get-HbSupervisorLogFile {
+function Get-PtSupervisorLogFile {
     param([Parameter(Mandatory)][string]$DataDir)
     return (Join-Path (Join-Path $DataDir 'logs') 'supervisor.log')
 }
@@ -277,11 +277,11 @@ function Get-HbSupervisorLogFile {
 # PORTLY_* variables whose value in this PowerShell window differs from the user/machine
 # environment the scheduled task gets at logon (e.g. `$env:PORTLY_PORT = ...` typed in this
 # window only). Each item: Name, Process, Task (either may be $null).
-function Get-HbEnvMismatches {
+function Get-PtEnvMismatches {
     $result = New-Object System.Collections.Generic.List[object]
     foreach ($name in $PortlyEnvNames) {
-        $processValue = Get-HbEnvValue -Name $name -Scope Process
-        $taskValue = Get-HbEnvValue -Name $name -Scope Task
+        $processValue = Get-PtEnvValue -Name $name -Scope Process
+        $taskValue = Get-PtEnvValue -Name $name -Scope Task
         if ($processValue -cne $taskValue) {
             $result.Add([pscustomobject]@{ Name = $name; Process = $processValue; Task = $taskValue })
         }
@@ -294,7 +294,7 @@ function Get-HbEnvMismatches {
 # reject is reported now instead of the autostarted server silently exiting at logon (its
 # console output goes nowhere). $Override (name -> value, $null = unset) is for tests.
 # Returns Ok, Error, Port, DataDir.
-function Test-HbServerConfig {
+function Test-PtServerConfig {
     param(
         [Parameter(Mandatory)][string]$NodeExe,
         [Parameter(Mandatory)][string]$RepoRoot,
@@ -322,7 +322,7 @@ function Test-HbServerConfig {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     foreach ($name in $PortlyEnvNames) {
-        $value = if ($Override.ContainsKey($name)) { $Override[$name] } else { Get-HbEnvValue -Name $name -Scope $Scope }
+        $value = if ($Override.ContainsKey($name)) { $Override[$name] } else { Get-PtEnvValue -Name $name -Scope $Scope }
         if ($null -eq $value) {
             $startInfo.EnvironmentVariables.Remove($name)
         } else {
@@ -357,12 +357,12 @@ function Test-HbServerConfig {
             $result.Error = "could not load server\src\config.ts ($firstLine)"
             return $result
         }
-        if ((Get-HbProperty $json 'ok') -eq $true) {
+        if ((Get-PtProperty $json 'ok') -eq $true) {
             $result.Ok = $true
-            $result.Port = [int](Get-HbProperty $json 'port')
-            $result.DataDir = "$(Get-HbProperty $json 'dataDir')"
+            $result.Port = [int](Get-PtProperty $json 'port')
+            $result.DataDir = "$(Get-PtProperty $json 'dataDir')"
         } else {
-            $result.Error = "$(Get-HbProperty $json 'error')"
+            $result.Error = "$(Get-PtProperty $json 'error')"
         }
         return $result
     } finally {
@@ -370,7 +370,7 @@ function Test-HbServerConfig {
     }
 }
 
-function Test-HbTruthy {
+function Test-PtTruthy {
     param([AllowNull()][string]$Value)
     if ($null -eq $Value) { return $false }
     return @('1', 'true', 'yes') -contains $Value.Trim().ToLowerInvariant()
@@ -384,7 +384,7 @@ function Test-HbTruthy {
 # (no NetTCPIP module). Each item: Address, ProcessId. A listener is the socket with no remote end.
 # Not -State Listen: Windows build 26300 reports states wrongly, and never Listen for a socket
 # that just opened, so a server that had started looked like nothing listening.
-function Get-HbPortListeners {
+function Get-PtPortListeners {
     param([Parameter(Mandatory)][ValidateRange(1, 65535)][int]$Port)
     if ($null -eq (Get-Command -Name 'Get-NetTCPConnection' -ErrorAction SilentlyContinue)) { return $null }
     $rows = @(Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Where-Object { $_.RemoteAddress -eq '0.0.0.0' -or $_.RemoteAddress -eq '::' })
@@ -394,7 +394,7 @@ function Get-HbPortListeners {
 }
 
 # "node (PID 1234), svchost (PID 99)" for the processes listening on a port.
-function Format-HbPortOwners {
+function Format-PtPortOwners {
     param([AllowNull()][AllowEmptyCollection()][object[]]$Listeners)
     if ($null -eq $Listeners -or $Listeners.Count -eq 0) { return 'unknown' }
     $ids = @($Listeners | ForEach-Object { $_.ProcessId } | Sort-Object -Unique)
@@ -408,7 +408,7 @@ function Format-HbPortOwners {
 # GET /api/health. Windows takes about two seconds to report a refused loopback connection,
 # so the listening socket is looked up first: nothing listening is reported immediately, and
 # the request goes to 127.0.0.1 or [::1] depending on where the server listens.
-function Test-HbHealth {
+function Test-PtHealth {
     param(
         [Parameter(Mandatory)][ValidateRange(1, 65535)][int]$Port,
         [ValidateRange(0.1, 60)][double]$TimeoutSeconds = 2
@@ -422,7 +422,7 @@ function Test-HbHealth {
         Error     = $null
         Listeners = $null
     }
-    $listeners = Get-HbPortListeners -Port $Port
+    $listeners = Get-PtPortListeners -Port $Port
     $result.Listeners = $listeners
     $address = '127.0.0.1'
     if ($null -ne $listeners) {
@@ -453,19 +453,19 @@ function Test-HbHealth {
         } catch {
             $json = $null
         }
-        $ok = Get-HbProperty $json 'ok'
+        $ok = Get-PtProperty $json 'ok'
         if (-not ($ok -is [bool] -and $ok)) {
             $result.Error = "the answer is not a Portly health check (another program may be using port $Port)"
             return $result
         }
         $result.Ok = $true
-        $result.Version = Get-HbProperty $json 'version'
-        $result.Vault = Get-HbProperty $json 'vault'
+        $result.Version = Get-PtProperty $json 'version'
+        $result.Vault = Get-PtProperty $json 'vault'
         # 'portly' for Portly: another server on the port answers with another name, or none.
-        $result.App = Get-HbProperty $json 'app'
+        $result.App = Get-PtProperty $json 'app'
         return $result
     } catch {
-        $chain = @(Get-HbExceptionChain $_)
+        $chain = @(Get-PtExceptionChain $_)
         $timedOut = @($chain | Where-Object { $_ -is [System.Threading.Tasks.TaskCanceledException] -or $_ -is [System.TimeoutException] }).Count -gt 0
         if ($timedOut) {
             $result.Error = "no answer within $TimeoutSeconds s"
@@ -481,8 +481,8 @@ function Test-HbHealth {
 }
 
 # Polls /api/health once a second until it answers, the timeout passes, or $ContinueWhile
-# returns false. Returns the last Test-HbHealth result.
-function Wait-HbHealth {
+# returns false. Returns the last Test-PtHealth result.
+function Wait-PtHealth {
     param(
         [Parameter(Mandatory)][int]$Port,
         [Parameter(Mandatory)][int]$TimeoutSeconds,
@@ -490,7 +490,7 @@ function Wait-HbHealth {
     )
     $deadline = [System.DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     do {
-        $last = Test-HbHealth -Port $Port -TimeoutSeconds 2
+        $last = Test-PtHealth -Port $Port -TimeoutSeconds 2
         if ($last.Ok) { return $last }
         if ($null -ne $ContinueWhile -and -not (& $ContinueWhile)) { return $last }
         Start-Sleep -Milliseconds 1000
@@ -498,7 +498,7 @@ function Wait-HbHealth {
     return $last
 }
 
-function Format-HbHealth {
+function Format-PtHealth {
     param([Parameter(Mandatory)]$Health)
     if ($Health.Ok) {
         $origin = $Health.Url -replace '/api/health$', ''
@@ -513,7 +513,7 @@ function Format-HbHealth {
 # Node.js, npm and the web build
 # --------------------------------------------------------------------------------------------
 
-function Get-HbNodeVersion {
+function Get-PtNodeVersion {
     param([Parameter(Mandatory)][string]$NodeExe)
     $previous = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
@@ -535,10 +535,10 @@ function Get-HbNodeVersion {
 # Resolves node.exe (explicit path, else the release's own runtime\node.exe under $RepoRoot, else
 # PATH) and checks it is Node.js $PortlyNodeMajor: any other major, older or newer, is refused
 # with the same message setup.ps1 gives, because npm ci (engine-strict) refuses it as well.
-function Resolve-HbNode {
+function Resolve-PtNode {
     param([string]$NodePath, [string]$RepoRoot)
     if ([string]::IsNullOrWhiteSpace($NodePath) -and -not [string]::IsNullOrWhiteSpace($RepoRoot)) {
-        $bundled = Get-HbBundledNode -RepoRoot $RepoRoot
+        $bundled = Get-PtBundledNode -RepoRoot $RepoRoot
         if ($null -ne $bundled) { $NodePath = $bundled }
     }
     if ([string]::IsNullOrWhiteSpace($NodePath)) {
@@ -552,7 +552,7 @@ function Resolve-HbNode {
         throw "Node.js executable not found: $NodePath"
     }
     $full = (Resolve-Path -LiteralPath $NodePath).ProviderPath
-    $version = Get-HbNodeVersion -NodeExe $full
+    $version = Get-PtNodeVersion -NodeExe $full
     $major = [int]($version.Split('.')[0])
     if ($major -ne $PortlyNodeMajor) {
         throw "Portly needs Node.js $PortlyNodeMajor, found v$version ($full); $PortlyNodeInstallHint."
@@ -568,7 +568,7 @@ function Resolve-HbNode {
 
 # A release package carries release.json at its root and its own Node.js in runtime\node.exe; a
 # Git checkout has neither.
-function Get-HbReleaseInfo {
+function Get-PtReleaseInfo {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $path = Join-Path $RepoRoot 'release.json'
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
@@ -577,13 +577,13 @@ function Get-HbReleaseInfo {
     } catch {
         throw "$path is not valid JSON: $($_.Exception.Message)"
     }
-    if ((Get-HbProperty $info 'name') -ne 'portly' -or [string]::IsNullOrWhiteSpace("$(Get-HbProperty $info 'version')")) {
+    if ((Get-PtProperty $info 'name') -ne 'portly' -or [string]::IsNullOrWhiteSpace("$(Get-PtProperty $info 'version')")) {
         throw "$path does not describe a Portly release."
     }
     return $info
 }
 
-function Get-HbBundledNode {
+function Get-PtBundledNode {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $path = Join-Path $RepoRoot 'runtime\node.exe'
     if (Test-Path -LiteralPath $path -PathType Leaf) { return $path }
@@ -592,15 +592,15 @@ function Get-HbBundledNode {
 
 # The attributes of the entry itself (a link is not followed, so a link whose target is gone still
 # counts), or $null when there is nothing at $Path.
-function Get-HbEntryAttributes {
+function Get-PtEntryAttributes {
     param([Parameter(Mandatory)][string]$Path)
     try { return [System.IO.File]::GetAttributes($Path) } catch { return $null }
 }
 
 # Removes a directory junction (or symbolic link) itself, never what it points to.
-function Remove-HbDirectoryLink {
+function Remove-PtDirectoryLink {
     param([Parameter(Mandatory)][string]$Path)
-    $attributes = Get-HbEntryAttributes -Path $Path
+    $attributes = Get-PtEntryAttributes -Path $Path
     if ($null -eq $attributes) { return }
     if (-not ($attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
         throw "$Path is a real folder, not a link; not removing it."
@@ -614,7 +614,7 @@ function Remove-HbDirectoryLink {
 # the package sits in its final folder: node_modules\@portly\shared -> <RepoRoot>\shared. A
 # junction needs no administrator rights; Node resolves it to shared\src, outside node_modules, so
 # it still strips the TypeScript types there. Idempotent.
-function Initialize-HbReleaseLinks {
+function Initialize-PtReleaseLinks {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $target = Join-Path $RepoRoot 'shared'
     if (-not (Test-Path -LiteralPath (Join-Path $target 'package.json') -PathType Leaf)) {
@@ -623,33 +623,33 @@ function Initialize-HbReleaseLinks {
     $scope = Join-Path $RepoRoot 'node_modules\@portly'
     if (-not (Test-Path -LiteralPath $scope)) { $null = New-Item -ItemType Directory -Path $scope -Force }
     $link = Join-Path $scope 'shared'
-    $attributes = Get-HbEntryAttributes -Path $link
+    $attributes = Get-PtEntryAttributes -Path $link
     if ($null -ne $attributes) {
         if ($attributes -band [System.IO.FileAttributes]::ReparsePoint) {
-            $current = @(Get-HbProperty (Get-Item -LiteralPath $link -Force) 'Target') | Select-Object -First 1
+            $current = @(Get-PtProperty (Get-Item -LiteralPath $link -Force) 'Target') | Select-Object -First 1
             if ($current -and [System.IO.Path]::GetFullPath("$current").TrimEnd('\') -ieq $target.TrimEnd('\') -and
                 (Test-Path -LiteralPath (Join-Path $link 'package.json') -PathType Leaf)) {
                 return $link
             }
         }
-        Remove-HbDirectoryLink -Path $link
+        Remove-PtDirectoryLink -Path $link
     }
     $null = New-Item -ItemType Junction -Path $link -Target $target
     return $link
 }
 
-function Test-HbWebBuilt {
+function Test-PtWebBuilt {
     param([Parameter(Mandatory)][string]$RepoRoot)
     return Test-Path -LiteralPath (Join-Path $RepoRoot 'web\dist\index.html') -PathType Leaf
 }
 
-function Test-HbDependenciesInstalled {
+function Test-PtDependenciesInstalled {
     param([Parameter(Mandatory)][string]$RepoRoot)
     return Test-Path -LiteralPath (Join-Path $RepoRoot 'node_modules\hono\package.json') -PathType Leaf
 }
 
 # Runs `npm run build` in the repository (builds web\dist).
-function Invoke-HbWebBuild {
+function Invoke-PtWebBuild {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $npm = Get-Command -Name 'npm.cmd' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $npm) {
@@ -666,27 +666,27 @@ function Invoke-HbWebBuild {
         $ErrorActionPreference = $previous
     }
     if ($exitCode -ne 0) { throw "npm run build failed (exit code $exitCode)." }
-    if (-not (Test-HbWebBuilt -RepoRoot $RepoRoot)) { throw 'npm run build finished but web\dist\index.html is missing.' }
+    if (-not (Test-PtWebBuilt -RepoRoot $RepoRoot)) { throw 'npm run build finished but web\dist\index.html is missing.' }
 }
 
 # --------------------------------------------------------------------------------------------
 # Scheduled task
 # --------------------------------------------------------------------------------------------
 
-function Test-HbScheduledTasksAvailable {
+function Test-PtScheduledTasksAvailable {
     return $null -ne (Get-Command -Name 'Register-ScheduledTask' -ErrorAction SilentlyContinue)
 }
 
-function Get-HbTask {
+function Get-PtTask {
     return Get-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -ErrorAction SilentlyContinue |
         Select-Object -First 1
 }
 
-function Get-HbCurrentUserId {
+function Get-PtCurrentUserId {
     return [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 }
 
-function Test-HbElevated {
+function Test-PtElevated {
     $principal = New-Object System.Security.Principal.WindowsPrincipal ([System.Security.Principal.WindowsIdentity]::GetCurrent())
     return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
 }
@@ -695,7 +695,7 @@ function Test-HbElevated {
 # -Trigger Browser: no trigger at all - the task only runs on demand, when the browser
 # extension asks the native host (schtasks /run) or you run Start-ScheduledTask.
 # -Trigger Logon: at log on of $UserId, optionally delayed.
-function New-HbTaskDefinition {
+function New-PtTaskDefinition {
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
         [Parameter(Mandatory)][string]$NodeExe,
@@ -724,7 +724,7 @@ function New-HbTaskDefinition {
 }
 
 # 'Browser' (no triggers), 'Logon' (a logon trigger) or 'Other' for a task object.
-function Get-HbTaskTriggerMode {
+function Get-PtTaskTriggerMode {
     param([Parameter(Mandatory)]$Task)
     $triggers = @(@($Task.Triggers) | Where-Object { $null -ne $_ })
     if ($triggers.Count -eq 0) { return 'Browser' }
@@ -734,7 +734,7 @@ function Get-HbTaskTriggerMode {
 }
 
 # One line describing when the task starts Portly.
-function Format-HbTaskTrigger {
+function Format-PtTaskTrigger {
     param([Parameter(Mandatory)]$Task)
     $triggers = @(@($Task.Triggers) | Where-Object { $null -ne $_ })
     if ($triggers.Count -eq 0) {
@@ -752,27 +752,27 @@ function Format-HbTaskTrigger {
     return ($parts -join '; ')
 }
 
-function Write-HbTaskDefinition {
+function Write-PtTaskDefinition {
     param([Parameter(Mandatory)]$Task)
     $action = @($Task.Actions)[0]
     $settings = $Task.Settings
-    Write-HbField 'Task' ("$PortlyTaskPath$PortlyTaskName")
-    Write-HbField 'Description' $Task.Description
-    Write-HbField 'Trigger' (Format-HbTaskTrigger -Task $Task)
-    Write-HbField 'Principal' ("$($Task.Principal.UserId), LogonType $($Task.Principal.LogonType), RunLevel $($Task.Principal.RunLevel)")
-    Write-HbField 'Execute' $action.Execute
-    Write-HbField 'Arguments' $action.Arguments
-    Write-HbField 'WorkingDir' $action.WorkingDirectory
-    Write-HbField 'Time limit' ("$($settings.ExecutionTimeLimit) (none)")
-    Write-HbField 'Batteries' ("DisallowStartIfOnBatteries $($settings.DisallowStartIfOnBatteries), StopIfGoingOnBatteries $($settings.StopIfGoingOnBatteries)")
-    Write-HbField 'Instances' $settings.MultipleInstances
-    Write-HbField 'On demand' ("AllowDemandStart $($settings.AllowDemandStart)")
-    Write-HbField 'Start missed' ("StartWhenAvailable $($settings.StartWhenAvailable)")
-    Write-HbField 'Priority' $settings.Priority
-    Write-HbField 'Restart' ("RestartCount $($settings.RestartCount), RestartInterval $($settings.RestartInterval) (launch failures only; the supervisor restarts crashes)")
+    Write-PtField 'Task' ("$PortlyTaskPath$PortlyTaskName")
+    Write-PtField 'Description' $Task.Description
+    Write-PtField 'Trigger' (Format-PtTaskTrigger -Task $Task)
+    Write-PtField 'Principal' ("$($Task.Principal.UserId), LogonType $($Task.Principal.LogonType), RunLevel $($Task.Principal.RunLevel)")
+    Write-PtField 'Execute' $action.Execute
+    Write-PtField 'Arguments' $action.Arguments
+    Write-PtField 'WorkingDir' $action.WorkingDirectory
+    Write-PtField 'Time limit' ("$($settings.ExecutionTimeLimit) (none)")
+    Write-PtField 'Batteries' ("DisallowStartIfOnBatteries $($settings.DisallowStartIfOnBatteries), StopIfGoingOnBatteries $($settings.StopIfGoingOnBatteries)")
+    Write-PtField 'Instances' $settings.MultipleInstances
+    Write-PtField 'On demand' ("AllowDemandStart $($settings.AllowDemandStart)")
+    Write-PtField 'Start missed' ("StartWhenAvailable $($settings.StartWhenAvailable)")
+    Write-PtField 'Priority' $settings.Priority
+    Write-PtField 'Restart' ("RestartCount $($settings.RestartCount), RestartInterval $($settings.RestartInterval) (launch failures only; the supervisor restarts crashes)")
 }
 
-function Get-HbUpdaterTask {
+function Get-PtUpdaterTask {
     return Get-ScheduledTask -TaskName $PortlyUpdaterTaskName -TaskPath $PortlyTaskPath -ErrorAction SilentlyContinue |
         Select-Object -First 1
 }
@@ -782,7 +782,7 @@ function Get-HbUpdaterTask {
 # Scheduler owns the process, so the update outlives the server it stops. Its command is fixed
 # here, so nothing from a request reaches it. Its working folder is never the install, which could
 # then not be renamed.
-function New-HbUpdaterDefinition {
+function New-PtUpdaterDefinition {
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
         [Parameter(Mandatory)][string]$UserId
@@ -799,7 +799,7 @@ function New-HbUpdaterDefinition {
 }
 
 # Whether a registered task already is this definition, so it can be left alone.
-function Test-HbUpdaterCurrent {
+function Test-PtUpdaterCurrent {
     param($Task, [Parameter(Mandatory)]$Definition)
     if ($null -eq $Task) { return $false }
     $current = @($Task.Actions)[0]
@@ -809,31 +809,31 @@ function Test-HbUpdaterCurrent {
         "$($Task.Settings.ExecutionTimeLimit)" -eq "$($Definition.Settings.ExecutionTimeLimit)"
 }
 
-function Write-HbUpdaterDefinition {
+function Write-PtUpdaterDefinition {
     param([Parameter(Mandatory)]$Task)
     $action = @($Task.Actions)[0]
     $settings = $Task.Settings
-    Write-HbField 'Task' ("$PortlyTaskPath$PortlyUpdaterTaskName")
-    Write-HbField 'Description' $Task.Description
-    Write-HbField 'Trigger' 'none - runs when the server asks (schtasks /run)'
-    Write-HbField 'Principal' ("$($Task.Principal.UserId), LogonType $($Task.Principal.LogonType), RunLevel $($Task.Principal.RunLevel)")
-    Write-HbField 'Execute' $action.Execute
-    Write-HbField 'Arguments' $action.Arguments
-    Write-HbField 'WorkingDir' $action.WorkingDirectory
-    Write-HbField 'Time limit' $settings.ExecutionTimeLimit
-    Write-HbField 'Instances' $settings.MultipleInstances
+    Write-PtField 'Task' ("$PortlyTaskPath$PortlyUpdaterTaskName")
+    Write-PtField 'Description' $Task.Description
+    Write-PtField 'Trigger' 'none - runs when the server asks (schtasks /run)'
+    Write-PtField 'Principal' ("$($Task.Principal.UserId), LogonType $($Task.Principal.LogonType), RunLevel $($Task.Principal.RunLevel)")
+    Write-PtField 'Execute' $action.Execute
+    Write-PtField 'Arguments' $action.Arguments
+    Write-PtField 'WorkingDir' $action.WorkingDirectory
+    Write-PtField 'Time limit' $settings.ExecutionTimeLimit
+    Write-PtField 'Instances' $settings.MultipleInstances
 }
 
 # A line of a log file with the home folder masked (ARCHITECTURE section 17), wherever it is, as
 # maskUserPaths does in the server for C:\Users.
-function ConvertTo-HbMaskedLine {
+function ConvertTo-PtMaskedLine {
     param([AllowEmptyString()][string]$Line, [string]$HomeDir = $env:USERPROFILE)
     if ($HomeDir) { $Line = [regex]::Replace($Line, [regex]::Escape($HomeDir), '~', 'IgnoreCase') }
     return [regex]::Replace($Line, '(?i)([a-z]:[\\/]users[\\/])[^\\/"'']+', '$1~')
 }
 
 # Human-readable meaning of a task's LastTaskResult (exit codes 1, 3 and 4 come from the server).
-function Format-HbTaskResult {
+function Format-PtTaskResult {
     param([Parameter(Mandatory)][int64]$Code)
     if ($Code -lt 0) { $Code += 4294967296 }
     $hex = '0x{0:X}' -f $Code
@@ -867,7 +867,7 @@ function Format-HbTaskResult {
 # --------------------------------------------------------------------------------------------
 
 # Fixed per-user folder of the copies (not under PORTLY_DATA_DIR, like the native host's).
-function Get-HbRuntimeDir {
+function Get-PtRuntimeDir {
     $localAppData = [System.Environment]::GetFolderPath('LocalApplicationData')
     if ([string]::IsNullOrWhiteSpace($localAppData)) {
         throw 'Could not find your local application data folder (%LOCALAPPDATA%).'
@@ -877,7 +877,7 @@ function Get-HbRuntimeDir {
 
 # $true when $Path is the same build as $Source: both files exist, with the same size and
 # modification times at most 2 s apart (a copy keeps the time; a hard link is the same file).
-function Test-HbSameProgram {
+function Test-PtSameProgram {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Source)
     $a = New-Object System.IO.FileInfo -ArgumentList $Path
     $b = New-Object System.IO.FileInfo -ArgumentList $Source
@@ -886,28 +886,28 @@ function Test-HbSameProgram {
 }
 
 # runtime.json in a copies folder: Source (absolute node.exe path) and NodeVersion, or $null.
-function Read-HbRuntimeRecord {
+function Read-PtRuntimeRecord {
     param([Parameter(Mandatory)][string]$Destination)
     $path = Join-Path $Destination $PortlyRuntimeRecord
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
     try { $json = [System.IO.File]::ReadAllText($path) | ConvertFrom-Json } catch { return $null }
-    $source = Get-HbProperty $json 'source'
+    $source = Get-PtProperty $json 'source'
     if (-not ($source -is [string]) -or -not [System.IO.Path]::IsPathRooted($source)) { return $null }
-    return [pscustomobject]@{ Source = $source; NodeVersion = "$(Get-HbProperty $json 'nodeVersion')" }
+    return [pscustomobject]@{ Source = $source; NodeVersion = "$(Get-PtProperty $json 'nodeVersion')" }
 }
 
-# The copies in -Destination (default Get-HbRuntimeDir) compared with -NodeExe. State:
+# The copies in -Destination (default Get-PtRuntimeDir) compared with -NodeExe. State:
 #   current   both are the same build as -NodeExe
 #   stale     both exist, but one or both are another build (that node.exe was updated)
 #   missing   one or both do not exist
-function Get-HbRuntimePlan {
+function Get-PtRuntimePlan {
     param([Parameter(Mandatory)][string]$NodeExe, [string]$Destination)
-    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-HbRuntimeDir }
+    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-PtRuntimeDir }
     $Destination = [System.IO.Path]::GetFullPath($Destination)
     $supervisor = Join-Path $Destination $PortlySupervisorProgram
     $server = Join-Path $Destination $PortlyServerProgram
-    $supervisorCurrent = Test-HbSameProgram -Path $supervisor -Source $NodeExe
-    $serverCurrent = Test-HbSameProgram -Path $server -Source $NodeExe
+    $supervisorCurrent = Test-PtSameProgram -Path $supervisor -Source $NodeExe
+    $serverCurrent = Test-PtSameProgram -Path $server -Source $NodeExe
     $exist = (Test-Path -LiteralPath $supervisor -PathType Leaf) -and (Test-Path -LiteralPath $server -PathType Leaf)
     $state = if ($supervisorCurrent -and $serverCurrent) { 'current' } elseif ($exist) { 'stale' } else { 'missing' }
     return [pscustomobject]@{
@@ -923,7 +923,7 @@ function Get-HbRuntimePlan {
 }
 
 # One line about a plan for the installer's summary.
-function Format-HbRuntimePlan {
+function Format-PtRuntimePlan {
     param([Parameter(Mandatory)]$Plan)
     $names = "$PortlySupervisorProgram and $PortlyServerProgram in $($Plan.Destination)"
     switch ($Plan.State) {
@@ -937,14 +937,14 @@ function Format-HbRuntimePlan {
 # first and then swapped in, so a failed copy never leaves a broken program behind. Throws when
 # $Target cannot be replaced (for example while it runs). Setting the new file's modification time
 # is tried again for a moment while something else (a virus scanner) reads it.
-function Copy-HbProgram {
+function Copy-PtProgram {
     param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Target)
     $temp = "$Target.new"
     try {
         [System.IO.File]::Copy($Source, $temp, $true)
         [System.IO.File]::SetAttributes($temp, [System.IO.FileAttributes]::Normal)
         $built = [System.IO.File]::GetLastWriteTimeUtc($Source)
-        Invoke-HbSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($temp, $built) }
+        Invoke-PtSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($temp, $built) }
         if (Test-Path -LiteralPath $Target) {
             [System.IO.File]::SetAttributes($Target, [System.IO.FileAttributes]::Normal)
             [System.IO.File]::Delete($Target)
@@ -957,7 +957,7 @@ function Copy-HbProgram {
 
 # portly-server.exe as a hard link of portly-supervisor.exe (one file on disk), else a copy.
 # Returns $true for a link.
-function Set-HbServerProgram {
+function Set-PtServerProgram {
     param([Parameter(Mandatory)][string]$SupervisorExe, [Parameter(Mandatory)][string]$ServerExe)
     if (Test-Path -LiteralPath $ServerExe) {
         [System.IO.File]::SetAttributes($ServerExe, [System.IO.FileAttributes]::Normal)
@@ -967,12 +967,12 @@ function Set-HbServerProgram {
         $null = New-Item -ItemType HardLink -Path $ServerExe -Target $SupervisorExe -ErrorAction Stop
         return $true
     } catch {
-        Copy-HbProgram -Source $SupervisorExe -Target $ServerExe
+        Copy-PtProgram -Source $SupervisorExe -Target $ServerExe
         return $false
     }
 }
 
-# Makes the copies of a Get-HbRuntimePlan current, checks that portly-supervisor.exe runs (and
+# Makes the copies of a Get-PtRuntimePlan current, checks that portly-supervisor.exe runs (and
 # reports -NodeVersion when given) and writes runtime.json. Never throws. Returns:
 #   Ok       the copies are current and portly-supervisor.exe runs
 #   Usable   the task can run portly-supervisor.exe anyway: an older copy could not be replaced
@@ -983,7 +983,7 @@ function Set-HbServerProgram {
 #   Linked   portly-server.exe is a hard link of portly-supervisor.exe (else a copy)
 #   Version  the Node.js version portly-supervisor.exe reported
 #   Error    what went wrong
-function Update-HbRuntimeCopies {
+function Update-PtRuntimeCopies {
     param([Parameter(Mandatory)]$Plan, [string]$NodeVersion)
     $result = [pscustomobject]@{ Ok = $false; Usable = $false; Changed = $false; Linked = $false; Version = $null; Error = $null }
     $stage = 'folder'
@@ -997,25 +997,25 @@ function Update-HbRuntimeCopies {
             $null = [System.IO.Directory]::CreateDirectory($dir)
         }
         $stage = 'supervisor'
-        if (-not (Test-HbSameProgram -Path $Plan.SupervisorExe -Source $Plan.Source)) {
-            Copy-HbProgram -Source $Plan.Source -Target $Plan.SupervisorExe
+        if (-not (Test-PtSameProgram -Path $Plan.SupervisorExe -Source $Plan.Source)) {
+            Copy-PtProgram -Source $Plan.Source -Target $Plan.SupervisorExe
             $result.Changed = $true
         }
         $stage = 'verify'
-        $result.Version = Get-HbNodeVersion -NodeExe $Plan.SupervisorExe
+        $result.Version = Get-PtNodeVersion -NodeExe $Plan.SupervisorExe
         if ($NodeVersion -and $result.Version -ne $NodeVersion) {
             throw "$($Plan.SupervisorExe) reports Node.js v$($result.Version), not v$NodeVersion."
         }
         $stage = 'server'
-        if (Test-HbSameProgram -Path $Plan.ServerExe -Source $Plan.SupervisorExe) {
-            $result.Linked = "$(Get-HbProperty (Get-Item -LiteralPath $Plan.ServerExe -Force) 'LinkType')" -eq 'HardLink'
+        if (Test-PtSameProgram -Path $Plan.ServerExe -Source $Plan.SupervisorExe) {
+            $result.Linked = "$(Get-PtProperty (Get-Item -LiteralPath $Plan.ServerExe -Force) 'LinkType')" -eq 'HardLink'
         } else {
-            $result.Linked = Set-HbServerProgram -SupervisorExe $Plan.SupervisorExe -ServerExe $Plan.ServerExe
+            $result.Linked = Set-PtServerProgram -SupervisorExe $Plan.SupervisorExe -ServerExe $Plan.ServerExe
             $result.Changed = $true
         }
         $stage = 'record'
-        $record = '{"version":1,"source":' + (ConvertTo-HbJsonString $Plan.Source) + ',"nodeVersion":' + (ConvertTo-HbJsonString "$($result.Version)") + "}`r`n"
-        $current = Read-HbRuntimeRecord -Destination $dir
+        $record = '{"version":1,"source":' + (ConvertTo-PtJsonString $Plan.Source) + ',"nodeVersion":' + (ConvertTo-PtJsonString "$($result.Version)") + "}`r`n"
+        $current = Read-PtRuntimeRecord -Destination $dir
         if ($null -eq $current -or $current.Source -ne $Plan.Source -or $current.NodeVersion -ne $result.Version) {
             [System.IO.File]::WriteAllBytes($Plan.RecordPath, [System.Text.Encoding]::ASCII.GetBytes($record))
         }
@@ -1030,19 +1030,19 @@ function Update-HbRuntimeCopies {
 }
 
 # The program a task's action starts (the path after --headless), or $null.
-function Get-HbTaskProgram {
+function Get-PtTaskProgram {
     param([Parameter(Mandatory)]$Task)
-    $actions = @(Get-HbProperty $Task 'Actions' | Where-Object { $null -ne $_ })
+    $actions = @(Get-PtProperty $Task 'Actions' | Where-Object { $null -ne $_ })
     if ($actions.Count -eq 0) { return $null }
-    if ("$(Get-HbProperty $actions[0] 'Arguments')" -match '--headless "([^"]+)"') { return $Matches[1] }
+    if ("$(Get-PtProperty $actions[0] 'Arguments')" -match '--headless "([^"]+)"') { return $Matches[1] }
     return $null
 }
 
-# $true when $Path is portly-supervisor.exe in -Destination (default Get-HbRuntimeDir).
-function Test-HbRuntimeProgram {
+# $true when $Path is portly-supervisor.exe in -Destination (default Get-PtRuntimeDir).
+function Test-PtRuntimeProgram {
     param([AllowNull()][AllowEmptyString()][string]$Path, [string]$Destination)
     if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
-    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-HbRuntimeDir }
+    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-PtRuntimeDir }
     $expected = Join-Path ([System.IO.Path]::GetFullPath($Destination)) $PortlySupervisorProgram
     try { $full = [System.IO.Path]::GetFullPath($Path) } catch { return $false }
     return $full -ieq $expected
@@ -1052,16 +1052,16 @@ function Test-HbRuntimeProgram {
 # portly-supervisor.exe, makes the copies current with the node.exe runtime.json names (a copy is
 # missing, or that node.exe was updated). Quiet when there is nothing to do: returns a line to
 # show, or $null. -DryRun only says what it would do. Never throws.
-function Sync-HbTaskRuntime {
+function Sync-PtTaskRuntime {
     param($Task, [string]$Destination, [switch]$DryRun)
     try {
         if ($null -eq $Task) { return $null }
-        $program = Get-HbTaskProgram -Task $Task
-        if (-not (Test-HbRuntimeProgram -Path $program -Destination $Destination)) { return $null }
+        $program = Get-PtTaskProgram -Task $Task
+        if (-not (Test-PtRuntimeProgram -Path $program -Destination $Destination)) { return $null }
         $dir = Split-Path -Parent $program
         $hint = 'run scripts\install-autostart.ps1 again'
         $present = Test-Path -LiteralPath $program -PathType Leaf
-        $record = Read-HbRuntimeRecord -Destination $dir
+        $record = Read-PtRuntimeRecord -Destination $dir
         if ($null -eq $record) {
             if ($present) { return $null }
             return "The task's program $program is missing and $PortlyRuntimeRecord does not say what it was copied from: $hint."
@@ -1072,13 +1072,13 @@ function Sync-HbTaskRuntime {
             }
             return "The task's program $program is missing, and so is $($record.Source), which it was copied from: $hint."
         }
-        $plan = Get-HbRuntimePlan -NodeExe $record.Source -Destination $dir
+        $plan = Get-PtRuntimePlan -NodeExe $record.Source -Destination $dir
         if ($plan.State -eq 'current') { return $null }
         $names = "$PortlySupervisorProgram and $PortlyServerProgram"
         if ($DryRun) { return "Would bring $names up to date with $($record.Source) (copies $($plan.State))." }
         $version = $null
-        try { $version = Get-HbNodeVersion -NodeExe $record.Source } catch { $version = $null }
-        $result = Update-HbRuntimeCopies -Plan $plan -NodeVersion $version
+        try { $version = Get-PtNodeVersion -NodeExe $record.Source } catch { $version = $null }
+        $result = Update-PtRuntimeCopies -Plan $plan -NodeVersion $version
         if ($result.Ok) { return "Brought $names up to date (Node.js v$($result.Version) from $($record.Source))." }
         if ($result.Usable) { return "Could not update $names ($($result.Error)); Portly starts with the copies it has." }
         return "Could not make $names ($($result.Error)): $hint (it then runs node.exe)."
@@ -1087,10 +1087,10 @@ function Sync-HbTaskRuntime {
     }
 }
 
-# Starts the task, after Sync-HbTaskRuntime (its line, if any, is shown).
-function Start-HbTask {
-    $note = Sync-HbTaskRuntime -Task (Get-HbTask)
-    if ($note) { Write-HbInfo $note }
+# Starts the task, after Sync-PtTaskRuntime (its line, if any, is shown).
+function Start-PtTask {
+    $note = Sync-PtTaskRuntime -Task (Get-PtTask)
+    if ($note) { Write-PtInfo $note }
     Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
 }
 
@@ -1102,7 +1102,7 @@ function Start-HbTask {
 
 # Lower-case file name of the program a command line starts
 # ('"C:\Windows\System32\conhost.exe" --headless ...' -> 'conhost.exe').
-function Get-HbCommandLineProgram {
+function Get-PtCommandLineProgram {
     param([AllowNull()][AllowEmptyString()][string]$CommandLine)
     $text = "$CommandLine".Trim()
     if (-not $text) { return '' }
@@ -1123,7 +1123,7 @@ function Get-HbCommandLineProgram {
 # portly-server.exe). The task's conhost.exe host also has supervisor.ts on its command line but
 # is not a supervisor: it is skipped (it exits by itself once the supervisor under it is gone).
 # Each item: SupervisorId, SupervisorName, ChildIds, ChildNames (names '' when not reported).
-function Select-HbSupervisorProcesses {
+function Select-PtSupervisorProcesses {
     param(
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Processes,
         [Parameter(Mandatory)][string]$RepoRoot
@@ -1131,41 +1131,41 @@ function Select-HbSupervisorProcesses {
     $needle = (Join-Path $RepoRoot 'server\src\supervisor.ts').ToLowerInvariant()
     $result = New-Object System.Collections.Generic.List[object]
     foreach ($process in $Processes) {
-        $commandLine = "$(Get-HbProperty $process 'CommandLine')"
+        $commandLine = "$(Get-PtProperty $process 'CommandLine')"
         if (-not $commandLine) { continue }
         $normalized = $commandLine.Replace('/', '\').ToLowerInvariant()
         if (-not $normalized.Contains($needle)) { continue }
-        $name = "$(Get-HbProperty $process 'Name')".ToLowerInvariant()
-        if ($name -eq 'conhost.exe' -or (Get-HbCommandLineProgram $commandLine) -eq 'conhost.exe') { continue }
+        $name = "$(Get-PtProperty $process 'Name')".ToLowerInvariant()
+        if ($name -eq 'conhost.exe' -or (Get-PtCommandLineProgram $commandLine) -eq 'conhost.exe') { continue }
         $children = @($Processes | Where-Object {
-                (Get-HbProperty $_ 'ParentProcessId') -eq $process.ProcessId -and
-                (Get-HbProperty $_ 'ProcessId') -ne $process.ProcessId -and
-                ($null -eq (Get-HbProperty $_ 'CreationDate') -or $null -eq (Get-HbProperty $process 'CreationDate') -or
+                (Get-PtProperty $_ 'ParentProcessId') -eq $process.ProcessId -and
+                (Get-PtProperty $_ 'ProcessId') -ne $process.ProcessId -and
+                ($null -eq (Get-PtProperty $_ 'CreationDate') -or $null -eq (Get-PtProperty $process 'CreationDate') -or
                 $_.CreationDate -ge $process.CreationDate)
             })
         $result.Add([pscustomobject]@{
                 SupervisorId   = [int]$process.ProcessId
-                SupervisorName = "$(Get-HbProperty $process 'Name')"
+                SupervisorName = "$(Get-PtProperty $process 'Name')"
                 ChildIds       = @($children | ForEach-Object { [int]$_.ProcessId })
-                ChildNames     = @($children | ForEach-Object { "$(Get-HbProperty $_ 'Name')" })
+                ChildNames     = @($children | ForEach-Object { "$(Get-PtProperty $_ 'Name')" })
             })
     }
     return $result.ToArray()
 }
 
-function Get-HbSupervisorProcesses {
+function Get-PtSupervisorProcesses {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $all = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue |
             Select-Object ProcessId, ParentProcessId, Name, CommandLine, CreationDate)
-    return Select-HbSupervisorProcesses -Processes $all -RepoRoot $RepoRoot
+    return Select-PtSupervisorProcesses -Processes $all -RepoRoot $RepoRoot
 }
 
 # Stops each supervisor first (so it cannot restart the server), then its children.
 # Returns the ids that were stopped.
-function Stop-HbSupervisorProcesses {
+function Stop-PtSupervisorProcesses {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $stopped = New-Object System.Collections.Generic.List[int]
-    foreach ($tree in @(Get-HbSupervisorProcesses -RepoRoot $RepoRoot)) {
+    foreach ($tree in @(Get-PtSupervisorProcesses -RepoRoot $RepoRoot)) {
         foreach ($id in @($tree.SupervisorId) + @($tree.ChildIds)) {
             try {
                 Stop-Process -Id $id -Force -ErrorAction Stop
@@ -1181,14 +1181,14 @@ function Stop-HbSupervisorProcesses {
 
 # "supervisor portly-supervisor.exe PID 10 (server portly-server.exe PID 11)"; processes without a
 # name are listed as before: "supervisor PID 10 (server PID 11, 12)".
-function Format-HbProcessList {
+function Format-PtProcessList {
     param([AllowEmptyCollection()][object[]]$Trees)
     if ($null -eq $Trees -or $Trees.Count -eq 0) { return 'none' }
     $parts = foreach ($tree in $Trees) {
-        $supervisorName = "$(Get-HbProperty $tree 'SupervisorName')"
+        $supervisorName = "$(Get-PtProperty $tree 'SupervisorName')"
         $supervisor = if ($supervisorName) { "supervisor $supervisorName PID $($tree.SupervisorId)" } else { "supervisor PID $($tree.SupervisorId)" }
         $children = @($tree.ChildIds)
-        $names = Get-HbProperty $tree 'ChildNames'
+        $names = Get-PtProperty $tree 'ChildNames'
         if ($null -eq $names) { $names = @() }
         $names = @($names)
         if ($children.Count -eq 0) {
@@ -1205,7 +1205,7 @@ function Format-HbProcessList {
 
 # One line of server.log or supervisor.log for a person: a JSON record (one per line) as
 # `<time> <LEVEL> [<area>] <msg> {the other fields}`; any other line as it is.
-function Format-HbLogLine {
+function Format-PtLogLine {
     param([AllowEmptyString()][AllowNull()][string]$Line)
     if ([string]::IsNullOrEmpty($Line) -or -not $Line.StartsWith('{')) { return $Line }
     $parameters = @{ ErrorAction = 'Stop' }
@@ -1216,11 +1216,11 @@ function Format-HbLogLine {
     } catch {
         return $Line
     }
-    $message = Get-HbProperty -Object $record -Name 'msg'
+    $message = Get-PtProperty -Object $record -Name 'msg'
     if ($null -eq $message -or $null -eq $record.PSObject) { return $Line }
-    $time = if ($Line -match '^\{"t":"([^"]*)"') { $Matches[1] } else { [string](Get-HbProperty -Object $record -Name 't') }
-    $level = ([string](Get-HbProperty -Object $record -Name 'lvl')).ToUpperInvariant().PadRight(5)
-    $area = Get-HbProperty -Object $record -Name 'area'
+    $time = if ($Line -match '^\{"t":"([^"]*)"') { $Matches[1] } else { [string](Get-PtProperty -Object $record -Name 't') }
+    $level = ([string](Get-PtProperty -Object $record -Name 'lvl')).ToUpperInvariant().PadRight(5)
+    $area = Get-PtProperty -Object $record -Name 'area'
     $areaText = if ($area) { " [$area]" } else { '' }
     $rest = [ordered]@{}
     foreach ($property in $record.PSObject.Properties) {
@@ -1230,14 +1230,14 @@ function Format-HbLogLine {
     return "$time $level$areaText $message$fields"
 }
 
-function Write-HbLogTail {
+function Write-PtLogTail {
     param([Parameter(Mandatory)][string]$LogFile, [int]$Lines = 20)
     if (-not (Test-Path -LiteralPath $LogFile -PathType Leaf)) {
-        Write-HbInfo "No log file yet at $LogFile"
+        Write-PtInfo "No log file yet at $LogFile"
         return
     }
     Write-Host "---- last $Lines lines of $LogFile ----" -ForegroundColor DarkGray
-    Get-Content -LiteralPath $LogFile -Tail $Lines | ForEach-Object { Write-Host (Format-HbLogLine -Line $_) }
+    Get-Content -LiteralPath $LogFile -Tail $Lines | ForEach-Object { Write-Host (Format-PtLogLine -Line $_) }
     Write-Host '---- end of log ----' -ForegroundColor DarkGray
 }
 
@@ -1253,7 +1253,7 @@ function Write-HbLogTail {
 # --------------------------------------------------------------------------------------------
 
 # Fixed per-user folder for the host files, so the registry never points into the repository.
-function Get-HbNativeHostDir {
+function Get-PtNativeHostDir {
     $localAppData = [System.Environment]::GetFolderPath('LocalApplicationData')
     if ([string]::IsNullOrWhiteSpace($localAppData)) {
         throw 'Could not find your local application data folder (%LOCALAPPDATA%).'
@@ -1263,7 +1263,7 @@ function Get-HbNativeHostDir {
 
 # Chrome/Edge extension ID from a SHA-256 digest: the first 16 bytes as hex, with the hex digits
 # 0-f written as the letters a-p.
-function ConvertTo-HbExtensionId {
+function ConvertTo-PtExtensionId {
     param([Parameter(Mandatory)][byte[]]$Hash)
     if ($Hash.Length -lt 16) { throw 'An extension ID needs at least 16 bytes of hash.' }
     $chars = New-Object char[] 32
@@ -1274,7 +1274,7 @@ function ConvertTo-HbExtensionId {
     return (-join $chars)
 }
 
-function Get-HbSha256 {
+function Get-PtSha256 {
     param([Parameter(Mandatory)][AllowEmptyCollection()][byte[]]$Bytes)
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try { return , $sha.ComputeHash($Bytes) } finally { $sha.Dispose() }
@@ -1283,7 +1283,7 @@ function Get-HbSha256 {
 # Extension ID pinned by a manifest "key" (base64 DER SubjectPublicKeyInfo): the ID is derived
 # from SHA-256 of the DER bytes. Chrome and Edge use the same algorithm. Like the browsers (and
 # extension\tools\extension-id.mjs), whitespace and PEM armour lines are ignored.
-function Get-HbExtensionIdFromKey {
+function Get-PtExtensionIdFromKey {
     param([Parameter(Mandatory)][string]$Key)
     $body = ($Key -replace '-----(BEGIN|END) [A-Z ]+-----', '') -replace '\s', ''
     try {
@@ -1296,11 +1296,11 @@ function Get-HbExtensionIdFromKey {
     if ($der.Length -lt 64 -or $der[0] -ne 0x30) {
         throw 'The "key" in the extension manifest is not a public key (base64 DER SubjectPublicKeyInfo).'
     }
-    return ConvertTo-HbExtensionId -Hash (Get-HbSha256 -Bytes $der)
+    return ConvertTo-PtExtensionId -Hash (Get-PtSha256 -Bytes $der)
 }
 
 # The fixed ID of the unpacked extension, from the "key" in extension\manifest.json.
-function Get-HbExtensionIdFromManifest {
+function Get-PtExtensionIdFromManifest {
     param([Parameter(Mandatory)][string]$ManifestPath)
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
         throw "The extension manifest is missing: $ManifestPath"
@@ -1310,17 +1310,17 @@ function Get-HbExtensionIdFromManifest {
     } catch {
         throw "Could not read $ManifestPath as JSON: $($_.Exception.Message)"
     }
-    $key = Get-HbProperty $manifest 'key'
+    $key = Get-PtProperty $manifest 'key'
     if (-not ($key -is [string]) -or [string]::IsNullOrWhiteSpace($key)) {
         throw ("$ManifestPath has no ""key"" entry, so the extension's ID is not fixed and the native host cannot " +
             'name it in allowed_origins. Update your Portly checkout (the new-tab extension pins its ID with a "key"), ' +
             'or run the installer with -NoNativeHost.')
     }
-    return Get-HbExtensionIdFromKey -Key $key
+    return Get-PtExtensionIdFromKey -Key $key
 }
 
 # A JSON string literal using only ASCII (\uXXXX for everything else).
-function ConvertTo-HbJsonString {
+function ConvertTo-PtJsonString {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Value)
     $builder = New-Object System.Text.StringBuilder
     [void]$builder.Append('"')
@@ -1342,7 +1342,7 @@ function ConvertTo-HbJsonString {
 
 # The code page cmd.exe reads batch files in: the OEM code page (65001 when Windows' "Use Unicode
 # UTF-8 for worldwide language support" option is on).
-function Get-HbOemEncoding {
+function Get-PtOemEncoding {
     $codePage = 0
     try {
         $codePage = [int](Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage' -Name 'OEMCP' -ErrorAction Stop).OEMCP
@@ -1357,11 +1357,11 @@ function Get-HbOemEncoding {
 
 # Bytes of a batch file: ASCII when possible, else the OEM code page (fails clearly when a
 # character cannot be represented there).
-function ConvertTo-HbBatchBytes {
+function ConvertTo-PtBatchBytes {
     param([Parameter(Mandatory)][string]$Text, $Encoding)
     if ($Text -notmatch '[^\x00-\x7F]') { return , ([System.Text.Encoding]::ASCII.GetBytes($Text)) }
     try {
-        if ($null -eq $Encoding) { $Encoding = Get-HbOemEncoding }
+        if ($null -eq $Encoding) { $Encoding = Get-PtOemEncoding }
         return , ($Encoding.GetBytes($Text))
     } catch {
         throw ('The node.exe path has characters that a batch file cannot hold in this Windows code page. Pass -NodePath ' +
@@ -1372,7 +1372,7 @@ function ConvertTo-HbBatchBytes {
 # Everything the installer writes for the native host, computed without writing anything.
 # Files: Name, Path, Bytes, Text ($null for the copied launcher.mjs), Source.
 # Registry: Browser, SubKey (under HKEY_CURRENT_USER), Display, Value (the host manifest's path).
-function New-HbNativeHostPlan {
+function New-PtNativeHostPlan {
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
         [Parameter(Mandatory)][string]$NodeExe,
@@ -1380,7 +1380,7 @@ function New-HbNativeHostPlan {
         [string]$Destination
     )
     if ($ExtensionId -cnotmatch '^[a-p]{32}$') { throw "Not an extension ID (32 letters a-p): '$ExtensionId'" }
-    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-HbNativeHostDir }
+    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-PtNativeHostDir }
     $Destination = [System.IO.Path]::GetFullPath($Destination)
     $sourceDir = Join-Path $RepoRoot 'native-host'
     $launcherSource = Join-Path $sourceDir 'launcher.mjs'
@@ -1405,12 +1405,12 @@ function New-HbNativeHostPlan {
     $newline = "`r`n"
     $manifestText = (@(
             '{'
-            ('  "name": {0},' -f (ConvertTo-HbJsonString $PortlyNativeHostName))
-            ('  "description": {0},' -f (ConvertTo-HbJsonString $PortlyNativeHostDescription))
-            ('  "path": {0},' -f (ConvertTo-HbJsonString $cmdPath))
+            ('  "name": {0},' -f (ConvertTo-PtJsonString $PortlyNativeHostName))
+            ('  "description": {0},' -f (ConvertTo-PtJsonString $PortlyNativeHostDescription))
+            ('  "path": {0},' -f (ConvertTo-PtJsonString $cmdPath))
             '  "type": "stdio",'
             '  "allowed_origins": ['
-            ('    {0}' -f (ConvertTo-HbJsonString $origin))
+            ('    {0}' -f (ConvertTo-PtJsonString $origin))
             '  ]'
             '}'
         ) -join $newline) + $newline
@@ -1418,9 +1418,9 @@ function New-HbNativeHostPlan {
             '{'
             '  "version": 1,'
             '  "allowedOrigins": ['
-            ('    {0}' -f (ConvertTo-HbJsonString $origin))
+            ('    {0}' -f (ConvertTo-PtJsonString $origin))
             '  ],'
-            ('  "installedFrom": {0}' -f (ConvertTo-HbJsonString $RepoRoot))
+            ('  "installedFrom": {0}' -f (ConvertTo-PtJsonString $RepoRoot))
             '}'
         ) -join $newline) + $newline
 
@@ -1431,7 +1431,7 @@ function New-HbNativeHostPlan {
         }
         [pscustomobject]@{
             Name = 'launcher.cmd'; Path = $cmdPath; Text = $cmdText; Source = $templateSource
-            Bytes = (ConvertTo-HbBatchBytes -Text $cmdText)
+            Bytes = (ConvertTo-PtBatchBytes -Text $cmdText)
         }
         [pscustomobject]@{
             Name = "$PortlyNativeHostName.json"; Path = $manifestPath; Text = $manifestText; Source = $null
@@ -1464,38 +1464,38 @@ function New-HbNativeHostPlan {
 
 # Dry-run listing of a plan: every file with its full content (launcher.mjs: size and hash) and
 # every registry value.
-function Write-HbNativeHostPlan {
+function Write-PtNativeHostPlan {
     param([Parameter(Mandatory)]$Plan)
-    Write-HbField 'Host name' $PortlyNativeHostName
-    Write-HbField 'Extension ID' "$($Plan.ExtensionId) (allowed origin $($Plan.Origin))"
-    Write-HbField 'Folder' $Plan.Destination
+    Write-PtField 'Host name' $PortlyNativeHostName
+    Write-PtField 'Extension ID' "$($Plan.ExtensionId) (allowed origin $($Plan.Origin))"
+    Write-PtField 'Folder' $Plan.Destination
     foreach ($file in @($Plan.Files)) {
         $bytes = [byte[]]$file.Bytes
         if ($null -eq $file.Text) {
-            # (Get-HbSha256 returns its array as one object: assign it, never wrap it in @().)
-            $digest = Get-HbSha256 -Bytes $bytes
+            # (Get-PtSha256 returns its array as one object: assign it, never wrap it in @().)
+            $digest = Get-PtSha256 -Bytes $bytes
             $hash = -join ($digest | ForEach-Object { $_.ToString('x2') })
-            Write-HbField 'File' ("{0} (copy of {1}, {2} bytes, SHA-256 {3})" -f $file.Path, $file.Source, $bytes.Length, $hash)
+            Write-PtField 'File' ("{0} (copy of {1}, {2} bytes, SHA-256 {3})" -f $file.Path, $file.Source, $bytes.Length, $hash)
         } else {
-            Write-HbField 'File' ("{0} ({1} bytes):" -f $file.Path, $bytes.Length)
+            Write-PtField 'File' ("{0} ({1} bytes):" -f $file.Path, $bytes.Length)
             foreach ($line in ($file.Text.TrimEnd("`r", "`n") -split "`r?`n")) { Write-Host "                   | $line" }
         }
     }
     foreach ($entry in @($Plan.Registry)) {
-        Write-HbField 'Registry' "$($entry.Display)"
+        Write-PtField 'Registry' "$($entry.Display)"
         Write-Host "                   (default) REG_SZ = $($entry.Value)   [$($entry.Browser)]"
     }
 }
 
 # HKEY_CURRENT_USER helpers (the .NET registry API behaves the same in PowerShell 5.1 and 7).
-function Set-HbRegistryDefaultValue {
+function Set-PtRegistryDefaultValue {
     param([Parameter(Mandatory)][string]$SubKey, [Parameter(Mandatory)][string]$Value)
     $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($SubKey)
     try { $key.SetValue('', $Value, [Microsoft.Win32.RegistryValueKind]::String) } finally { $key.Close() }
 }
 
 # Default value of HKCU\<SubKey>: $null when the key does not exist, '' when it has none.
-function Get-HbRegistryDefaultValue {
+function Get-PtRegistryDefaultValue {
     param([Parameter(Mandatory)][string]$SubKey)
     $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($SubKey)
     if ($null -eq $key) { return $null }
@@ -1508,17 +1508,17 @@ function Get-HbRegistryDefaultValue {
     }
 }
 
-function Remove-HbRegistryKey {
+function Remove-PtRegistryKey {
     param([Parameter(Mandatory)][string]$SubKey)
     [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree($SubKey, $false)
 }
 
 # Writes the planned files and registry values (Chrome and Edge). Idempotent: files are rewritten
 # and values overwritten. -RegistryWriter { param($SubKey, $Value) ... } replaces the HKCU write.
-function Install-HbNativeHost {
+function Install-PtNativeHost {
     param([Parameter(Mandatory)]$Plan, [scriptblock]$RegistryWriter)
     if ($null -eq $RegistryWriter) {
-        $RegistryWriter = { param([string]$SubKey, [string]$Value) Set-HbRegistryDefaultValue -SubKey $SubKey -Value $Value }
+        $RegistryWriter = { param([string]$SubKey, [string]$Value) Set-PtRegistryDefaultValue -SubKey $SubKey -Value $Value }
     }
     $dir = $Plan.Destination
     if (Test-Path -LiteralPath $dir) {
@@ -1539,7 +1539,7 @@ function Install-HbNativeHost {
 }
 
 # Deletes a folder tree; a link (junction/symlink) inside is removed itself, never followed.
-function Remove-HbFolderTree {
+function Remove-PtFolderTree {
     param([Parameter(Mandatory)][string]$Path)
     foreach ($entry in (New-Object System.IO.DirectoryInfo -ArgumentList $Path).GetFileSystemInfos()) {
         $isLink = ($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
@@ -1547,7 +1547,7 @@ function Remove-HbFolderTree {
         if ($isFolder -and $isLink) {
             [System.IO.Directory]::Delete($entry.FullName)
         } elseif ($isFolder) {
-            Remove-HbFolderTree -Path $entry.FullName
+            Remove-PtFolderTree -Path $entry.FullName
         } else {
             $entry.Attributes = [System.IO.FileAttributes]::Normal
             [System.IO.File]::Delete($entry.FullName)
@@ -1558,19 +1558,19 @@ function Remove-HbFolderTree {
 
 # Removes only the given native-host folder (never its parent, never the target of a link).
 # Returns $true when something was removed.
-function Remove-HbNativeHostFolder {
+function Remove-PtNativeHostFolder {
     param([Parameter(Mandatory)][string]$Path)
-    return (Remove-HbNamedFolder -Path $Path -Name 'native-host')
+    return (Remove-PtNamedFolder -Path $Path -Name 'native-host')
 }
 
-# Removes only the given folder of Portly's copies of Node.js (Get-HbRuntimeDir), the same way.
-function Remove-HbRuntimeFolder {
+# Removes only the given folder of Portly's copies of Node.js (Get-PtRuntimeDir), the same way.
+function Remove-PtRuntimeFolder {
     param([Parameter(Mandatory)][string]$Path)
-    return (Remove-HbNamedFolder -Path $Path -Name 'node')
+    return (Remove-PtNamedFolder -Path $Path -Name 'node')
 }
 
 # Removes the folder $Path, which must be named $Name. Returns $true when something was removed.
-function Remove-HbNamedFolder {
+function Remove-PtNamedFolder {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Name)
     if ([System.IO.Path]::GetFileName($Path.TrimEnd([char]92)) -ne $Name) { throw "Refusing to remove '$Path': not a $Name folder." }
     if (-not (Test-Path -LiteralPath $Path)) { return $false }
@@ -1578,7 +1578,7 @@ function Remove-HbNamedFolder {
     if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
         [System.IO.Directory]::Delete($Path)
     } elseif ($item.PSIsContainer) {
-        Remove-HbFolderTree -Path $Path
+        Remove-PtFolderTree -Path $Path
     } else {
         throw "'$Path' is not a folder."
     }
@@ -1587,23 +1587,23 @@ function Remove-HbNamedFolder {
 
 # Removes the registry keys (Chrome and Edge) and the native-host folder.
 # -RegistryRemover { param($SubKey) ... } replaces the HKCU delete.
-function Uninstall-HbNativeHost {
+function Uninstall-PtNativeHost {
     param([string]$Destination, [scriptblock]$RegistryRemover)
-    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-HbNativeHostDir }
+    if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Get-PtNativeHostDir }
     if ($null -eq $RegistryRemover) {
-        $RegistryRemover = { param([string]$SubKey) Remove-HbRegistryKey -SubKey $SubKey }
+        $RegistryRemover = { param([string]$SubKey) Remove-PtRegistryKey -SubKey $SubKey }
     }
     foreach ($entry in $PortlyNativeHostRegistry) {
         & $RegistryRemover $entry.SubKey
     }
-    return (Remove-HbNativeHostFolder -Path $Destination)
+    return (Remove-PtNativeHostFolder -Path $Destination)
 }
 
 # node.exe named in a generated launcher.cmd, or $null.
-function Get-HbLauncherNodePath {
+function Get-PtLauncherNodePath {
     param([Parameter(Mandatory)][string]$LauncherCmd)
     try {
-        $text = [System.IO.File]::ReadAllText($LauncherCmd, (Get-HbOemEncoding))
+        $text = [System.IO.File]::ReadAllText($LauncherCmd, (Get-PtOemEncoding))
     } catch {
         return $null
     }
@@ -1614,7 +1614,7 @@ function Get-HbLauncherNodePath {
 
 # Problems with a registered host manifest and the files next to it (empty when all is well).
 # $ExpectedId: the extension ID the manifest must allow ($null = do not check).
-function Test-HbNativeHostManifest {
+function Test-PtNativeHostManifest {
     param([Parameter(Mandatory)][string]$ManifestPath, [AllowNull()][AllowEmptyString()][string]$ExpectedId)
     $problems = New-Object System.Collections.Generic.List[string]
     if (-not [System.IO.Path]::IsPathRooted($ManifestPath)) {
@@ -1631,16 +1631,16 @@ function Test-HbNativeHostManifest {
         $problems.Add("the manifest is not valid JSON: $ManifestPath")
         return , $problems.ToArray()
     }
-    if ((Get-HbProperty $manifest 'name') -cne $PortlyNativeHostName) {
+    if ((Get-PtProperty $manifest 'name') -cne $PortlyNativeHostName) {
         $problems.Add("the manifest's name is not $PortlyNativeHostName")
     }
-    if ((Get-HbProperty $manifest 'type') -cne 'stdio') { $problems.Add('the manifest''s type is not "stdio"') }
-    $description = Get-HbProperty $manifest 'description'
+    if ((Get-PtProperty $manifest 'type') -cne 'stdio') { $problems.Add('the manifest''s type is not "stdio"') }
+    $description = Get-PtProperty $manifest 'description'
     if (-not ($description -is [string]) -or [string]::IsNullOrWhiteSpace($description)) {
         $problems.Add('the manifest has no description (browsers refuse such a host)')
     }
 
-    $origins = @(@(Get-HbProperty $manifest 'allowed_origins') | Where-Object { $_ -is [string] })
+    $origins = @(@(Get-PtProperty $manifest 'allowed_origins') | Where-Object { $_ -is [string] })
     if ($ExpectedId) {
         $expected = "chrome-extension://$ExpectedId/"
         if (-not ($origins -ccontains $expected)) {
@@ -1649,7 +1649,7 @@ function Test-HbNativeHostManifest {
         }
     }
 
-    $hostPath = Get-HbProperty $manifest 'path'
+    $hostPath = Get-PtProperty $manifest 'path'
     if (-not ($hostPath -is [string]) -or [string]::IsNullOrWhiteSpace($hostPath)) {
         $problems.Add('the manifest has no path')
         return , $problems.ToArray()
@@ -1663,7 +1663,7 @@ function Test-HbNativeHostManifest {
     if (-not (Test-Path -LiteralPath (Join-Path $hostDir 'launcher.mjs') -PathType Leaf)) {
         $problems.Add("launcher.mjs is missing in $hostDir")
     }
-    $nodeExe = Get-HbLauncherNodePath -LauncherCmd $hostPath
+    $nodeExe = Get-PtLauncherNodePath -LauncherCmd $hostPath
     if ($null -eq $nodeExe) {
         $problems.Add("could not find the node.exe path in $hostPath")
     } elseif (-not (Test-Path -LiteralPath $nodeExe -PathType Leaf)) {
@@ -1674,7 +1674,7 @@ function Test-HbNativeHostManifest {
     if (Test-Path -LiteralPath $configPath -PathType Leaf) {
         try { $config = [System.IO.File]::ReadAllText($configPath) | ConvertFrom-Json } catch { $config = $null }
     }
-    $configOrigins = @(@(Get-HbProperty $config 'allowedOrigins') | Where-Object { $_ -is [string] })
+    $configOrigins = @(@(Get-PtProperty $config 'allowedOrigins') | Where-Object { $_ -is [string] })
     if ($null -eq $config) {
         $problems.Add("config.json is missing or invalid in $hostDir")
     } elseif ($ExpectedId -and -not ($configOrigins -ccontains "chrome-extension://$ExpectedId/")) {
@@ -1686,25 +1686,25 @@ function Test-HbNativeHostManifest {
 # $true when the installed launcher.mjs is byte for byte this checkout's native-host\launcher.mjs,
 # $false when it differs (Portly was updated but install-autostart.ps1 was not run again), $null
 # when either file is missing.
-function Test-HbInstalledLauncherCurrent {
+function Test-PtInstalledLauncherCurrent {
     param([Parameter(Mandatory)][string]$InstalledDir, [Parameter(Mandatory)][string]$RepoRoot)
     $installed = Join-Path $InstalledDir 'launcher.mjs'
     $source = Join-Path $RepoRoot 'native-host\launcher.mjs'
     if (-not (Test-Path -LiteralPath $installed -PathType Leaf) -or -not (Test-Path -LiteralPath $source -PathType Leaf)) {
         return $null
     }
-    # (Get-HbSha256 returns its array as one object: assign it, never wrap it in @().)
-    $installedHash = Get-HbSha256 -Bytes ([System.IO.File]::ReadAllBytes($installed))
-    $sourceHash = Get-HbSha256 -Bytes ([System.IO.File]::ReadAllBytes($source))
+    # (Get-PtSha256 returns its array as one object: assign it, never wrap it in @().)
+    $installedHash = Get-PtSha256 -Bytes ([System.IO.File]::ReadAllBytes($installed))
+    $sourceHash = Get-PtSha256 -Bytes ([System.IO.File]::ReadAllBytes($source))
     return ([System.Convert]::ToBase64String($installedHash) -ceq [System.Convert]::ToBase64String($sourceHash))
 }
 
 # Registration state for Chrome and Edge: Browser, Key, Registered, ManifestPath, Problems.
 # -RegistryReader { param($SubKey) ... } replaces the HKCU read (returns $null for a missing key).
-function Get-HbNativeHostStatus {
+function Get-PtNativeHostStatus {
     param([AllowNull()][AllowEmptyString()][string]$ExpectedId, [scriptblock]$RegistryReader)
     if ($null -eq $RegistryReader) {
-        $RegistryReader = { param([string]$SubKey) Get-HbRegistryDefaultValue -SubKey $SubKey }
+        $RegistryReader = { param([string]$SubKey) Get-PtRegistryDefaultValue -SubKey $SubKey }
     }
     $results = foreach ($entry in $PortlyNativeHostRegistry) {
         $value = & $RegistryReader $entry.SubKey
@@ -1712,7 +1712,7 @@ function Get-HbNativeHostStatus {
         if ($null -ne $value -and "$value" -eq '') {
             $problems = @('the registry key has no default value (the manifest path)')
         } elseif ($null -ne $value) {
-            $problems = Test-HbNativeHostManifest -ManifestPath "$value" -ExpectedId $ExpectedId
+            $problems = Test-PtNativeHostManifest -ManifestPath "$value" -ExpectedId $ExpectedId
         }
         [pscustomobject]@{
             Browser      = $entry.Browser

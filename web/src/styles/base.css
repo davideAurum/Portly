@@ -20,11 +20,11 @@ html {
 
 body {
   min-height: 100vh;
-  font-family: var(--hb-font-sans);
-  font-size: var(--hb-text-md);
+  font-family: var(--pt-font-sans);
+  font-size: var(--pt-text-md);
   line-height: 1.5;
-  color: var(--hb-text);
-  background-color: var(--hb-bg);
+  color: var(--pt-text);
+  background-color: var(--pt-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -32,7 +32,7 @@ body {
 }
 
 /*
- * The user's backdrop sits behind everything. A photo's dim is a dark layer inside --hb-backdrop
+ * The user's backdrop sits behind everything. A photo's dim is a dark layer inside --pt-backdrop
  * and its blur is normally baked into the image once (theme/backdropBake.ts), so this layer has no
  * filter for the GPU to redo on every repaint.
  */
@@ -41,7 +41,7 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: var(--hb-backdrop);
+  background: var(--pt-backdrop);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -51,8 +51,8 @@ body::before {
 /* Until the baked copy is ready (or if the browser cannot make one), the blur is a live filter;
    the negative inset hides the soft edge it would otherwise produce. */
 :root[data-backdrop-filter='live'] body::before {
-  inset: calc(var(--hb-backdrop-blur) * -2);
-  filter: blur(var(--hb-backdrop-blur));
+  inset: calc(var(--pt-backdrop-blur) * -2);
+  filter: blur(var(--pt-backdrop-blur));
 }
 
 #root {
@@ -61,7 +61,7 @@ body::before {
 }
 
 a {
-  color: var(--hb-accent-text);
+  color: var(--pt-accent-text);
   text-decoration: none;
   text-underline-offset: 2px;
 }
@@ -96,7 +96,7 @@ svg {
 }
 
 :focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: 2px;
 }
 
@@ -125,20 +125,20 @@ ol {
 kbd,
 code,
 pre {
-  font-family: var(--hb-font-mono);
+  font-family: var(--pt-font-mono);
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--hb-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--pt-accent) 30%, transparent);
 }
 
 /* Thin, unobtrusive scrollbars inside widgets and panels. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--hb-border-strong) transparent;
+  scrollbar-color: var(--pt-border-strong) transparent;
 }
 
-.hb-visually-hidden {
+.pt-visually-hidden {
   position: absolute !important;
   width: 1px;
   height: 1px;
@@ -151,19 +151,19 @@ pre {
 }
 
 /* Tabular numbers for times, counts and anything that ticks. */
-.hb-tabular {
+.pt-tabular {
   font-variant-numeric: tabular-nums;
 }
 
 /* sonner toasts: align with the design tokens. */
 [data-sonner-toaster] {
-  --border-radius: var(--hb-radius-md);
-  font-family: var(--hb-font-sans);
+  --border-radius: var(--pt-radius-md);
+  font-family: var(--pt-font-sans);
 }
 
 [data-sonner-toaster] [data-sonner-toast] {
-  font-size: var(--hb-text-sm);
-  box-shadow: var(--hb-shadow-lg);
+  font-size: var(--pt-text-sm);
+  box-shadow: var(--pt-shadow-lg);
 }
 
 [data-sonner-toaster] [data-sonner-toast] [data-button] {

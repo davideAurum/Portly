@@ -41,9 +41,9 @@ export default function SportsSettings({ value, onChange }: WidgetSettingsProps<
 
   return (
     <div className={styles.stack}>
-      <div className={styles.group} role="group" aria-labelledby="hb-sports-teams">
+      <div className={styles.group} role="group" aria-labelledby="pt-sports-teams">
         <div className={styles.groupHeader}>
-          <p id="hb-sports-teams" className={styles.groupLabel}>
+          <p id="pt-sports-teams" className={styles.groupLabel}>
             Favorite teams
           </p>
           <span className={styles.count}>

@@ -9,7 +9,7 @@
 import { useEffect, useRef } from 'react';
 
 /** Attribute the search widget puts on its input so `/` can focus it. */
-export const SEARCH_INPUT_ATTRIBUTE = 'data-hb-search-input';
+export const SEARCH_INPUT_ATTRIBUTE = 'data-pt-search-input';
 
 export interface Shortcut {
   keys: string[];

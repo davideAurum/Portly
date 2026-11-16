@@ -271,8 +271,7 @@ export function parseImportFile(bytes: Buffer): ExportFile {
   if (raw.version !== EXPORT_VERSION) {
     throw new HttpError(422, 'validation_failed', `Unsupported export version (expected ${EXPORT_VERSION})`);
   }
-  // A file exported before the rename (`homebase-export`) has the same content.
-  const result = ExportSchema.safeParse({ ...raw, format: EXPORT_FORMAT });
+  const result = ExportSchema.safeParse(raw);
   if (!result.success) {
     throw new HttpError(422, 'validation_failed', 'The import file is invalid', formatZodIssues(result.error).slice(0, MAX_REPORTED_ISSUES));
   }

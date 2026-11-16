@@ -113,7 +113,7 @@ interface RowContext {
 
 function Section({ title, rows, ...ctx }: { title: string; rows: GameRow[] } & RowContext) {
   if (rows.length === 0) return null;
-  const id = `hb-sports-${title.toLowerCase()}`;
+  const id = `pt-sports-${title.toLowerCase()}`;
   return (
     <section className={styles.section} aria-labelledby={id}>
       <h3 id={id} className={styles.sectionTitle}>

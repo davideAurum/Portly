@@ -12,7 +12,7 @@ export const APP_UPDATED: string = __APP_UPDATED__;
 
 /**
  * Public pages Google's OAuth consent screen links to (the `site/` folder, published separately to
- * the portly-site repository). The old homebase-site pages redirect here.
+ * the portly-site repository).
  */
 export const SITE_URL = 'https://davideaurum.github.io/portly-site/';
 export const CONTACT_URL = 'https://github.com/davideAurum';

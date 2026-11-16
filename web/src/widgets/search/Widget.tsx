@@ -7,7 +7,7 @@
  * Portly can ask gives none, or Wikipedia's, labelled "Wikipedia suggestions", when this browser has
  * turned that on in `wikipediaFallback.ts`). ↑/↓ navigate, Enter opens in the current
  * tab (or a new one when `general.openLinksInNewTab`), Ctrl/Shift+Enter (and Ctrl/middle click)
- * open a new tab. `/` focuses the first search box (shell hotkey via `data-hb-search-input`), and
+ * open a new tab. `/` focuses the first search box (shell hotkey via `data-pt-search-input`), and
  * the first widget with `autofocus` takes focus on load (e.g. `?src=newtab`).
  */
 import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
@@ -154,7 +154,7 @@ function SearchBox({ search, openLinksInNewTab, autoIcons, config }: SearchBoxPr
       if (!input) return;
       const focused = document.activeElement;
       if (focused && focused !== document.body && focused !== document.documentElement) return;
-      const first = document.querySelector(`[${SEARCH_INPUT_ATTRIBUTE}][data-hb-autofocus="true"]`);
+      const first = document.querySelector(`[${SEARCH_INPUT_ATTRIBUTE}][data-pt-autofocus="true"]`);
       if (first === input) input.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
@@ -390,8 +390,8 @@ function SearchBox({ search, openLinksInNewTab, autoIcons, config }: SearchBoxPr
               onKeyDown={onKeyDown}
               onFocus={() => setOpen(true)}
               onBlur={() => setOpen(false)}
-              data-hb-search-input=""
-              data-hb-autofocus={config.autofocus ? 'true' : undefined}
+              data-pt-search-input=""
+              data-pt-autofocus={config.autofocus ? 'true' : undefined}
             />
             {text !== '' ? (
               <IconButton

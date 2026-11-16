@@ -12,7 +12,7 @@
   min-height: 0;
   display: grid;
   place-items: center;
-  padding: var(--hb-space-3);
+  padding: var(--pt-space-3);
 }
 
 .summary {
@@ -20,14 +20,14 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--hb-space-2);
-  padding: 0 var(--hb-space-4) var(--hb-space-2);
+  gap: var(--pt-space-2);
+  padding: 0 var(--pt-space-4) var(--pt-space-2);
 }
 
 .count {
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
   font-variant-numeric: tabular-nums;
 }
 
@@ -39,7 +39,7 @@
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   margin: 0;
-  padding: 0 var(--hb-space-2) var(--hb-space-2);
+  padding: 0 var(--pt-space-2) var(--pt-space-2);
   list-style: none;
 }
 
@@ -50,20 +50,20 @@
 .row {
   display: flex;
   align-items: flex-start;
-  gap: var(--hb-space-2);
-  padding: 6px var(--hb-space-2);
-  border-radius: var(--hb-radius-md);
-  transition: background var(--hb-hover-duration) var(--hb-ease);
+  gap: var(--pt-space-2);
+  padding: 6px var(--pt-space-2);
+  border-radius: var(--pt-radius-md);
+  transition: background var(--pt-hover-duration) var(--pt-ease);
 }
 
 .row:hover,
 .row:focus-within {
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 /* The CI result. Each state differs in shape as well as color, so color is never the only signal. */
 .dot {
-  --state: var(--hb-text-subtle);
+  --state: var(--pt-text-subtle);
 
   flex: none;
   width: 10px;
@@ -75,20 +75,20 @@
 }
 
 .dot[data-state='success'] {
-  --state: var(--hb-success);
+  --state: var(--pt-success);
 
   background: var(--state);
 }
 
 .dot[data-state='failure'] {
-  --state: var(--hb-danger);
+  --state: var(--pt-danger);
 
   border-radius: 2px;
   background: var(--state);
 }
 
 .dot[data-state='pending'] {
-  --state: var(--hb-warning);
+  --state: var(--pt-warning);
 
   border-style: dashed;
 }
@@ -105,7 +105,7 @@
 .heading {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   min-width: 0;
 }
 
@@ -116,9 +116,9 @@
 .name {
   position: relative;
   min-width: 0;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
-  color: var(--hb-text);
+  color: var(--pt-text);
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
@@ -132,7 +132,7 @@ a.name:hover {
 .marker {
   flex: none;
   display: inline-flex;
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
 }
 
 .marker svg {
@@ -144,10 +144,10 @@ a.name:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 2px var(--hb-space-2);
+  gap: 2px var(--pt-space-2);
   min-width: 0;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
   font-variant-numeric: tabular-nums;
 }
 
@@ -181,18 +181,18 @@ a.name:hover {
 .note {
   flex: none;
   margin: 0;
-  padding: var(--hb-space-1) var(--hb-space-4) var(--hb-space-2);
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  padding: var(--pt-space-1) var(--pt-space-4) var(--pt-space-2);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
 }
 
 .cta {
   display: inline-flex;
   align-items: center;
-  gap: var(--hb-space-1);
-  font-size: var(--hb-text-sm);
+  gap: var(--pt-space-1);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
-  color: var(--hb-accent-text);
+  color: var(--pt-accent-text);
   text-decoration: none;
 }
 

@@ -223,7 +223,7 @@ function ImportCard() {
           ref={inputRef}
           type="file"
           accept=".json,application/json"
-          className="hb-visually-hidden"
+          className="pt-visually-hidden"
           tabIndex={-1}
           aria-label="Portly export file"
           onChange={(event) => void onFile(event)}

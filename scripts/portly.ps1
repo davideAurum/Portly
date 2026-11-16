@@ -70,13 +70,13 @@ Usage: portly <command> [options]
 
 # Translates the command's --options into the script's parameters (a hashtable to splat);
 # $null for an unknown option.
-function ConvertTo-HbCliParameters {
+function ConvertTo-PtCliParameters {
     param([AllowEmptyCollection()][string[]]$Options, [Parameter(Mandatory)][hashtable]$Map)
     $result = @{}
     foreach ($option in $Options) {
         $key = $option.ToLowerInvariant()
         if (-not $Map.ContainsKey($key)) {
-            Write-HbFailure "Unknown option '$option'."
+            Write-PtFailure "Unknown option '$option'."
             return $null
         }
         $result[$Map[$key].Name] = $Map[$key].Value
@@ -85,7 +85,7 @@ function ConvertTo-HbCliParameters {
 }
 
 # Runs scripts\<Script> here (its own `exit` ends only that script) and returns its exit code.
-function Invoke-HbCliScript {
+function Invoke-PtCliScript {
     param([Parameter(Mandatory)][string]$Script, [Parameter(Mandatory)][hashtable]$Parameters)
     $global:LASTEXITCODE = 0
     & (Join-Path $PSScriptRoot $Script) @Parameters | Out-Host
@@ -94,7 +94,7 @@ function Invoke-HbCliScript {
 
 # Runs the installer with its output in $LogFile, replaced on each run, with the home folder
 # masked: the task has no window to show it in. Returns the installer's exit code.
-function Invoke-HbLoggedInstall {
+function Invoke-PtLoggedInstall {
     param(
         [Parameter(Mandatory)][string]$Powershell,
         [Parameter(Mandatory)][string]$Installer,
@@ -109,7 +109,7 @@ function Invoke-HbLoggedInstall {
     try {
         $global:LASTEXITCODE = 0
         & $Powershell -NoProfile -ExecutionPolicy Bypass -File $Installer @Arguments 2>&1 | ForEach-Object {
-            $writer.WriteLine((ConvertTo-HbMaskedLine -Line "$_"))
+            $writer.WriteLine((ConvertTo-PtMaskedLine -Line "$_"))
             $writer.Flush()
         }
         return $global:LASTEXITCODE
@@ -122,7 +122,7 @@ function Invoke-HbLoggedInstall {
 # portly --update in a release install: runs a temporary copy of scripts\install.ps1 against
 # the install folder (the parent of this copy's app folder), so nothing in app\ is in use while
 # it is replaced.
-function Invoke-HbReleaseUpdate {
+function Invoke-PtReleaseUpdate {
     param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)]$Info, [AllowEmptyCollection()][string[]]$Options)
     $arguments = New-Object System.Collections.Generic.List[string]
     $unattended = $false
@@ -132,21 +132,21 @@ function Invoke-HbReleaseUpdate {
             '--force' { $arguments.Add('-Force') }
             '--unattended' { $unattended = $true }
             '--version' {
-                if ($i + 1 -ge $Options.Count) { Write-HbFailure '--version needs a version, for example --version 0.2.0-alpha.1.'; return 2 }
+                if ($i + 1 -ge $Options.Count) { Write-PtFailure '--version needs a version, for example --version 0.2.0-alpha.1.'; return 2 }
                 $i++
                 $arguments.Add('-Version')
                 $arguments.Add($Options[$i])
             }
-            default { Write-HbFailure "Unknown option '$($Options[$i])'."; return 2 }
+            default { Write-PtFailure "Unknown option '$($Options[$i])'."; return 2 }
         }
     }
     if ((Split-Path -Leaf $RepoRoot) -ne 'app') {
-        Write-HbFailure "This copy ($RepoRoot) was not installed by install.ps1 (its folder is not <install folder>\app), so it cannot update itself."
+        Write-PtFailure "This copy ($RepoRoot) was not installed by install.ps1 (its folder is not <install folder>\app), so it cannot update itself."
         return 1
     }
-    $releaseRepo = "$(Get-HbProperty $Info 'releaseRepo')"
+    $releaseRepo = "$(Get-PtProperty $Info 'releaseRepo')"
     if ($releaseRepo) { $arguments.Add('-ReleaseRepo'); $arguments.Add($releaseRepo) }
-    $dataDir = Get-HbDataDir -Scope Task -RepoRoot $RepoRoot
+    $dataDir = Get-PtDataDir -Scope Task -RepoRoot $RepoRoot
     if ($unattended) {
         $arguments.Add('-OnlyNewer')
         $arguments.Add('-NoBrowser')
@@ -163,7 +163,7 @@ function Invoke-HbReleaseUpdate {
         try {
             if ($unattended) {
                 $installArguments = @('-InstallDir', (Split-Path -Parent $RepoRoot)) + $arguments.ToArray()
-                return Invoke-HbLoggedInstall -Powershell $powershell -Installer $installer -Arguments $installArguments -LogFile (Join-Path $dataDir 'logs\update.log')
+                return Invoke-PtLoggedInstall -Powershell $powershell -Installer $installer -Arguments $installArguments -LogFile (Join-Path $dataDir 'logs\update.log')
             }
             $global:LASTEXITCODE = 0
             & $powershell -NoProfile -ExecutionPolicy Bypass -File $installer -InstallDir (Split-Path -Parent $RepoRoot) @arguments | Out-Host
@@ -176,11 +176,11 @@ function Invoke-HbReleaseUpdate {
     }
 }
 
-function Write-HbVersion {
+function Write-PtVersion {
     param([Parameter(Mandatory)][string]$RepoRoot)
-    $info = Get-HbReleaseInfo -RepoRoot $RepoRoot
+    $info = Get-PtReleaseInfo -RepoRoot $RepoRoot
     if ($null -ne $info) {
-        Write-Host "Portly $($info.version) (release install, Node.js $(Get-HbProperty $info 'node'), $RepoRoot)"
+        Write-Host "Portly $($info.version) (release install, Node.js $(Get-PtProperty $info 'node'), $RepoRoot)"
         return 0
     }
     $package = [System.IO.File]::ReadAllText((Join-Path $RepoRoot 'package.json')) | ConvertFrom-Json
@@ -197,7 +197,7 @@ function Write-HbVersion {
 
 # The Git checkout to try: the folder given, else the one the shell is in (a worktree counts),
 # else the checkout this command lives in. Returns $null (after saying why) when there is none.
-function Resolve-HbDevCheckout {
+function Resolve-PtDevCheckout {
     param([Parameter(Mandatory)][string]$DefaultRoot, [string]$Path)
     $candidate = $Path
     if (-not $candidate) {
@@ -209,12 +209,12 @@ function Resolve-HbDevCheckout {
     }
     if (-not $candidate) { $candidate = $DefaultRoot }
     if (-not (Test-Path -LiteralPath $candidate -PathType Container)) {
-        Write-HbFailure "No folder at $candidate."
+        Write-PtFailure "No folder at $candidate."
         return $null
     }
     $full = [System.IO.Path]::GetFullPath($candidate)
     if (-not (Test-Path -LiteralPath (Join-Path $full 'scripts\try-branch.ps1') -PathType Leaf)) {
-        Write-HbFailure "$full is not a Portly checkout (no scripts\try-branch.ps1). Run portly --dev from a checkout or pass its folder."
+        Write-PtFailure "$full is not a Portly checkout (no scripts\try-branch.ps1). Run portly --dev from a checkout or pass its folder."
         return $null
     }
     return $full
@@ -222,7 +222,7 @@ function Resolve-HbDevCheckout {
 
 # portly --dev: builds and runs a local checkout (this folder's, or the one given) with its own
 # try-branch.ps1, on a copy of the real data. The installed Portly is paused meanwhile.
-function Invoke-HbDev {
+function Invoke-PtDev {
     param([Parameter(Mandatory)][string]$DefaultRoot, [AllowEmptyCollection()][string[]]$Options)
     $parameters = @{}
     $folder = $null
@@ -234,29 +234,29 @@ function Invoke-HbDev {
             '^--pages-port$' {
                 $port = 0
                 if ($i + 1 -ge $Options.Count -or -not [int]::TryParse($Options[$i + 1], [ref]$port) -or $port -lt 1 -or $port -gt 65535) {
-                    Write-HbFailure '--pages-port needs a port number, for example --pages-port 5175.'
+                    Write-PtFailure '--pages-port needs a port number, for example --pages-port 5175.'
                     return 2
                 }
                 $i++
                 $parameters.PagesPort = $port
                 break
             }
-            '^--' { Write-HbFailure "Unknown option '$($Options[$i])'."; return 2 }
+            '^--' { Write-PtFailure "Unknown option '$($Options[$i])'."; return 2 }
             default {
-                if ($null -ne $folder) { Write-HbFailure 'Only one checkout folder can be given.'; return 2 }
+                if ($null -ne $folder) { Write-PtFailure 'Only one checkout folder can be given.'; return 2 }
                 $folder = $Options[$i]
             }
         }
     }
-    $checkout = Resolve-HbDevCheckout -DefaultRoot $DefaultRoot -Path $folder
+    $checkout = Resolve-PtDevCheckout -DefaultRoot $DefaultRoot -Path $folder
     if ($null -eq $checkout) { return 1 }
-    Write-HbInfo "Building and running the checkout at $checkout (your data is copied, never changed)."
+    Write-PtInfo "Building and running the checkout at $checkout (your data is copied, never changed)."
     $global:LASTEXITCODE = 0
     & (Join-Path $checkout 'scripts\try-branch.ps1') @parameters | Out-Host
     return $global:LASTEXITCODE
 }
 
-function Invoke-HbCli {
+function Invoke-PtCli {
     param([AllowEmptyCollection()][string[]]$CliArgs)
     if ($CliArgs.Count -eq 0) {
         Write-Host $PortlyCliUsage
@@ -266,64 +266,64 @@ function Invoke-HbCli {
     $rest = @()
     if ($CliArgs.Count -gt 1) { $rest = $CliArgs[1..($CliArgs.Count - 1)] }
 
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
-    $release = Get-HbReleaseInfo -RepoRoot $repoRoot
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
+    $release = Get-PtReleaseInfo -RepoRoot $repoRoot
     switch ($command) {
         'update' {
-            if ($null -ne $release) { return Invoke-HbReleaseUpdate -RepoRoot $repoRoot -Info $release -Options $rest }
-            return Invoke-HbCli -CliArgs (@('--rebuild') + $rest)
+            if ($null -ne $release) { return Invoke-PtReleaseUpdate -RepoRoot $repoRoot -Info $release -Options $rest }
+            return Invoke-PtCli -CliArgs (@('--rebuild') + $rest)
         }
         'rebuild' {
             if ($null -ne $release) {
-                Write-HbFailure "This is a release install (Portly $($release.version)), not a Git checkout: use portly --update."
+                Write-PtFailure "This is a release install (Portly $($release.version)), not a Git checkout: use portly --update."
                 return 1
             }
-            $mapped = ConvertTo-HbCliParameters -Options $rest -Map @{
+            $mapped = ConvertTo-PtCliParameters -Options $rest -Map @{
                 '--dry-run'      = @{ Name = 'DryRun'; Value = $true }
                 '--skip-publish' = @{ Name = 'SkipPublish'; Value = $true }
                 '--skip-server'  = @{ Name = 'SkipServer'; Value = $true }
                 '--allow-dirty'  = @{ Name = 'AllowDirty'; Value = $true }
             }
             if ($null -eq $mapped) { return 2 }
-            return Invoke-HbCliScript -Script 'update.ps1' -Parameters $mapped
+            return Invoke-PtCliScript -Script 'update.ps1' -Parameters $mapped
         }
-        'dev' { return Invoke-HbDev -DefaultRoot $repoRoot -Options $rest }
+        'dev' { return Invoke-PtDev -DefaultRoot $repoRoot -Options $rest }
         'status' {
-            $mapped = ConvertTo-HbCliParameters -Options $rest -Map @{ '--logs' = @{ Name = 'LogLines'; Value = 30 } }
+            $mapped = ConvertTo-PtCliParameters -Options $rest -Map @{ '--logs' = @{ Name = 'LogLines'; Value = 30 } }
             if ($null -eq $mapped) { return 2 }
             $mapped.View = 'Status'
-            return Invoke-HbCliScript -Script 'status.ps1' -Parameters $mapped
+            return Invoke-PtCliScript -Script 'status.ps1' -Parameters $mapped
         }
         { $_ -in 'settings', 'config' } {
-            $mapped = ConvertTo-HbCliParameters -Options $rest -Map @{}
+            $mapped = ConvertTo-PtCliParameters -Options $rest -Map @{}
             if ($null -eq $mapped) { return 2 }
             $mapped.View = 'Settings'
-            return Invoke-HbCliScript -Script 'status.ps1' -Parameters $mapped
+            return Invoke-PtCliScript -Script 'status.ps1' -Parameters $mapped
         }
         'start' {
-            if ($rest.Count -gt 0) { Write-HbFailure '--start takes no options.'; return 2 }
-            if ($null -eq (Get-HbTask)) {
-                Write-HbFailure "The '$PortlyTaskName' task is not installed. Run scripts\install-autostart.ps1 first."
+            if ($rest.Count -gt 0) { Write-PtFailure '--start takes no options.'; return 2 }
+            if ($null -eq (Get-PtTask)) {
+                Write-PtFailure "The '$PortlyTaskName' task is not installed. Run scripts\install-autostart.ps1 first."
                 return 1
             }
             # Refreshes Portly's copies of node.exe first when they are missing or out of date.
-            Start-HbTask
-            $port = (Get-HbPortSetting -Scope Task).Port
-            $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
-            if ($health.Ok) { Write-HbOk "Portly is $(Format-HbHealth $health)"; return 0 }
-            Write-HbFailure "Portly did not start: $(Format-HbHealth $health). Try: portly --status --logs"
+            Start-PtTask
+            $port = (Get-PtPortSetting -Scope Task).Port
+            $health = Wait-PtHealth -Port $port -TimeoutSeconds 60
+            if ($health.Ok) { Write-PtOk "Portly is $(Format-PtHealth $health)"; return 0 }
+            Write-PtFailure "Portly did not start: $(Format-PtHealth $health). Try: portly --status --logs"
             return 1
         }
         'version' {
-            if ($rest.Count -gt 0) { Write-HbFailure '--version takes no options.'; return 2 }
-            return Write-HbVersion -RepoRoot $repoRoot
+            if ($rest.Count -gt 0) { Write-PtFailure '--version takes no options.'; return 2 }
+            return Write-PtVersion -RepoRoot $repoRoot
         }
         { $_ -in 'help', 'h', '?' } {
             Write-Host $PortlyCliUsage
             return 0
         }
         default {
-            Write-HbFailure "Unknown command '$($CliArgs[0])'."
+            Write-PtFailure "Unknown command '$($CliArgs[0])'."
             Write-Host $PortlyCliUsage
             return 2
         }
@@ -331,9 +331,9 @@ function Invoke-HbCli {
 }
 
 try {
-    $exitCode = Invoke-HbCli -CliArgs @($args) | Select-Object -Last 1
+    $exitCode = Invoke-PtCli -CliArgs @($args) | Select-Object -Last 1
     exit ([int]$exitCode)
 } catch {
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     exit 1
 }

@@ -289,7 +289,7 @@ describe('Search widget', () => {
   it('is the "/" target and autofocuses when configured', async () => {
     setup({ config: { autofocus: true } });
     const box = await input();
-    expect(box).toHaveAttribute('data-hb-search-input');
+    expect(box).toHaveAttribute('data-pt-search-input');
     await waitFor(() => expect(box).toHaveFocus());
     box.blur();
     expect(focusSearchInput()).toBe(true);

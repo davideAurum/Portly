@@ -70,15 +70,6 @@ and how releases are built and published: [Releases](setup/releases.md).
 **Just the new tab page:** step 1 alone is that. More on it, and on pointing it at your Pages site:
 [Get the extension on a PC without the code](setup/extension.md#get-the-extension-on-a-pc-without-the-code).
 
-## Coming from Homebase
-
-Portly is Homebase's new name. This version doesn't read a Homebase install, and doesn't stop or
-remove one: if Homebase's server holds the port, Portly reports the port as in use.
-
-Version 0.2.0-alpha.5 is the last one that copies a Homebase install over. To carry one over,
-install [that release](https://github.com/davideAurum/Portly/releases/tag/v0.2.0-alpha.5) first,
-then update. Export files from Homebase can still be imported, in **Settings → Import & export**.
-
 ## Requirements
 
 - Windows 11. The credential vault uses Windows DPAPI and autostart uses Task Scheduler.

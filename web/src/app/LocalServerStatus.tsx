@@ -60,7 +60,7 @@ export function LocalServerStatus() {
           />
         </PopoverContent>
       </Popover>
-      <span role="status" aria-live="polite" className="hb-visually-hidden">
+      <span role="status" aria-live="polite" className="pt-visually-hidden">
         {announcement.text}
       </span>
       <DisconnectDialog open={confirming} onOpenChange={setConfirming} />

@@ -7,7 +7,7 @@ import { useState } from 'react';
 
 // Open by default so the card shows the menu surface; modal={false} keeps the page scrollable.
 export const WidgetActions = () => (
-  <div style={{ padding: 'var(--hb-space-4)', minHeight: 280 }}>
+  <div style={{ padding: 'var(--pt-space-4)', minHeight: 280 }}>
     <Menu defaultOpen modal={false}>
       <MenuTrigger asChild>
         <Button icon={Settings}>Widget options</Button>
@@ -27,7 +27,7 @@ export const Choices = () => {
   const [units, setUnits] = useState('metric');
   const [showFeels, setShowFeels] = useState(true);
   return (
-    <div style={{ padding: 'var(--hb-space-4)', minHeight: 280 }}>
+    <div style={{ padding: 'var(--pt-space-4)', minHeight: 280 }}>
       <Menu defaultOpen modal={false}>
         <MenuTrigger asChild>
           <Button>Display</Button>

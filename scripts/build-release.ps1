@@ -104,7 +104,7 @@ function Remove-ReleaseFolder {
     # Never follow a junction out of the folder (npm links workspaces into node_modules).
     foreach ($dir in @(Get-ChildItem -LiteralPath $Path -Recurse -Directory -Force -ErrorAction SilentlyContinue |
                 Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint })) {
-        Remove-HbDirectoryLink -Path $dir.FullName
+        Remove-PtDirectoryLink -Path $dir.FullName
     }
     Remove-Item -LiteralPath $Path -Recurse -Force
 }
@@ -123,7 +123,7 @@ function Get-ReleaseRuntime {
     if (-not (Test-Path -LiteralPath $CacheDir)) { $null = New-Item -ItemType Directory -Path $CacheDir -Force }
     if (-not (Test-Path -LiteralPath $zip -PathType Leaf) -or (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
         $url = "https://nodejs.org/dist/v$version/$name.zip"
-        Write-HbStep "Downloading Node.js $version ($url)"
+        Write-PtStep "Downloading Node.js $version ($url)"
         $partial = "$zip.partial"
         try {
             [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
@@ -153,7 +153,7 @@ function Get-ReleaseRuntime {
 }
 
 function Invoke-BuildRelease {
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($OutDir)) { $OutDir = Join-Path $repoRoot 'dist-release' }
     $out = [System.IO.Path]::GetFullPath($OutDir)
     if ($ReleaseRepo -notmatch '^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$') { throw "-ReleaseRepo must be owner/name (got '$ReleaseRepo')." }
@@ -178,12 +178,12 @@ function Invoke-BuildRelease {
     $npm = (Get-Command -Name 'npm.cmd' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1)
     if ($null -eq $npm) { throw 'npm.cmd was not found on PATH (it is installed with Node.js).' }
 
-    Write-HbStep "Building Portly $version for $ReleasePlatform into $out"
+    Write-PtStep "Building Portly $version for $ReleasePlatform into $out"
     if (-not $SkipBuild) {
-        Write-HbStep 'Building the web app: npm run build'
+        Write-PtStep 'Building the web app: npm run build'
         Invoke-ReleaseProgram -FilePath $npm.Source -Arguments @('run', 'build') -WorkingDirectory $repoRoot
     }
-    if (-not (Test-HbWebBuilt -RepoRoot $repoRoot)) { throw 'web\dist\index.html is missing: run npm run build (or drop -SkipBuild).' }
+    if (-not (Test-PtWebBuilt -RepoRoot $repoRoot)) { throw 'web\dist\index.html is missing: run npm run build (or drop -SkipBuild).' }
 
     $stage = Join-Path $out 'stage'
     $deps = Join-Path $out 'deps'
@@ -191,7 +191,7 @@ function Invoke-BuildRelease {
     Remove-ReleaseFolder -Path $deps
     $null = New-Item -ItemType Directory -Path $stage -Force
 
-    Write-HbStep 'Production dependencies of the server: npm ci --omit=dev'
+    Write-PtStep 'Production dependencies of the server: npm ci --omit=dev'
     foreach ($manifest in @('package.json', 'package-lock.json', '.npmrc', 'shared\package.json', 'server\package.json', 'web\package.json')) {
         $target = Join-Path $deps $manifest
         $null = New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force
@@ -202,13 +202,13 @@ function Invoke-BuildRelease {
     # The workspace links point into the scratch folder; the installer creates the one it needs.
     $links = Join-Path $deps 'node_modules\@portly'
     if (Test-Path -LiteralPath $links) {
-        foreach ($entry in @([System.IO.Directory]::GetFileSystemEntries($links))) { Remove-HbDirectoryLink -Path $entry }
+        foreach ($entry in @([System.IO.Directory]::GetFileSystemEntries($links))) { Remove-PtDirectoryLink -Path $entry }
         Remove-Item -LiteralPath $links -Recurse -Force
     }
     Move-Item -LiteralPath (Join-Path $deps 'node_modules') -Destination (Join-Path $stage 'node_modules')
     Remove-ReleaseFolder -Path $deps
 
-    Write-HbStep 'Staging the package'
+    Write-PtStep 'Staging the package'
     foreach ($file in @('package.json', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination (Join-Path $stage $file) }
     $sourceOnly = {
         param($relative)
@@ -238,7 +238,7 @@ function Invoke-BuildRelease {
         $nodeVersion = Get-ReleaseRuntime -RepoRoot $repoRoot -CacheDir (Join-Path $out 'cache') -Destination $runtime
         $nodeSource = 'nodejs.org'
     } else {
-        $node = Resolve-HbNode -NodePath $NodeExe
+        $node = Resolve-PtNode -NodePath $NodeExe
         Write-Warning "Using $($node.Path) (Node.js $($node.Version)) instead of the pinned runtime: a test build, not for publishing."
         Copy-Item -LiteralPath $node.Path -Destination (Join-Path $runtime 'node.exe')
         $license = Join-Path (Split-Path -Parent $node.Path) 'LICENSE'
@@ -263,7 +263,7 @@ function Invoke-BuildRelease {
 
     $packageName = "portly-$version-$ReleasePlatform.zip"
     $zip = Join-Path $out $packageName
-    Write-HbStep "Zipping $packageName"
+    Write-PtStep "Zipping $packageName"
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
@@ -281,12 +281,12 @@ function Invoke-BuildRelease {
             builtAt  = $builtAt
         })
 
-    Write-HbOk ("{0} ({1:N1} MB)" -f $zip, ($size / 1MB))
-    Write-HbField 'SHA-256' $sha256
-    Write-HbField 'Manifest' (Join-Path $out $ReleaseManifestName)
-    Write-HbField 'Node.js' "$nodeVersion ($nodeSource)"
-    Write-HbField 'Commit' $(if ($commit) { "$($commit.Substring(0, [Math]::Min(12, $commit.Length)))$(if ($dirty) { ' + uncommitted changes' } else { '' })" } else { 'unknown (no git)' })
-    Write-HbInfo 'Try it: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release.ps1 -ZipPath <the zip>'
+    Write-PtOk ("{0} ({1:N1} MB)" -f $zip, ($size / 1MB))
+    Write-PtField 'SHA-256' $sha256
+    Write-PtField 'Manifest' (Join-Path $out $ReleaseManifestName)
+    Write-PtField 'Node.js' "$nodeVersion ($nodeSource)"
+    Write-PtField 'Commit' $(if ($commit) { "$($commit.Substring(0, [Math]::Min(12, $commit.Length)))$(if ($dirty) { ' + uncommitted changes' } else { '' })" } else { 'unknown (no git)' })
+    Write-PtInfo 'Try it: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release.ps1 -ZipPath <the zip>'
     return 0
 }
 
@@ -294,6 +294,6 @@ try {
     $code = Invoke-BuildRelease | Select-Object -Last 1
     exit ([int]$code)
 } catch {
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     exit 1
 }

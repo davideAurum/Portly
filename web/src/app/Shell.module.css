@@ -8,17 +8,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
-  padding: var(--hb-space-3) var(--hb-space-3) var(--hb-space-2);
+  padding: var(--pt-space-3) var(--pt-space-3) var(--pt-space-2);
 }
 
 .group {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
 }
 
@@ -29,23 +29,23 @@
   align-items: center;
   justify-content: center;
   height: 36px;
-  border: 1px solid var(--hb-glass-border);
-  border-radius: var(--hb-radius-full);
-  background: color-mix(in srgb, var(--hb-surface) 72%, transparent);
-  color: var(--hb-text);
+  border: 1px solid var(--pt-glass-border);
+  border-radius: var(--pt-radius-full);
+  background: color-mix(in srgb, var(--pt-surface) 72%, transparent);
+  color: var(--pt-text);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-  backdrop-filter: var(--hb-glass-filter);
+  backdrop-filter: var(--pt-glass-filter);
   transition:
-    background-color var(--hb-hover-duration) var(--hb-ease),
-    color var(--hb-hover-duration) var(--hb-ease);
+    background-color var(--pt-hover-duration) var(--pt-ease),
+    color var(--pt-hover-duration) var(--pt-ease);
 }
 
 .chip {
   gap: 6px;
   min-width: 0;
   max-width: 260px;
-  padding: 0 var(--hb-space-3);
-  font-size: var(--hb-text-sm);
+  padding: 0 var(--pt-space-3);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
 }
 
@@ -57,13 +57,13 @@
 .chip:hover,
 .iconChip:hover {
   text-decoration: none;
-  background: color-mix(in srgb, var(--hb-surface) 90%, transparent);
+  background: color-mix(in srgb, var(--pt-surface) 90%, transparent);
 }
 
 .iconChip[aria-pressed='true'] {
-  background: var(--hb-accent);
+  background: var(--pt-accent);
   border-color: transparent;
-  color: var(--hb-accent-contrast);
+  color: var(--pt-accent-contrast);
 }
 
 .iconChip[aria-disabled='true'] {
@@ -72,8 +72,8 @@
 }
 
 .iconChip[aria-current='page'] {
-  background: color-mix(in srgb, var(--hb-surface) 95%, transparent);
-  color: var(--hb-accent-text);
+  background: color-mix(in srgb, var(--pt-surface) 95%, transparent);
+  color: var(--pt-accent-text);
 }
 
 .iconChip svg {
@@ -84,7 +84,7 @@
 .chipIcon {
   width: 16px;
   height: 16px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .chipText {
@@ -97,7 +97,7 @@
 .chipChevron {
   width: 14px;
   height: 14px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .main {
@@ -110,11 +110,11 @@
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
-  padding: 0 var(--hb-space-3) var(--hb-space-3);
+  padding: 0 var(--pt-space-3) var(--pt-space-3);
 }
 
 .bannerLink {
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -122,29 +122,29 @@
 .bannerCode {
   padding: 1px 5px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--hb-text) 7%, transparent);
-  font-family: var(--hb-font-mono);
+  background: color-mix(in srgb, var(--pt-text) 7%, transparent);
+  font-family: var(--pt-font-mono);
   font-size: 0.92em;
-  color: var(--hb-text);
+  color: var(--pt-text);
   overflow-wrap: anywhere;
 }
 
 /* Keyboard shortcut list (help dialog, About page) */
 .shortcutGroups {
   display: grid;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
 }
 
 .shortcutHeading {
-  margin: var(--hb-space-2) 0 0;
-  font-size: var(--hb-text-sm);
+  margin: var(--pt-space-2) 0 0;
+  font-size: var(--pt-text-sm);
   font-weight: 600;
 }
 
 .shortcuts {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: var(--hb-space-3) var(--hb-space-4);
+  gap: var(--pt-space-3) var(--pt-space-4);
   align-items: center;
   margin: 0;
 }
@@ -156,8 +156,8 @@
 
 .shortcuts dd {
   margin: 0;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 /* Home link: the Beacon lighthouse tile (the mark carries its own Harbor background). */
@@ -167,7 +167,7 @@
   border-radius: 10px;
   /* A faint edge: the tile is Harbor, the same color as the default backdrop. */
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.22), 0 1px 2px rgb(0 0 0 / 0.12);
-  transition: transform var(--hb-hover-duration) var(--hb-ease), box-shadow var(--hb-hover-duration) var(--hb-ease);
+  transition: transform var(--pt-hover-duration) var(--pt-ease), box-shadow var(--pt-hover-duration) var(--pt-ease);
 }
 
 .brandHome:hover {

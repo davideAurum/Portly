@@ -2,7 +2,7 @@
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
-  padding: 0 var(--hb-space-3) var(--hb-space-6);
+  padding: 0 var(--pt-space-3) var(--pt-space-6);
 }
 
 .wrap[data-edit='true'] {
@@ -21,13 +21,13 @@
 
 /* react-grid-layout: themed placeholder, handles and motion (global class names). */
 .rgl :global(.react-grid-item.react-grid-placeholder) {
-  border-radius: var(--hb-radius-lg);
-  background: var(--hb-accent);
+  border-radius: var(--pt-radius-lg);
+  background: var(--pt-accent);
   opacity: 0.18;
 }
 
 .rgl :global(.react-grid-item.react-draggable-dragging) > * {
-  box-shadow: var(--hb-shadow-lg);
+  box-shadow: var(--pt-shadow-lg);
 }
 
 /* Resize handles on every corner and edge. They straddle the frame's border (half in the 12 px
@@ -45,8 +45,8 @@
   bottom: 6px;
   width: 8px;
   height: 8px;
-  border-right: 2px solid var(--hb-accent);
-  border-bottom: 2px solid var(--hb-accent);
+  border-right: 2px solid var(--pt-accent);
+  border-bottom: 2px solid var(--pt-accent);
   border-bottom-right-radius: 2px;
 }
 
@@ -121,10 +121,10 @@
   left: 50%;
   border: none;
   border-radius: 999px;
-  background: var(--hb-accent);
+  background: var(--pt-accent);
   opacity: 0;
   transform: translate(-50%, -50%);
-  transition: opacity var(--hb-hover-duration) var(--hb-ease);
+  transition: opacity var(--pt-hover-duration) var(--pt-ease);
 }
 
 .rgl :global(.react-grid-item > .react-resizable-handle-e::after),
@@ -168,12 +168,12 @@
 .stack {
   display: flex;
   flex-direction: column;
-  gap: var(--hb-space-3);
-  padding-top: var(--hb-space-1);
+  gap: var(--pt-space-3);
+  padding-top: var(--pt-space-1);
 }
 
 .stackItem {
-  height: calc(var(--hb-stack-rows) * 40px + (var(--hb-stack-rows) - 1) * 12px);
+  height: calc(var(--pt-stack-rows) * 40px + (var(--pt-stack-rows) - 1) * 12px);
   min-height: 88px;
   max-height: 80vh;
 }
@@ -193,44 +193,44 @@
 .empty {
   display: flex;
   justify-content: center;
-  margin: var(--hb-space-6) auto;
+  margin: var(--pt-space-6) auto;
   max-width: 480px;
-  padding: var(--hb-space-6) var(--hb-space-5);
-  border-radius: var(--hb-radius-lg);
-  border: 1px solid var(--hb-glass-border);
-  background: var(--hb-glass);
-  box-shadow: var(--hb-shadow);
-  backdrop-filter: var(--hb-glass-filter);
+  padding: var(--pt-space-6) var(--pt-space-5);
+  border-radius: var(--pt-radius-lg);
+  border: 1px solid var(--pt-glass-border);
+  background: var(--pt-glass);
+  box-shadow: var(--pt-shadow);
+  backdrop-filter: var(--pt-glass-filter);
 }
 
 /* Floating edit toolbar */
 .editBar {
   position: fixed;
   left: 50%;
-  bottom: var(--hb-space-5);
+  bottom: var(--pt-space-5);
   z-index: 50;
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   max-width: calc(100vw - 32px);
-  padding: 6px 6px 6px var(--hb-space-4);
-  border: 1px solid var(--hb-border);
-  border-radius: var(--hb-radius-full);
-  background: var(--hb-glass-strong);
-  box-shadow: var(--hb-shadow-lg);
-  backdrop-filter: var(--hb-glass-filter);
+  padding: 6px 6px 6px var(--pt-space-4);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-full);
+  background: var(--pt-glass-strong);
+  box-shadow: var(--pt-shadow-lg);
+  backdrop-filter: var(--pt-glass-filter);
   transform: translateX(-50%);
-  animation: hb-bar-in 200ms var(--hb-ease);
+  animation: pt-bar-in 200ms var(--pt-ease);
 }
 
 .editBar button {
-  border-radius: var(--hb-radius-full);
+  border-radius: var(--pt-radius-full);
 }
 
 .editHint {
-  margin-right: var(--hb-space-2);
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  margin-right: var(--pt-space-2);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
   white-space: nowrap;
 }
 
@@ -240,7 +240,7 @@
   }
 }
 
-@keyframes hb-bar-in {
+@keyframes pt-bar-in {
   from {
     opacity: 0;
     transform: translate(-50%, 12px);
@@ -251,7 +251,7 @@
 .catalog {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -260,23 +260,23 @@
 .catalogItem {
   display: flex;
   align-items: flex-start;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
   width: 100%;
   height: 100%;
-  padding: var(--hb-space-4);
-  border: 1px solid var(--hb-border);
-  border-radius: var(--hb-radius-lg);
-  background: var(--hb-surface-2);
+  padding: var(--pt-space-4);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-lg);
+  background: var(--pt-surface-2);
   text-align: left;
   transition:
-    border-color var(--hb-duration) var(--hb-ease),
-    background-color var(--hb-duration) var(--hb-ease),
-    transform var(--hb-duration) var(--hb-ease);
+    border-color var(--pt-duration) var(--pt-ease),
+    background-color var(--pt-duration) var(--pt-ease),
+    transform var(--pt-duration) var(--pt-ease);
 }
 
 .catalogItem:hover:not(:disabled) {
-  border-color: var(--hb-accent);
-  background: var(--hb-accent-soft);
+  border-color: var(--pt-accent);
+  background: var(--pt-accent-soft);
   transform: translateY(-1px);
 }
 
@@ -292,9 +292,9 @@
   width: 38px;
   height: 38px;
   flex: none;
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-accent-soft);
-  color: var(--hb-accent-text);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-accent-soft);
+  color: var(--pt-accent-text);
 }
 
 .catalogIcon svg {
@@ -314,13 +314,13 @@
 }
 
 .catalogDescription {
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .catalogAdd {
   display: inline-flex;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .catalogAdd svg {
@@ -331,36 +331,36 @@
 /* Widget settings sheet */
 .settingsForm {
   display: grid;
-  gap: var(--hb-space-5);
+  gap: var(--pt-space-5);
 }
 
 .settingsSection {
   display: grid;
-  gap: var(--hb-space-4);
+  gap: var(--pt-space-4);
 }
 
 .settingsSection + .settingsSection {
-  padding-top: var(--hb-space-5);
-  border-top: 1px solid var(--hb-border);
+  padding-top: var(--pt-space-5);
+  border-top: 1px solid var(--pt-border);
 }
 
 .settingsHeading {
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .settingsNote {
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .settingsError {
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 500;
-  color: var(--hb-danger);
+  color: var(--pt-danger);
 }
 
 /* A newly added widget scrolls into view clear of the fixed edit toolbar (≈ 88 px) and the top
@@ -373,18 +373,18 @@
 
 .item[data-just-added='true'] > *,
 .stackItem[data-just-added='true'] > * {
-  animation: hb-just-added 1.6s var(--hb-ease) 1;
+  animation: pt-just-added 1.6s var(--pt-ease) 1;
 }
 
-@keyframes hb-just-added {
+@keyframes pt-just-added {
   0%,
   40% {
     box-shadow:
-      0 0 0 3px color-mix(in srgb, var(--hb-accent) 70%, transparent),
-      var(--hb-shadow);
+      0 0 0 3px color-mix(in srgb, var(--pt-accent) 70%, transparent),
+      var(--pt-shadow);
   }
   100% {
-    box-shadow: var(--hb-shadow);
+    box-shadow: var(--pt-shadow);
   }
 }
 
@@ -392,6 +392,6 @@
   .item[data-just-added='true'] > *,
   .stackItem[data-just-added='true'] > * {
     animation: none;
-    outline: 3px solid color-mix(in srgb, var(--hb-accent) 70%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--pt-accent) 70%, transparent);
   }
 }

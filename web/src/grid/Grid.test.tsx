@@ -91,7 +91,7 @@ describe('Grid', () => {
   it('configures react-grid-layout per §10.2 and enables drag/resize only in edit mode', async () => {
     await renderDashboard();
     expect(rgl.props?.gridConfig).toEqual({ cols: 12, rowHeight: 40, margin: [12, 12] });
-    expect(rgl.props?.dragConfig).toEqual({ enabled: false, handle: '.hb-drag-handle', cancel: 'input,textarea,select,button,a,[data-no-grid-drag]' });
+    expect(rgl.props?.dragConfig).toEqual({ enabled: false, handle: '.pt-drag-handle', cancel: 'input,textarea,select,button,a,[data-no-grid-drag]' });
     expect(rgl.props?.resizeConfig).toEqual({ enabled: false, handles: ['se', 'sw', 'ne', 'nw', 'e', 'w', 's', 'n'] });
     expect(rgl.props?.layout).toEqual([
       expect.objectContaining({ i: 'w-clock', x: 0, y: 0, w: 4, h: 3, minW: clockSize().minW, minH: clockSize().minH }),
@@ -102,7 +102,7 @@ describe('Grid', () => {
     expect(rgl.props?.dragConfig).toMatchObject({ enabled: true });
     expect(rgl.props?.resizeConfig).toMatchObject({ enabled: true });
     // Every frame gets a drag handle header and a keyboard-operable grip.
-    expect(document.querySelectorAll('.hb-drag-handle')).toHaveLength(2);
+    expect(document.querySelectorAll('.pt-drag-handle')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Move Weather' })).toBeInTheDocument();
   });
 

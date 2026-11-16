@@ -88,7 +88,7 @@ export default function LaunchpadSettings({ value, onChange }: WidgetSettingsPro
       </Field>
       {value.groupIds !== 'all' ? (
         <fieldset className={styles.checklist}>
-          <legend className="hb-visually-hidden">Groups in this launch pad</legend>
+          <legend className="pt-visually-hidden">Groups in this launch pad</legend>
           {listed.map((group) => {
             const index = shown.indexOf(group);
             const on = index >= 0;
@@ -138,7 +138,7 @@ export default function LaunchpadSettings({ value, onChange }: WidgetSettingsPro
       ) : null}
       {fixedGroupColumns && shown.length > 0 ? (
         <fieldset className={own.widths}>
-          <legend className="hb-visually-hidden">Group widths</legend>
+          <legend className="pt-visually-hidden">Group widths</legend>
           {shown.map((group) => (
             <label key={group.id} className={own.widthRow}>
               <GroupName group={group} />

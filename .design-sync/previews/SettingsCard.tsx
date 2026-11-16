@@ -4,9 +4,9 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 
 // Settings cards stack on the settings page.
 const Page = ({ children }: { children: ReactNode }) => (
-  <div style={{ display: 'grid', gap: 'var(--hb-space-4)', width: 560, color: 'var(--hb-text)' }}>{children}</div>
+  <div style={{ display: 'grid', gap: 'var(--pt-space-4)', width: 560, color: 'var(--pt-text)' }}>{children}</div>
 );
-const line: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 'var(--hb-text-sm)' };
+const line: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 'var(--pt-text-sm)' };
 
 export const WithFields = () => {
   const [temp, setTemp] = useState<'C' | 'F'>('C');

@@ -15,7 +15,7 @@ export const AddFeed = () => (
       </>
     }
   >
-    <div style={{ display: 'grid', gap: 'var(--hb-space-4)' }}>
+    <div style={{ display: 'grid', gap: 'var(--pt-space-4)' }}>
       <Field label="Feed address" required>
         <Input type="url" defaultValue="https://www.theverge.com/rss/index.xml" />
       </Field>
@@ -43,7 +43,7 @@ export const SideSheet = () => (
       </>
     }
   >
-    <div style={{ display: 'grid', gap: 'var(--hb-space-4)' }}>
+    <div style={{ display: 'grid', gap: 'var(--pt-space-4)' }}>
       <Field label="Location" help="City name or coordinates.">
         <Input defaultValue="Lisbon, Portugal" />
       </Field>

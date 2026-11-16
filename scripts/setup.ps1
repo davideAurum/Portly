@@ -103,7 +103,7 @@ param(
 )
 
 # Node.js 24: the major package.json pins in engines.node, which npm's engine-strict enforces, so
-# this script and lib\Common.ps1's Resolve-HbNode refuse any other major too. check-scripts.ps1
+# this script and lib\Common.ps1's Resolve-PtNode refuse any other major too. check-scripts.ps1
 # keeps $SetupNodeMajor equal to $PortlyNodeMajor in lib\Common.ps1; this script cannot dot-source
 # that file because it also runs on its own, before any checkout exists.
 $SetupNodeMajor = 24
@@ -237,7 +237,7 @@ function Install-SetupNode {
         Write-SetupOk "Node.js $version found"
     } elseif ($major -gt 0) {
         # Another major, older or newer: npm ci would refuse it (engine-strict), so stop before
-        # anything is installed, with the message lib\Common.ps1's Resolve-HbNode gives too. Only
+        # anything is installed, with the message lib\Common.ps1's Resolve-PtNode gives too. Only
         # one of the two winget ids carries the pinned major at a time, so when winget is at hand
         # the message also names the one that does today (a read-only lookup).
         $message = ("Portly needs Node.js $SetupNodeMajor, found v$version; install Node.js $SetupNodeMajor from https://nodejs.org/ " +

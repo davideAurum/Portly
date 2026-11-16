@@ -263,7 +263,7 @@ function CalendarRow({ calendar, extraActions }: { calendar: Calendar; extraActi
         {issue ? (
           <p className={issue.level === 'warning' ? styles.warning : styles.error} role="status">
             {issue.level === 'warning' ? <TriangleAlert aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}
-            {issue.level === 'warning' ? <span className="hb-visually-hidden">Warning: </span> : null}
+            {issue.level === 'warning' ? <span className="pt-visually-hidden">Warning: </span> : null}
             <span>{issue.message}</span>
           </p>
         ) : null}
@@ -521,13 +521,13 @@ function EditIcsDialog({ calendar, onClose }: { calendar: Calendar | null; onClo
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" form="hb-edit-ics" loading={update.isPending}>
+          <Button variant="primary" type="submit" form="pt-edit-ics" loading={update.isPending}>
             Save
           </Button>
         </>
       }
     >
-      <form id="hb-edit-ics" className={styles.addForm} style={{ borderTop: 0, paddingTop: 0 }} onSubmit={(e) => void save(e)} noValidate>
+      <form id="pt-edit-ics" className={styles.addForm} style={{ borderTop: 0, paddingTop: 0 }} onSubmit={(e) => void save(e)} noValidate>
         <Field label="Name" error={errors.name} required>
           <Input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={220} autoComplete="off" />
         </Field>

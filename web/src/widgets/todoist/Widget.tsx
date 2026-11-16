@@ -318,7 +318,7 @@ function QuickAdd({ filter }: { filter: string }) {
         leading={<Plus aria-hidden="true" className={styles.quickIcon} />}
         trailing={add.isPending ? <Spinner size={14} label="Adding task" /> : null}
       />
-      <span id={hintId} className="hb-visually-hidden">
+      <span id={hintId} className="pt-visually-hidden">
         Press Enter to add. Todoist understands dates like “tomorrow 5pm”, #project, %label and priorities p1 to p4.
       </span>
     </form>
@@ -432,25 +432,25 @@ function TaskRow({ task, project, showDue, now, fmt, pending, onComplete }: Task
           {link ? (
             <a {...link} className={styles.content}>
               {text}
-              <span className="hb-visually-hidden"> (open in Todoist)</span>
+              <span className="pt-visually-hidden"> (open in Todoist)</span>
             </a>
           ) : (
             <span className={styles.content}>{text}</span>
           )}
           {description ? <p className={styles.description}>{description}</p> : null}
           <div className={styles.meta}>
-            {task.priority > 1 ? <span className="hb-visually-hidden">{priorityLabel(task.priority)}</span> : null}
+            {task.priority > 1 ? <span className="pt-visually-hidden">{priorityLabel(task.priority)}</span> : null}
             {showDue && task.due && status ? (
               <span className={`${styles.chip} ${styles.due}`} data-status={status} title={task.due.string || undefined}>
                 <CalendarDays aria-hidden="true" />
                 <span className={styles.chipText}>
-                  {status === 'overdue' ? <span className="hb-visually-hidden">Overdue: </span> : null}
+                  {status === 'overdue' ? <span className="pt-visually-hidden">Overdue: </span> : null}
                   {formatDue(task.due, now, fmt)}
                 </span>
                 {task.due.isRecurring ? (
                   <>
                     <Repeat aria-hidden="true" className={styles.recurring} />
-                    <span className="hb-visually-hidden">, repeats</span>
+                    <span className="pt-visually-hidden">, repeats</span>
                   </>
                 ) : null}
               </span>

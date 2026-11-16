@@ -256,11 +256,11 @@ describe('App', () => {
     await screen.findByRole('button', { name: 'Keyboard shortcuts' });
     await new Promise((r) => setTimeout(r, 20));
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    expect(document.documentElement.style.getPropertyValue('--hb-accent')).toBe('#123456');
+    expect(document.documentElement.style.getPropertyValue('--pt-accent')).toBe('#123456');
 
     release();
     await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('light'));
-    expect(document.documentElement.style.getPropertyValue('--hb-accent')).toBe('#654321');
+    expect(document.documentElement.style.getPropertyValue('--pt-accent')).toBe('#654321');
   });
 
   it('says to reload, instead of leaving a blank page, when the pairing page cannot load', async () => {
@@ -277,7 +277,7 @@ describe('App', () => {
     s.appearance = { ...s.appearance, mode: 'dark', accent: '#ff0000' };
     renderWithProviders(<App />, { apiMocks: shellMocks([], { settings: s }) });
     await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
-    expect(document.documentElement.style.getPropertyValue('--hb-accent')).toBe('#ff0000');
+    expect(document.documentElement.style.getPropertyValue('--pt-accent')).toBe('#ff0000');
   });
 
   it.each([

@@ -299,7 +299,7 @@ function MailBody({ summaries, config, meta, run, compact }: Omit<MailContentPro
         {total > 0 ? (
           <Badge tone="accent" title={`${total} unread`}>
             {countLabel(total)}
-            <span className="hb-visually-hidden"> unread</span>
+            <span className="pt-visually-hidden"> unread</span>
           </Badge>
         ) : null}
       </span>
@@ -376,7 +376,7 @@ function MessageRow({ row, run, showAccount, showFolder }: { row: MailRow; run: 
         <span className={styles.line1}>
           {message.unread ? (
             <>
-              <span className="hb-visually-hidden">Unread,</span>{' '}
+              <span className="pt-visually-hidden">Unread,</span>{' '}
             </>
           ) : null}
           <span className={styles.sender} title={message.from.address || undefined}>
@@ -399,7 +399,7 @@ function MessageRow({ row, run, showAccount, showFolder }: { row: MailRow; run: 
             </>
           ) : null}
         </span>
-        {showAccount ? <span className="hb-visually-hidden">, {summary.label}</span> : null}
+        {showAccount ? <span className="pt-visually-hidden">, {summary.label}</span> : null}
       </span>
     </>
   );
@@ -450,7 +450,7 @@ function AccountGroup({ summary, rows, unreadOnly, showFolder, run, onRetry }: A
         {!summary.error && summary.unread > 0 ? (
           <Badge tone="accent" title={`${summary.unread} unread`}>
             {countLabel(summary.unread)}
-            <span className="hb-visually-hidden"> unread</span>
+            <span className="pt-visually-hidden"> unread</span>
           </Badge>
         ) : null}
         {webmail && webmail.href.startsWith('http') ? (

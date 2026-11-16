@@ -144,7 +144,7 @@ export function GroupShell({ group, showHeader, onToggle, actions, sectionRef, o
             <span className={styles.groupName}>{group.name}</span>
             <span className={styles.groupCount}>
               {group.bookmarks.length}
-              <span className="hb-visually-hidden"> bookmarks</span>
+              <span className="pt-visually-hidden"> bookmarks</span>
             </span>
           </button>
           {actions ? <span className={styles.groupActions}>{actions}</span> : null}

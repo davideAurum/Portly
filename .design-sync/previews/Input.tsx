@@ -4,9 +4,9 @@ import type { CSSProperties, ReactNode } from 'react';
 
 // Portly controls sit on a glass widget surface over the page backdrop.
 const panel: CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 'var(--hb-space-3)', width: 360,
-  padding: 'var(--hb-space-4)', borderRadius: 'var(--hb-radius-lg)', border: '1px solid var(--hb-glass-border)',
-  background: 'var(--hb-glass)', boxShadow: 'var(--hb-shadow)', color: 'var(--hb-text)',
+  display: 'flex', flexDirection: 'column', gap: 'var(--pt-space-3)', width: 360,
+  padding: 'var(--pt-space-4)', borderRadius: 'var(--pt-radius-lg)', border: '1px solid var(--pt-glass-border)',
+  background: 'var(--pt-glass)', boxShadow: 'var(--pt-shadow)', color: 'var(--pt-text)',
 };
 const Panel = ({ children }: { children: ReactNode }) => <div style={panel}>{children}</div>;
 

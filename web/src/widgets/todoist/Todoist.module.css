@@ -10,21 +10,21 @@
 .top {
   flex: none;
   display: grid;
-  gap: var(--hb-space-2);
-  padding: 0 var(--hb-space-3) var(--hb-space-2);
+  gap: var(--pt-space-2);
+  padding: 0 var(--pt-space-3) var(--pt-space-2);
 }
 
 .heading {
   display: flex;
   align-items: baseline;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
-  padding: 0 var(--hb-space-1);
+  padding: 0 var(--pt-space-1);
 }
 
 .title {
   min-width: 0;
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
   font-weight: 650;
   letter-spacing: -0.005em;
   white-space: nowrap;
@@ -34,16 +34,16 @@
 
 .count {
   flex: none;
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
   font-variant-numeric: tabular-nums;
 }
 
 .quickIcon {
   width: 15px;
   height: 15px;
-  color: var(--hb-accent-text);
+  color: var(--pt-accent-text);
 }
 
 /* ---- Task list ---- */
@@ -53,7 +53,7 @@
   min-height: 0;
   overflow: auto;
   margin: 0;
-  padding: 0 var(--hb-space-2) var(--hb-space-2);
+  padding: 0 var(--pt-space-2) var(--pt-space-2);
   list-style: none;
 }
 
@@ -66,24 +66,24 @@
   position: absolute;
   top: 0;
   left: 38px;
-  right: var(--hb-space-2);
-  border-top: 1px solid var(--hb-border);
+  right: var(--pt-space-2);
+  border-top: 1px solid var(--pt-border);
 }
 
 .task {
   display: flex;
   align-items: flex-start;
-  gap: var(--hb-space-3);
-  padding: 8px var(--hb-space-2);
-  border-radius: var(--hb-radius-md);
+  gap: var(--pt-space-3);
+  padding: 8px var(--pt-space-2);
+  border-radius: var(--pt-radius-md);
   transition:
-    background var(--hb-hover-duration) var(--hb-ease),
-    opacity var(--hb-duration) var(--hb-ease);
+    background var(--pt-hover-duration) var(--pt-ease),
+    opacity var(--pt-duration) var(--pt-ease);
 }
 
 .task:hover,
 .task:focus-within {
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 .task[data-done='true'] {
@@ -92,7 +92,7 @@
 
 /* Round completion checkbox, colored by priority (the Todoist convention). */
 .check {
-  --prio: var(--hb-text-subtle);
+  --prio: var(--pt-text-subtle);
   --prio-fill: transparent;
 
   position: relative;
@@ -109,8 +109,8 @@
   color: var(--prio);
   cursor: pointer;
   transition:
-    background var(--hb-duration) var(--hb-ease),
-    color var(--hb-duration) var(--hb-ease);
+    background var(--pt-duration) var(--pt-ease),
+    color var(--pt-duration) var(--pt-ease);
 }
 
 /* A comfortable hit target around the small circle. */
@@ -122,18 +122,18 @@
 }
 
 .check[data-priority='4'] {
-  --prio: var(--hb-danger);
-  --prio-fill: var(--hb-danger-soft);
+  --prio: var(--pt-danger);
+  --prio-fill: var(--pt-danger-soft);
 }
 
 .check[data-priority='3'] {
-  --prio: var(--hb-warning);
-  --prio-fill: var(--hb-warning-soft);
+  --prio: var(--pt-warning);
+  --prio-fill: var(--pt-warning-soft);
 }
 
 .check[data-priority='2'] {
-  --prio: var(--hb-accent);
-  --prio-fill: var(--hb-accent-soft);
+  --prio: var(--pt-accent);
+  --prio-fill: var(--pt-accent-soft);
 }
 
 .check svg {
@@ -141,7 +141,7 @@
   height: 11px;
   stroke-width: 3;
   opacity: 0;
-  transition: opacity var(--hb-hover-duration) var(--hb-ease);
+  transition: opacity var(--pt-hover-duration) var(--pt-ease);
 }
 
 .check:hover svg,
@@ -151,7 +151,7 @@
 
 .check[aria-checked='true'] {
   background: var(--prio);
-  color: var(--hb-surface);
+  color: var(--pt-surface);
 }
 
 .check[aria-checked='true'] svg {
@@ -159,11 +159,11 @@
 }
 
 .check[aria-checked='true'][data-priority='1'] {
-  --prio: var(--hb-text-muted);
+  --prio: var(--pt-text-muted);
 }
 
 .check:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: 2px;
 }
 
@@ -184,8 +184,8 @@
   -webkit-line-clamp: 3;
   overflow: hidden;
   overflow-wrap: anywhere;
-  color: var(--hb-text);
-  font-size: var(--hb-text-sm);
+  color: var(--pt-text);
+  font-size: var(--pt-text-sm);
   line-height: 1.35;
   text-decoration: none;
 }
@@ -197,19 +197,19 @@ a.content:hover {
 }
 
 a.content:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: 2px;
   border-radius: 3px;
 }
 
 .task[data-done='true'] .content {
   text-decoration: line-through;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .description {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -219,10 +219,10 @@ a.content:focus-visible {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px var(--hb-space-3);
+  gap: 2px var(--pt-space-3);
   min-width: 0;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .meta:empty {
@@ -251,17 +251,17 @@ a.content:focus-visible {
 }
 
 .due[data-status='overdue'] {
-  color: var(--hb-danger);
+  color: var(--pt-danger);
   font-weight: 600;
 }
 
 .due[data-status='today'] {
-  color: var(--hb-success);
+  color: var(--pt-success);
   font-weight: 600;
 }
 
 .due[data-status='tomorrow'] {
-  color: var(--hb-warning);
+  color: var(--pt-warning);
 }
 
 .recurring {
@@ -273,11 +273,11 @@ a.content:focus-visible {
   height: 8px;
   flex: none;
   border-radius: 50%;
-  background: var(--hb-text-subtle);
+  background: var(--pt-text-subtle);
 }
 
 .label {
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
 }
 
 /* ---- States ---- */
@@ -291,22 +291,22 @@ a.content:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: var(--hb-control-h-sm);
-  padding: 0 var(--hb-space-3);
-  border-radius: var(--hb-radius-sm);
-  background: var(--hb-accent);
-  color: var(--hb-accent-contrast);
-  font-size: var(--hb-text-xs);
+  height: var(--pt-control-h-sm);
+  padding: 0 var(--pt-space-3);
+  border-radius: var(--pt-radius-sm);
+  background: var(--pt-accent);
+  color: var(--pt-accent-contrast);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
 }
 
 .cta:hover {
   text-decoration: none;
-  background: color-mix(in srgb, var(--hb-accent) 86%, var(--hb-accent-contrast));
+  background: color-mix(in srgb, var(--pt-accent) 86%, var(--pt-accent-contrast));
 }
 
 .cta:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: 2px;
 }
 
@@ -328,8 +328,8 @@ a.content:focus-visible {
   }
 
   .task {
-    gap: var(--hb-space-2);
-    padding-inline: var(--hb-space-1);
+    gap: var(--pt-space-2);
+    padding-inline: var(--pt-space-1);
   }
 
   .item + .item::before {
@@ -339,7 +339,7 @@ a.content:focus-visible {
 
 @container (min-width: 480px) {
   .content {
-    font-size: var(--hb-text-md);
+    font-size: var(--pt-text-md);
   }
 
   .task {
@@ -352,15 +352,15 @@ a.content:focus-visible {
 .presets {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }
 
 .code {
   padding: 1px 5px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--hb-text) 7%, transparent);
-  font-family: var(--hb-font-mono);
+  background: color-mix(in srgb, var(--pt-text) 7%, transparent);
+  font-family: var(--pt-font-mono);
   font-size: 0.92em;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 

@@ -6,7 +6,16 @@ import { migrate } from '../db/migrate.ts';
 import { openDb, type Db } from '../db/open.ts';
 import { createMemoryLogger } from '../lib/logger.ts';
 import { DpapiError, createDpapiProtector, createRawProtector, type KeyProtector } from './dpapi.ts';
-import { KEY_VERSION, SECRET_ALG, VaultLockedError, createMemoryVault, openVault, type Vault } from './vault.ts';
+import {
+  KEY_VERSION,
+  SECRET_ALG,
+  VaultLockedError,
+  createMemoryVault,
+  createSqliteSecretStore,
+  encryptSecret,
+  openVault,
+  type Vault,
+} from './vault.ts';
 
 const MAGIC = Buffer.from('FAKE-DPAPI:');
 
@@ -261,6 +270,27 @@ describe('openVault (persistent vault, §4.6)', () => {
     db.run("DELETE FROM secrets WHERE id = 'canary'");
     db.run("UPDATE secrets SET ciphertext = ? WHERE id = 'account:a'", [Buffer.from('garbage')]);
     expectLocked(await open());
+  });
+
+  it('accepts a canary with an earlier value that the key decrypts, and rewrites it once', async () => {
+    (await open()).put('account:a', 'alpha');
+    const file = JSON.parse(fs.readFileSync(keyFile, 'utf8')) as { blob: string };
+    const key = await fakeProtector().unprotect(Buffer.from(file.blob, 'base64'));
+    createSqliteSecretStore(db).put(encryptSecret(key, 'canary', 'an-earlier-canary-v1', 1));
+    const before = row('canary');
+
+    const vault = await open();
+    expect(vault.state).toBe('ready');
+    expect(vault.get('account:a')).toBe('alpha');
+    expect(quarantined()).toEqual([]);
+    const rewritten = row('canary');
+    expect(rewritten?.ciphertext.equals(before!.ciphertext)).toBe(false);
+    expect(log.lines.filter((l) => l.message === 'vault: canary rewritten')).toHaveLength(1);
+
+    // The next start finds the current value and writes nothing.
+    expect((await open()).state).toBe('ready');
+    expect(row('canary')?.ciphertext.equals(rewritten!.ciphertext)).toBe(true);
+    expect(log.lines.filter((l) => l.message === 'vault: canary rewritten')).toHaveLength(1);
   });
 
   it('reuses an existing key when the database has no secrets yet', async () => {

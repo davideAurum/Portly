@@ -225,7 +225,7 @@ function RepoRow({ repo }: { repo: GitHubRepo }) {
             {link ? (
               <a {...link} className={styles.name} title={repo.fullName}>
                 {name}
-                <span className="hb-visually-hidden"> (open on GitHub)</span>
+                <span className="pt-visually-hidden"> (open on GitHub)</span>
               </a>
             ) : (
               <span className={styles.name}>{name}</span>
@@ -246,7 +246,7 @@ function Marker({ icon: Icon, label }: { icon: typeof Lock; label: string }) {
   return (
     <span className={styles.marker} title={label}>
       <Icon aria-hidden="true" />
-      <span className="hb-visually-hidden">{label}</span>
+      <span className="pt-visually-hidden">{label}</span>
     </span>
   );
 }
@@ -258,14 +258,14 @@ function RepoMeta({ repo, now, fmt }: { repo: GitHubRepo; now: Date; fmt: Format
         <span className={styles.chip} title={plural(repo.openPullRequests, 'open pull request', 'open pull requests')}>
           <GitPullRequest aria-hidden="true" />
           {repo.openPullRequests}
-          <span className="hb-visually-hidden"> open pull requests</span>
+          <span className="pt-visually-hidden"> open pull requests</span>
         </span>
       ) : null}
       {repo.openIssues > 0 ? (
         <span className={styles.chip} title={plural(repo.openIssues, 'open issue', 'open issues')}>
           <CircleDot aria-hidden="true" />
           {repo.openIssues}
-          <span className="hb-visually-hidden"> open issues</span>
+          <span className="pt-visually-hidden"> open issues</span>
         </span>
       ) : null}
       {repo.latestRelease ? (

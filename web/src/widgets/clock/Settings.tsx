@@ -68,9 +68,9 @@ export default function ClockSettings({ value, onChange }: WidgetSettingsProps<C
         onCheckedChange={(greeting) => update({ greeting })}
       />
 
-      <div className={styles.zonesGroup} role="group" aria-labelledby="hb-clock-zones">
+      <div className={styles.zonesGroup} role="group" aria-labelledby="pt-clock-zones">
         <div className={styles.groupHeader}>
-          <p id="hb-clock-zones" className={styles.groupLabel}>
+          <p id="pt-clock-zones" className={styles.groupLabel}>
             Other time zones
           </p>
           <span className={styles.count}>

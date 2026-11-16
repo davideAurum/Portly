@@ -16,20 +16,20 @@
 :global(:root[data-theme='dark']) .image[data-tone='dark'],
 :global(:root[data-theme='light']) .image[data-tone='light'] {
   padding: var(--site-icon-plate-padding);
-  background: color-mix(in srgb, var(--hb-text) 88%, transparent);
+  background: color-mix(in srgb, var(--pt-text) 88%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   :global(:root:not([data-theme='light'])) .image[data-tone='dark'] {
     padding: var(--site-icon-plate-padding);
-    background: color-mix(in srgb, var(--hb-text) 88%, transparent);
+    background: color-mix(in srgb, var(--pt-text) 88%, transparent);
   }
 }
 
 @media (prefers-color-scheme: light) {
   :global(:root:not([data-theme='dark'])) .image[data-tone='light'] {
     padding: var(--site-icon-plate-padding);
-    background: color-mix(in srgb, var(--hb-text) 88%, transparent);
+    background: color-mix(in srgb, var(--pt-text) 88%, transparent);
   }
 }
 

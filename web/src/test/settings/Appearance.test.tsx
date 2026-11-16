@@ -26,14 +26,14 @@ describe('Appearance settings', () => {
     await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
     await user.click(screen.getByRole('radio', { name: 'Compact' }));
     await user.click(screen.getByRole('radio', { name: 'Red' }));
-    await waitFor(() => expect(document.documentElement.style.getPropertyValue('--hb-accent')).toBe('#ef4444'));
+    await waitFor(() => expect(document.documentElement.style.getPropertyValue('--pt-accent')).toBe('#ef4444'));
     expect(document.documentElement.getAttribute('data-density')).toBe('compact');
 
     await waitFor(() => expect(server.settings.appearance).toMatchObject({ mode: 'dark', density: 'compact', accent: '#ef4444' }));
     // Rapid edits are combined into as few requests as the debounce allows.
     expect(requestsTo('PATCH /api/settings').length).toBeLessThanOrEqual(3);
     // Server responses never undo edits that are still pending.
-    expect(document.documentElement.style.getPropertyValue('--hb-accent')).toBe('#ef4444');
+    expect(document.documentElement.style.getPropertyValue('--pt-accent')).toBe('#ef4444');
   });
 
   it('switching background type replaces the whole background object', async () => {
@@ -46,7 +46,7 @@ describe('Appearance settings', () => {
       appearance: { background: { type: 'color', color: '#0b4f63', angle: null, stops: null } },
     });
     expect(server.settings.appearance.background).toEqual({ type: 'color', color: '#0b4f63' });
-    expect(document.documentElement.style.getPropertyValue('--hb-backdrop')).toBe('#0b4f63');
+    expect(document.documentElement.style.getPropertyValue('--pt-backdrop')).toBe('#0b4f63');
   });
 
   it('switching Image → Gradient → Image brings the uploaded photo back (UX-11)', async () => {
@@ -132,15 +132,15 @@ describe('Appearance on the Portly server on this PC (Pages build, hybrid mode)'
 
     await waitFor(() => expect(document.documentElement.getAttribute('data-backdrop')).toBe('image'));
     // Not loaded yet: no image anywhere (the page color shows), and the load has started.
-    expect(document.documentElement.style.getPropertyValue('--hb-backdrop')).toBe('none');
-    expect(document.documentElement.style.getPropertyValue('--hb-backdrop-blur')).toBe('4px');
+    expect(document.documentElement.style.getPropertyValue('--pt-backdrop')).toBe('none');
+    expect(document.documentElement.style.getPropertyValue('--pt-backdrop-blur')).toBe('4px');
     expect(container.querySelector('img')).toBeNull();
     await waitFor(() => expect(fake.load).toHaveBeenCalledWith(uploadUrl(uploadId)));
 
     act(() => fake.finish(uploadUrl(uploadId), 'blob:http://pages.example/photo'));
     // The dim (0.3) is a dark layer over the photo.
     await waitFor(() =>
-      expect(document.documentElement.style.getPropertyValue('--hb-backdrop')).toBe(
+      expect(document.documentElement.style.getPropertyValue('--pt-backdrop')).toBe(
         'linear-gradient(rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.3)), url("blob:http://pages.example/photo")',
       ),
     );

@@ -30,28 +30,28 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 
 function Invoke-Uninstall {
-    if (-not (Test-HbWindows)) { throw 'Autostart uses Windows Task Scheduler and only works on Windows.' }
-    if (-not (Test-HbScheduledTasksAvailable)) {
+    if (-not (Test-PtWindows)) { throw 'Autostart uses Windows Task Scheduler and only works on Windows.' }
+    if (-not (Test-PtScheduledTasksAvailable)) {
         throw 'The ScheduledTasks PowerShell module is not available (it ships with Windows 8 and later).'
     }
 
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
     $scriptPath = Join-Path $PSScriptRoot 'uninstall-autostart.ps1'
-    $task = Get-HbTask
-    $updater = Get-HbUpdaterTask
-    $running = @(Get-HbSupervisorProcesses -RepoRoot $repoRoot)
-    $port = (Get-HbPortSetting -Scope Task).Port
-    $dataDir = Get-HbDataDir -Scope Task -RepoRoot $repoRoot
-    $hostDir = Get-HbNativeHostDir
+    $task = Get-PtTask
+    $updater = Get-PtUpdaterTask
+    $running = @(Get-PtSupervisorProcesses -RepoRoot $repoRoot)
+    $port = (Get-PtPortSetting -Scope Task).Port
+    $dataDir = Get-PtDataDir -Scope Task -RepoRoot $repoRoot
+    $hostDir = Get-PtNativeHostDir
     $hostDirExists = Test-Path -LiteralPath $hostDir
-    $runtimeDir = Get-HbRuntimeDir
+    $runtimeDir = Get-PtRuntimeDir
     $runtimeDirExists = Test-Path -LiteralPath $runtimeDir
     $hostKeys = @(foreach ($entry in $PortlyNativeHostRegistry) {
             [pscustomobject]@{
                 Browser = $entry.Browser
                 SubKey  = $entry.SubKey
                 Display = "HKEY_CURRENT_USER\$($entry.SubKey)"
-                Value   = Get-HbRegistryDefaultValue -SubKey $entry.SubKey
+                Value   = Get-PtRegistryDefaultValue -SubKey $entry.SubKey
             }
         })
     $presentKeys = @($hostKeys | Where-Object { $null -ne $_.Value })
@@ -59,92 +59,92 @@ function Invoke-Uninstall {
     Write-Host ''
     Write-Host 'Portly autostart removal' -ForegroundColor White
     if ($null -ne $task) {
-        Write-HbField 'Task' "$PortlyTaskPath$PortlyTaskName ($($task.State), $(Get-HbTaskTriggerMode -Task $task) mode)"
+        Write-PtField 'Task' "$PortlyTaskPath$PortlyTaskName ($($task.State), $(Get-PtTaskTriggerMode -Task $task) mode)"
     } else {
-        Write-HbField 'Task' 'not installed'
+        Write-PtField 'Task' 'not installed'
     }
-    Write-HbField 'Updater task' $(if ($null -ne $updater) { "$PortlyTaskPath$PortlyUpdaterTaskName ($($updater.State))" } else { 'not installed' })
-    Write-HbField 'Running now' (Format-HbProcessList -Trees $running)
+    Write-PtField 'Updater task' $(if ($null -ne $updater) { "$PortlyTaskPath$PortlyUpdaterTaskName ($($updater.State))" } else { 'not installed' })
+    Write-PtField 'Running now' (Format-PtProcessList -Trees $running)
     foreach ($key in $hostKeys) {
         $state = if ($null -eq $key.Value) { 'not registered' } elseif ($key.Value) { "registered -> $($key.Value)" } else { 'registered (no value)' }
-        Write-HbField "Host ($($key.Browser))" $state
+        Write-PtField "Host ($($key.Browser))" $state
     }
-    Write-HbField 'Host folder' $(if ($hostDirExists) { $hostDir } else { "$hostDir (not present)" })
-    Write-HbField 'Node.js copies' $(if ($runtimeDirExists) { $runtimeDir } else { "$runtimeDir (not present)" })
+    Write-PtField 'Host folder' $(if ($hostDirExists) { $hostDir } else { "$hostDir (not present)" })
+    Write-PtField 'Node.js copies' $(if ($runtimeDirExists) { $runtimeDir } else { "$runtimeDir (not present)" })
     Write-Host ''
 
     if ($DryRun) {
-        Write-HbStep 'Steps a real run would take'
+        Write-PtStep 'Steps a real run would take'
         foreach ($key in $hostKeys) {
             if ($null -ne $key.Value) {
-                Write-HbInfo "- delete the registry key $($key.Display) ($($key.Browser))"
+                Write-PtInfo "- delete the registry key $($key.Display) ($($key.Browser))"
             } else {
-                Write-HbInfo "- no $($key.Browser) registry key to delete ($($key.Display))"
+                Write-PtInfo "- no $($key.Browser) registry key to delete ($($key.Display))"
             }
         }
         if ($hostDirExists) {
-            Write-HbInfo "- delete the folder $hostDir (only that folder)"
+            Write-PtInfo "- delete the folder $hostDir (only that folder)"
         } else {
-            Write-HbInfo "- no native host folder to delete ($hostDir)"
+            Write-PtInfo "- no native host folder to delete ($hostDir)"
         }
-        if ($null -ne $task -and "$($task.State)" -eq 'Running') { Write-HbInfo "- stop the task '$PortlyTaskName'" }
-        if ($running.Count -gt 0) { Write-HbInfo "- stop $(Format-HbProcessList -Trees $running)" }
+        if ($null -ne $task -and "$($task.State)" -eq 'Running') { Write-PtInfo "- stop the task '$PortlyTaskName'" }
+        if ($running.Count -gt 0) { Write-PtInfo "- stop $(Format-PtProcessList -Trees $running)" }
         if ($null -ne $task) {
-            Write-HbInfo "- unregister the task '$PortlyTaskName'"
+            Write-PtInfo "- unregister the task '$PortlyTaskName'"
         } else {
-            Write-HbInfo '- no task to unregister'
+            Write-PtInfo '- no task to unregister'
         }
         if ($null -ne $updater) {
-            Write-HbInfo "- stop and unregister the task '$PortlyUpdaterTaskName'"
+            Write-PtInfo "- stop and unregister the task '$PortlyUpdaterTaskName'"
         } else {
-            Write-HbInfo '- no updater task to unregister'
+            Write-PtInfo '- no updater task to unregister'
         }
         if ($runtimeDirExists) {
-            Write-HbInfo "- delete the folder $runtimeDir ($PortlySupervisorProgram, $PortlyServerProgram; only that folder)"
+            Write-PtInfo "- delete the folder $runtimeDir ($PortlySupervisorProgram, $PortlyServerProgram; only that folder)"
         } else {
-            Write-HbInfo "- no folder of Portly's copies of node.exe to delete ($runtimeDir)"
+            Write-PtInfo "- no folder of Portly's copies of node.exe to delete ($runtimeDir)"
         }
-        Write-HbInfo "- leave the data folder untouched: $dataDir"
+        Write-PtInfo "- leave the data folder untouched: $dataDir"
         Write-Host ''
-        Write-HbOk 'Dry run complete: nothing was stopped or removed.'
+        Write-PtOk 'Dry run complete: nothing was stopped or removed.'
         return 0
     }
 
     # The native host goes first: once it is gone, no browser start or new tab can start the task
     # again while it is being stopped and removed.
     if ($presentKeys.Count -gt 0 -or $hostDirExists) {
-        Write-HbStep "Removing the native messaging host $PortlyNativeHostName"
-        $null = Uninstall-HbNativeHost -Destination $hostDir
-        Write-HbOk "Removed the registry keys for Chrome and Edge and $hostDir"
+        Write-PtStep "Removing the native messaging host $PortlyNativeHostName"
+        $null = Uninstall-PtNativeHost -Destination $hostDir
+        Write-PtOk "Removed the registry keys for Chrome and Edge and $hostDir"
     } else {
-        Write-HbOk 'The native messaging host is not installed; nothing to remove'
+        Write-PtOk 'The native messaging host is not installed; nothing to remove'
     }
 
     try {
         if ($null -ne $task -and "$($task.State)" -eq 'Running') {
-            Write-HbStep "Stopping the task '$PortlyTaskName'"
+            Write-PtStep "Stopping the task '$PortlyTaskName'"
             Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
         }
-        $stopped = @(Stop-HbSupervisorProcesses -RepoRoot $repoRoot)
+        $stopped = @(Stop-PtSupervisorProcesses -RepoRoot $repoRoot)
         if ($stopped.Count -gt 0) {
-            Write-HbOk "Stopped Portly (PID $($stopped -join ', '))"
+            Write-PtOk "Stopped Portly (PID $($stopped -join ', '))"
         }
         if ($null -ne $task) {
-            Write-HbStep "Removing the task '$PortlyTaskName'"
+            Write-PtStep "Removing the task '$PortlyTaskName'"
             Unregister-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -Confirm:$false
-            Write-HbOk 'Autostart task removed'
+            Write-PtOk 'Autostart task removed'
         } else {
-            Write-HbOk "The task '$PortlyTaskName' is not installed; nothing to remove"
+            Write-PtOk "The task '$PortlyTaskName' is not installed; nothing to remove"
         }
         if ($null -ne $updater) {
-            Write-HbStep "Removing the task '$PortlyUpdaterTaskName'"
+            Write-PtStep "Removing the task '$PortlyUpdaterTaskName'"
             if ("$($updater.State)" -eq 'Running') { Stop-ScheduledTask -TaskName $PortlyUpdaterTaskName -TaskPath $PortlyTaskPath }
             Unregister-ScheduledTask -TaskName $PortlyUpdaterTaskName -TaskPath $PortlyTaskPath -Confirm:$false
-            Write-HbOk 'Updater task removed'
+            Write-PtOk 'Updater task removed'
         }
     } catch {
-        if (Test-HbAccessDenied $_) {
-            Write-HbAccessDeniedHint -ScriptPath $scriptPath
+        if (Test-PtAccessDenied $_) {
+            Write-PtAccessDeniedHint -ScriptPath $scriptPath
             return 5
         }
         throw
@@ -153,22 +153,22 @@ function Invoke-Uninstall {
     if ($runtimeDirExists) {
         # Nothing runs from it any more: the processes were stopped above.
         try {
-            $null = Remove-HbRuntimeFolder -Path $runtimeDir
-            Write-HbOk "Removed $runtimeDir (Portly's copies of node.exe)"
+            $null = Remove-PtRuntimeFolder -Path $runtimeDir
+            Write-PtOk "Removed $runtimeDir (Portly's copies of node.exe)"
         } catch {
             Write-Warning "Could not remove $runtimeDir ($($_.Exception.Message)). Delete it yourself once nothing runs from it."
         }
     }
 
     Start-Sleep -Milliseconds 500
-    $health = Test-HbHealth -Port $port -TimeoutSeconds 2
+    $health = Test-PtHealth -Port $port -TimeoutSeconds 2
     if ($health.Ok) {
-        Write-Warning ("Portly is still $(Format-HbHealth $health) - probably started with npm start or scripts\start.ps1. " +
+        Write-Warning ("Portly is still $(Format-PtHealth $health) - probably started with npm start or scripts\start.ps1. " +
             'Stop it with Ctrl+C in that window.')
     }
-    Write-HbInfo "Your data was left untouched in $dataDir"
-    Write-HbInfo '(delete that folder yourself to remove settings, cached data and encrypted credentials).'
-    Write-HbInfo 'The new-tab extension keeps working; it shows its "Portly isn''t running" page until you start Portly yourself.'
+    Write-PtInfo "Your data was left untouched in $dataDir"
+    Write-PtInfo '(delete that folder yourself to remove settings, cached data and encrypted credentials).'
+    Write-PtInfo 'The new-tab extension keeps working; it shows its "Portly isn''t running" page until you start Portly yourself.'
     return 0
 }
 
@@ -176,10 +176,10 @@ try {
     $exitCode = Invoke-Uninstall | Select-Object -Last 1
     exit ([int]$exitCode)
 } catch {
-    if (Test-HbAccessDenied $_) {
-        Write-HbAccessDeniedHint -ScriptPath (Join-Path $PSScriptRoot 'uninstall-autostart.ps1')
+    if (Test-PtAccessDenied $_) {
+        Write-PtAccessDeniedHint -ScriptPath (Join-Path $PSScriptRoot 'uninstall-autostart.ps1')
         exit 5
     }
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     exit 1
 }

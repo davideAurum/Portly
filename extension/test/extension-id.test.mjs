@@ -46,9 +46,8 @@ describe('extension ID algorithm', () => {
 
   it('reproduces the ID Chrome derives from an unpacked folder path', () => {
     // Unpacked without a "key", Chrome on Windows hashes the folder path as UTF-16LE. For
-    // example it gives daklamd… for C:\Users\you\Coding\Homebase\extension (the folder's name before
-    // the rename to Portly) — same hash, same mapping.
-    const der = Buffer.from('C:\\Users\\you\\Coding\\Homebase\\extension', 'utf16le');
+    // example it gives nlcmhdh… for C:\Users\you\Coding\Portly\extension — same hash, same mapping.
+    const der = Buffer.from('C:\\Users\\you\\Coding\\Portly\\extension', 'utf16le');
     assert.equal(extensionIdFromDer(der), OLD_PATH_EXTENSION_ID);
   });
 
@@ -91,7 +90,7 @@ describe('extension ID algorithm', () => {
 
   it('builds the allowed_origins entry with the trailing slash', () => {
     assert.equal(extensionOrigin(PINNED_EXTENSION_ID), `chrome-extension://${PINNED_EXTENSION_ID}/`);
-    assert.throws(() => extensionOrigin('daklamdnkmbdeegnkhmpeccgggbgiolz'), TypeError);
+    assert.throws(() => extensionOrigin('nlcmhdhddjfnkoghpbkgbneedjlphmbz'), TypeError);
     assert.throws(() => extensionOrigin('abc'), TypeError);
   });
 });

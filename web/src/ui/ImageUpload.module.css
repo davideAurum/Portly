@@ -1,6 +1,6 @@
 .root {
   display: grid;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }
 
 .zone {
@@ -10,24 +10,24 @@
   justify-content: center;
   min-height: 132px;
   overflow: hidden;
-  border: 1.5px dashed var(--hb-border-strong);
-  border-radius: var(--hb-radius-lg);
-  background: var(--hb-surface-2);
-  color: var(--hb-text-muted);
+  border: 1.5px dashed var(--pt-border-strong);
+  border-radius: var(--pt-radius-lg);
+  background: var(--pt-surface-2);
+  color: var(--pt-text-muted);
   cursor: pointer;
   transition:
-    border-color var(--hb-duration) var(--hb-ease),
-    background-color var(--hb-duration) var(--hb-ease);
+    border-color var(--pt-duration) var(--pt-ease),
+    background-color var(--pt-duration) var(--pt-ease);
 }
 
 .zone:hover,
 .zone[data-dragging='true'] {
-  border-color: var(--hb-accent);
-  background: var(--hb-accent-soft);
+  border-color: var(--pt-accent);
+  background: var(--pt-accent-soft);
 }
 
 .zone:focus-within {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: 2px;
 }
 
@@ -48,10 +48,10 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--hb-space-2);
-  padding: var(--hb-space-2) var(--hb-space-3);
-  border-radius: var(--hb-radius-full);
-  font-size: var(--hb-text-sm);
+  gap: var(--pt-space-2);
+  padding: var(--pt-space-2) var(--pt-space-3);
+  border-radius: var(--pt-radius-full);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
 }
 
@@ -59,7 +59,7 @@
   background: rgb(0 0 0 / 0.55);
   color: #ffffff;
   opacity: 0;
-  transition: opacity var(--hb-duration) var(--hb-ease);
+  transition: opacity var(--pt-duration) var(--pt-ease);
 }
 
 .zone:hover .prompt[data-over-image='true'],
@@ -77,16 +77,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }
 
 .hint {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .error {
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 500;
-  color: var(--hb-danger);
+  color: var(--pt-danger);
 }

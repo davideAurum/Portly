@@ -3,9 +3,9 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   min-height: 100%;
-  padding: 2px var(--hb-space-2) var(--hb-space-2);
+  padding: 2px var(--pt-space-2) var(--pt-space-2);
 }
 
 .fill {
@@ -27,26 +27,26 @@
 }
 
 .row {
-  border-radius: var(--hb-radius-md);
+  border-radius: var(--pt-radius-md);
 }
 
 .link {
   display: grid;
   gap: 2px;
-  padding: 7px var(--hb-space-2) 8px;
+  padding: 7px var(--pt-space-2) 8px;
   border-radius: inherit;
   color: inherit;
   text-decoration: none;
-  transition: background-color var(--hb-hover-duration) var(--hb-ease);
+  transition: background-color var(--pt-hover-duration) var(--pt-ease);
 }
 
 a.link:hover {
   text-decoration: none;
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 .link:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: -2px;
 }
 
@@ -56,15 +56,15 @@ a.link:hover {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 550;
   line-height: 1.35;
-  color: var(--hb-text);
+  color: var(--pt-text);
   overflow-wrap: anywhere;
 }
 
 a.link:visited .title {
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .meta {
@@ -72,8 +72,8 @@ a.link:visited .title {
   align-items: baseline;
   gap: 6px;
   min-width: 0;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
 }
 
 .source {
@@ -81,7 +81,7 @@ a.link:visited .title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .time {
@@ -95,9 +95,9 @@ a.link:visited .title {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   line-height: 1.4;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -113,7 +113,7 @@ a.link:visited .title {
 
 .notices {
   display: grid;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -122,25 +122,25 @@ a.link:visited .title {
 .notice {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
-  padding: var(--hb-space-2);
-  border: 1px solid var(--hb-border);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-surface-2);
+  gap: var(--pt-space-2);
+  padding: var(--pt-space-2);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface-2);
 }
 
 .noticeIcon {
   flex: none;
   width: 16px;
   height: 16px;
-  color: var(--hb-danger);
+  color: var(--pt-danger);
 }
 
 .noticeText {
   display: grid;
   flex: 1;
   min-width: 0;
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
 }
 
 .noticeText strong,
@@ -151,5 +151,5 @@ a.link:visited .title {
 }
 
 .noticeMessage {
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }

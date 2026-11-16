@@ -5,15 +5,15 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  border-radius: var(--hb-radius-lg);
-  border: 1px solid var(--hb-glass-border);
-  background: var(--hb-glass);
-  box-shadow: var(--hb-shadow);
-  backdrop-filter: var(--hb-widget-glass-filter);
-  color: var(--hb-text);
+  border-radius: var(--pt-radius-lg);
+  border: 1px solid var(--pt-glass-border);
+  background: var(--pt-glass);
+  box-shadow: var(--pt-shadow);
+  backdrop-filter: var(--pt-widget-glass-filter);
+  color: var(--pt-text);
   transition:
-    box-shadow var(--hb-duration) var(--hb-ease),
-    border-color var(--hb-duration) var(--hb-ease);
+    box-shadow var(--pt-duration) var(--pt-ease),
+    border-color var(--pt-duration) var(--pt-ease);
 }
 
 .frame[data-transparent='true'] {
@@ -24,30 +24,30 @@
   /* No glass behind the text: a soft halo in the scheme's page colour keeps it legible on
      busy image and gradient backgrounds. */
   text-shadow:
-    0 0 2px var(--hb-bg),
-    0 0 6px color-mix(in srgb, var(--hb-bg) 60%, transparent);
+    0 0 2px var(--pt-bg),
+    0 0 6px color-mix(in srgb, var(--pt-bg) 60%, transparent);
 }
 
 .frame[data-edit='true'] {
-  border-color: color-mix(in srgb, var(--hb-accent) 55%, transparent);
+  border-color: color-mix(in srgb, var(--pt-accent) 55%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--hb-accent) 25%, transparent),
-    var(--hb-shadow);
+    0 0 0 1px color-mix(in srgb, var(--pt-accent) 25%, transparent),
+    var(--pt-shadow);
 }
 
 .header {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-height: 40px;
-  padding: 6px var(--hb-space-2) 6px var(--hb-space-4);
+  padding: 6px var(--pt-space-2) 6px var(--pt-space-4);
   flex: none;
 }
 
 .frame[data-edit='true'] .header {
-  padding-left: var(--hb-space-1);
-  background: color-mix(in srgb, var(--hb-accent) 8%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--hb-accent) 20%, transparent);
+  padding-left: var(--pt-space-1);
+  background: color-mix(in srgb, var(--pt-accent) 8%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--pt-accent) 20%, transparent);
   cursor: grab;
   user-select: none;
 }
@@ -63,13 +63,13 @@
   width: 26px;
   height: 28px;
   flex: none;
-  border-radius: var(--hb-radius-sm);
-  color: var(--hb-text-muted);
+  border-radius: var(--pt-radius-sm);
+  color: var(--pt-text-muted);
 }
 
 .grip:hover {
-  background: var(--hb-hover);
-  color: var(--hb-text);
+  background: var(--pt-hover);
+  color: var(--pt-text);
 }
 
 .grip svg {
@@ -80,14 +80,14 @@
 .icon {
   width: 16px;
   height: 16px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
   flex: none;
 }
 
 .title {
   flex: 1;
   min-width: 0;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 650;
   letter-spacing: 0.005em;
   white-space: nowrap;
@@ -116,7 +116,7 @@
 /* The per-widget settings button appears on hover/focus only (view mode). */
 .hoverAction {
   opacity: 0;
-  transition: opacity var(--hb-hover-duration) var(--hb-ease);
+  transition: opacity var(--pt-hover-duration) var(--pt-ease);
 }
 
 .frame:hover .hoverAction,
@@ -142,7 +142,7 @@
   align-items: center;
   gap: 2px;
   padding: 2px;
-  border-radius: var(--hb-radius-md);
+  border-radius: var(--pt-radius-md);
 }
 
 /* Headerless widgets (the search box is focused on every load) show the corner button on hover,
@@ -150,8 +150,8 @@
 .floatingActions:has(.actions:not(:empty)),
 .frame:hover .floatingActions,
 .floatingActions:focus-within {
-  background: var(--hb-glass-strong);
-  box-shadow: var(--hb-shadow);
+  background: var(--pt-glass-strong);
+  box-shadow: var(--pt-shadow);
 }
 
 .floatingActions:not(:has(.actions:not(:empty))):not(:hover):not(:focus-within) {
@@ -174,5 +174,5 @@
 }
 
 .loading {
-  padding: var(--hb-space-4);
+  padding: var(--pt-space-4);
 }

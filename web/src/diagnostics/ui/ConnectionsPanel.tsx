@@ -163,7 +163,7 @@ function HistoryTable({ itemKey }: { itemKey: string }) {
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
-        <caption className="hb-visually-hidden">Outcome history</caption>
+        <caption className="pt-visually-hidden">Outcome history</caption>
         <thead>
           <tr>
             <th scope="col">When</th>

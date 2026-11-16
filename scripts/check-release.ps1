@@ -113,13 +113,13 @@ function New-CheckPackage {
 
 function Test-Junction {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Target)
-    $attributes = Get-HbEntryAttributes -Path $Path
+    $attributes = Get-PtEntryAttributes -Path $Path
     if ($null -eq $attributes -or -not ($attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return $false }
-    $current = @(Get-HbProperty (Get-Item -LiteralPath $Path -Force) 'Target') | Select-Object -First 1
+    $current = @(Get-PtProperty (Get-Item -LiteralPath $Path -Force) 'Target') | Select-Object -First 1
     return $current -and [System.IO.Path]::GetFullPath("$current").TrimEnd('\') -ieq $Target.TrimEnd('\')
 }
 
-$repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+$repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
 $workDir = Join-Path ([System.IO.Path]::GetTempPath()) ('portly-release-check-' + [guid]::NewGuid().ToString('N'))
 $installDir = Join-Path $workDir 'install'
 $dataDir = Join-Path $workDir 'data'
@@ -164,8 +164,8 @@ try {
         Write-Host 'Building a test package (build-release.ps1 -AllowDirty)' -ForegroundColor White
         $builtOut = Join-Path $workDir 'out'
         $buildArgs = @('-OutDir', $builtOut, '-AllowDirty')
-        if (-not $DownloadRuntime) { $buildArgs += @('-NodeExe', (Resolve-HbNode).Path) }
-        if (Test-HbWebBuilt -RepoRoot $repoRoot) { $buildArgs += '-SkipBuild' }
+        if (-not $DownloadRuntime) { $buildArgs += @('-NodeExe', (Resolve-PtNode).Path) }
+        if (Test-PtWebBuilt -RepoRoot $repoRoot) { $buildArgs += '-SkipBuild' }
         $build = Invoke-CheckScript -Path (Join-Path $PSScriptRoot 'build-release.ps1') -Arguments $buildArgs
         Assert-That -Name 'build-release.ps1 builds a package' -Condition ($build.ExitCode -eq 0) -Detail $build.Text
         if ($build.ExitCode -ne 0) { throw 'No package to check.' }
@@ -198,17 +198,17 @@ try {
     $app = Join-Path $installDir 'app'
     $common = @('-InstallDir', $installDir, '-SkipAutostart', '-SkipCli', '-NoBrowser')
     $install = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip) + $common)
-    $info = Get-HbReleaseInfo -RepoRoot $app
-    $version = "$(Get-HbProperty $info 'version')"
+    $info = Get-PtReleaseInfo -RepoRoot $app
+    $version = "$(Get-PtProperty $info 'version')"
     Assert-That -Name 'install.ps1 -ZipPath installs the package into app\' -Condition (
         $install.ExitCode -eq 0 -and $null -ne $info -and -not (Test-Path -LiteralPath (Join-Path $installDir 'app.new')) -and
         $install.Text.Contains("Portly $version is in $app")) -Detail $install.Text
     Assert-That -Name 'node_modules\@portly\shared is a junction to app\shared' -Condition (
         Test-Junction -Path (Join-Path $app 'node_modules\@portly\shared') -Target (Join-Path $app 'shared'))
-    Assert-That -Name 'Resolve-HbNode prefers the package''s runtime\node.exe' -Condition (
-        (Resolve-HbNode -RepoRoot $app).Path -ieq (Join-Path $app 'runtime\node.exe'))
-    Assert-That -Name 'Initialize-HbReleaseLinks keeps a correct link' -Condition (
-        (Initialize-HbReleaseLinks -RepoRoot $app) -ieq (Join-Path $app 'node_modules\@portly\shared') -and
+    Assert-That -Name 'Resolve-PtNode prefers the package''s runtime\node.exe' -Condition (
+        (Resolve-PtNode -RepoRoot $app).Path -ieq (Join-Path $app 'runtime\node.exe'))
+    Assert-That -Name 'Initialize-PtReleaseLinks keeps a correct link' -Condition (
+        (Initialize-PtReleaseLinks -RepoRoot $app) -ieq (Join-Path $app 'node_modules\@portly\shared') -and
         (Test-Junction -Path (Join-Path $app 'node_modules\@portly\shared') -Target (Join-Path $app 'shared')))
 
     $cli = Join-Path $app 'scripts\portly.ps1'
@@ -224,7 +224,7 @@ try {
     # A dry run registers and writes nothing; it shows the task and launcher the install would get.
     $autostart = Invoke-CheckScript -Path (Join-Path $app 'scripts\install-autostart.ps1') -Arguments @('-DryRun')
     $bundledNode = Join-Path $app 'runtime\node.exe'
-    $supervisorCopy = Join-Path (Get-HbRuntimeDir) $PortlySupervisorProgram
+    $supervisorCopy = Join-Path (Get-PtRuntimeDir) $PortlySupervisorProgram
     Assert-That -Name 'the installed install-autostart.ps1 -DryRun runs app\server as a copy of runtime\node.exe (the launcher: runtime\node.exe itself)' -Condition (
         $autostart.ExitCode -eq 0 -and $autostart.Text.Contains("--headless ""$supervisorCopy"" ""$(Join-Path $app 'server\src\supervisor.ts')""") -and
         $autostart.Text.Contains("the task runs $bundledNode instead") -and
@@ -255,10 +255,10 @@ try {
     $server = [System.Diagnostics.Process]::Start($startInfo)
     $stdout = $server.StandardOutput.ReadToEndAsync()
     $stderr = $server.StandardError.ReadToEndAsync()
-    $health = Wait-HbHealth -Port $port -TimeoutSeconds 60
+    $health = Wait-PtHealth -Port $port -TimeoutSeconds 60
     $healthVersion = "$($health.Version)"
     Assert-That -Name "the installed server answers /api/health as Portly $version" -Condition (
-        $health.Ok -and $healthVersion -eq $version) -Detail "$(Format-HbHealth $health)"
+        $health.Ok -and $healthVersion -eq $version) -Detail "$(Format-PtHealth $health)"
     $page = $null
     try { $page = Invoke-WebRequest -Uri "http://localhost:$port/" -UseBasicParsing -TimeoutSec 10 } catch { }
     Assert-That -Name 'the installed server serves the web app' -Condition ($null -ne $page -and $page.StatusCode -eq 200 -and "$($page.Content)" -match '<div id="root">')
@@ -280,17 +280,17 @@ try {
     $backups = @(Get-ChildItem -LiteralPath (Join-Path $dataDir 'backups') -Filter 'portly-before-*.db' -File -ErrorAction SilentlyContinue)
     Assert-That -Name 'install.ps1 -Force updates: old version kept in app.previous, new one in app\' -Condition (
         $update.ExitCode -eq 0 -and $update.Text.Contains("Updated Portly $version -> $version") -and
-        $null -ne (Get-HbReleaseInfo -RepoRoot $previous) -and $null -ne (Get-HbReleaseInfo -RepoRoot $app) -and
+        $null -ne (Get-PtReleaseInfo -RepoRoot $previous) -and $null -ne (Get-PtReleaseInfo -RepoRoot $app) -and
         -not (Test-Path -LiteralPath (Join-Path $installDir 'app.new'))) -Detail $update.Text
     Assert-That -Name 'the update copied the database to backups\ first' -Condition ($backups.Count -eq 1) -Detail ($backups | Out-String)
     Assert-That -Name 'after the update app\ is linked to its own shared folder, app.previous to nothing' -Condition (
         (Test-Junction -Path (Join-Path $app 'node_modules\@portly\shared') -Target (Join-Path $app 'shared')) -and
-        $null -eq (Get-HbEntryAttributes -Path (Join-Path $previous 'node_modules\@portly\shared')))
+        $null -eq (Get-PtEntryAttributes -Path (Join-Path $previous 'node_modules\@portly\shared')))
 
     $second = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip, '-Force') + $common)
     Assert-That -Name 'a second update replaces app.previous and leaves app\shared intact' -Condition (
         $second.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $app 'shared\package.json') -PathType Leaf) -and
-        $null -ne (Get-HbReleaseInfo -RepoRoot $previous)) -Detail $second.Text
+        $null -ne (Get-PtReleaseInfo -RepoRoot $previous)) -Detail $second.Text
 
     # The same package with another extension version: the Reload notice must come last.
     $extensionZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'extension-changed') -Change {
@@ -315,7 +315,7 @@ try {
     }
     Assert-That -Name 'an update that cannot move app\ (a file in use) fails and leaves app\ whole and linked' -Condition (
         $blocked.ExitCode -eq 1 -and $blocked.Text.Contains("Could not move $app to $previous") -and
-        $null -ne (Get-HbReleaseInfo -RepoRoot $app) -and -not (Test-Path -LiteralPath $previous) -and
+        $null -ne (Get-PtReleaseInfo -RepoRoot $app) -and -not (Test-Path -LiteralPath $previous) -and
         @(Get-ChildItem -LiteralPath $app -Recurse -File -Force).Count -eq $appFiles -and
         (Test-Junction -Path (Join-Path $app 'node_modules\@portly\shared') -Target (Join-Path $app 'shared'))) -Detail $blocked.Text
 
@@ -386,7 +386,7 @@ try {
     }
 
     $unattended = @('-OnlyNewer', '-StatusFile', $statusFile) + $common
-    $installed = "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')"
+    $installed = "$(Get-PtProperty (Get-PtReleaseInfo -RepoRoot $app) 'version')"
     Write-RequestedRun -Id 'check-not-newer' -From $installed -To $installed
     $stamp = (Get-Item -LiteralPath (Join-Path $app 'release.json')).LastWriteTimeUtc
     $notNewer = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $zip, '-Force') + $unattended)
@@ -399,7 +399,7 @@ try {
     $newerZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'newer') -Change { param($info) $info.version = '99.0.0' }
     $newer = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $newerZip) + $unattended)
     Assert-That -Name 'a newer package installs' -Condition (
-        $newer.ExitCode -eq 0 -and "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $newer.Text
+        $newer.ExitCode -eq 0 -and "$(Get-PtProperty (Get-PtReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $newer.Text
     Assert-Run -Name 'the status file says done, on the run the server asked for' -State 'done' -To '99.0.0' -Id 'check-done'
     Assert-That -Name 'the run keeps the server''s start time and first version' -Condition (
         ([System.IO.File]::ReadAllText($statusFile)).Contains('"startedAt":"2026-01-02T03:04:05.678Z"') -and (Read-Run).from -ceq $installed)
@@ -408,7 +408,7 @@ try {
     $older = Invoke-CheckScript -Path $installScript -Arguments (@('-ZipPath', $olderZip) + $unattended)
     Assert-That -Name 'an older package is refused once it is unpacked, and leaves no app.new' -Condition (
         $older.ExitCode -eq 1 -and $older.Text.Contains('is not newer') -and -not (Test-Path -LiteralPath (Join-Path $installDir 'app.new')) -and
-        "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $older.Text
+        "$(Get-PtProperty (Get-PtReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $older.Text
     Assert-Run -Name 'with nothing requested a run of its own is reported: failed / not_newer' -State 'failed' -Code 'not_newer'
     Assert-That -Name 'that run has a new id and starts from the installed version' -Condition (
         (Read-Run).id -cne 'check-done' -and (Read-Run).from -ceq '99.0.0')
@@ -421,7 +421,7 @@ try {
         $held.Dispose()
     }
     Assert-That -Name 'a file in use stops the update, and the installed version stays' -Condition (
-        $inUse.ExitCode -eq 1 -and "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $inUse.Text
+        $inUse.ExitCode -eq 1 -and "$(Get-PtProperty (Get-PtReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail $inUse.Text
     Assert-Run -Name 'the status file says failed / file_in_use' -State 'failed' -Code 'file_in_use' -To '99.0.1'
 
     Write-RequestedRun -Id 'check-locked' -From '99.0.0' -To '99.0.2'
@@ -486,8 +486,8 @@ try {
     $badZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'bad') -Change { param($info) $info.version = '99.1.0' }
     $rollback = Invoke-FakedUpdate -Package $badZip -AutostartResults @(1, 0)
     Assert-That -Name 'a version that does not start is put back, with the database copied before the update' -Condition (
-        $rollback -eq 1 -and "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0' -and
-        "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot (Join-Path $installDir 'app.failed')) 'version')" -eq '99.1.0' -and
+        $rollback -eq 1 -and "$(Get-PtProperty (Get-PtReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0' -and
+        "$(Get-PtProperty (Get-PtReleaseInfo -RepoRoot (Join-Path $installDir 'app.failed')) 'version')" -eq '99.1.0' -and
         @(Get-ChildItem -LiteralPath (Join-Path $dataDir 'backups') -Filter 'portly-failed-99.1.0-*.db' -File).Count -eq 1) -Detail "exit $rollback"
     Assert-Run -Name 'the status file says rolled-back / did_not_start' -State 'rolled-back' -Code 'did_not_start' -To '99.1.0' -Id 'check-rolled-back'
 
@@ -495,12 +495,12 @@ try {
     $worseZip = New-CheckPackage -Source $zip -Folder (Join-Path $workDir 'worse') -Change { param($info) $info.version = '99.1.1' }
     $neither = Invoke-FakedUpdate -Package $worseZip -AutostartResults @(1, 1)
     Assert-That -Name 'when the old version does not start either, its files are still put back' -Condition (
-        $neither -eq 1 -and "$(Get-HbProperty (Get-HbReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail "exit $neither"
+        $neither -eq 1 -and "$(Get-PtProperty (Get-PtReleaseInfo -RepoRoot $app) 'version')" -eq '99.0.0') -Detail "exit $neither"
     Assert-Run -Name 'the status file says failed / did_not_start, not rolled-back' -State 'failed' -Code 'did_not_start' -To '99.1.1' -Id 'check-neither'
 
     $exitCode = if ($script:failures.Count -eq 0) { 0 } else { 1 }
 } catch {
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     $exitCode = 1
 } finally {
     if ($null -ne $server -and -not $server.HasExited) { try { $server.Kill() } catch { } }
@@ -509,7 +509,7 @@ try {
     } else {
         foreach ($dir in @(Get-ChildItem -LiteralPath $workDir -Recurse -Directory -Force -ErrorAction SilentlyContinue |
                     Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint })) {
-            try { Remove-HbDirectoryLink -Path $dir.FullName } catch { }
+            try { Remove-PtDirectoryLink -Path $dir.FullName } catch { }
         }
         Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
     }

@@ -2,5 +2,5 @@
 
 .stack {
   display: grid;
-  gap: var(--hb-space-4);
+  gap: var(--pt-space-4);
 }

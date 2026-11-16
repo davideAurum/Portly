@@ -265,7 +265,7 @@ function Remove-InstLinks {
     }
 }
 
-# node_modules\@portly\shared -> <AppDir>\shared (Common.ps1 Initialize-HbReleaseLinks does the
+# node_modules\@portly\shared -> <AppDir>\shared (Common.ps1 Initialize-PtReleaseLinks does the
 # same for the scripts in the package).
 function Initialize-InstLinks {
     param([Parameter(Mandatory)][string]$AppDir)

@@ -100,14 +100,14 @@ export function ColorPicker({ value, onChange, onClear, swatches = SWATCHES, dis
           <Pipette aria-hidden="true" style={current ? { color: readableTextColor(current) } : undefined} />
           <input
             type="color"
-            className="hb-visually-hidden"
+            className="pt-visually-hidden"
             aria-label="Custom color"
             value={toOpaqueHex(current ?? '#3b82f6')}
             disabled={disabled}
             onChange={(event) => onChange(event.currentTarget.value.toLowerCase())}
           />
         </label>
-        <label htmlFor={hexId} className="hb-visually-hidden">
+        <label htmlFor={hexId} className="pt-visually-hidden">
           Hex color
         </label>
         <input

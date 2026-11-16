@@ -44,8 +44,8 @@ export function defaultLocalAppData(): string | null {
 }
 
 export function sourceId(browser: ImportBrowser, profileDir: string): string {
-  // The seed predates the rename to Portly; kept so stored import sources keep their ids.
-  return createHash('sha256').update(`homebase-bookmark-source\n${browser}\n${profileDir}`).digest('base64url').slice(0, 24);
+  // Not stored anywhere: the list computes it, and the import computes it again to find the profile.
+  return createHash('sha256').update(`portly-bookmark-source\n${browser}\n${profileDir}`).digest('base64url').slice(0, 24);
 }
 
 interface ResolvedSource extends BookmarkImportSource {

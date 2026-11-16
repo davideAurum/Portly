@@ -144,7 +144,7 @@ export function createLocation() {
 export const PINNED_EXTENSION_ID = 'nbaolbakegefnefgojdokagajincnfjj';
 
 /** The folder-derived ID the extension had before 0.2.0 pinned it (what a stale install still uses). */
-export const OLD_PATH_EXTENSION_ID = 'daklamdnkmbdeegnkhmpeccgggbgiole';
+export const OLD_PATH_EXTENSION_ID = 'nlcmhdhddjfnkoghpbkgbneedjlphmbl';
 
 /** Browser-side native-messaging errors, verbatim from Chromium. */
 export const NATIVE_ERRORS = Object.freeze({

@@ -181,7 +181,7 @@ describe('clock widget', () => {
   it('uses the widget format override, the locale and optional seconds', async () => {
     renderClock({ format: '12h', showSeconds: true, showDate: false }, { settings: settingsWith({ timeFormat: '24h' }) });
     expect(await clockText()).toBe('2:05:09PM');
-    expect(screen.getByText('2:05:09 PM')).toHaveClass('hb-visually-hidden');
+    expect(screen.getByText('2:05:09 PM')).toHaveClass('pt-visually-hidden');
     expect(screen.queryByText('Saturday, September 26')).toBeNull();
   });
 

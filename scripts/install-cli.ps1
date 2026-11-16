@@ -74,7 +74,7 @@ public static extern System.IntPtr SendMessageTimeout(System.IntPtr hWnd, uint M
 }
 
 function Invoke-InstallCli {
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
     $binDir = Get-CliBinDir
     $prefix = if ($DryRun) { '[dry run] ' } else { '' }
     $userPath = Get-CliUserPath
@@ -84,22 +84,22 @@ function Invoke-InstallCli {
         foreach ($name in @('portly.cmd', 'portly')) {
             $file = Join-Path $binDir $name
             if (Test-Path -LiteralPath $file) {
-                Write-HbStep "${prefix}Removing $file"
+                Write-PtStep "${prefix}Removing $file"
                 if (-not $DryRun) { Remove-Item -LiteralPath $file -Force }
             }
         }
         if ($onPath) {
-            Write-HbStep "${prefix}Removing $binDir from your user PATH"
+            Write-PtStep "${prefix}Removing $binDir from your user PATH"
             $kept = @($userPath.Split(';') | Where-Object {
                     $_.Trim() -and [System.Environment]::ExpandEnvironmentVariables($_.Trim()).TrimEnd('\') -ine $binDir.TrimEnd('\')
                 })
             if (-not $DryRun) { Set-CliUserPath -Value ($kept -join ';') }
         }
-        Write-HbOk "${prefix}The portly command is removed."
+        Write-PtOk "${prefix}The portly command is removed."
         return 0
     }
 
-    if (Test-HbWorktreePath -Path $repoRoot) {
+    if (Test-PtWorktreePath -Path $repoRoot) {
         throw ("This is a temporary worktree ($repoRoot). Run install-cli.ps1 from the main checkout " +
             '(the folder that holds .claude\worktrees) so the command keeps working.')
     }
@@ -114,8 +114,8 @@ function Invoke-InstallCli {
 
     foreach ($name in $files.Keys) {
         $file = Join-Path $binDir $name
-        Write-HbStep "${prefix}Writing $file"
-        foreach ($line in $files[$name].TrimEnd().Split("`n")) { Write-HbInfo $line.TrimEnd("`r") }
+        Write-PtStep "${prefix}Writing $file"
+        foreach ($line in $files[$name].TrimEnd().Split("`n")) { Write-PtInfo $line.TrimEnd("`r") }
         if (-not $DryRun) {
             $null = New-Item -ItemType Directory -Path $binDir -Force
             [System.IO.File]::WriteAllText($file, $files[$name], (New-Object System.Text.ASCIIEncoding))
@@ -123,9 +123,9 @@ function Invoke-InstallCli {
     }
 
     if ($onPath) {
-        Write-HbOk "$binDir is already on your user PATH"
+        Write-PtOk "$binDir is already on your user PATH"
     } else {
-        Write-HbStep "${prefix}Adding $binDir to your user PATH"
+        Write-PtStep "${prefix}Adding $binDir to your user PATH"
         $newPath = if ($userPath.Trim()) { $userPath.TrimEnd(';') + ';' + $binDir } else { $binDir }
         if (-not $DryRun) { Set-CliUserPath -Value $newPath }
     }
@@ -135,15 +135,15 @@ function Invoke-InstallCli {
         if (-not (Test-Path -LiteralPath (Join-Path $full '.git'))) {
             throw "Not a git repository: $full (it should be your local clone of the GitHub Pages repository)."
         }
-        Write-HbStep "${prefix}Setting PORTLY_PAGES_REPO = $full (user environment variable)"
+        Write-PtStep "${prefix}Setting PORTLY_PAGES_REPO = $full (user environment variable)"
         if (-not $DryRun) { [System.Environment]::SetEnvironmentVariable('PORTLY_PAGES_REPO', $full, 'User') }
-    } elseif ($null -eq (Get-HbReleaseInfo -RepoRoot $repoRoot) -and $null -eq (Get-HbEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task)) {
+    } elseif ($null -eq (Get-PtReleaseInfo -RepoRoot $repoRoot) -and $null -eq (Get-PtEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task)) {
         # Only a Git checkout publishes the Pages site (portly --rebuild); a release install does not.
         Write-Warning 'PORTLY_PAGES_REPO is not set, so portly --rebuild will skip GitHub Pages. Run again with -PublicRepoPath to set it.'
     }
 
     if (-not $DryRun) {
-        Write-HbOk 'Installed. Open a NEW terminal window, then try: portly --help'
+        Write-PtOk 'Installed. Open a NEW terminal window, then try: portly --help'
     }
     return 0
 }
@@ -152,6 +152,6 @@ try {
     $exitCode = Invoke-InstallCli | Select-Object -Last 1
     exit ([int]$exitCode)
 } catch {
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     exit 1
 }

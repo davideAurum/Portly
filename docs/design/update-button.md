@@ -73,7 +73,7 @@ the work must not be one of their children.
 
 ## 3. The Portly Updater task
 
-`install-autostart.ps1` registers it in a release install only (`Get-HbReleaseInfo`), next to
+`install-autostart.ps1` registers it in a release install only (`Get-PtReleaseInfo`), next to
 **Portly Server**:
 
 | Setting | Value |
@@ -402,7 +402,7 @@ Read from the code at f6c79ad, or observed:
 
 - **The installer will not kill the updater.** `Stop-InstAppProcesses` selects by `ExecutablePath`
   under `app`, or Portly's node copies naming `app`. `powershell.exe` from System32 is neither.
-  `Stop-HbSupervisorProcesses` looks for `supervisor.ts`.
+  `Stop-PtSupervisorProcesses` looks for `supervisor.ts`.
 - **`check-release.ps1` runs its test server unsupervised,** so `availability` is `unsupervised`.
 - **The GitHub API's `releases/latest` answers the alphas:** they are not marked pre-release.
   `github.com/.../latest/download/` goes through two redirects to another host, which is why the

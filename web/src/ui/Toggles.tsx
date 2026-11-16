@@ -200,7 +200,7 @@ export function Slider({ value, onChange, min, max, step = 1, format = String, d
         aria-label={aria['aria-label']}
         aria-valuetext={text}
         className={styles.range}
-        style={{ '--hb-range-fill': `${percent}%` } as CSSProperties}
+        style={{ '--pt-range-fill': `${percent}%` } as CSSProperties}
         min={min}
         max={max}
         step={step}

@@ -28,7 +28,7 @@ choice, provided it respects §4.
 - [16. Hybrid mode](#16-hybrid-mode-pages-site--portly-on-this-pc)
 - [17. Diagnostics](#17-diagnostics)
 - [18. Release packages](#18-release-packages-install-without-a-checkout)
-- [19. Renamed from Homebase](#19-renamed-from-homebase)
+- [19. Recognising Portly on its port](#19-recognising-portly-on-its-port)
 
 ---
 
@@ -205,7 +205,7 @@ namespaces or parameter properties (use `as const` objects). Type-only imports u
   program. Any other program name (plain node.exe, `npm start`, tests) spawns `process.execPath`.
   `supervisor starting`, `server started` and these lines carry `program` (a file name, never a path).
 - **Start-up, process, shutdown (`index.ts`, `lib/startup.ts`, `lib/exit-codes.ts`):** phases `config → logger →
-  web-dist check → port-probe → legacy (§19) → db → migrate → health → pairing → vault → settings → accounts → modules → listen`,
+  web-dist check → port-probe → db → migrate → health → pairing → vault → settings → accounts → modules → listen`,
   each timed (`debug 'startup phase' {phase, ms}`); right after the logger `info 'starting Portly' {version, dev,
   dataDir, port, pid, boot, node, supervised, restart}`, at the end `info 'Portly ready' {url, app, startupMs,
   phases}` (`boot` = a random id per process start, in every report and summary). A timed Verbose
@@ -549,6 +549,8 @@ ingest; invalid → null.
   `vault.key.unreadable-<ts>`, enter `locked`. Locked: non-secret features work, `GET /api/health` reports
   `vault:'locked'`, accounts/Todoist/GitHub report `reauth`, Settings shows a banner with **Reset credentials**
   → `POST /api/vault/reset` (confirm) deletes all secrets and creates a new key.
+  (c) a canary the key decrypts but holding an earlier value → the key is proven (the GCM tag), so the canary
+  is rewritten with the current value and the vault unlocks (`vault: canary rewritten`).
 - Secret ids: `account:<accountId>` (JSON `{refreshToken}` or `{password}`), `todoist:token`, `github:token`,
   `oauth-client:<provider>` (client secret), `ics:<calendarId>` (full feed URL), `canary`.
 - **Secrets are never returned to the client** (APIs return `{configured: true}` / host-only displays).
@@ -1013,7 +1015,7 @@ reached; a run already going answers 202 with that run.
 - **Theme rendering (performance)** — `web/src/theme/applyTheme.ts`. Live CSS filters make the GPU redo their work on
   every repaint they cover (hover fades, scrolling, animations) at full screen resolution, which can make the cursor
   stutter on 4K or high-DPI screens. So:
-  - a photo's dim is a dark `linear-gradient` layer inside `--hb-backdrop`, never a `filter`;
+  - a photo's dim is a dark `linear-gradient` layer inside `--pt-backdrop`, never a `filter`;
   - a photo's blur is baked once into a small copy (`backdropBake.ts`: drawn on a canvas with `ctx.filter`, a few
     samples per blur sigma, zoomed like the live layer so swapping does not shift the picture, PNG up to 1.5
     megapixels and WebP above) by `useBakedBackdrop` (`useTheme.ts`), which bakes again 150 ms after the image, the
@@ -1030,13 +1032,13 @@ reached; a run already going answers 202 with that run.
     (`theme/glassPreference.ts`, localStorage `portly:frosted-glass`, per address like other `portly:` keys): its
     cost depends on the PC, and keeping it out of the strict `ThemeSchema` means an older Pages site, server or
     export never meets an unknown field. Widget frames skip the blur even then when `data-opaque-widgets` (widget
-    opacity ≥ 0.95), and hover fades use `--hb-hover-duration`, which is 0 under frosted glass;
-  - no other always-visible surface blurs (popovers and settings panels follow `--hb-glass-filter`; the dialog
+    opacity ≥ 0.95), and hover fades use `--pt-hover-duration`, which is 0 under frosted glass;
+  - no other always-visible surface blurs (popovers and settings panels follow `--pt-glass-filter`; the dialog
     overlay and the calendar agenda's day headers have none), the animations that could run indefinitely are
     finite (skeleton shimmer, weather location and local-server pulses: 3 runs; no pulse while waiting for the
     browser's permission or on the sports LIVE pill), and react-grid-layout's 200 ms relayout transitions run only
     in edit mode. New CSS must not add `filter`, `backdrop-filter` or infinite animations on always-visible
-    surfaces; it uses `--hb-glass-filter` / `--hb-widget-glass-filter` and `--hb-hover-duration`.
+    surfaces; it uses `--pt-glass-filter` / `--pt-widget-glass-filter` and `--pt-hover-duration`.
 - **Theme rendering: background uploads** (`settings/sections/BackgroundImage.tsx`, `theme/prepareBackground.ts`;
   header-only checks in `theme/backgroundImage.ts`, which treat the bytes as hostile: bounded walks, malformed means
   "still" or "size unknown"). Every new tab decodes and draws the background, so an upload is prepared in the browser
@@ -1103,8 +1105,7 @@ reached; a run already going answers 202 with that run.
   shortName, abbreviation, logo|null, logoDark|null, color|null}`; `SportsGame {id, league, date, timeValid,
   state: 'pre'|'in'|'post', completed, detail, situation|null, home, away: SportsCompetitor, note|null, venue|null,
   boxScoreUrl|null, gameUrl|null, espnWatchUrl|null, broadcasts}`; `SportsTeamGames`; the query schemas of both routes.
-- **export.ts** — `EXPORT_FORMAT = 'portly-export'`, `EXPORT_VERSION = 1`, `isExportFormat` (also accepts
-  `'homebase-export'`, §19); the strict `ExportSchema` of §7 Core (uploads and custom icons embedded as base64, each
+- **export.ts** — `EXPORT_FORMAT = 'portly-export'`, `EXPORT_VERSION = 1`, `isExportFormat`; the strict `ExportSchema` of §7 Core (uploads and custom icons embedded as base64, each
   ≤ 10 MB decoded; ≤ 100 uploads); `MAX_IMPORT_BYTES` (25 MB); `ImportSummary`, `ImportPreviewResponse`,
   `ImportCommitSchema {previewId}`.
 - **launchpadSync.ts** (launch pad sync, [design](design/launchpad-sync.md)) — the synced file's strict schema
@@ -1308,7 +1309,7 @@ Radix primitives; sonner toasts. Vite dev proxy: `/api` → `PORTLY_PORT`, `chan
 
 ### 10.2 Grid
 12 columns, react-grid-layout v2: `import ReactGridLayout, { useContainerWidth } from 'react-grid-layout'`;
-`gridConfig={{cols: 12, rowHeight: 40, margin: [12, 12]}}`, `dragConfig={{enabled: editMode, handle: '.hb-drag-handle',
+`gridConfig={{cols: 12, rowHeight: 40, margin: [12, 12]}}`, `dragConfig={{enabled: editMode, handle: '.pt-drag-handle',
 cancel: 'input,textarea,select,button,a,[data-no-grid-drag]'}}`, `resizeConfig={{enabled: editMode, handles: [all four corners and edges]}}`; import
 `react-grid-layout/css/styles.css` and `react-resizable/css/styles.css`. Edit mode: drag handle in each frame header,
 Add Widget dialog, remove, per-widget settings dialog (frame options + widget Settings component). Positions saved
@@ -1360,10 +1361,10 @@ pages (SettingsCard, FormFooter, FieldGrid, FactList), plus `ui/accounts/{Accoun
 ReconnectButton}` and the account constants `ACCOUNT_KIND_LABELS`, `CAPABILITY_LABELS`, `CAPABILITY_ICONS`.
 ServerOnlyNotice (`ui/ServerOnlyNotice.tsx`, imported from its file, not from the index) is what a server-only
 feature shows on a page whose data lives in the browser (§16).
-Tokens (`web/src/styles/tokens.css`, light + dark): `--hb-bg, --hb-surface, --hb-surface-2, --hb-text, --hb-text-muted,
---hb-border, --hb-accent, --hb-accent-contrast, --hb-danger, --hb-warning, --hb-success, --hb-focus,
---hb-radius-{sm,md,lg}, --hb-space-{1..6}, --hb-font-sans, --hb-font-mono, --hb-text-{xs,sm,md,lg,xl},
---hb-shadow, --hb-widget-opacity`. Rules: features use tokens only; user-data colors go through
+Tokens (`web/src/styles/tokens.css`, light + dark): `--pt-bg, --pt-surface, --pt-surface-2, --pt-text, --pt-text-muted,
+--pt-border, --pt-accent, --pt-accent-contrast, --pt-danger, --pt-warning, --pt-success, --pt-focus,
+--pt-radius-{sm,md,lg}, --pt-space-{1..6}, --pt-font-sans, --pt-font-mono, --pt-text-{xs,sm,md,lg,xl},
+--pt-shadow, --pt-widget-opacity`. Rules: features use tokens only; user-data colors go through
 `readableTextColor()` (`web/src/lib/color.ts`); global CSS lives only in `web/src/styles/` (`tokens.css`, `base.css`).
 Visual direction: calm, modern "glass" widgets over the user's background (color/gradient/image with blur+dim),
 generous spacing, clear hierarchy, system font stacks, subtle shadows, excellent dark mode. Glass is translucent
@@ -1701,23 +1702,23 @@ and a second server exits with code 3 when the port is taken (the supervisor the
 **Named processes** — Task Manager's Details tab and Resource Monitor name a process after its program file, so
 Portly runs as copies of node.exe named for it rather than as two `node.exe` (`scripts/lib/Common.ps1`, "Portly's
 copies of Node.js"):
-- Folder `%LOCALAPPDATA%\Portly\node\` (`Get-HbRuntimeDir`; fixed per user like `native-host\`, not under
+- Folder `%LOCALAPPDATA%\Portly\node\` (`Get-PtRuntimeDir`; fixed per user like `native-host\`, not under
   `PORTLY_DATA_DIR`, and not `bin\`, which is on PATH for the `portly` command): `portly-supervisor.exe` = a byte copy of
   the chosen node.exe (`-NodePath`, a release's `runtime\node.exe`, else PATH) with its modification time, written as
-  `<name>.new` and swapped in (setting the time is retried for up to 1.5 s on a sharing violation, `Invoke-HbSharingRetry`:
+  `<name>.new` and swapped in (setting the time is retried for up to 1.5 s on a sharing violation, `Invoke-PtSharingRetry`:
   Windows PowerShell 5.1 opens the file for writing to set it, and a virus scanner may still be reading the new file;
   other errors and a file still held after that are reported); `portly-server.exe` = a hard link of it (one file on
   disk), else a second copy; `runtime.json` = `{"version":1,"source":"<node.exe>","nodeVersion":"<x.y.z>"}` (ASCII).
   The supervisor starts the server as `portly-server.exe` (§3). The version resource is not changed: the Processes
   tab still says "Node.js JavaScript Runtime", and the Authenticode signature stays valid.
-- Same build = same size and modification times at most 2 s apart (`Test-HbSameProgram`). `Update-HbRuntimeCopies`
+- Same build = same size and modification times at most 2 s apart (`Test-PtSameProgram`). `Update-PtRuntimeCopies`
   makes both current, runs `portly-supervisor.exe -p process.versions.node` (must match the source's version) and writes
   `runtime.json`; it never throws and returns `Ok`, `Usable` (an older copy in use was kept, or only
   `portly-server.exe`/`runtime.json` failed), `Changed`, `Linked`, `Version`, `Error`.
 - `install-autostart.ps1` makes or refreshes them before registering the task: not usable (cannot be written, blocked by
   policy, wrong version) → the task runs node.exe itself, with a warning; usable but not current (Portly runs from
   them) → registered with the copy and refreshed again once the running processes are stopped (still not usable then →
-  re-registered with node.exe). `Start-HbTask` (`update.ps1` restart, `portly --start`, `try-branch.ps1` restore) first runs `Sync-HbTaskRuntime`: when the task's program is
+  re-registered with node.exe). `Start-PtTask` (`update.ps1` restart, `portly --start`, `try-branch.ps1` restore) first runs `Sync-PtTaskRuntime`: when the task's program is
   `portly-supervisor.exe` and the copies are missing or another build than `runtime.json`'s source, it refreshes them
   (quiet when current; a line when it did something or could not; `-DryRun` only says it). A browser start goes
   through `schtasks /run` only, so it does not refresh them; `status.ps1` warns when they are another build than
@@ -2343,11 +2344,11 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
   `scripts/release/node-runtime.json` (`-NodeExe` substitutes a local one for test builds; `publish-release.ps1`
   refuses those and dirty builds). No bundling: Node runs the sources as in a checkout.
 - **`@portly/shared` link:** a zip holds no junction, so `node_modules/@portly/shared` → `<app>/shared` is created
-  after the package reaches its final folder (`install.ps1`; `Initialize-HbReleaseLinks` in `install-autostart.ps1` and
+  after the package reaches its final folder (`install.ps1`; `Initialize-PtReleaseLinks` in `install-autostart.ps1` and
   `start.ps1` restores it). Node resolves it to the real path outside `node_modules`, where type stripping is allowed.
   Before a release folder is moved or deleted its junctions are removed first (non-recursive `Directory.Delete`), since
   a moved junction keeps its absolute target.
-- **Scripts in a release install** (`Get-HbReleaseInfo` = `release.json` present): `Resolve-HbNode` prefers
+- **Scripts in a release install** (`Get-PtReleaseInfo` = `release.json` present): `Resolve-PtNode` prefers
   `<root>/runtime/node.exe` over PATH (source of the task's named copies §12, `launcher.cmd`, config check);
   `portly --update` runs a temporary copy of `install.ps1` with `-InstallDir` = the parent of `app`, `--rebuild`
   refuses (it is `update.ps1`, checkout only), `--version` names the install kind; `install-cli.ps1` skips the
@@ -2390,29 +2391,11 @@ cutting a release). This section is the contract. A Git checkout (`scripts/setup
 
 ---
 
-## 19. Renamed from Homebase
+## 19. Recognising Portly on its port
 
-Portly was called Homebase until October 2026. Everything was renamed (PORTLY_* variables, `@portly/*`, `X-Portly`
-headers, `app: 'portly'` in health, the **Portly Server** task, `com.portly.launcher`, `%LOCALAPPDATA%\Portly` with
-`portly.db`, `portly:` browser keys, `portly-export`). The code that copied an existing Homebase install over was
-removed once no PC ran Homebase; 0.2.0-alpha.5 is the last version that has it. Portly neither reads nor stops
-nor removes a Homebase install now. What is left, each for a reason:
-
-- **Two literals existing data depends on:** the vault canary `homebase-vault-canary-v1` (changing it makes every
-  existing vault read as the wrong key) and the bookmark import source seed (changing it changes every imported
-  source's id).
-- **Public pages:** `site/` moved from `davideAurum/homebase-site` to `davideAurum/portly-site` in October 2026. The
-  old repository keeps redirect pages, because the 0.2.0-alpha.1 footer and old consent screens link there.
-- **Export files:** import accepts `format: 'homebase-export'` (`isExportFormat`), which has the same content.
-- **Health checks:** the extension (`checkHealth`, `extension/lib/portly.js`), the native host (`probeHealth`),
-  `install-autostart.ps1` and the web app's probe take an answer on the port for Portly only with `app: 'portly'`.
-  Homebase answered `ok: true` on the same port, and any other server may.
-- **Old names kept on purpose:** the `--hb-*` CSS properties, `hb-*` classes and `Hb` PowerShell helpers.
-
-Files the removed code left behind are ignored and harmless: `copy-from-homebase.json`, `migrated-from-homebase.json`,
-`homebase-variables-copied.json` and `homebase-task-backup.xml` in the data folder, `portly.db.before-homebase-<time>`
-and `vault.key.before-homebase-<time>` beside the database, the `portly:migrated-from-homebase` browser key and a
-`copy:homebase-pending` record in the browser's database.
+The extension (`checkHealth`, `extension/lib/portly.js`), the native host (`probeHealth`), `install-autostart.ps1`
+and the web app's probe take an answer on the port as Portly's only when it says `app: 'portly'`. Any other server
+may answer `ok: true` on the same port, and is then reported as another program holding the port.
 
 ---
 
