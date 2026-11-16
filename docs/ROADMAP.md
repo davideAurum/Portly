@@ -819,6 +819,11 @@ Items:
   `claude/server-calendar-static-page-49085a` 79a2485. `gh repo view` reports it archived and
   private.
 
+  *2026-11-16, at the owner's ask:* both repositories were deleted, the archive and the redirect
+  site, so `/homebase-site/` now answers 404 and the 0.2.0-alpha.1 footer's links and any old
+  consent-screen links that point there no longer work. GitHub can restore a deleted repository
+  for 90 days (Settings → Repositories → Deleted repositories).
+
 - **3.7 Remove the migration code** (M; go-ahead; after no PC runs Homebase).
   Remove what copied a Homebase install into Portly, keeping what existing data and links need
   (ARCHITECTURE section 19). 0.2.0-alpha.5 stays the last version that can carry an install over.
