@@ -3,7 +3,7 @@
     Runs Portly in the foreground of this PowerShell window (Ctrl+C stops it).
 
 .DESCRIPTION
-    Checks Node.js (24, the pinned major; any other is refused) and the installed
+    Checks Node.js (26, the pinned major; any other is refused) and the installed
     dependencies, builds web\dist if it is missing, refuses to start a second copy when Portly
     already answers on the port, then runs `node server\src\index.ts` until you press Ctrl+C.
     Use install-autostart.ps1 instead to run it in the background at every sign-in.

@@ -75,16 +75,16 @@ and how releases are built and published: [Releases](setup/releases.md).
 - Windows 11. The credential vault uses Windows DPAPI and autostart uses Task Scheduler.
 - Google Chrome or Microsoft Edge for the new-tab extension (any modern browser can open Portly
   directly).
-- From the source code only: [Node.js](https://nodejs.org/) **24** (any 24.x release, which includes
+- From the source code only: [Node.js](https://nodejs.org/) **26** (any 26.x release, which includes
   npm 11; check with `node -v`) and [Git](https://git-scm.com/) to get and update the code.
 
 ## From the source code
 
 ### One-command setup on a new PC
 
-`scripts\setup.ps1` does everything below that a script can do: installs Git and Node.js 24 with
+`scripts\setup.ps1` does everything below that a script can do: installs Git and Node.js 26 with
 winget when they are missing (and stops if another Node.js major is installed, since Portly runs
-on 24 only), clones Portly into `%USERPROFILE%\Coding\Portly`, installs and
+on 26 only), clones Portly into `%USERPROFILE%\Coding\Portly`, installs and
 builds, turns on autostart, installs the `portly` command, and opens the browser's extensions page
 for the one manual step (Load unpacked → the `extension` folder). On a PC without the code, in
 PowerShell:

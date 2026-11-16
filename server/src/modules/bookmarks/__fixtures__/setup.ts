@@ -55,7 +55,7 @@ export function bookmarksTestbed(options: BookmarksTestbedOptions = {}): Bookmar
 }
 
 /** Multipart body with one file part (plus optional text fields). */
-export function fileForm(content: Uint8Array | string, name = 'file.bin', fields: Record<string, string> = {}): FormData {
+export function fileForm(content: Uint8Array<ArrayBuffer> | string, name = 'file.bin', fields: Record<string, string> = {}): FormData {
   const form = new FormData();
   form.append('file', new Blob([content], { type: 'application/octet-stream' }), name);
   for (const [key, value] of Object.entries(fields)) form.append(key, value);

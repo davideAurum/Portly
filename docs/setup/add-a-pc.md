@@ -34,7 +34,7 @@ Pick one:
   `& ([scriptblock]::Create((irm https://davideaurum.github.io/portly/install.ps1))) -PagesUrl https://<user>.github.io/`.
   [Install](../SETUP.md#install).
 - **From the source code**: `irm https://davideaurum.github.io/portly/setup.ps1 | iex` installs Git and
-  Node.js 24 when missing, clones into `%USERPROFILE%\Coding\Portly`, builds, and turns on
+  Node.js 26 when missing, clones into `%USERPROFILE%\Coding\Portly`, builds, and turns on
   autostart and the `portly` command. Options go in the same way as above, for example
   `-PagesUrl https://<user>.github.io/`; add `-DryRun` first to see the plan.
   [One-command setup](../SETUP.md#one-command-setup-on-a-new-pc).

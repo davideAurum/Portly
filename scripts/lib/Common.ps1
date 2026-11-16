@@ -27,11 +27,11 @@ $PortlyUpdaterDescription = 'Installs the newest Portly release when asked to fr
 # Below the 20 minutes after which the server counts a quiet run as dead (modules/update).
 $PortlyUpdaterTimeLimitMinutes = 15
 $PortlyDefaultPort = 5757
-# The Node.js major Portly runs on: the one package.json pins in engines.node (">=24 <25"), which
+# The Node.js major Portly runs on: the one package.json pins in engines.node (">=26 <27"), which
 # npm's engine-strict enforces, so Resolve-PtNode refuses any other major too (older or newer).
 # check-scripts.ps1 keeps it equal to package.json, scripts\release\node-runtime.json, ci.yml and
 # $SetupNodeMajor in setup.ps1 (which cannot dot-source this file). A new major changes them all.
-$PortlyNodeMajor = 24
+$PortlyNodeMajor = 26
 # winget's package for that major. winget keeps its current LTS under OpenJS.NodeJS.LTS and gives
 # a major its own id (OpenJS.NodeJS.22, ...) once it is no longer the LTS, so setup.ps1 picks
 # whichever of the two installs $PortlyNodeMajor at run time; messages name both.

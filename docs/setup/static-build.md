@@ -382,7 +382,7 @@ To update the site after pulling new Portly code, run the same command again.
 
 `.github\workflows\static-pages.yml` does the same from GitHub's servers. It runs **only when you
 start it** (Actions → *Publish static site* → **Run workflow**, with the inputs `public_repo`
-= `<user>/portly-pages` and `base`); nothing is published on push. It builds with Node 24 and
+= `<user>/portly-pages` and `base`); nothing is published on push. It builds with Node 26 and
 pushes `web\dist-static` to the public repository's `gh-pages` branch with
 [peaceiris/actions-gh-pages](https://github.com/peaceiris/actions-gh-pages) (set that
 repository's Pages source to `gh-pages` / root). Like the script, it replaces that branch

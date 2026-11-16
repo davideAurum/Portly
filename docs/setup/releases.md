@@ -174,7 +174,7 @@ CI (`ci.yml`) also builds and checks a test package on every push to `main` and 
 `scripts\release\node-runtime.json` pins the version and the SHA-256 of
 `node-v<version>-win-x64.zip`. Take the hash from `https://nodejs.org/dist/v<version>/SHASUMS256.txt`
 and change both together; `build-release.ps1` refuses a download whose hash differs. Stay on an LTS
-line that `npm test` runs on (CI uses Node 24).
+line that `npm test` runs on (CI uses Node 26).
 
 ## The new-tab extension: Load unpacked, no store listings
 

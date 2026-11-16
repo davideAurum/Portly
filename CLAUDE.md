@@ -5,7 +5,7 @@ Guidance for coding agents in this repository. The binding design contract is
 (section 4, security, always applies).
 
 ## What Portly is
-A single-user browser home page for Windows 11. A Node 24 server bound to loopback (Hono,
+A single-user browser home page for Windows 11. A Node 26 server bound to loopback (Hono,
 `node:sqlite`, DPAPI-protected vault) serves a React 19 + Vite 8 app. A Manifest V3 extension
 makes it the New Tab page and starts the server through a native messaging host and a per-user
 scheduled task. The same app also builds as a browser-only static site (GitHub Pages) that can
@@ -25,7 +25,7 @@ use a paired local server ("hybrid mode", ARCHITECTURE section 16).
 
 ## Commands
 - Install: `npm ci` only. `.npmrc` sets `ignore-scripts`, `min-release-age=7`, `engine-strict`
-  (Node 24 only, `>=24 <25`; npm >= 11.10). Do not add or upgrade dependencies unless asked.
+  (Node 26 only, `>=26 <27`; npm >= 11.10). Do not add or upgrade dependencies unless asked.
 - `npm run typecheck`
 - `npm test`: vitest (projects `server`, `web`, `static`), extension tests, native host tests,
   then `npm audit --omit=dev --audit-level=high`.

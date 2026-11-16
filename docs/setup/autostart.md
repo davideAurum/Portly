@@ -71,8 +71,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-autostart.
 
 The script:
 
-1. checks Node.js 24 (the major Portly pins: another major, older or newer, is refused with
-   *Portly needs Node.js 24, found v...* and what to install, as `setup.ps1` does), the installed
+1. checks Node.js 26 (the major Portly pins: another major, older or newer, is refused with
+   *Portly needs Node.js 26, found v...* and what to install, as `setup.ps1` does), the installed
    dependencies and the repository layout, reads the extension ID from `extension\manifest.json`,
    and checks your `PORTLY_*` environment variables (if any) with the server's own configuration
    loader — the background server has no console to show such errors, so they are reported here

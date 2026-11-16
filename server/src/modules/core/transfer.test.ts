@@ -158,7 +158,7 @@ describe('core: import', () => {
     t.close();
   });
 
-  const preview = (content: string | Uint8Array) =>
+  const preview = (content: string | Uint8Array<ArrayBuffer>) =>
     t.json<ImportPreviewResponse & { error?: { code: string; details?: { path: string }[] } }>('POST', '/api/import/preview', {
       body: fileForm(content, 'portly-export.json', 'application/json'),
     });
@@ -304,7 +304,7 @@ describe('core: import', () => {
     };
     let deep: unknown = {};
     for (let i = 0; i < 200; i++) deep = { d: deep };
-    const cases: [string, string | Uint8Array, number][] = [
+    const cases: [string, string | Uint8Array<ArrayBuffer>, number][] = [
       ['not JSON', 'definitely not json', 400],
       ['__proto__ in a widget config', JSON.stringify(baseFile()).replace('"profiles":[]', '"profiles":[{"id":"p","name":"P","sort":0,"layout":{"version":1,"items":[{"id":"w","type":"clock","x":0,"y":0,"w":4,"h":3,"config":{"__proto__":{"polluted":true}}}]}}]'), 400],
       ['constructor.prototype in settings', JSON.stringify(baseFile()).replace('"settings":{}', '"settings":{"constructor":{"prototype":{"polluted":true}}}'), 400],

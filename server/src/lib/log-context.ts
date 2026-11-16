@@ -3,7 +3,7 @@
  * belongs to — request id, job and run, area, account/calendar/feed ids. The logger merges it into
  * every record, so code deep inside a sync never has to pass ids down for logging.
  *
- * Propagation rules (Node 24):
+ * Propagation rules (Node 26):
  * 1. Timers capture the context where they are created: a timer that re-arms or outlives the unit of
  *    work (scheduler `arm()`, job watchdog, request-still-running timer, sweeps, rate-limit resets)
  *    is created inside {@link outsideLogContext}.

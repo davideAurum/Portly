@@ -60,7 +60,7 @@ place name of your location), as the [privacy policy](site/privacy.html) lists.
                                    and portly-server.exe
 ```
 
-- **server/** — Node 24 + Hono, run directly from TypeScript (no bundling). SQLite via
+- **server/** — Node 26 + Hono, run directly from TypeScript (no bundling). SQLite via
   `node:sqlite`, credentials encrypted with AES-256-GCM under a DPAPI-protected key, all outbound
   requests through one guarded fetch (SSRF protection, size caps, timeouts).
 - **web/** — React 19 + Vite 8 single-page app with TanStack Query; widgets are lazy-loaded
@@ -93,7 +93,7 @@ client that refuses private-network addresses. Details: [ARCHITECTURE §4](docs/
 
 - Windows 11 (DPAPI vault, Task Scheduler autostart)
 - Chrome or Edge for the new-tab extension
-- From the source code: Node.js 24 (any 24.x release; other majors are refused by `engine-strict`)
+- From the source code: Node.js 26 (any 26.x release; other majors are refused by `engine-strict`)
   and npm ≥ 11.10. A release package brings its own Node.js.
 
 ## Install

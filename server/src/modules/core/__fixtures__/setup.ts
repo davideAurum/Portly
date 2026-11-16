@@ -35,7 +35,7 @@ export function coreTestbed(overrides: TestContextOverrides = {}): CoreTestbed {
 }
 
 /** Multipart body with one file part. */
-export function fileForm(content: Uint8Array | string, name = 'file.bin', type = 'application/octet-stream', field = 'file'): FormData {
+export function fileForm(content: Uint8Array<ArrayBuffer> | string, name = 'file.bin', type = 'application/octet-stream', field = 'file'): FormData {
   const form = new FormData();
   form.append(field, new Blob([content], { type }), name);
   return form;

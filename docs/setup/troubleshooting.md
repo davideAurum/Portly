@@ -57,12 +57,12 @@ it when needed. Under autostart the supervisor tries three times, then stops (`s
 command.
 
 **`npm ci` fails with EBADENGINE / "Unsupported engine"**, or a script says *Portly needs Node.js
-24, found v...* — Portly needs Node.js 24 (any 24.x release; other majors, older or newer, are
+26, found v...* — Portly needs Node.js 26 (any 26.x release; other majors, older or newer, are
 refused on purpose, by `setup.ps1` and the autostart scripts too) and npm 11.10 or newer (`node -v`,
-`npm -v`). Install Node.js 24 from <https://nodejs.org/> or with winget (`winget install
-OpenJS.NodeJS.24`; while winget's LTS is still Node.js 24 that id does not exist yet, so use
+`npm -v`). Install Node.js 26 from <https://nodejs.org/> or with winget (`winget install
+OpenJS.NodeJS.26`; while winget's LTS is still Node.js 26 that id does not exist yet, so use
 `winget install OpenJS.NodeJS.LTS`; on a PC without Node.js `setup.ps1` picks the right one by
-itself, but with another major installed it stops and names the id that works today, so install 24
+itself, but with another major installed it stops and names the id that works today, so install 26
 first), open a new terminal and try again.
 
 **Nothing listens and the log ends with an error** — read the last records of `server.log` and

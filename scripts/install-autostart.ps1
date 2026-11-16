@@ -74,7 +74,7 @@
     something must be fixed first.
 
 .PARAMETER NodePath
-    node.exe to run (Node.js 24, the pinned major; any other is refused), and to copy as
+    node.exe to run (Node.js 26, the pinned major; any other is refused), and to copy as
     portly-supervisor.exe. Defaults to the node.exe found on PATH (a release install: its own
     runtime\node.exe).
 

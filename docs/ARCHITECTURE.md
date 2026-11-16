@@ -83,7 +83,7 @@ personal Microsoft accounts only and the `/consumers` authority is hard-coded).
 ## 2. Repository & toolchain
 
 ```
-/package.json          workspaces ["shared","server","web"]; engines {node:">=24 <25", npm:">=11.10"} (§2a)
+/package.json          workspaces ["shared","server","web"]; engines {node:">=26 <27", npm:">=11.10"} (§2a)
 /.npmrc                ignore-scripts=true, min-release-age=7, engine-strict=true
 /package-lock.json     committed; installs use `npm ci`
 /.gitattributes        LF everywhere; CRLF for .ps1, .cmd and .bat
@@ -91,7 +91,7 @@ personal Microsoft accounts only and the `/consumers` authority is hard-coded).
 /vitest.config.ts      test.projects: server (node: server/**, shared/**), web (jsdom: web/src/** except static/),
                        static (node + fake-indexeddb: web/src/static/**)
 /shared                @portly/shared — TS contract types + zod schemas; package.json "exports": {".": "./src/index.ts"}
-/server                @portly/server — Node 24, Hono, node:sqlite; runs from TS source (no bundle)
+/server                @portly/server — Node 26, Hono, node:sqlite; runs from TS source (no bundle)
 /web                   @portly/web — Vite 8 + React 19 + TypeScript; web/src/static/ = the Pages build's in-browser
                        backend (§16)
 /extension             Manifest V3 new-tab extension (plain JS, no build; pinned ID via manifest "key")
@@ -116,13 +116,13 @@ use the newest version older than 7 days.
   `@dnd-kit/utilities`, `radix-ui@^1.6`, `sonner@^2`, `lucide-react`, `date-fns@^4`, `@date-fns/tz@^1`, `entities`
   and `node-html-parser` (the in-browser backend).
 - **root dev:** `typescript@~7.0` (only via `tsc --noEmit`; nothing may import the TS API — if TS 7 blocks
-  anything, pin `~6.0` instead), `@types/node@^24`, `@types/react`, `@types/react-dom`, `vite@^8`,
+  anything, pin `~6.0` instead), `@types/node@^26`, `@types/react`, `@types/react-dom`, `vite@^8`,
   `@vitejs/plugin-react@^6`, `vitest@^5`, `jsdom`, `fake-indexeddb` (static tests), `@testing-library/react`,
   `@testing-library/user-event`, `@testing-library/jest-dom`, `concurrently`.
 - **Not used:** tsup, tsx, esbuild bundling of the server, `@types/react-grid-layout`, `@dnd-kit/react`,
   `@tanstack/query-sync-storage-persister` (`app/providers.tsx` has its own `Persister`), web fonts,
   lodash.merge/deepmerge, googleapis / msgraph SDKs (plain fetch), any native module.
-- **Node major pinned:** `engines.node` in the root `package.json` is `>=24 <25`, and `engine-strict` makes `npm ci`
+- **Node major pinned:** `engines.node` in the root `package.json` is `>=26 <27`, and `engine-strict` makes `npm ci`
   refuse any other major. The server runs its TypeScript through Node's type stripping and the supervisor starts
   it with `--no-warnings` (§3), so a new Node major can change behaviour that only the `process.on('warning')`
   log line would report. Moving to a new major is a deliberate step that changes three places together:
@@ -1756,7 +1756,7 @@ to `\Portly Server` by `install-autostart.ps1`, no trigger, action `conhost.exe 
 15 minutes (below the server's 20 for a run gone quiet), `IgnoreNew`, no restarts. A current or running task is left alone;
 a failure is only a warning, and the page then says `no-task`. `uninstall-autostart.ps1` removes it, `status.ps1` shows it.
 
-**Install and uninstall order:** `install-autostart.ps1` validates first (Node 24+, dependencies, `PORTLY_*` via
+**Install and uninstall order:** `install-autostart.ps1` validates first (Node 26, dependencies, `PORTLY_*` via
 `server/src/config.ts`, manifest key; `-DryRun` prints the task, every file with content, both registry values and the
 copies' state, and exits 1 if something must be fixed), builds `web/dist` if missing, makes or refreshes the named
 copies, registers the task, writes the host files and keys, stops processes started from this repo's supervisor (then

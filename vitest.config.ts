@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 // Three projects: server (node env; server + shared tests), web (jsdom env; UI) and static
-// (node env; the browser-only build's in-browser backend, which uses only platform APIs Node 24
+// (node env; the browser-only build's in-browser backend, which uses only platform APIs Node 26
 // also has — Request/Response/Blob/BroadcastChannel/URL.createObjectURL — plus fake-indexeddb.
 // It runs under node rather than jsdom because jsdom's Blob does not survive structured cloning).
 // No live network in tests: server code receives fakes through createTestContext().

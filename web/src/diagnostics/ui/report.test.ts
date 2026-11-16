@@ -96,7 +96,7 @@ describe('sharing', () => {
   it('finds the hosts a message names only in its text (a custom IMAP server), not file names or script words', () => {
     expect(hostsInText('The mail server mail.hollis-home.net could not be found')).toEqual(['mail.hollis-home.net']);
     expect(hostsInText('A secure connection to IMAP.Contoso-Legal.com failed (TLS).')).toEqual(['imap.contoso-legal.com']);
-    expect(hostsInText('Could not read server.log or settings.json; Node.js 24.1.0, e.g. v1.2.3')).toEqual([]);
+    expect(hostsInText('Could not read server.log or settings.json; Node.js 26.1.0, e.g. v1.2.3')).toEqual([]);
     // Emails and URLs are redactForSharing's own patterns; paths name no host.
     expect(hostsInText('dana@example.com at https://x.example.org/feed.xml, C:\\logs\\a.b.org')).toEqual([]);
   });
