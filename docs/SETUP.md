@@ -270,6 +270,12 @@ restart of the server if it was running, and the Pages publish when `PORTLY_PAGE
 It refuses a checkout with uncommitted changes, so what it builds and publishes is always a
 commit; `--allow-dirty` builds and publishes them as they are, and `--dry-run` shows the plan.
 
+To see a change before you commit or merge it, run `portly --dev` in the checkout (a worktree
+works too), or `portly --dev <folder>` from anywhere. It builds that checkout and runs it on a
+copy of your data, with your normal Portly paused until you press Enter (it is
+`scripts	ry-branch.ps1`; `--pages-port`, `--keep-data`, `--skip-build` and `--dry-run` are
+passed on). Nothing is published and your real data is only read.
+
 Or by hand:
 
 ```powershell
