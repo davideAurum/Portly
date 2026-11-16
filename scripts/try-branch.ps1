@@ -56,6 +56,23 @@ $mainRoot = $checkout
 if (Test-HbWorktreePath $checkout) {
     $mainRoot = [System.IO.Path]::GetFullPath((Join-Path $checkout '..\..\..'))
 }
+# Where the normal Portly really runs from: the folder its task starts in. A release install lives
+# in <install folder>pp, not in the main checkout, so both are searched for processes to stop.
+function Get-HbNormalRoots {
+    param($Task, [Parameter(Mandatory)][string]$MainRoot)
+    $roots = New-Object System.Collections.Generic.List[string]
+    $roots.Add($MainRoot)
+    if ($null -ne $Task) {
+        $action = @($Task.Actions)[0]
+        $dir = "$(Get-HbProperty $action 'WorkingDirectory')".Trim().Trim('"')
+        if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) {
+            $full = [System.IO.Path]::GetFullPath($dir).TrimEnd('')
+            if (-not ($roots | Where-Object { $_.TrimEnd('') -ieq $full })) { $roots.Add($full) }
+        }
+    }
+    return $roots.ToArray()
+}
+
 $port = (Get-HbPortSetting -Scope Task).Port
 if ($port -ne $PortlyDefaultPort) {
     Write-HbInfo "Your Portly uses port $port; the test server takes it over the same way."
@@ -92,7 +109,10 @@ if ($DryRun) {
         Write-HbInfo "- build: npm run build, then npm run build:static (PORTLY_STATIC_SERVER=http://127.0.0.1:$port)"
     }
     if ($null -ne $dryTask -and $dryTask.State -ne 'Disabled') { Write-HbInfo "- disable the task '$PortlyTaskName' for the test" }
-    Write-HbInfo "- stop the Portly processes started from $mainRoot`: $(Format-HbProcessList -Trees @(Get-HbSupervisorProcesses -RepoRoot $mainRoot))"
+    $dryRoots = @(Get-HbNormalRoots -Task $dryTask -MainRoot $mainRoot)
+    foreach ($root in $dryRoots) {
+        Write-HbInfo "- stop the Portly processes started from $root`: $(Format-HbProcessList -Trees @(Get-HbSupervisorProcesses -RepoRoot $root))"
+    }
     Write-HbInfo "- copy $realData to $testData, without backups, logs and $(Get-HbRuntimeDir)"
     Write-HbInfo "- start $node server\src\index.ts in $checkout on port $port with the copy, and the stand-in Pages site on port $PagesPort"
     $deleteCopy = if ($KeepData) { 'keep the copy (-KeepData)' } else { 'delete the copy' }
@@ -150,7 +170,10 @@ try {
             Write-HbInfo "Could not disable the '$PortlyTaskName' task ($($_.Exception.Message)). If the extension starts it during the test, it finds the port taken and stops."
         }
     }
-    $stopped = @(Stop-HbSupervisorProcesses -RepoRoot $mainRoot)
+    $stopped = @()
+    foreach ($root in @(Get-HbNormalRoots -Task $task -MainRoot $mainRoot)) {
+        $stopped += @(Stop-HbSupervisorProcesses -RepoRoot $root)
+    }
     if ($stopped.Count -gt 0) { Write-HbOk "Stopped PID $($stopped -join ', ')." }
     $deadline = [System.DateTime]::UtcNow.AddSeconds(15)
     do {
