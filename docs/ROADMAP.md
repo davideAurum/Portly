@@ -776,7 +776,13 @@ Items:
   checkout, variable, process or extension of the old app, and nothing to export. Step 4: the New Tab
   page showed "Portly isn't running", because that PC has the extension but no server and the
   extension looks for one there; the owner chose to fix that in B.9 rather than set the extension's
-  options by hand. The widgets, Accounts, Diagnostics and the footer were not reported yet.
+  options by hand. The rest of step 4, checked in that PC's Chrome the same day: the widgets show
+  the main PC's data (mail, calendars, launch pad, Spotify listing both PCs); Settings → Accounts
+  lists six accounts, all Connected, with no Reconnect; the footer reads "Portly on your main PC:
+  Connected · v0.2.0-alpha.8"; Diagnostics shows 44 OK and 1 failing, Weather, whose requests to
+  Open-Meteo timed out since 9:21 (last OK two hours earlier), while the widget said "Updated 2 days
+  ago". Left for 3.3: the New Tab page (B.9 phase 2) and other-pcs.md's step for a PC without a
+  server. 3.4 closes with it: the tailnet has no other PC.
 
 - **3.4 The remaining PCs** (S; go-ahead; after 3.3).
   The same on each remaining PC; fix anything the first one exposed before the next.
@@ -1890,6 +1896,7 @@ date and the outcome once a row has been run for real.
 
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
+| Why Weather's requests to Open-Meteo timed out on the main PC from 9:21 on 2026-11-16, and why the widget said "Updated 2 days ago" while Diagnostics said the last success was two hours earlier; seen only from dg-surfacepro | this commit, 2026-11-16 | a look on the main PC | not yet |
 | The vault's canary rewrite on a real DPAPI-protected vault: the first start of the new version should log `vault: canary rewritten` once and keep every secret; only the fake protector ran | this commit, 2026-11-16 | the next update of the main PC | not yet |
 | The `pt-` rename of the CSS names and classes in a real browser: every page and widget unchanged in light and dark; only component tests and both builds ran | this commit, 2026-11-16 | the owner's next look after the next release | not yet |
 | The `Pt` rename of the PowerShell helpers in a real install, update and `portly` command; only the self-checks (dry runs and stand-ins) ran | this commit, 2026-11-16 | the next release's `portly --update` on the main PC | not yet |
