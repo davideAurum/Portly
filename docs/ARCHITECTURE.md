@@ -1807,7 +1807,10 @@ not run), and the `-DryRun` outputs, and asserts the real task, keys and folders
   handling, Todoist mapping.
 - The production build runs without CSP violations. No automated step covers this: it is checked by hand before
   every release, for both `web/dist` and `web/dist-static` ([Releases](setup/releases.md#cutting-a-release), step 3).
-  Last checked 2026-11-16 on 0.2.0-alpha.9 (023a53f), in the desktop app's browser pane (Chromium): zero CSP
+  Last checked 2026-11-16 on 0.2.0-alpha.10 (42ed9bb, Node 26), in the desktop app's browser pane (Chromium): zero CSP
+  violations in both builds, over the dashboard (no accounts) and every settings section, plus the diagnostic report
+  and export on the server build (both served at `/`, not `/portly/`). Not repeated: a widget of every type, a
+  background upload and an import. Before that, 2026-11-16 on 0.2.0-alpha.9 (023a53f), same pane: zero CSP
   violations in both builds, over the dashboard (no accounts) and every settings section on the server build, and
   the settings sections and the connect page on the Pages build (served at `/`, not `/portly/`). Not repeated that
   day: a widget of every type, the diagnostic report, a background upload, export and import. Before that, a full
