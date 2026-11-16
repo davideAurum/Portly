@@ -1831,6 +1831,11 @@ try {
             $cliRebuildWorktree = & $run (Join-Path $updateCopies.worktree 'scripts\portly.ps1') @('--rebuild', '--dry-run')
             Assert-That -Name 'portly --rebuild passes update.ps1 exit code through (worktree refused: 1)' -Condition (
                 $cliRebuildWorktree.ExitCode -eq 1 -and $cliRebuildWorktree.Text.Contains('temporary worktree')) -Detail $cliRebuildWorktree.Text
+            $cliDevOption = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--dev', '--nope')
+            $cliDevFolder = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--dev', $workDir)
+            Assert-That -Name 'portly --dev rejects an unknown option (2) and a folder that is not a checkout (1), and --help lists it' -Condition (
+                $cliDevOption.ExitCode -eq 2 -and $cliDevOption.Text.Contains("Unknown option '--nope'") -and
+                $cliDevFolder.ExitCode -eq 1 -and $cliDevFolder.Text.Contains('is not a Portly checkout') -and $cliHelp.Text.Contains('--dev')) -Detail "$($cliDevOption.Text)`n$($cliDevFolder.Text)"
             Assert-That -Name 'portly --help lists --allow-dirty under --rebuild' -Condition ($cliHelp.Text.Contains('--allow-dirty')) -Detail $cliHelp.Text
             if ($null -ne $checkGit) {
                 # update.ps1 on a checkout (a scratch git repository) with uncommitted changes:

@@ -12,6 +12,10 @@
         Git checkout: update everything from the code checked out: dependencies, the local page,
         the server and the GitHub Pages site (scripts\update.ps1). Uncommitted changes are
         refused unless --allow-dirty. A release install says to use --update instead.
+    portly --dev [<folder>] [--pages-port <n>] [--keep-data] [--skip-build] [--dry-run]
+        Build and run a local Git checkout (the shell's current one, a worktree included, or
+        <folder>) with its own scripts\try-branch.ps1: on a copy of your data, with your normal
+        Portly paused until you press Enter. Nothing is published.
     portly --version
         The installed version, and whether it is a release install or a Git checkout.
     portly --status [--logs]
@@ -49,8 +53,15 @@ Usage: portly <command> [options]
                   --skip-server   do not restart the server
                   --allow-dirty   build and publish uncommitted changes too
                                   (refused otherwise)
+  --dev [folder] Build and run a local checkout (the current folder's, or
+                <folder>) in dev mode on a COPY of your data, then put your
+                normal Portly back when you press Enter. Nothing is published.
+                  --pages-port <n> port of the stand-in Pages site (5175)
+                  --keep-data      keep the temporary data copy
+                  --skip-build     use the builds already in web\dist
+                  --dry-run        show what would happen, change nothing
   --version     Show the installed version.
-  --status      Is Portly running and healthy?  (--logs adds the log tails)
+  --status     Is Portly running and healthy?  (--logs adds the log tails)
   --settings    How Portly is set up: port, folders, logs, autostart,
                 browser extension, GitHub Pages and other PCs.
   --start      Start the Portly server.
@@ -184,6 +195,67 @@ function Write-HbVersion {
     return 0
 }
 
+# The Git checkout to try: the folder given, else the one the shell is in (a worktree counts),
+# else the checkout this command lives in. Returns $null (after saying why) when there is none.
+function Resolve-HbDevCheckout {
+    param([Parameter(Mandatory)][string]$DefaultRoot, [string]$Path)
+    $candidate = $Path
+    if (-not $candidate) {
+        $git = Get-Command -Name 'git.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -ne $git) {
+            $top = "$(& $git.Source rev-parse --show-toplevel 2>$null)".Trim()
+            if ($top -and (Test-Path -LiteralPath (Join-Path $top 'scripts\try-branch.ps1'))) { $candidate = $top }
+        }
+    }
+    if (-not $candidate) { $candidate = $DefaultRoot }
+    if (-not (Test-Path -LiteralPath $candidate -PathType Container)) {
+        Write-HbFailure "No folder at $candidate."
+        return $null
+    }
+    $full = [System.IO.Path]::GetFullPath($candidate)
+    if (-not (Test-Path -LiteralPath (Join-Path $full 'scripts\try-branch.ps1') -PathType Leaf)) {
+        Write-HbFailure "$full is not a Portly checkout (no scripts\try-branch.ps1). Run portly --dev from a checkout or pass its folder."
+        return $null
+    }
+    return $full
+}
+
+# portly --dev: builds and runs a local checkout (this folder's, or the one given) with its own
+# try-branch.ps1, on a copy of the real data. The installed Portly is paused meanwhile.
+function Invoke-HbDev {
+    param([Parameter(Mandatory)][string]$DefaultRoot, [AllowEmptyCollection()][string[]]$Options)
+    $parameters = @{}
+    $folder = $null
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        switch -Regex ($Options[$i].ToLowerInvariant()) {
+            '^--dry-run$' { $parameters.DryRun = $true; break }
+            '^--keep-data$' { $parameters.KeepData = $true; break }
+            '^--skip-build$' { $parameters.SkipBuild = $true; break }
+            '^--pages-port$' {
+                $port = 0
+                if ($i + 1 -ge $Options.Count -or -not [int]::TryParse($Options[$i + 1], [ref]$port) -or $port -lt 1 -or $port -gt 65535) {
+                    Write-HbFailure '--pages-port needs a port number, for example --pages-port 5175.'
+                    return 2
+                }
+                $i++
+                $parameters.PagesPort = $port
+                break
+            }
+            '^--' { Write-HbFailure "Unknown option '$($Options[$i])'."; return 2 }
+            default {
+                if ($null -ne $folder) { Write-HbFailure 'Only one checkout folder can be given.'; return 2 }
+                $folder = $Options[$i]
+            }
+        }
+    }
+    $checkout = Resolve-HbDevCheckout -DefaultRoot $DefaultRoot -Path $folder
+    if ($null -eq $checkout) { return 1 }
+    Write-HbInfo "Building and running the checkout at $checkout (your data is copied, never changed)."
+    $global:LASTEXITCODE = 0
+    & (Join-Path $checkout 'scripts\try-branch.ps1') @parameters | Out-Host
+    return $global:LASTEXITCODE
+}
+
 function Invoke-HbCli {
     param([AllowEmptyCollection()][string[]]$CliArgs)
     if ($CliArgs.Count -eq 0) {
@@ -215,6 +287,7 @@ function Invoke-HbCli {
             if ($null -eq $mapped) { return 2 }
             return Invoke-HbCliScript -Script 'update.ps1' -Parameters $mapped
         }
+        'dev' { return Invoke-HbDev -DefaultRoot $repoRoot -Options $rest }
         'status' {
             $mapped = ConvertTo-HbCliParameters -Options $rest -Map @{ '--logs' = @{ Name = 'LogLines'; Value = 30 } }
             if ($null -eq $mapped) { return 2 }
