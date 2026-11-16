@@ -755,10 +755,31 @@ Items:
   Devices here lists the PC; its widgets load through Serve; dated line; other-pcs.md corrected
   where a step was missing.
 
+  *Prepared 2026-11-16 (nothing run on any PC):* Tailscale lists one other Windows PC,
+  `dg-surfacepro` (active), and a phone (`davids-s26-ultra`, offline). This PC serves Portly through
+  Serve (`https://dg-desktop.tailb72305.ts.net` to 5758) with `PORTLY_PAGES_URL` set. The A PC that
+  ran Homebase part of other-pcs.md is gone and no PC runs Homebase (F11), so the item is the
+  connect and the checks, on dg-surfacepro, with the owner there:
+  1. On this PC: Settings > Devices; note whether dg-surfacepro is already listed (it connected
+     through the Pages site on 2026-10-30). If it is, skip to step 4.
+  2. On dg-surfacepro: open `https://davideaurum.github.io/#/connect`, type the Serve address,
+     Allow local network access, name the PC, **Ask to connect**.
+  3. On this PC: compare the name and code in Settings > Devices, **Approve**.
+  4. On dg-surfacepro: widgets load with this PC's data; Settings > Accounts shows no Reconnect;
+     Diagnostics is green; the footer shows the paired state.
+  5. Leftovers: `Get-ScheduledTask 'Homebase Server'` and the `com.homebase.launcher` keys are
+     absent, no Homebase New Tab extension, `%LOCALAPPDATA%\Homebase` deleted once Portly works,
+     any export file kept.
+
 - **3.4 The remaining PCs** (S; go-ahead; after 3.3).
   The same on each remaining PC; fix anything the first one exposed before the next.
 
   *Done when:* the same checks per PC; the phase 3 row names the count and the date.
+
+  *Prepared 2026-11-16:* the tailnet shows no further PC. If dg-surfacepro is the only other PC,
+  3.4 closes with 3.3 and the phase 3 row says one PC; a PC that is not on the tailnet yet needs
+  Tailscale installed and signed in first (other-pcs.md, "Setting it up"). The phone is a separate
+  check (other-pcs.md, "Using Portly on a phone or tablet"), not part of this item.
 
 - **3.5 Browser-side -NoHomebaseCopy behaviour** (S; after 3.2).
   Document plainly in SETUP that browsers copy `homebase:` localStorage keys and the IndexedDB
