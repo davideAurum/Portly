@@ -54,7 +54,7 @@ Accounts connected on the main PC work from every PC, because the server keeps t
    `setup.ps1`: set the variable by hand and re-run `app\scripts\install-autostart.ps1` from that
    folder, or sign out of Windows and back in.
 4. Open Portly on the main PC: Settings → Devices shows the address for other PCs. So does
-   `portly --settings` ("Other PCs", with the remote port the proxy must forward to).
+   `portly status --full` ("Other PCs", with the remote port the proxy must forward to).
 
 `setup.ps1 -RemoteOrigin off` turns it off again (it removes `PORTLY_REMOTE_ORIGIN` and
 `PORTLY_REMOTE_PORT`): Portly listens on this PC only, and PCs connected before are refused.
@@ -114,13 +114,13 @@ Your Pages site and the main PC's Portly update separately, so the site can be a
 than Portly. When it is, a page connected to the main PC says so under its header, for example:
 
 > **Portly on your main PC is older than this site**
-> Your main PC runs 0.2.0-alpha.6; this site is 0.2.0-alpha.7. Run `portly --update` on your main PC.
+> Your main PC runs 0.2.0-alpha.6; this site is 0.2.0-alpha.7. Run `portly update` on your main PC.
 
 The page keeps using the main PC, but anything new in the site that needs the newer Portly may not
 work until you update, from Settings → About or with this on the main PC:
 
 ```powershell
-portly --update
+portly update
 ```
 
 The notice goes away by itself once the main PC is back on the newer version. A page opened at the
@@ -130,7 +130,7 @@ same version.
 ## Updating the main PC from another PC
 
 Open Settings → About. The **Updates** card says when a newer release exists. Press **Update**, and
-the main PC installs it with the same backup and rollback as `portly --update`.
+the main PC installs it with the same backup and rollback as `portly update`.
 
 **Update is only on Portly's own page, the Tailscale address, not on the Pages site.** The site shows
 the same card with a link there, **Open Portly's own page**. The Pages site and the releases are

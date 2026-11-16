@@ -216,8 +216,8 @@ try {
     Assert-That -Name 'the installed portly --version says it is a release install' -Condition (
         $cliVersion.ExitCode -eq 0 -and $cliVersion.Text.Contains("Portly $version (release install")) -Detail $cliVersion.Text
     $cliRebuild = Invoke-CheckScript -Path $cli -Arguments @('--rebuild')
-    Assert-That -Name 'the installed portly --rebuild points to --update' -Condition (
-        $cliRebuild.ExitCode -eq 1 -and $cliRebuild.Text.Contains('use portly --update')) -Detail $cliRebuild.Text
+    Assert-That -Name 'the installed portly --rebuild points to portly update' -Condition (
+        $cliRebuild.ExitCode -eq 1 -and $cliRebuild.Text.Contains('use portly update')) -Detail $cliRebuild.Text
     $cliBadOption = Invoke-CheckScript -Path $cli -Arguments @('--update', '--version')
     Assert-That -Name 'the installed portly --update --version without a version is refused' -Condition (
         $cliBadOption.ExitCode -eq 2) -Detail $cliBadOption.Text

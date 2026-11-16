@@ -59,10 +59,10 @@ After the extension is loaded:
   The first start creates a *Home* layout with every widget; press **E** (or use the edit
   button) to rearrange it, and open **Settings** to set your name, theme, search engines,
   weather location and so on.
-- **The `portly` command** works in terminals opened after the install (`portly --status`
+- **The `portly` command** works in terminals opened after the install (`portly status`
   checks everything).
 
-**Updating:** **Update** in Settings → About, or `portly --update`, installs the newest release: it copies your database to
+**Updating:** **Update** in Settings → About, or `portly update`, installs the newest release: it copies your database to
 `backups\` first, keeps the previous version in `app.previous`, and puts both back if the new one
 doesn't start. Click **Reload** on the extension when it says the extension changed. Details,
 and how releases are built and published: [Releases](setup/releases.md).
@@ -231,7 +231,7 @@ environment variables so autostart sees them too):
 | `PORTLY_REMOTE_ORIGIN` | *(unset: off)* | The HTTPS address your other PCs use, given by a reverse proxy on this PC such as Tailscale Serve, e.g. `https://<pc>.<tailnet>.ts.net`. Each PC is approved once in **Settings → Devices** ([Using Portly from your other PCs](setup/other-pcs.md)). Portly still listens only on this PC. |
 | `PORTLY_REMOTE_PORT` | `<port> + 1` | The loopback port that proxy forwards to (only with `PORTLY_REMOTE_ORIGIN`). |
 | `PORTLY_LOG_LEVEL` | `info` | How much the log keeps normally: `debug`, `info` or `warn`. For a while, **Settings → Diagnostics** can switch to Verbose instead ([Diagnostics page and logs](setup/troubleshooting.md#diagnostics-page-and-logs)). |
-| `PORTLY_PAGES_REPO` | *(unset)* | Your local clone of the public Pages repository. In a checkout, `portly --rebuild` (and `portly --update`) publishes the Pages site there. `install-cli.ps1 -PublicRepoPath` sets it. |
+| `PORTLY_PAGES_REPO` | *(unset)* | Your local clone of the public Pages repository. In a checkout, `portly update` publishes the Pages site there. `install-cli.ps1 -PublicRepoPath` sets it. |
 
 For development only: `PORTLY_DEV=1` (set by `npm run dev`) lets the Vite dev server's origin in,
 and `PORTLY_VITE_PORT` (default `5173`) is that dev server's port. The server reads its variables
@@ -268,16 +268,15 @@ first.
 
 ## Updating
 
-A release install: `portly --update` (see [Install](#install)).
+A release install: `portly update` (see [Install](#install)).
 
-From the source code, in one go: after `git pull`, `portly --rebuild` (`portly --update` does the
-same in a checkout) runs `scripts\update.ps1`: `npm ci` when the lockfile changed, the build, a
+From the source code, in one go: after `git pull`, `portly update` (in a checkout) runs `scripts\update.ps1`: `npm ci` when the lockfile changed, the build, a
 restart of the server if it was running, and the Pages publish when `PORTLY_PAGES_REPO` is set.
 It refuses a checkout with uncommitted changes, so what it builds and publishes is always a
 commit; `--allow-dirty` builds and publishes them as they are, and `--dry-run` shows the plan.
 
-To see a change before you commit or merge it, run `portly --dev` in the checkout (a worktree
-works too), or `portly --dev <folder>` from anywhere. It builds that checkout and runs it on a
+To see a change before you commit or merge it, run `portly dev` in the checkout (a worktree
+works too), or `portly dev <folder>` from anywhere. It builds that checkout and runs it on a
 copy of your data, with your normal Portly paused until you press Enter (it is
 `scripts\try-branch.ps1`; `--pages-port`, `--keep-data`, `--skip-build` and `--dry-run` are
 passed on). Nothing is published and your real data is only read.

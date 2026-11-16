@@ -582,6 +582,19 @@ Assert-That -Name 'portly --update --unattended: only a newer version, no browse
     $script:loggedFile -like '*\logs\update.log' -and $script:loggedArguments -notcontains '-Force' -and
     $script:loggedArguments[0] -eq '-InstallDir' -and $script:loggedArguments[1] -eq (Split-Path -Parent $unattendedRoot)) -Detail ($script:loggedArguments -join ' ')
 ${function:Invoke-PtLoggedInstall} = $realLoggedInstall
+$releaseDirty = Invoke-PtReleaseUpdate -RepoRoot $unattendedRoot -Info ([pscustomobject]@{ releaseRepo = 'example/portly' }) -Options @('--allow-dirty')
+Assert-That -Name 'portly update in a release install refuses a checkout-only option with 2' -Condition ($releaseDirty -eq 2)
+
+# The look (Common.ps1, "Output"): plain here, since the output is captured.
+Assert-That -Name 'the Harbor theme is off when output is redirected, and Format-PtStyle then returns the text unchanged' -Condition (
+    -not (Test-PtFancyOutput) -and (Format-PtStyle Teal 'abc' -Bold) -ceq 'abc')
+Assert-That -Name 'ConvertTo-PtProcessArgument quotes spaces, quotes, trailing backslashes and empty arguments' -Condition (
+    (ConvertTo-PtProcessArgument 'plain') -ceq 'plain' -and (ConvertTo-PtProcessArgument 'C:\a b\c\') -ceq '"C:\a b\c\\"' -and
+    (ConvertTo-PtProcessArgument 'say "hi"') -ceq '"say \"hi\""' -and (ConvertTo-PtProcessArgument '') -ceq '""')
+$fakeStreamed = Join-Path $workDir 'fake-streamed.ps1'
+[System.IO.File]::WriteAllLines($fakeStreamed, [string[]]@('Write-Host "==> A step"', 'Write-Host "OK  done"', '[Console]::Error.WriteLine("on stderr")', 'exit 3'))
+$streamedCode = Invoke-PtStreamedProcess -FilePath (Get-Process -Id $PID).Path -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $fakeStreamed) | Select-Object -Last 1
+Assert-That -Name 'Invoke-PtStreamedProcess reads stdout and stderr to the end and passes the exit code on' -Condition ($streamedCode -eq 3) -Detail "$streamedCode"
 
 if ((Test-PtWindows) -and (Test-PtScheduledTasksAvailable)) {
     $updaterRoot = 'C:\Install\app'
@@ -1876,7 +1889,8 @@ try {
             }
             $cliHelp = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--help')
             Assert-That -Name 'portly --help prints the usage and exits 0' -Condition (
-                $cliHelp.ExitCode -eq 0 -and $cliHelp.Text.Contains('Usage: portly') -and $cliHelp.Text.Contains('--rebuild')) -Detail $cliHelp.Text
+                $cliHelp.ExitCode -eq 0 -and $cliHelp.Text.Contains('Usage: portly') -and $cliHelp.Text.Contains('  update ') -and
+                $cliHelp.Text.Contains('--no-publish') -and $cliHelp.Text.IndexOf([char]27) -lt 0) -Detail $cliHelp.Text
             $cliUnknown = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--bogus')
             $cliBadOption = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--rebuild', '--nope')
             Assert-That -Name 'portly rejects an unknown command or option with exit code 2' -Condition (
@@ -1895,8 +1909,14 @@ try {
             $cliDevFolder = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('--dev', $workDir)
             Assert-That -Name 'portly --dev rejects an unknown option (2) and a folder that is not a checkout (1), and --help lists it' -Condition (
                 $cliDevOption.ExitCode -eq 2 -and $cliDevOption.Text.Contains("Unknown option '--nope'") -and
-                $cliDevFolder.ExitCode -eq 1 -and $cliDevFolder.Text.Contains('is not a Portly checkout') -and $cliHelp.Text.Contains('--dev')) -Detail "$($cliDevOption.Text)`n$($cliDevFolder.Text)"
-            Assert-That -Name 'portly --help lists --allow-dirty under --rebuild' -Condition ($cliHelp.Text.Contains('--allow-dirty')) -Detail $cliHelp.Text
+                $cliDevFolder.ExitCode -eq 1 -and $cliDevFolder.Text.Contains('is not a Portly checkout') -and $cliHelp.Text.Contains('  dev    [folder]')) -Detail "$($cliDevOption.Text)`n$($cliDevFolder.Text)"
+            $cliNewStatus = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('status', '--nope')
+            $cliCheckoutVersion = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('update', '--version', '1.0.0')
+            $cliNewDev = & $run (Join-Path $updateCopies.plain 'scripts\portly.ps1') @('dev', '--nope')
+            Assert-That -Name 'portly status/update/dev (no dashes) reject a bad option with 2; --version is refused in a checkout' -Condition (
+                $cliNewStatus.ExitCode -eq 2 -and $cliNewStatus.Text.Contains("Unknown option '--nope'") -and $cliNewDev.ExitCode -eq 2 -and
+                $cliCheckoutVersion.ExitCode -eq 2 -and $cliCheckoutVersion.Text.Contains('is for a release install')) -Detail "$($cliNewStatus.Text)`n$($cliCheckoutVersion.Text)`n$($cliNewDev.Text)"
+            Assert-That -Name 'portly --help lists --allow-dirty under update' -Condition ($cliHelp.Text.Contains('--allow-dirty')) -Detail $cliHelp.Text
             if ($null -ne $checkGit) {
                 # update.ps1 on a checkout (a scratch git repository) with uncommitted changes:
                 # refused, also in -DryRun, unless -AllowDirty; the portly command passes
@@ -1924,7 +1944,7 @@ try {
                 $updateDirtyText = & $flat $updateDirty.Text
                 Assert-That -Name 'update.ps1 refuses a checkout with uncommitted changes (their count, -AllowDirty named), before npm ci or the build, also in -DryRun' -Condition (
                     $updateDirty.ExitCode -eq 1 -and $updateDirtyText.Contains('2 uncommitted change(s)') -and
-                    $updateDirtyText.Contains('-AllowDirty (portly --update --allow-dirty)') -and
+                    $updateDirtyText.Contains('-AllowDirty (portly update --allow-dirty)') -and
                     -not $updateDirty.Text.Contains('Installing dependencies') -and -not $updateDirty.Text.Contains('Building the local page')) -Detail $updateDirty.Text
                 $updateAllow = & $run (Join-Path $updateRepo 'scripts\update.ps1') ($updateArgs + @('-AllowDirty'))
                 Assert-That -Name 'update.ps1 -AllowDirty goes on, with a warning that names the count' -Condition (

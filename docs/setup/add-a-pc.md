@@ -47,7 +47,7 @@ or, without step 1, ends by opening the browser's extensions page.
 Open a **new** terminal (so it finds the `portly` command) and run:
 
 ```powershell
-portly --status
+portly status
 ```
 
 Expect Portly healthy, the **Portly Server** task present and the launcher registered.
@@ -75,7 +75,7 @@ With a Pages site, pair the browser once: click the **Portly on this PC** status
 **Look for Portly on this PC**, **Allow**, **Pair this browser**, then **Approve** on Portly's
 own page ([step 6 of the Pages guide](pages-local-server.md#6-look-for-portly-and-pair-this-browser)).
 GitHub Pages can serve an older copy of the site for up to 10 minutes after a publish: if the
-footer shows an older version than `portly --status`, hard-refresh (Ctrl+F5) and wait.
+footer shows an older version than `portly status`, hard-refresh (Ctrl+F5) and wait.
 
 ## 6. Check the accounts and the data
 
@@ -91,4 +91,4 @@ footer shows an older version than `portly --status`, hard-refresh (Ctrl+F5) and
 
 ## 7. When it all works
 
-- Keep the PC up to date with `portly --update`.
+- Keep the PC up to date with `portly update`.

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Installs the `portly` command (portly --rebuild, --status, --start, --help) for the
+    Installs the `portly` command (portly status, start, update, dev, help) for the
     current user.
 
 .DESCRIPTION
@@ -8,7 +8,7 @@
     scripts\portly.ps1: portly.cmd (PowerShell, Command Prompt) and portly (Git Bash).
     Adds that folder to your user PATH when it is missing, and with -PublicRepoPath stores the
     GitHub Pages clone in the PORTLY_PAGES_REPO user environment variable (used by
-    portly --rebuild). Open a new terminal afterwards. Run it again after moving the checkout.
+    portly update). Open a new terminal afterwards. Run it again after moving the checkout.
 
     Refuses to run from a session worktree under .claude\worktrees (those are deleted when their
     session ends). Needs no administrator rights.
@@ -138,12 +138,12 @@ function Invoke-InstallCli {
         Write-PtStep "${prefix}Setting PORTLY_PAGES_REPO = $full (user environment variable)"
         if (-not $DryRun) { [System.Environment]::SetEnvironmentVariable('PORTLY_PAGES_REPO', $full, 'User') }
     } elseif ($null -eq (Get-PtReleaseInfo -RepoRoot $repoRoot) -and $null -eq (Get-PtEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task)) {
-        # Only a Git checkout publishes the Pages site (portly --rebuild); a release install does not.
-        Write-Warning 'PORTLY_PAGES_REPO is not set, so portly --rebuild will skip GitHub Pages. Run again with -PublicRepoPath to set it.'
+        # Only a Git checkout publishes the Pages site (portly update); a release install does not.
+        Write-Warning 'PORTLY_PAGES_REPO is not set, so portly update will skip GitHub Pages. Run again with -PublicRepoPath to set it.'
     }
 
     if (-not $DryRun) {
-        Write-PtOk 'Installed. Open a NEW terminal window, then try: portly --help'
+        Write-PtOk 'Installed. Open a NEW terminal window, then try: portly help'
     }
     return 0
 }

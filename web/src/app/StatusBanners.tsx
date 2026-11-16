@@ -77,7 +77,7 @@ function ServerBehindBanner({ serverVersion, place }: { serverVersion: string; p
   const subject = place.charAt(0).toUpperCase() + place.slice(1);
   return (
     <Banner title={`Portly on ${place} is older than this site`}>
-      {subject} runs {serverVersion}; this site is {__APP_VERSION__}. Run <code className={styles.bannerCode}>portly --update</code> on {place}.
+      {subject} runs {serverVersion}; this site is {__APP_VERSION__}. Run <code className={styles.bannerCode}>portly update</code> on {place}.
     </Banner>
   );
 }

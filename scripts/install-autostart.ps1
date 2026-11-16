@@ -40,7 +40,7 @@
                  runtime.json (which node.exe they were copied from)
 
     The copies are refreshed when that node.exe changes (by this script, update.ps1 and
-    portly --start). If they cannot be made or do not run, the task runs node.exe itself.
+    portly start). If they cannot be made or do not run, the task runs node.exe itself.
 
     Then it builds web\dist if it is missing (npm run build), (re)starts the task and waits until
     http://localhost:<port>/api/health answers - this checks the installation end to end (use
@@ -489,7 +489,7 @@ function Install-PtUpdaterTask {
             Write-PtOk "Registered the '$PortlyUpdaterTaskName' task: it runs when you press Update in Settings > About"
         }
     } catch {
-        Write-Warning "Could not register the '$PortlyUpdaterTaskName' task ($($_.Exception.Message)). Portly works without it; only the Update button does not. portly --update --force tries again."
+        Write-Warning "Could not register the '$PortlyUpdaterTaskName' task ($($_.Exception.Message)). Portly works without it; only the Update button does not. portly update --force tries again."
     }
 }
 

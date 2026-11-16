@@ -213,7 +213,7 @@ describe('a server older than the site', () => {
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
     const banner = screen.getByRole('status');
     expect(banner).toHaveTextContent('Portly on your main PC is older than this site');
-    expect(banner).toHaveTextContent('Your main PC runs 0.0.0-alpha.6; this site is 0.0.0-test. Run portly --update on your main PC.');
+    expect(banner).toHaveTextContent('Your main PC runs 0.0.0-alpha.6; this site is 0.0.0-test. Run portly update on your main PC.');
     expect(within(banner).queryByRole('button')).not.toBeInTheDocument();
     expect(within(banner).queryByRole('link')).not.toBeInTheDocument();
   });
@@ -225,7 +225,7 @@ describe('a server older than the site', () => {
     renderWithProviders(<StatusBanners onAccountsPage={false} />, { apiMocks: HEALTHY, toaster: false });
     const banner = screen.getByRole('status');
     expect(banner).toHaveTextContent('Portly on this PC is older than this site');
-    expect(banner).toHaveTextContent('This PC runs 0.0.0-alpha.6; this site is 0.0.0-test. Run portly --update on this PC.');
+    expect(banner).toHaveTextContent('This PC runs 0.0.0-alpha.6; this site is 0.0.0-test. Run portly update on this PC.');
   });
 
   it('goes away by itself once the server is updated', () => {
