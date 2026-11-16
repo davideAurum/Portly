@@ -10,13 +10,13 @@
  * While that image is not loaded yet (a Pages page load on the Portly server on this PC) the
  * backdrop has no image; `useApplyTheme` applies the theme again once it is there.
  *
- * Performance (§7a Theme): the dim is a dark gradient layer in `--hb-backdrop`, never a filter, and
+ * Performance (§7a Theme): the dim is a dark gradient layer in `--pt-backdrop`, never a filter, and
  * a blur is normally baked into a small copy of the image once (`backdropBake.ts`, passed in as
  * `bakedBackdrop`). Only while that copy is not ready, or cannot be made, does the backdrop use a
  * live CSS blur (`data-backdrop-filter='live'`). Glass surfaces blur the photo behind them only
  * when this browser has frosted glass turned on (`data-glass='frosted'`, tokens.css).
  *
- * `--hb-focus` deliberately stays with the stylesheet's per-scheme values: an arbitrary accent
+ * `--pt-focus` deliberately stays with the stylesheet's per-scheme values: an arbitrary accent
  * (pale yellow on white, navy on the dark surfaces) can make focus rings invisible.
  */
 import { ThemeSchema, uploadUrl, type Theme, type ThemeBackground, type ThemeFont } from '@portly/shared';
@@ -24,15 +24,15 @@ import { readableTextColor } from '../lib/color.ts';
 import { getAssetUrl } from '../static/assets.ts';
 
 export const THEME_VARIABLES = [
-  '--hb-accent',
-  '--hb-accent-contrast',
-  '--hb-widget-opacity',
-  '--hb-radius-sm',
-  '--hb-radius-md',
-  '--hb-radius-lg',
-  '--hb-font-sans',
-  '--hb-backdrop',
-  '--hb-backdrop-blur',
+  '--pt-accent',
+  '--pt-accent-contrast',
+  '--pt-widget-opacity',
+  '--pt-radius-sm',
+  '--pt-radius-md',
+  '--pt-radius-lg',
+  '--pt-font-sans',
+  '--pt-backdrop',
+  '--pt-backdrop-blur',
 ] as const;
 export type ThemeVariable = (typeof THEME_VARIABLES)[number];
 
@@ -111,15 +111,15 @@ export function themeVariables(theme: Theme, options: ApplyThemeOptions = {}): R
   const r = theme.radius;
   const background = theme.background;
   return {
-    '--hb-accent': theme.accent,
-    '--hb-accent-contrast': readableTextColor(theme.accent),
-    '--hb-widget-opacity': String(theme.widgetOpacity),
-    '--hb-radius-sm': `${Math.round(r / 2)}px`,
-    '--hb-radius-md': `${Math.round((r * 5) / 6)}px`,
-    '--hb-radius-lg': `${r}px`,
-    '--hb-font-sans': FONT_STACKS[theme.font],
-    '--hb-backdrop': backdropValue(background, options.bakedBackdrop ?? null),
-    '--hb-backdrop-blur': background.type === 'image' && needsLiveBlur(theme, options) ? `${background.blur}px` : '0px',
+    '--pt-accent': theme.accent,
+    '--pt-accent-contrast': readableTextColor(theme.accent),
+    '--pt-widget-opacity': String(theme.widgetOpacity),
+    '--pt-radius-sm': `${Math.round(r / 2)}px`,
+    '--pt-radius-md': `${Math.round((r * 5) / 6)}px`,
+    '--pt-radius-lg': `${r}px`,
+    '--pt-font-sans': FONT_STACKS[theme.font],
+    '--pt-backdrop': backdropValue(background, options.bakedBackdrop ?? null),
+    '--pt-backdrop-blur': background.type === 'image' && needsLiveBlur(theme, options) ? `${background.blur}px` : '0px',
   };
 }
 
@@ -137,7 +137,7 @@ export function applyTheme(input: unknown, root: HTMLElement = document.document
   root.setAttribute('data-backdrop', theme.background.type);
   const vars = themeVariables(theme, options);
   for (const name of THEME_VARIABLES) root.style.setProperty(name, vars[name]);
-  const photoShown = theme.background.type === 'image' && vars['--hb-backdrop'] !== 'none';
+  const photoShown = theme.background.type === 'image' && vars['--pt-backdrop'] !== 'none';
   // Live filters (base.css, tokens.css) only where they show: over a photo that is on screen.
   setFlag(root, 'data-backdrop-filter', photoShown && needsLiveBlur(theme, options) ? 'live' : null);
   root.setAttribute('data-glass', photoShown && options.frostedGlass === true ? 'frosted' : 'clear');

@@ -67,7 +67,7 @@ export function Field({ label, children, help, error, required = false, id, hide
   return (
     <FieldContext.Provider value={{ id: controlId, labelId, describedBy, invalid: Boolean(error), required }}>
       <div className={[styles.field, className].filter(Boolean).join(' ')} data-inline={inline ? 'true' : undefined}>
-        <label id={labelId} htmlFor={controlId} className={hideLabel ? 'hb-visually-hidden' : styles.label}>
+        <label id={labelId} htmlFor={controlId} className={hideLabel ? 'pt-visually-hidden' : styles.label}>
           {label}
           {required ? (
             <span className={styles.required} aria-hidden="true">

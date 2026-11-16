@@ -4,17 +4,17 @@ import type { CSSProperties, ReactNode } from 'react';
 
 // Portly controls sit on a glass widget surface over the page backdrop.
 const panel: CSSProperties = {
-  display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--hb-space-2)', width: 'fit-content',
-  padding: 'var(--hb-space-4)', borderRadius: 'var(--hb-radius-lg)', border: '1px solid var(--hb-glass-border)',
-  background: 'var(--hb-glass)', boxShadow: 'var(--hb-shadow)', color: 'var(--hb-text)',
+  display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--pt-space-2)', width: 'fit-content',
+  padding: 'var(--pt-space-4)', borderRadius: 'var(--pt-radius-lg)', border: '1px solid var(--pt-glass-border)',
+  background: 'var(--pt-glass)', boxShadow: 'var(--pt-shadow)', color: 'var(--pt-text)',
 };
 const Panel = ({ children }: { children: ReactNode }) => <div style={panel}>{children}</div>;
 
 // A widget header: icon, title, then the small ghost actions WidgetFrame shows.
 export const WidgetHeader = () => (
   <div style={{ ...panel, flexWrap: 'nowrap', width: 340 }}>
-    <CloudSun aria-hidden="true" size={18} style={{ color: 'var(--hb-text-muted)' }} />
-    <h2 style={{ margin: 0, flex: 1, fontSize: 'var(--hb-text-md)', fontWeight: 600 }}>Weather</h2>
+    <CloudSun aria-hidden="true" size={18} style={{ color: 'var(--pt-text-muted)' }} />
+    <h2 style={{ margin: 0, flex: 1, fontSize: 'var(--pt-text-md)', fontWeight: 600 }}>Weather</h2>
     <IconButton icon={RefreshCw} size="sm" aria-label="Refresh Weather" tooltip={false} />
     <IconButton icon={Settings2} size="sm" aria-label="Weather settings" tooltip={false} />
     <IconButton icon={Trash} size="sm" aria-label="Remove Weather" tooltip={false} />

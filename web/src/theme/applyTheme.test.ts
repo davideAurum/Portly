@@ -22,14 +22,14 @@ describe('applyTheme', () => {
     expect(root.style.length).toBe(THEME_VARIABLES.length);
     for (let i = 0; i < root.style.length; i++) expect(THEME_VARIABLES).toContain(root.style.item(i));
 
-    expect(root.style.getPropertyValue('--hb-accent')).toBe('#ff0000');
-    expect(root.style.getPropertyValue('--hb-accent-contrast')).toBe('#111827');
-    expect(root.style.getPropertyValue('--hb-widget-opacity')).toBe('0.6');
-    expect(root.style.getPropertyValue('--hb-radius-lg')).toBe('12px');
-    expect(root.style.getPropertyValue('--hb-radius-md')).toBe('10px');
-    expect(root.style.getPropertyValue('--hb-radius-sm')).toBe('6px');
+    expect(root.style.getPropertyValue('--pt-accent')).toBe('#ff0000');
+    expect(root.style.getPropertyValue('--pt-accent-contrast')).toBe('#111827');
+    expect(root.style.getPropertyValue('--pt-widget-opacity')).toBe('0.6');
+    expect(root.style.getPropertyValue('--pt-radius-lg')).toBe('12px');
+    expect(root.style.getPropertyValue('--pt-radius-md')).toBe('10px');
+    expect(root.style.getPropertyValue('--pt-radius-sm')).toBe('6px');
     // Focus rings keep the stylesheet's high-contrast per-scheme color, whatever the accent.
-    expect(root.style.getPropertyValue('--hb-focus')).toBe('');
+    expect(root.style.getPropertyValue('--pt-focus')).toBe('');
   });
 
   it('marks the backdrop type so live glass blur is only used over images', () => {
@@ -51,7 +51,7 @@ describe('applyTheme', () => {
 
   it('maps fonts to constant system stacks', () => {
     for (const font of ['system', 'serif', 'mono', 'rounded'] as const) {
-      expect(themeVariables(theme({ font }))['--hb-font-sans']).toBe(FONT_STACKS[font]);
+      expect(themeVariables(theme({ font }))['--pt-font-sans']).toBe(FONT_STACKS[font]);
     }
   });
 
@@ -70,31 +70,31 @@ describe('applyTheme', () => {
 
     // The dim is a dark layer over the image, not a filter; without a baked copy the blur is live.
     const vars = themeVariables(theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 12, dim: 0.4 } }));
-    expect(vars['--hb-backdrop']).toBe(`linear-gradient(rgb(0 0 0 / 0.4), rgb(0 0 0 / 0.4)), url("/api/uploads/${UPLOAD_ID}")`);
-    expect(vars['--hb-backdrop-blur']).toBe('12px');
+    expect(vars['--pt-backdrop']).toBe(`linear-gradient(rgb(0 0 0 / 0.4), rgb(0 0 0 / 0.4)), url("/api/uploads/${UPLOAD_ID}")`);
+    expect(vars['--pt-backdrop-blur']).toBe('12px');
 
     const undimmed = themeVariables(theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 0, dim: 0 } }));
-    expect(undimmed['--hb-backdrop']).toBe(`url("/api/uploads/${UPLOAD_ID}")`);
-    expect(undimmed['--hb-backdrop-blur']).toBe('0px');
+    expect(undimmed['--pt-backdrop']).toBe(`url("/api/uploads/${UPLOAD_ID}")`);
+    expect(undimmed['--pt-backdrop-blur']).toBe('0px');
 
     const plain = themeVariables(theme({ background: { type: 'color', color: '#112233' } }));
-    expect(plain['--hb-backdrop-blur']).toBe('0px');
+    expect(plain['--pt-backdrop-blur']).toBe('0px');
   });
 
   it('shows a baked blob: copy instead of a live blur, and ignores anything else passed as one', () => {
     const blurred = theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 12, dim: 0.2 } });
     const baked = themeVariables(blurred, { bakedBackdrop: 'blob:http://localhost/1234' });
-    expect(baked['--hb-backdrop']).toBe('linear-gradient(rgb(0 0 0 / 0.2), rgb(0 0 0 / 0.2)), url("blob:http://localhost/1234")');
-    expect(baked['--hb-backdrop-blur']).toBe('0px');
+    expect(baked['--pt-backdrop']).toBe('linear-gradient(rgb(0 0 0 / 0.2), rgb(0 0 0 / 0.2)), url("blob:http://localhost/1234")');
+    expect(baked['--pt-backdrop-blur']).toBe('0px');
 
     for (const hostile of ['https://evil.example/x.png', 'data:image/png;base64,AAAA', 'blob:x") , url("https://evil.example', '']) {
       const vars = themeVariables(blurred, { bakedBackdrop: hostile });
-      expect(vars['--hb-backdrop'], hostile).toContain(`url("/api/uploads/${UPLOAD_ID}")`);
-      expect(vars['--hb-backdrop-blur'], hostile).toBe('12px');
+      expect(vars['--pt-backdrop'], hostile).toContain(`url("/api/uploads/${UPLOAD_ID}")`);
+      expect(vars['--pt-backdrop-blur'], hostile).toBe('12px');
     }
     // A blur of 0 never uses a baked copy (there is nothing to bake).
     const sharp = themeVariables(theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 0, dim: 0 } }), { bakedBackdrop: 'blob:http://localhost/1' });
-    expect(sharp['--hb-backdrop']).toBe(`url("/api/uploads/${UPLOAD_ID}")`);
+    expect(sharp['--pt-backdrop']).toBe(`url("/api/uploads/${UPLOAD_ID}")`);
   });
 
   it('turns live filters on only where they show', () => {
@@ -147,7 +147,7 @@ describe('applyTheme', () => {
       'dark',
     ];
     for (const input of hostile) expect(applyTheme(input, root)).toBe(false);
-    expect(root.style.getPropertyValue('--hb-accent')).toBe('#00ff00');
+    expect(root.style.getPropertyValue('--pt-accent')).toBe('#00ff00');
     expect(root.style.cssText).not.toContain('evil');
   });
 
@@ -162,7 +162,7 @@ describe('applyTheme', () => {
     });
     expect(applyPersistedTheme('k', persisted(theme({ mode: 'dark', accent: '#123456' })))).toBe(true);
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    expect(document.documentElement.style.getPropertyValue('--hb-accent')).toBe('#123456');
+    expect(document.documentElement.style.getPropertyValue('--pt-accent')).toBe('#123456');
     // This browser's frosted glass setting comes from the same storage.
     const photo = theme({ background: { type: 'image', uploadId: UPLOAD_ID, blur: 0, dim: 0 } });
     const frosted = { getItem: (key: string) => (key === 'portly:frosted-glass' ? '1' : persisted(photo).getItem()) };
@@ -206,7 +206,7 @@ describe('image backdrops on this page load', () => {
     expect(backdropValue(image)).toBe('none');
     const root = document.createElement('div');
     applyTheme(theme({ background: { ...image, blur: 10 } }), root, { frostedGlass: true });
-    expect(root.style.getPropertyValue('--hb-backdrop')).toBe('none');
+    expect(root.style.getPropertyValue('--pt-backdrop')).toBe('none');
     expect(root.getAttribute('data-backdrop')).toBe('image');
     // No photo on screen yet: no live blur of the backdrop or the glass.
     expect(root.hasAttribute('data-backdrop-filter')).toBe(false);

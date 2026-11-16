@@ -3,9 +3,9 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-height: 100%;
-  padding: 2px var(--hb-space-2) var(--hb-space-2);
+  padding: 2px var(--pt-space-2) var(--pt-space-2);
 }
 
 .fill {
@@ -24,12 +24,12 @@
 
 .sectionTitle {
   margin: 0;
-  padding: 0 var(--hb-space-2);
-  font-size: var(--hb-text-xs);
+  padding: 0 var(--pt-space-2);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
 }
 
 .list {
@@ -46,35 +46,35 @@
   position: relative;
   display: flex;
   align-items: stretch;
-  border-radius: var(--hb-radius-md);
+  border-radius: var(--pt-radius-md);
 }
 
 .row[data-state='in'] {
-  background: color-mix(in srgb, var(--hb-danger) 6%, transparent);
+  background: color-mix(in srgb, var(--pt-danger) 6%, transparent);
 }
 
 .game {
   display: grid;
   flex: 1;
   grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: var(--hb-space-3);
+  column-gap: var(--pt-space-3);
   row-gap: 3px;
   align-items: center;
   min-width: 0;
-  padding: 7px var(--hb-space-2);
+  padding: 7px var(--pt-space-2);
   border-radius: inherit;
   color: inherit;
   text-decoration: none;
-  transition: background-color var(--hb-hover-duration) var(--hb-ease);
+  transition: background-color var(--pt-hover-duration) var(--pt-ease);
 }
 
 a.game:hover {
   text-decoration: none;
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 .game:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: -2px;
 }
 
@@ -87,10 +87,10 @@ a.game:hover {
 .team {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text);
 }
 
 .team[data-favorite] .teamName {
@@ -98,7 +98,7 @@ a.game:hover {
 }
 
 .team[data-lost] {
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .team[data-winner] .score {
@@ -175,16 +175,16 @@ a.game:hover {
 
 .record {
   flex: none;
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 400;
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
   font-variant-numeric: tabular-nums;
 }
 
 .score {
   flex: none;
   min-width: 2ch;
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
   font-weight: 550;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -197,15 +197,15 @@ a.game:hover {
   justify-items: end;
   gap: 2px;
   min-width: 64px;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
   text-align: right;
   white-space: nowrap;
 }
 
 .final {
   font-weight: 600;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .when,
@@ -214,7 +214,7 @@ a.game:hover {
 }
 
 .clock {
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .live {
@@ -224,7 +224,7 @@ a.game:hover {
   height: 18px;
   padding: 0 7px;
   border-radius: 999px;
-  background: var(--hb-danger);
+  background: var(--pt-danger);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -244,14 +244,14 @@ a.game:hover {
 .meta {
   grid-column: 1 / -1;
   overflow: hidden;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .row[data-state='in'] .meta {
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .watchButton,
@@ -262,32 +262,32 @@ a.game:hover {
 }
 
 .watchSpacer {
-  width: var(--hb-control-h-sm);
+  width: var(--pt-control-h-sm);
 }
 
 /* ---- Where to watch ---------------------------------------------------- */
 
 .watchPopover {
   display: grid;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   width: 300px;
 }
 
 .watchTitle {
   margin: 0;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 650;
 }
 
 .watchGame {
   margin: -6px 0 0;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .watchList {
   display: grid;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -297,22 +297,22 @@ a.game:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--hb-space-3);
-  padding: 6px var(--hb-space-2);
-  border: 1px solid var(--hb-border);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-surface-2);
+  gap: var(--pt-space-3);
+  padding: 6px var(--pt-space-2);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface-2);
 }
 
 .watchName {
   display: grid;
   min-width: 0;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
 }
 
 .watchKind {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
 }
 
 .watchLink {
@@ -320,7 +320,7 @@ a.game:hover {
   flex: none;
   align-items: center;
   gap: 4px;
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -336,21 +336,21 @@ a.game:hover {
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .watchNote {
   margin: 0;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
 }
 
 /* ---- Failed teams ------------------------------------------------------ */
 
 .notices {
   display: grid;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -359,25 +359,25 @@ a.game:hover {
 .notice {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
-  padding: var(--hb-space-2);
-  border: 1px solid var(--hb-border);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-surface-2);
+  gap: var(--pt-space-2);
+  padding: var(--pt-space-2);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface-2);
 }
 
 .noticeIcon {
   flex: none;
   width: 16px;
   height: 16px;
-  color: var(--hb-danger);
+  color: var(--pt-danger);
 }
 
 .noticeText {
   display: grid;
   flex: 1;
   min-width: 0;
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
 }
 
 .noticeText strong,
@@ -388,5 +388,5 @@ a.game:hover {
 }
 
 .noticeMessage {
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }

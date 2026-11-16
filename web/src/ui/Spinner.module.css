@@ -1,9 +1,9 @@
 .spinner {
-  animation: hb-spin 0.8s linear infinite;
+  animation: pt-spin 0.8s linear infinite;
   flex: none;
 }
 
-@keyframes hb-spin {
+@keyframes pt-spin {
   to {
     transform: rotate(360deg);
   }

@@ -771,6 +771,13 @@ Items:
      absent, no Homebase New Tab extension, `%LOCALAPPDATA%\Homebase` deleted once Portly works,
      any export file kept.
 
+  *Run 2026-11-16 on dg-surfacepro (in part):* step 1 from that PC itself (Settings → Devices lists
+  it as **This PC**), so steps 2 and 3 were skipped. Step 5 passed: no task, launcher keys, folder,
+  checkout, variable, process or extension of the old app, and nothing to export. Step 4: the New Tab
+  page showed "Portly isn't running", because that PC has the extension but no server and the
+  extension looks for one there; the owner chose to fix that in B.9 rather than set the extension's
+  options by hand. The widgets, Accounts, Diagnostics and the footer were not reported yet.
+
 - **3.4 The remaining PCs** (S; go-ahead; after 3.3).
   The same on each remaining PC; fix anything the first one exposed before the next.
 
@@ -822,6 +829,11 @@ Items:
   *Status:* built 2026-11-04 with the owner's go-ahead, after Homebase was removed from the second
   PC. Merged through PR #2 (eba37b6) and released 2026-11-04 as 0.2.0-alpha.6 (c1182b6, zip
   SHA-256 06682c5f…95c7), with the Pages site published from it (f73c92f).
+
+  *2026-11-16, at the owner's ask:* every reference left outside this roadmap and the changelog is
+  gone. Section 19 now covers only how Portly recognises itself on its port. The vault's canary and
+  the bookmark-source seed have new values (a canary the key decrypts is rewritten once), old-format
+  export files are no longer imported, and the CSS and PowerShell prefixes are `pt-` and `Pt`.
 
 ## Phase 4: Release rehearsal in private
 
@@ -1855,6 +1867,15 @@ Items:
   a real browser with `/api/update` faked. Released in 0.2.0-alpha.8 (b751661), and never run against
   a real task: installing that version registers it, and the release after it is the first the
   button can install.
+- **B.9 The Pages site at /portly/, and two install steps** (L; the owner's ask of 2026-11-16): the
+  site moves to `https://davideaurum.github.io/portly/` with the root freed, each browser copies its
+  data from the old address once, the extension works out from the launcher whether its PC runs the
+  server, and installing becomes step 1 on every PC and step 2 on the main PC only. Decisions and
+  phases: [design/pages-move.md](design/pages-move.md). Phases 1 and 2 run on the main PC.
+
+  *Done when:* 0.2.0-alpha.9 is published at `/portly/`, the main PC and dg-surfacepro work there
+  without pairing or approving again, and a New Tab on dg-surfacepro opens the site.
+  *Status:* decided 2026-11-16; nothing built.
 
 ## Checks never run for real
 
@@ -1864,6 +1885,10 @@ date and the outcome once a row has been run for real.
 
 | Check | From | Planned in | Result |
 | --- | --- | --- | --- |
+| The vault's canary rewrite on a real DPAPI-protected vault: the first start of the new version should log `vault: canary rewritten` once and keep every secret; only the fake protector ran | this commit, 2026-11-16 | the next update of the main PC | not yet |
+| The `pt-` rename of the CSS names and classes in a real browser: every page and widget unchanged in light and dark; only component tests and both builds ran | this commit, 2026-11-16 | the owner's next look after the next release | not yet |
+| The `Pt` rename of the PowerShell helpers in a real install, update and `portly` command; only the self-checks (dry runs and stand-ins) ran | this commit, 2026-11-16 | the next release's `portly --update` on the main PC | not yet |
+| A browser bookmark import from a real Chrome or Edge profile after the source seed changed; only fixtures ran | this commit, 2026-11-16 | the owner's next bookmark import | not yet |
 | The mail widget's folder chips (Inbox, Sent, Drafts, Spam, Trash) with real Gmail, Outlook.com and Yahoo accounts: that each provider's folders list and look right, Sent/Drafts rows (they show the sender, not the recipient), IMAP servers whose folder names the fallback list misses, and the look in light and dark and at narrow widths; only fake providers and component tests ran | this commit, 2026-11-16 | the owner's next look at the widget | not yet |
 | The mail widget's account sidebar in a real browser with real accounts: its look in light and dark, the collapsed rail, narrow cards, and the saved choices surviving a reload and the Pages build; only component tests ran | this commit, 2026-11-08 | the owner's next look at the widget | not yet |
 | The GitHub widget with a real fine-grained token: saving it, the board, and above all what `statusCheckRollup` gives (GitHub's docs say fine-grained tokens can't use the Checks API, so CI results may show as unknown). The query and parser were run against a real account only with a `gh` login token, which the app refuses; every test uses an in-memory GitHub | this commit, 2026-11-05 | the owner's first token | 2026-11-06 on 0.2.0-alpha.8: the owner saved a real fine-grained token and the board works. The dots show real results, filled green on repositories with passing CI and hollow gray on those with no checks, so `statusCheckRollup` answers with a fine-grained token. Not yet seen: a failing or running result, because no repository had one |

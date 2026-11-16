@@ -72,8 +72,11 @@ export const KEY_FILE_VERSION = 1;
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
-// Named before the app was renamed Portly; kept, since every existing vault holds it encrypted.
-const CANARY_VALUE = 'homebase-vault-canary-v1';
+/**
+ * What the canary holds. A canary the key decrypts proves the key (AES-GCM checks the tag), so one
+ * written with an earlier value is rewritten with this one rather than refused.
+ */
+const CANARY_VALUE = 'portly-vault-canary-v1';
 const MAX_KEY_FILE_BYTES = 64 * 1024;
 const MAX_SECRET_BYTES = 1024 * 1024;
 
@@ -558,7 +561,10 @@ export async function openVault(options: OpenVaultOptions): Promise<Vault> {
     } catch (err) {
       return lockedWithQuarantine('the key does not decrypt the canary', errorFields(err));
     }
-    if (value !== CANARY_VALUE) return lockedWithQuarantine('canary mismatch');
+    if (value !== CANARY_VALUE) {
+      store.put(encryptSecret(key, CANARY_ID, CANARY_VALUE, now()));
+      log.info('vault: canary rewritten');
+    }
   } else {
     const others = store.others(CANARY_ID);
     if (others.length > 0 && !others.some((record) => canDecrypt(key, record))) {

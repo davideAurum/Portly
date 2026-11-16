@@ -24,7 +24,7 @@ export function ExternalLink({ href, children, newTab = true, showIcon = false, 
     <a {...rest} {...props} className={[styles.externalLink, className].filter(Boolean).join(' ')}>
       {children}
       {showIcon ? <ExternalLinkIcon aria-hidden="true" className={styles.externalIcon} /> : null}
-      {props.target === '_blank' ? <span className="hb-visually-hidden"> (opens in a new tab)</span> : null}
+      {props.target === '_blank' ? <span className="pt-visually-hidden"> (opens in a new tab)</span> : null}
     </a>
   );
 }

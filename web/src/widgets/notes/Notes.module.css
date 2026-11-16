@@ -3,66 +3,66 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   height: 100%;
   min-height: 0;
-  padding: 0 var(--hb-space-1) var(--hb-space-1);
+  padding: 0 var(--pt-space-1) var(--pt-space-1);
 }
 
 .text {
   flex: 1;
   width: 100%;
   min-height: 0;
-  padding: var(--hb-space-1) var(--hb-space-2) var(--hb-space-2);
+  padding: var(--pt-space-1) var(--pt-space-2) var(--pt-space-2);
   border: 0;
-  border-radius: var(--hb-radius-md);
+  border-radius: var(--pt-radius-md);
   background: transparent;
-  color: var(--hb-text);
-  font-family: var(--hb-font-sans);
-  font-size: var(--hb-text-md);
+  color: var(--pt-text);
+  font-family: var(--pt-font-sans);
+  font-size: var(--pt-text-md);
   line-height: 1.5;
   overflow-wrap: anywhere;
   resize: none;
 }
 
 .text::placeholder {
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
 }
 
 /* The whole body is the editor: a ring inside the card instead of the page's offset outline. */
 .text:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: -2px;
 }
 
 .root[data-font='mono'] .text {
-  font-family: var(--hb-font-mono);
+  font-family: var(--pt-font-mono);
 }
 
 .root[data-text-size='sm'] .text {
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
 }
 
 .root[data-text-size='lg'] .text {
-  font-size: var(--hb-text-lg);
+  font-size: var(--pt-text-lg);
 }
 
 .conflict {
   display: grid;
   flex-shrink: 0;
-  gap: var(--hb-space-2);
-  padding: var(--hb-space-2);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-warning-soft);
+  gap: var(--pt-space-2);
+  padding: var(--pt-space-2);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-warning-soft);
 }
 
 .conflictText {
   display: flex;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   margin: 0;
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   line-height: 1.4;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .conflictText svg {
@@ -70,21 +70,21 @@
   width: 14px;
   height: 14px;
   margin-top: 1px;
-  color: var(--hb-warning);
+  color: var(--pt-warning);
 }
 
 .conflictActions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
 }
 
 .count {
   flex-shrink: 0;
   margin: 0;
-  padding: 0 var(--hb-space-2);
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  padding: 0 var(--pt-space-2);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
   text-align: end;
 }
 
@@ -94,15 +94,15 @@
   gap: 4px;
   padding: 2px 4px;
   border: 0;
-  border-radius: var(--hb-radius-sm);
+  border-radius: var(--pt-radius-sm);
   background: transparent;
-  color: var(--hb-warning);
-  font-size: var(--hb-text-xs);
+  color: var(--pt-warning);
+  font-size: var(--pt-text-xs);
   white-space: nowrap;
 }
 
 .unsaved:hover {
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 .unsaved svg {

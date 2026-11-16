@@ -2,25 +2,25 @@
    StaleIndicator, account badges and pickers. */
 
 .muted {
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 /* Skeleton */
 .skeleton {
   display: block;
   flex: none;
-  border-radius: var(--hb-radius-sm);
+  border-radius: var(--pt-radius-sm);
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--hb-text) 7%, transparent) 25%,
-    color-mix(in srgb, var(--hb-text) 13%, transparent) 50%,
-    color-mix(in srgb, var(--hb-text) 7%, transparent) 75%
+    color-mix(in srgb, var(--pt-text) 7%, transparent) 25%,
+    color-mix(in srgb, var(--pt-text) 13%, transparent) 50%,
+    color-mix(in srgb, var(--pt-text) 7%, transparent) 75%
   );
   background-size: 200% 100%;
   /* Finite: an endless shimmer keeps the GPU producing frames. The loop starts and ends one tile
      (200%) away from the resting position, which looks the same, so it stops without a jump. */
-  animation: hb-shimmer 1.5s ease-in-out 3;
+  animation: pt-shimmer 1.5s ease-in-out 3;
 }
 
 .skeleton[data-round='true'] {
@@ -37,17 +37,17 @@
 
 .skeletonList {
   display: grid;
-  gap: var(--hb-space-4);
-  padding: var(--hb-space-3) var(--hb-space-4);
+  gap: var(--pt-space-4);
+  padding: var(--pt-space-3) var(--pt-space-4);
 }
 
 .skeletonRow {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
 }
 
-@keyframes hb-shimmer {
+@keyframes pt-shimmer {
   from {
     background-position: 200% 0;
   }
@@ -58,41 +58,41 @@
 
 /* Badge */
 .badge {
-  --badge-fg: var(--hb-text-muted);
-  --badge-bg: color-mix(in srgb, var(--hb-text) 7%, transparent);
+  --badge-fg: var(--pt-text-muted);
+  --badge-bg: color-mix(in srgb, var(--pt-text) 7%, transparent);
 
   display: inline-flex;
   align-items: center;
   gap: 5px;
   height: 22px;
   padding: 0 8px;
-  border-radius: var(--hb-radius-full);
+  border-radius: var(--pt-radius-full);
   background: var(--badge-bg);
   color: var(--badge-fg);
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
 }
 
 .badge[data-tone='accent'] {
-  --badge-fg: var(--hb-accent-text);
-  --badge-bg: var(--hb-accent-soft);
+  --badge-fg: var(--pt-accent-text);
+  --badge-bg: var(--pt-accent-soft);
 }
 
 .badge[data-tone='success'] {
-  --badge-fg: var(--hb-success);
-  --badge-bg: var(--hb-success-soft);
+  --badge-fg: var(--pt-success);
+  --badge-bg: var(--pt-success-soft);
 }
 
 .badge[data-tone='warning'] {
-  --badge-fg: var(--hb-warning);
-  --badge-bg: var(--hb-warning-soft);
+  --badge-fg: var(--pt-warning);
+  --badge-bg: var(--pt-warning-soft);
 }
 
 .badge[data-tone='danger'] {
-  --badge-fg: var(--hb-danger);
-  --badge-bg: var(--hb-danger-soft);
+  --badge-fg: var(--pt-danger);
+  --badge-bg: var(--pt-danger-soft);
 }
 
 .badgeDot {
@@ -115,12 +115,12 @@
   min-width: 22px;
   height: 22px;
   padding: 0 6px;
-  border: 1px solid var(--hb-border-strong);
+  border: 1px solid var(--pt-border-strong);
   border-bottom-width: 2px;
   border-radius: 5px;
-  background: var(--hb-surface-2);
-  color: var(--hb-text);
-  font-size: var(--hb-text-xs);
+  background: var(--pt-surface-2);
+  color: var(--pt-text);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
   line-height: 1;
 }
@@ -152,29 +152,29 @@
 
 /* Banner */
 .banner {
-  --banner-fg: var(--hb-accent-text);
-  --banner-bg: var(--hb-accent-soft);
+  --banner-fg: var(--pt-accent-text);
+  --banner-bg: var(--pt-accent-soft);
 
   display: flex;
   align-items: flex-start;
-  gap: var(--hb-space-3);
-  padding: var(--hb-space-3) var(--hb-space-4);
+  gap: var(--pt-space-3);
+  padding: var(--pt-space-3) var(--pt-space-4);
   border: 1px solid color-mix(in srgb, var(--banner-fg) 25%, transparent);
-  border-radius: var(--hb-radius-lg);
-  background: color-mix(in srgb, var(--hb-surface) 88%, var(--banner-fg));
-  color: var(--hb-text);
+  border-radius: var(--pt-radius-lg);
+  background: color-mix(in srgb, var(--pt-surface) 88%, var(--banner-fg));
+  color: var(--pt-text);
 }
 
 .banner[data-tone='warning'] {
-  --banner-fg: var(--hb-warning);
+  --banner-fg: var(--pt-warning);
 }
 
 .banner[data-tone='danger'] {
-  --banner-fg: var(--hb-danger);
+  --banner-fg: var(--pt-danger);
 }
 
 .banner[data-tone='success'] {
-  --banner-fg: var(--hb-success);
+  --banner-fg: var(--pt-success);
 }
 
 .bannerIcon {
@@ -192,20 +192,20 @@
 }
 
 .bannerTitle {
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
   font-weight: 600;
 }
 
 .bannerBody {
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .bannerActions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   align-self: center;
 }
 
@@ -229,41 +229,41 @@
 .copyInput {
   flex: 1;
   min-width: 0;
-  height: var(--hb-control-h);
-  padding: 0 var(--hb-space-3);
-  border: 1px solid var(--hb-border-strong);
+  height: var(--pt-control-h);
+  padding: 0 var(--pt-space-3);
+  border: 1px solid var(--pt-border-strong);
   border-right: 0;
-  border-radius: var(--hb-radius-md) 0 0 var(--hb-radius-md);
-  background: var(--hb-surface-2);
-  color: var(--hb-text);
-  font-size: var(--hb-text-sm);
+  border-radius: var(--pt-radius-md) 0 0 var(--pt-radius-md);
+  background: var(--pt-surface-2);
+  color: var(--pt-text);
+  font-size: var(--pt-text-sm);
 }
 
 .copyInput[data-mono='true'] {
-  font-family: var(--hb-font-mono);
-  font-size: var(--hb-text-xs);
+  font-family: var(--pt-font-mono);
+  font-size: var(--pt-text-xs);
 }
 
 .copyInput:focus {
   outline: none;
-  border-color: var(--hb-accent);
+  border-color: var(--pt-accent);
 }
 
 .copyButton {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: var(--hb-control-h);
-  padding: 0 var(--hb-space-3);
-  border: 1px solid var(--hb-border-strong);
-  border-radius: 0 var(--hb-radius-md) var(--hb-radius-md) 0;
-  background: var(--hb-surface);
-  font-size: var(--hb-text-sm);
+  height: var(--pt-control-h);
+  padding: 0 var(--pt-space-3);
+  border: 1px solid var(--pt-border-strong);
+  border-radius: 0 var(--pt-radius-md) var(--pt-radius-md) 0;
+  background: var(--pt-surface);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
 }
 
 .copyButton:hover {
-  background: var(--hb-surface-2);
+  background: var(--pt-surface-2);
 }
 
 .copyButton svg {
@@ -276,18 +276,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: var(--hb-control-h-sm);
-  padding: 0 var(--hb-space-3);
-  border-radius: var(--hb-radius-sm);
-  background: var(--hb-accent);
-  color: var(--hb-accent-contrast);
-  font-size: var(--hb-text-xs);
+  height: var(--pt-control-h-sm);
+  padding: 0 var(--pt-space-3);
+  border-radius: var(--pt-radius-sm);
+  background: var(--pt-accent);
+  color: var(--pt-accent-contrast);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
 }
 
 .setupLink:hover {
   text-decoration: none;
-  background: color-mix(in srgb, var(--hb-accent) 86%, var(--hb-accent-contrast));
+  background: color-mix(in srgb, var(--pt-accent) 86%, var(--pt-accent-contrast));
 }
 
 .setupLink svg {
@@ -300,13 +300,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
   white-space: nowrap;
 }
 
 .stale[data-failed='true'] {
-  color: var(--hb-warning);
+  color: var(--pt-warning);
 }
 
 .stale svg {
@@ -317,19 +317,19 @@
 .staleButton {
   padding: 2px 4px;
   border: 0;
-  border-radius: var(--hb-radius-sm);
+  border-radius: var(--pt-radius-sm);
   background: transparent;
 }
 
 .staleButton:hover {
-  background: var(--hb-warning-soft);
+  background: var(--pt-warning-soft);
 }
 
 /* Accounts */
 .accountBadge {
   display: inline-flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
 }
 
@@ -349,19 +349,19 @@
 }
 
 .accountKind {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .accountPicker {
   display: grid;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
 }
 
 .accountPickerList {
   display: grid;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   margin: 0;
-  padding: 0 0 0 var(--hb-space-1);
+  padding: 0 0 0 var(--pt-space-1);
   list-style: none;
 }

@@ -11,7 +11,7 @@
        text, process selection (node.exe and Portly's copies portly-supervisor.exe and
        portly-server.exe), the copies themselves - made, refreshed, kept while in use and refused
        when they do not run, in a temporary folder - the retry of a file another program reads
-       for a moment (Invoke-HbSharingRetry), the task definition objects for -Trigger
+       for a moment (Invoke-PtSharingRetry), the task definition objects for -Trigger
        Browser and Logon, extension IDs (Chromium's own vectors, the manifest key against Node's
        crypto, the extension's PINNED_EXTENSION_ID and every ID quoted in the docs), the top-level
        files of web\dist-static against the names publish-static.ps1 recognises as a Portly publish
@@ -83,7 +83,7 @@ function Get-FreePort {
     try { return ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port } finally { $listener.Stop() }
 }
 
-$repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+$repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
 $workDir = Join-Path ([System.IO.Path]::GetTempPath()) ("portly-check-" + [guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $workDir -Force
 
@@ -136,12 +136,12 @@ if (Test-Path -LiteralPath $workflowDir -PathType Container) {
 # and so must Common.ps1's $PortlyNodeMajor (with the winget id built from it) and setup.ps1's own
 # $SetupNodeMajor (it cannot dot-source Common.ps1). Moving to a new major changes them together.
 $packageJson = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'package.json')) | ConvertFrom-Json
-$enginesNode = "$(Get-HbProperty (Get-HbProperty $packageJson 'engines') 'node')"
+$enginesNode = "$(Get-PtProperty (Get-PtProperty $packageJson 'engines') 'node')"
 $enginesPin = [regex]::Match($enginesNode, '^>=\s*(\d+)(?:\.\d+){0,2}\s+<\s*(\d+)(?:\.\d+){0,2}$')
 $enginesMajor = -1
 if ($enginesPin.Success -and [int]$enginesPin.Groups[2].Value -eq ([int]$enginesPin.Groups[1].Value + 1)) { $enginesMajor = [int]$enginesPin.Groups[1].Value }
 $runtimePin = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'scripts\release\node-runtime.json')) | ConvertFrom-Json
-$runtimeVersion = "$(Get-HbProperty $runtimePin 'version')"
+$runtimeVersion = "$(Get-PtProperty $runtimePin 'version')"
 $runtimeMajor = -1
 if ($runtimeVersion -match '^(\d+)\.\d+\.\d+$') { $runtimeMajor = [int]$Matches[1] }
 $ciNodeVersions = @([regex]::Matches([System.IO.File]::ReadAllText((Join-Path $repoRoot '.github\workflows\ci.yml')), '(?m)^\s*node-version:\s*["'']?([^\s"'']+)') | ForEach-Object { $_.Groups[1].Value })
@@ -164,36 +164,36 @@ Assert-That -Name "scripts\setup.ps1 builds winget's OpenJS.NodeJS.$enginesMajor
 Write-Host ''
 Write-Host 'Common.ps1 helpers' -ForegroundColor White
 
-Assert-That -Name 'ConvertTo-HbPort accepts 5757' -Condition ((ConvertTo-HbPort '5757') -eq 5757)
-Assert-That -Name 'ConvertTo-HbPort trims whitespace' -Condition ((ConvertTo-HbPort ' 8080 ') -eq 8080)
+Assert-That -Name 'ConvertTo-PtPort accepts 5757' -Condition ((ConvertTo-PtPort '5757') -eq 5757)
+Assert-That -Name 'ConvertTo-PtPort trims whitespace' -Condition ((ConvertTo-PtPort ' 8080 ') -eq 8080)
 foreach ($bad in @('', 'abc', '0', '65536', '-1', '+80', '1e3', '5757.0', '0x10', '123456')) {
-    Assert-Throws -Name "ConvertTo-HbPort rejects '$bad'" -Action { ConvertTo-HbPort $bad }
+    Assert-Throws -Name "ConvertTo-PtPort rejects '$bad'" -Action { ConvertTo-PtPort $bad }
 }
-Assert-That -Name 'Test-HbTruthy' -Condition ((Test-HbTruthy '1') -and (Test-HbTruthy ' TRUE ') -and -not (Test-HbTruthy '0') -and -not (Test-HbTruthy $null))
+Assert-That -Name 'Test-PtTruthy' -Condition ((Test-PtTruthy '1') -and (Test-PtTruthy ' TRUE ') -and -not (Test-PtTruthy '0') -and -not (Test-PtTruthy $null))
 
 $json = '{"ok":true,"version":"1.2.3"}' | ConvertFrom-Json
-Assert-That -Name 'Get-HbProperty reads existing properties' -Condition ((Get-HbProperty $json 'version') -eq '1.2.3')
-Assert-That -Name 'Get-HbProperty returns null for missing properties' -Condition ($null -eq (Get-HbProperty $json 'vault') -and $null -eq (Get-HbProperty $null 'x'))
+Assert-That -Name 'Get-PtProperty reads existing properties' -Condition ((Get-PtProperty $json 'version') -eq '1.2.3')
+Assert-That -Name 'Get-PtProperty returns null for missing properties' -Condition ($null -eq (Get-PtProperty $json 'vault') -and $null -eq (Get-PtProperty $null 'x'))
 
 $comDenied = New-Object System.Runtime.InteropServices.COMException ('Operation failed', -2147024891)
 $wrapped = New-Object System.Exception ('outer', (New-Object System.Exception ('Access is denied.')))
-Assert-That -Name 'Test-HbAccessDenied: HRESULT 0x80070005' -Condition (Test-HbAccessDenied $comDenied)
-Assert-That -Name 'Test-HbAccessDenied: UnauthorizedAccessException' -Condition (Test-HbAccessDenied (New-Object System.UnauthorizedAccessException))
-Assert-That -Name 'Test-HbAccessDenied: inner "Access is denied."' -Condition (Test-HbAccessDenied $wrapped)
-Assert-That -Name 'Test-HbAccessDenied: other errors are not access denied' -Condition (-not (Test-HbAccessDenied (New-Object System.Exception ('The system cannot find the file specified.'))))
+Assert-That -Name 'Test-PtAccessDenied: HRESULT 0x80070005' -Condition (Test-PtAccessDenied $comDenied)
+Assert-That -Name 'Test-PtAccessDenied: UnauthorizedAccessException' -Condition (Test-PtAccessDenied (New-Object System.UnauthorizedAccessException))
+Assert-That -Name 'Test-PtAccessDenied: inner "Access is denied."' -Condition (Test-PtAccessDenied $wrapped)
+Assert-That -Name 'Test-PtAccessDenied: other errors are not access denied' -Condition (-not (Test-PtAccessDenied (New-Object System.Exception ('The system cannot find the file specified.'))))
 try { throw $comDenied } catch { $record = $_ }
-Assert-That -Name 'Test-HbAccessDenied: ErrorRecord' -Condition (Test-HbAccessDenied $record)
+Assert-That -Name 'Test-PtAccessDenied: ErrorRecord' -Condition (Test-PtAccessDenied $record)
 
-Assert-That -Name 'Format-HbTaskResult 0' -Condition ((Format-HbTaskResult 0) -eq '0x0 (success)')
-Assert-That -Name 'Format-HbTaskResult running' -Condition ((Format-HbTaskResult 267009) -eq '0x41301 (running)')
-Assert-That -Name 'Format-HbTaskResult exit code 3' -Condition ((Format-HbTaskResult 3) -match 'port already in use')
-Assert-That -Name 'Format-HbTaskResult exit code 1 points to start.ps1' -Condition ((Format-HbTaskResult 1) -match 'start\.ps1')
-Assert-That -Name 'Format-HbTaskResult negative HRESULT' -Condition ((Format-HbTaskResult -2147216609) -match '^0x8004131F ')
+Assert-That -Name 'Format-PtTaskResult 0' -Condition ((Format-PtTaskResult 0) -eq '0x0 (success)')
+Assert-That -Name 'Format-PtTaskResult running' -Condition ((Format-PtTaskResult 267009) -eq '0x41301 (running)')
+Assert-That -Name 'Format-PtTaskResult exit code 3' -Condition ((Format-PtTaskResult 3) -match 'port already in use')
+Assert-That -Name 'Format-PtTaskResult exit code 1 points to start.ps1' -Condition ((Format-PtTaskResult 1) -match 'start\.ps1')
+Assert-That -Name 'Format-PtTaskResult negative HRESULT' -Condition ((Format-PtTaskResult -2147216609) -match '^0x8004131F ')
 
-Assert-That -Name 'Get-HbCommandLineProgram (quoted, unquoted, forward slashes, empty)' -Condition (
-    (Get-HbCommandLineProgram '"C:\WINDOWS\System32\conhost.exe" --headless "C:\n\node.exe"') -eq 'conhost.exe' -and
-    (Get-HbCommandLineProgram 'C:/Program/Node.EXE C:\x\supervisor.ts') -eq 'node.exe' -and
-    (Get-HbCommandLineProgram 'node') -eq 'node' -and (Get-HbCommandLineProgram $null) -eq '')
+Assert-That -Name 'Get-PtCommandLineProgram (quoted, unquoted, forward slashes, empty)' -Condition (
+    (Get-PtCommandLineProgram '"C:\WINDOWS\System32\conhost.exe" --headless "C:\n\node.exe"') -eq 'conhost.exe' -and
+    (Get-PtCommandLineProgram 'C:/Program/Node.EXE C:\x\supervisor.ts') -eq 'node.exe' -and
+    (Get-PtCommandLineProgram 'node') -eq 'node' -and (Get-PtCommandLineProgram $null) -eq '')
 
 $t0 = Get-Date '2026-01-01T08:00:00'
 $fakeRoot = 'C:\Repo\Portly'
@@ -208,13 +208,13 @@ $processes = @(
     [pscustomobject]@{ ProcessId = 30; ParentProcessId = 1; CreationDate = $t0; CommandLine = 'node C:\Other\Portly\server\src\supervisor.ts' }
     [pscustomobject]@{ ProcessId = 31; ParentProcessId = 1; CreationDate = $t0; CommandLine = $null }
 )
-$trees = @(Select-HbSupervisorProcesses -Processes $processes -RepoRoot $fakeRoot)
+$trees = @(Select-PtSupervisorProcesses -Processes $processes -RepoRoot $fakeRoot)
 $supervisorIds = (@($trees | ForEach-Object { $_.SupervisorId }) -join ',')
-Assert-That -Name 'Select-HbSupervisorProcesses finds this repo''s supervisors only (not their conhost hosts)' -Condition ($supervisorIds -eq '10,20') -Detail $supervisorIds
-Assert-That -Name 'Select-HbSupervisorProcesses keeps real children, skips recycled PIDs' -Condition ((@($trees[0].ChildIds) -join ',') -eq '11' -and @($trees[1].ChildIds).Count -eq 0)
-Assert-That -Name 'Select-HbSupervisorProcesses handles no processes' -Condition (@(Select-HbSupervisorProcesses -Processes @() -RepoRoot $fakeRoot).Count -eq 0)
-Assert-That -Name 'Format-HbProcessList (program names where known)' -Condition (
-    (Format-HbProcessList -Trees $trees) -eq 'supervisor node.exe PID 10 (server PID 11); supervisor PID 20' -and (Format-HbProcessList -Trees @()) -eq 'none') -Detail (Format-HbProcessList -Trees $trees)
+Assert-That -Name 'Select-PtSupervisorProcesses finds this repo''s supervisors only (not their conhost hosts)' -Condition ($supervisorIds -eq '10,20') -Detail $supervisorIds
+Assert-That -Name 'Select-PtSupervisorProcesses keeps real children, skips recycled PIDs' -Condition ((@($trees[0].ChildIds) -join ',') -eq '11' -and @($trees[1].ChildIds).Count -eq 0)
+Assert-That -Name 'Select-PtSupervisorProcesses handles no processes' -Condition (@(Select-PtSupervisorProcesses -Processes @() -RepoRoot $fakeRoot).Count -eq 0)
+Assert-That -Name 'Format-PtProcessList (program names where known)' -Condition (
+    (Format-PtProcessList -Trees $trees) -eq 'supervisor node.exe PID 10 (server PID 11); supervisor PID 20' -and (Format-PtProcessList -Trees @()) -eq 'none') -Detail (Format-PtProcessList -Trees $trees)
 # The task running Portly's copies of node.exe: conhost -> portly-supervisor.exe -> portly-server.exe.
 $copyDir = 'C:\Users\you\AppData\Local\Portly\node'
 $namedProcesses = @(
@@ -222,14 +222,14 @@ $namedProcesses = @(
     [pscustomobject]@{ ProcessId = 41; ParentProcessId = 40; Name = 'portly-supervisor.exe'; CreationDate = $t0; CommandLine = "`"$copyDir\portly-supervisor.exe`" `"C:\Repo\Portly\server\src\supervisor.ts`"" }
     [pscustomobject]@{ ProcessId = 42; ParentProcessId = 41; Name = 'portly-server.exe'; CreationDate = $t0.AddSeconds(1); CommandLine = "$copyDir\portly-server.exe --no-warnings C:\Repo\Portly\server\src\index.ts" }
 )
-$namedTrees = @(Select-HbSupervisorProcesses -Processes $namedProcesses -RepoRoot $fakeRoot)
-Assert-That -Name 'Select-HbSupervisorProcesses finds portly-supervisor.exe and its portly-server.exe (not conhost)' -Condition (
+$namedTrees = @(Select-PtSupervisorProcesses -Processes $namedProcesses -RepoRoot $fakeRoot)
+Assert-That -Name 'Select-PtSupervisorProcesses finds portly-supervisor.exe and its portly-server.exe (not conhost)' -Condition (
     $namedTrees.Count -eq 1 -and $namedTrees[0].SupervisorId -eq 41 -and (@($namedTrees[0].ChildIds) -join ',') -eq '42' -and
-    (Format-HbProcessList -Trees $namedTrees) -eq 'supervisor portly-supervisor.exe PID 41 (server portly-server.exe PID 42)') -Detail (Format-HbProcessList -Trees $namedTrees)
-Assert-That -Name 'Format-HbTaskResult 0x80070002 names the task''s program' -Condition ((Format-HbTaskResult 2147942402) -match 'portly-supervisor\.exe is missing')
+    (Format-PtProcessList -Trees $namedTrees) -eq 'supervisor portly-supervisor.exe PID 41 (server portly-server.exe PID 42)') -Detail (Format-PtProcessList -Trees $namedTrees)
+Assert-That -Name 'Format-PtTaskResult 0x80070002 names the task''s program' -Condition ((Format-PtTaskResult 2147942402) -match 'portly-supervisor\.exe is missing')
 $logLine = '{"t":"2026-10-11T09:00:00.000Z","lvl":"warn","msg":"feeds failing","area":"feeds","tags":["feeds"],"key":"feed:0123456789","code":"timeout","count":2}'
-Assert-That -Name 'Format-HbLogLine shows a JSON record as time, level, area, message and its other fields' -Condition ((Format-HbLogLine -Line $logLine) -eq '2026-10-11T09:00:00.000Z WARN  [feeds] feeds failing {"key":"feed:0123456789","code":"timeout","count":2}') -Detail (Format-HbLogLine -Line $logLine)
-Assert-That -Name 'Format-HbLogLine keeps text lines and broken JSON as they are' -Condition ((Format-HbLogLine -Line '2026-10-11 starting') -eq '2026-10-11 starting' -and (Format-HbLogLine -Line '{not json') -eq '{not json' -and (Format-HbLogLine -Line '') -eq '')
+Assert-That -Name 'Format-PtLogLine shows a JSON record as time, level, area, message and its other fields' -Condition ((Format-PtLogLine -Line $logLine) -eq '2026-10-11T09:00:00.000Z WARN  [feeds] feeds failing {"key":"feed:0123456789","code":"timeout","count":2}') -Detail (Format-PtLogLine -Line $logLine)
+Assert-That -Name 'Format-PtLogLine keeps text lines and broken JSON as they are' -Condition ((Format-PtLogLine -Line '2026-10-11 starting') -eq '2026-10-11 starting' -and (Format-PtLogLine -Line '{not json') -eq '{not json' -and (Format-PtLogLine -Line '') -eq '')
 
 # Process-scope environment changes below are restored right away (nothing user- or
 # machine-wide is ever written).
@@ -245,22 +245,22 @@ function Invoke-WithProcessEnv {
     }
 }
 
-$relativeDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'scratch\hb-data' } { Get-HbDataDir -Scope Process -RepoRoot $fakeRoot }
-Assert-That -Name 'Get-HbDataDir resolves a relative PORTLY_DATA_DIR against the repository (like the server)' -Condition (
-    $relativeDataDir -eq 'C:\Repo\Portly\scratch\hb-data') -Detail $relativeDataDir
-$absoluteDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'D:\HB Data' } { Get-HbDataDir -Scope Process -RepoRoot $fakeRoot }
-Assert-That -Name 'Get-HbDataDir keeps an absolute PORTLY_DATA_DIR' -Condition ($absoluteDataDir -eq 'D:\HB Data') -Detail $absoluteDataDir
+$relativeDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'scratch\pt-data' } { Get-PtDataDir -Scope Process -RepoRoot $fakeRoot }
+Assert-That -Name 'Get-PtDataDir resolves a relative PORTLY_DATA_DIR against the repository (like the server)' -Condition (
+    $relativeDataDir -eq 'C:\Repo\Portly\scratch\pt-data') -Detail $relativeDataDir
+$absoluteDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'D:\Portly Data' } { Get-PtDataDir -Scope Process -RepoRoot $fakeRoot }
+Assert-That -Name 'Get-PtDataDir keeps an absolute PORTLY_DATA_DIR' -Condition ($absoluteDataDir -eq 'D:\Portly Data') -Detail $absoluteDataDir
 
 $marker = "check-$([guid]::NewGuid().ToString('N'))"
-$mismatches = @(Invoke-WithProcessEnv @{ PORTLY_VITE_PORT = $marker } { Get-HbEnvMismatches })
-Assert-That -Name 'Get-HbEnvMismatches reports a variable set only in this window' -Condition (
+$mismatches = @(Invoke-WithProcessEnv @{ PORTLY_VITE_PORT = $marker } { Get-PtEnvMismatches })
+Assert-That -Name 'Get-PtEnvMismatches reports a variable set only in this window' -Condition (
     @($mismatches | Where-Object { $_.Name -eq 'PORTLY_VITE_PORT' -and $_.Process -eq $marker }).Count -eq 1)
 
-$checkNode = (Resolve-HbNode).Path
+$checkNode = (Resolve-PtNode).Path
 # PowerShell 7's module folders never reach Windows PowerShell (Common.ps1).
 $windowsModules = 'C:\Users\you\Documents\WindowsPowerShell\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules;D:\My Modules'
 $mixedModules = 'C:\Users\you\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;C:\Program Files\PowerShell\7-preview\Modules\;c:\program files\windowsapps\microsoft.powershell_7.6.9.0_x64__8wekyb3d8bbwe\Modules;' + $windowsModules
-Assert-That -Name 'Get-HbWindowsModulePath drops the folders of PowerShell 7 and keeps the others' -Condition ((Get-HbWindowsModulePath -Value $mixedModules) -eq $windowsModules) -Detail (Get-HbWindowsModulePath -Value $mixedModules)
+Assert-That -Name 'Get-PtWindowsModulePath drops the folders of PowerShell 7 and keeps the others' -Condition ((Get-PtWindowsModulePath -Value $mixedModules) -eq $windowsModules) -Detail (Get-PtWindowsModulePath -Value $mixedModules)
 
 # The portly command: cmd.exe starts Windows PowerShell, and portly.ps1 starts the temporary
 # install.ps1 in a second one. The fake stands for PowerShell 7's Microsoft.PowerShell.Utility: it
@@ -296,9 +296,9 @@ Assert-That -Name 'Windows PowerShell started through a .cmd file with PowerShel
 $withFix = Invoke-HashProbe -Arguments @('-Common', (Join-Path $PSScriptRoot 'lib\Common.ps1'), '-Depth', '1')
 Assert-That -Name 'after Common.ps1, a second Windows PowerShell finds Get-FileHash (portly --update from PowerShell 7)' -Condition ($withFix -match '^[0-9A-F]{64}$') -Detail $withFix
 
-# Resolve-HbNode accepts the pinned major only (older and newer are refused alike). The fakes are
+# Resolve-PtNode accepts the pinned major only (older and newer are refused alike). The fakes are
 # .cmd files that answer "-p process.versions.node" with a version: a file named node.exe would
-# have to be a real program to run, and Resolve-HbNode only asks the file for its version.
+# have to be a real program to run, and Resolve-PtNode only asks the file for its version.
 function New-CheckFakeNode {
     param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Version)
     $path = Join-Path $workDir "fake-node\$Name\node.cmd"
@@ -308,87 +308,87 @@ function New-CheckFakeNode {
 }
 $newerMajor = $PortlyNodeMajor + 2
 $olderMajor = $PortlyNodeMajor - 2
-Assert-Throws -Name "Resolve-HbNode refuses a fake node reporting v$newerMajor.0.0 (a newer major) and says what to install" -Action {
-    Resolve-HbNode -NodePath (New-CheckFakeNode -Name 'newer' -Version "$newerMajor.0.0") } -Pattern (
+Assert-Throws -Name "Resolve-PtNode refuses a fake node reporting v$newerMajor.0.0 (a newer major) and says what to install" -Action {
+    Resolve-PtNode -NodePath (New-CheckFakeNode -Name 'newer' -Version "$newerMajor.0.0") } -Pattern (
     "^Portly needs Node\.js $PortlyNodeMajor, found v$newerMajor\.0\.0 \(.*\\fake-node\\newer\\node\.cmd\); install Node\.js $PortlyNodeMajor from https://nodejs\.org/ or with winget install OpenJS\.NodeJS\.$PortlyNodeMajor \(OpenJS\.NodeJS\.LTS while ")
-Assert-Throws -Name "Resolve-HbNode still refuses an older major (a fake reporting v$olderMajor.12.0)" -Action {
-    Resolve-HbNode -NodePath (New-CheckFakeNode -Name 'older' -Version "$olderMajor.12.0") } -Pattern "^Portly needs Node\.js $PortlyNodeMajor, found v$olderMajor\.12\.0 "
-$fakeCurrent = Resolve-HbNode -NodePath (New-CheckFakeNode -Name 'current' -Version "$PortlyNodeMajor.99.1")
-Assert-That -Name "Resolve-HbNode accepts any $PortlyNodeMajor.x (a fake reporting v$PortlyNodeMajor.99.1)" -Condition (
+Assert-Throws -Name "Resolve-PtNode still refuses an older major (a fake reporting v$olderMajor.12.0)" -Action {
+    Resolve-PtNode -NodePath (New-CheckFakeNode -Name 'older' -Version "$olderMajor.12.0") } -Pattern "^Portly needs Node\.js $PortlyNodeMajor, found v$olderMajor\.12\.0 "
+$fakeCurrent = Resolve-PtNode -NodePath (New-CheckFakeNode -Name 'current' -Version "$PortlyNodeMajor.99.1")
+Assert-That -Name "Resolve-PtNode accepts any $PortlyNodeMajor.x (a fake reporting v$PortlyNodeMajor.99.1)" -Condition (
     $fakeCurrent.Version -eq "$PortlyNodeMajor.99.1" -and $fakeCurrent.Path -like '*\fake-node\current\node.cmd') -Detail "$($fakeCurrent.Version) $($fakeCurrent.Path)"
-$badConfig = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_BIND = 'not-an-ip' }
-Assert-That -Name 'Test-HbServerConfig reports a value the server rejects' -Condition (
+$badConfig = Test-PtServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_BIND = 'not-an-ip' }
+Assert-That -Name 'Test-PtServerConfig reports a value the server rejects' -Condition (
     -not $badConfig.Ok -and $badConfig.Error -match 'PORTLY_BIND') -Detail "$($badConfig.Error)"
-$badDev = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_DEV = 'on' }
-Assert-That -Name 'Test-HbServerConfig reports PORTLY_DEV=on' -Condition (-not $badDev.Ok -and $badDev.Error -match 'PORTLY_DEV') -Detail "$($badDev.Error)"
-$badPages = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_PAGES_URL = 'http://pages.example/' }
-Assert-That -Name 'Test-HbServerConfig passes PORTLY_PAGES_URL on (plain http off loopback is refused)' -Condition (
+$badDev = Test-PtServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_DEV = 'on' }
+Assert-That -Name 'Test-PtServerConfig reports PORTLY_DEV=on' -Condition (-not $badDev.Ok -and $badDev.Error -match 'PORTLY_DEV') -Detail "$($badDev.Error)"
+$badPages = Test-PtServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{ PORTLY_PAGES_URL = 'http://pages.example/' }
+Assert-That -Name 'Test-PtServerConfig passes PORTLY_PAGES_URL on (plain http off loopback is refused)' -Condition (
     -not $badPages.Ok -and $badPages.Error -match 'PORTLY_PAGES_URL') -Detail "$($badPages.Error)"
-$goodConfig = Test-HbServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{
-    PORTLY_PORT = '5999'; PORTLY_DATA_DIR = 'scratch\hb-data'; PORTLY_BIND = $null; PORTLY_ORIGIN = $null; PORTLY_DEV = $null
+$goodConfig = Test-PtServerConfig -NodeExe $checkNode -RepoRoot $repoRoot -Override @{
+    PORTLY_PORT = '5999'; PORTLY_DATA_DIR = 'scratch\pt-data'; PORTLY_BIND = $null; PORTLY_ORIGIN = $null; PORTLY_DEV = $null
     PORTLY_PAGES_URL = 'https://pages.example/portly/'
 }
-$expectedDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'scratch\hb-data' } { Get-HbDataDir -Scope Process -RepoRoot $repoRoot }
-Assert-That -Name 'Test-HbServerConfig returns the port and data folder the server would use' -Condition (
+$expectedDataDir = Invoke-WithProcessEnv @{ PORTLY_DATA_DIR = 'scratch\pt-data' } { Get-PtDataDir -Scope Process -RepoRoot $repoRoot }
+Assert-That -Name 'Test-PtServerConfig returns the port and data folder the server would use' -Condition (
     $goodConfig.Ok -and $goodConfig.Port -eq 5999 -and $goodConfig.DataDir -eq $expectedDataDir) -Detail "$($goodConfig.Error) $($goodConfig.Port) $($goodConfig.DataDir) (expected $expectedDataDir)"
-$missingNode = Test-HbServerConfig -NodeExe (Join-Path $repoRoot 'no-such-node.exe') -RepoRoot $repoRoot
-Assert-That -Name 'Test-HbServerConfig reports a node.exe that cannot run' -Condition (-not $missingNode.Ok -and $missingNode.Error -match 'could not run') -Detail "$($missingNode.Error)"
+$missingNode = Test-PtServerConfig -NodeExe (Join-Path $repoRoot 'no-such-node.exe') -RepoRoot $repoRoot
+Assert-That -Name 'Test-PtServerConfig reports a node.exe that cannot run' -Condition (-not $missingNode.Ok -and $missingNode.Error -match 'could not run') -Detail "$($missingNode.Error)"
 
 # ---------------------------------------------------------------------------------------------
 Write-Host ''
 Write-Host "Portly's copies of Node.js (in a temporary folder; the real one is never written)" -ForegroundColor White
 Assert-That -Name 'the copies'' default folder is %LOCALAPPDATA%\Portly\node' -Condition (
-    (Get-HbRuntimeDir) -eq (Join-Path ([System.Environment]::GetFolderPath('LocalApplicationData')) 'Portly\node'))
-$checkNodeVersion = Get-HbNodeVersion -NodeExe $checkNode
+    (Get-PtRuntimeDir) -eq (Join-Path ([System.Environment]::GetFolderPath('LocalApplicationData')) 'Portly\node'))
+$checkNodeVersion = Get-PtNodeVersion -NodeExe $checkNode
 $copiesDir = Join-Path $workDir 'copies\node'
-$copiesPlan = Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir
-Assert-That -Name 'Get-HbRuntimePlan: missing before the first copy, with both program names in the folder' -Condition (
+$copiesPlan = Get-PtRuntimePlan -NodeExe $checkNode -Destination $copiesDir
+Assert-That -Name 'Get-PtRuntimePlan: missing before the first copy, with both program names in the folder' -Condition (
     $copiesPlan.State -eq 'missing' -and $copiesPlan.SupervisorExe -eq (Join-Path $copiesDir 'portly-supervisor.exe') -and
-    $copiesPlan.ServerExe -eq (Join-Path $copiesDir 'portly-server.exe') -and (Format-HbRuntimePlan -Plan $copiesPlan) -match 'to be copied from')
-$made = Update-HbRuntimeCopies -Plan $copiesPlan -NodeVersion $checkNodeVersion
-$record = Read-HbRuntimeRecord -Destination $copiesDir
-Assert-That -Name 'Update-HbRuntimeCopies copies node.exe (same build), checks that the copy runs and records its source' -Condition (
+    $copiesPlan.ServerExe -eq (Join-Path $copiesDir 'portly-server.exe') -and (Format-PtRuntimePlan -Plan $copiesPlan) -match 'to be copied from')
+$made = Update-PtRuntimeCopies -Plan $copiesPlan -NodeVersion $checkNodeVersion
+$record = Read-PtRuntimeRecord -Destination $copiesDir
+Assert-That -Name 'Update-PtRuntimeCopies copies node.exe (same build), checks that the copy runs and records its source' -Condition (
     $made.Ok -and $made.Usable -and $made.Changed -and $made.Version -eq $checkNodeVersion -and
-    (Test-HbSameProgram -Path $copiesPlan.SupervisorExe -Source $checkNode) -and
+    (Test-PtSameProgram -Path $copiesPlan.SupervisorExe -Source $checkNode) -and
     $null -ne $record -and $record.Source -eq $checkNode -and $record.NodeVersion -eq $checkNodeVersion) -Detail "$($made.Error)"
 Assert-That -Name 'portly-server.exe is a hard link of portly-supervisor.exe (one file on disk)' -Condition (
-    $made.Linked -and "$(Get-HbProperty (Get-Item -LiteralPath $copiesPlan.ServerExe) 'LinkType')" -eq 'HardLink' -and
-    (Test-HbSameProgram -Path $copiesPlan.ServerExe -Source $checkNode))
-$again = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion $checkNodeVersion
-Assert-That -Name 'Get-HbRuntimePlan: current after the copy; a second update changes nothing' -Condition (
-    (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'current' -and $again.Ok -and -not $again.Changed) -Detail "$($again.Error)"
-Assert-That -Name 'Update-HbRuntimeCopies refuses a copy that reports another Node.js version' -Condition (
-    -not (Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion '0.0.1').Ok)
-Assert-That -Name 'Test-HbRuntimeProgram: portly-supervisor.exe in that folder only' -Condition (
-    (Test-HbRuntimeProgram -Path $copiesPlan.SupervisorExe -Destination $copiesDir) -and
-    -not (Test-HbRuntimeProgram -Path $checkNode -Destination $copiesDir) -and -not (Test-HbRuntimeProgram -Path $null -Destination $copiesDir))
+    $made.Linked -and "$(Get-PtProperty (Get-Item -LiteralPath $copiesPlan.ServerExe) 'LinkType')" -eq 'HardLink' -and
+    (Test-PtSameProgram -Path $copiesPlan.ServerExe -Source $checkNode))
+$again = Update-PtRuntimeCopies -Plan (Get-PtRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion $checkNodeVersion
+Assert-That -Name 'Get-PtRuntimePlan: current after the copy; a second update changes nothing' -Condition (
+    (Get-PtRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'current' -and $again.Ok -and -not $again.Changed) -Detail "$($again.Error)"
+Assert-That -Name 'Update-PtRuntimeCopies refuses a copy that reports another Node.js version' -Condition (
+    -not (Update-PtRuntimeCopies -Plan (Get-PtRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion '0.0.1').Ok)
+Assert-That -Name 'Test-PtRuntimeProgram: portly-supervisor.exe in that folder only' -Condition (
+    (Test-PtRuntimeProgram -Path $copiesPlan.SupervisorExe -Destination $copiesDir) -and
+    -not (Test-PtRuntimeProgram -Path $checkNode -Destination $copiesDir) -and -not (Test-PtRuntimeProgram -Path $null -Destination $copiesDir))
 
 $copiesTask = [pscustomobject]@{ Actions = @([pscustomobject]@{ Execute = 'conhost.exe'; Arguments = ('--headless "{0}" "C:\Repo\Portly\server\src\supervisor.ts"' -f $copiesPlan.SupervisorExe) }) }
 $nodeTask = [pscustomobject]@{ Actions = @([pscustomobject]@{ Execute = 'conhost.exe'; Arguments = ('--headless "{0}" "C:\Repo\Portly\server\src\supervisor.ts"' -f $checkNode) }) }
-Assert-That -Name 'Get-HbTaskProgram reads the program after --headless (none without an action)' -Condition (
-    (Get-HbTaskProgram -Task $copiesTask) -eq $copiesPlan.SupervisorExe -and $null -eq (Get-HbTaskProgram -Task ([pscustomobject]@{ Actions = @() })))
-Assert-That -Name 'Sync-HbTaskRuntime is quiet when the copies are current or the task runs node.exe itself' -Condition (
-    $null -eq (Sync-HbTaskRuntime -Task $copiesTask -Destination $copiesDir) -and $null -eq (Sync-HbTaskRuntime -Task $nodeTask -Destination $copiesDir) -and
-    $null -eq (Sync-HbTaskRuntime -Task $null -Destination $copiesDir))
+Assert-That -Name 'Get-PtTaskProgram reads the program after --headless (none without an action)' -Condition (
+    (Get-PtTaskProgram -Task $copiesTask) -eq $copiesPlan.SupervisorExe -and $null -eq (Get-PtTaskProgram -Task ([pscustomobject]@{ Actions = @() })))
+Assert-That -Name 'Sync-PtTaskRuntime is quiet when the copies are current or the task runs node.exe itself' -Condition (
+    $null -eq (Sync-PtTaskRuntime -Task $copiesTask -Destination $copiesDir) -and $null -eq (Sync-PtTaskRuntime -Task $nodeTask -Destination $copiesDir) -and
+    $null -eq (Sync-PtTaskRuntime -Task $null -Destination $copiesDir))
 # Another build: the copies' modification time moves (a hard link: both names at once).
 $olderBuild = [System.DateTime]::SpecifyKind((Get-Date '2020-01-01T00:00:00'), [System.DateTimeKind]::Utc)
-Invoke-HbSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild) }
-$syncDry = Sync-HbTaskRuntime -Task $copiesTask -Destination $copiesDir -DryRun
-Assert-That -Name 'Sync-HbTaskRuntime -DryRun says it would refresh out-of-date copies and changes nothing' -Condition (
+Invoke-PtSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild) }
+$syncDry = Sync-PtTaskRuntime -Task $copiesTask -Destination $copiesDir -DryRun
+Assert-That -Name 'Sync-PtTaskRuntime -DryRun says it would refresh out-of-date copies and changes nothing' -Condition (
     "$syncDry" -match '^Would bring portly-supervisor\.exe and portly-server\.exe up to date' -and
-    (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'stale') -Detail "$syncDry"
-$synced = Sync-HbTaskRuntime -Task $copiesTask -Destination $copiesDir
-Assert-That -Name 'Sync-HbTaskRuntime refreshes them from the node.exe in runtime.json' -Condition (
-    "$synced" -match '^Brought ' -and (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'current') -Detail "$synced"
+    (Get-PtRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'stale') -Detail "$syncDry"
+$synced = Sync-PtTaskRuntime -Task $copiesTask -Destination $copiesDir
+Assert-That -Name 'Sync-PtTaskRuntime refreshes them from the node.exe in runtime.json' -Condition (
+    "$synced" -match '^Brought ' -and (Get-PtRuntimePlan -NodeExe $checkNode -Destination $copiesDir).State -eq 'current') -Detail "$synced"
 # In use (a running program cannot be deleted): an older copy is kept and still usable.
-Invoke-HbSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild) }
+Invoke-PtSharingRetry -Action { [System.IO.File]::SetLastWriteTimeUtc($copiesPlan.SupervisorExe, $olderBuild) }
 $held =[System.IO.File]::Open($copiesPlan.SupervisorExe, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
 try {
-    $busy = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion $checkNodeVersion
+    $busy = Update-PtRuntimeCopies -Plan (Get-PtRuntimePlan -NodeExe $checkNode -Destination $copiesDir) -NodeVersion $checkNodeVersion
 } finally {
     $held.Dispose()
 }
-Assert-That -Name 'Update-HbRuntimeCopies keeps a copy in use (not Ok, but usable) and leaves no .new file' -Condition (
+Assert-That -Name 'Update-PtRuntimeCopies keeps a copy in use (not Ok, but usable) and leaves no .new file' -Condition (
     -not $busy.Ok -and $busy.Usable -and (Test-Path -LiteralPath $copiesPlan.SupervisorExe -PathType Leaf) -and
     -not (Test-Path -LiteralPath "$($copiesPlan.SupervisorExe).new")) -Detail "$($busy.Error)"
 # Read for a moment by another program (a virus scanner: shared for reading only). Opening the file
@@ -414,7 +414,7 @@ $script:sharingTries = 0
 $released = 'not tried'
 try {
     if ($opened.WaitOne(10000)) {
-        try { Invoke-HbSharingRetry -Action $writeShared; $released = 'ok' } catch { $released = $_.Exception.Message }
+        try { Invoke-PtSharingRetry -Action $writeShared; $released = 'ok' } catch { $released = $_.Exception.Message }
     } else {
         $released = 'the other thread did not open the file'
     }
@@ -423,49 +423,49 @@ try {
     $holder.Dispose()
     $opened.Dispose()
 }
-Assert-That -Name 'Invoke-HbSharingRetry: a file let go after 300 ms is tried again until the write succeeds' -Condition (
+Assert-That -Name 'Invoke-PtSharingRetry: a file let go after 300 ms is tried again until the write succeeds' -Condition (
     $released -eq 'ok' -and $script:sharingTries -gt 1) -Detail "$released ($script:sharingTries tries)"
 $scanner = [System.IO.File]::Open($sharedFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
 $script:sharingTries = 0
 $watch = [System.Diagnostics.Stopwatch]::StartNew()
 $stillHeld = $null
 try {
-    try { Invoke-HbSharingRetry -Action $writeShared } catch { $stillHeld = $_ }
+    try { Invoke-PtSharingRetry -Action $writeShared } catch { $stillHeld = $_ }
 } finally {
     $scanner.Dispose()
 }
-Assert-That -Name 'Invoke-HbSharingRetry: a file held throughout -> its sharing violation after 5 tries (1.5 s), not more' -Condition (
-    $null -ne $stillHeld -and (Test-HbSharingViolation $stillHeld) -and $script:sharingTries -eq 5 -and $watch.ElapsedMilliseconds -lt 5000) -Detail "$script:sharingTries tries in $($watch.ElapsedMilliseconds) ms: $stillHeld"
+Assert-That -Name 'Invoke-PtSharingRetry: a file held throughout -> its sharing violation after 5 tries (1.5 s), not more' -Condition (
+    $null -ne $stillHeld -and (Test-PtSharingViolation $stillHeld) -and $script:sharingTries -eq 5 -and $watch.ElapsedMilliseconds -lt 5000) -Detail "$script:sharingTries tries in $($watch.ElapsedMilliseconds) ms: $stillHeld"
 $script:sharingTries = 0
 $notShared = $null
 try {
-    Invoke-HbSharingRetry -Action { $script:sharingTries++; [System.IO.File]::SetLastWriteTimeUtc((Join-Path $workDir 'shared\missing.exe'), $olderBuild) }
+    Invoke-PtSharingRetry -Action { $script:sharingTries++; [System.IO.File]::SetLastWriteTimeUtc((Join-Path $workDir 'shared\missing.exe'), $olderBuild) }
 } catch {
     $notShared = $_
 }
-Assert-That -Name 'Invoke-HbSharingRetry: any other error (a missing file) is thrown at once' -Condition (
-    $null -ne $notShared -and -not (Test-HbSharingViolation $notShared) -and $script:sharingTries -eq 1) -Detail "$script:sharingTries tries: $notShared"
+Assert-That -Name 'Invoke-PtSharingRetry: any other error (a missing file) is thrown at once' -Condition (
+    $null -ne $notShared -and -not (Test-PtSharingViolation $notShared) -and $script:sharingTries -eq 1) -Detail "$script:sharingTries tries: $notShared"
 # A node.exe that does not run (blocked, broken): not usable, so the task runs node.exe itself.
 $brokenNode = Join-Path $workDir 'broken-node\node.exe'
 $null = New-Item -ItemType Directory -Path (Split-Path -Parent $brokenNode) -Force
 [System.IO.File]::WriteAllText($brokenNode, 'not a program')
-$broken = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $brokenNode -Destination (Join-Path $workDir 'broken-copies\node'))
-Assert-That -Name 'Update-HbRuntimeCopies: a copy that does not run is neither Ok nor usable' -Condition (
+$broken = Update-PtRuntimeCopies -Plan (Get-PtRuntimePlan -NodeExe $brokenNode -Destination (Join-Path $workDir 'broken-copies\node'))
+Assert-That -Name 'Update-PtRuntimeCopies: a copy that does not run is neither Ok nor usable' -Condition (
     -not $broken.Ok -and -not $broken.Usable -and $broken.Error) -Detail "$($broken.Error)"
 # runtime.json names a node.exe that is gone.
 $goneDir = Join-Path $workDir 'gone-copies\node'
 $null = New-Item -ItemType Directory -Path $goneDir -Force
 [System.IO.File]::WriteAllText((Join-Path $goneDir 'runtime.json'), '{"version":1,"source":"C:\\Missing\\nodejs\\node.exe","nodeVersion":"24.0.0"}')
 $goneTask = [pscustomobject]@{ Actions = @([pscustomobject]@{ Arguments = ('--headless "{0}" "C:\Repo\Portly\server\src\supervisor.ts"' -f (Join-Path $goneDir 'portly-supervisor.exe')) }) }
-Assert-That -Name 'Sync-HbTaskRuntime: copies missing and their node.exe gone -> run install-autostart.ps1 again' -Condition (
-    "$(Sync-HbTaskRuntime -Task $goneTask -Destination $goneDir)" -match 'is missing, and so is C:\\Missing\\nodejs\\node\.exe.*install-autostart\.ps1')
-Assert-Throws -Name 'Remove-HbRuntimeFolder refuses any folder not named node' -Action { Remove-HbRuntimeFolder -Path (Split-Path -Parent $copiesDir) } -Pattern 'Refusing'
-Assert-That -Name 'Remove-HbRuntimeFolder removes the copies folder (only that folder)' -Condition (
-    (Remove-HbRuntimeFolder -Path $copiesDir) -and -not (Test-Path -LiteralPath $copiesDir) -and (Test-Path -LiteralPath (Split-Path -Parent $copiesDir)) -and
+Assert-That -Name 'Sync-PtTaskRuntime: copies missing and their node.exe gone -> run install-autostart.ps1 again' -Condition (
+    "$(Sync-PtTaskRuntime -Task $goneTask -Destination $goneDir)" -match 'is missing, and so is C:\\Missing\\nodejs\\node\.exe.*install-autostart\.ps1')
+Assert-Throws -Name 'Remove-PtRuntimeFolder refuses any folder not named node' -Action { Remove-PtRuntimeFolder -Path (Split-Path -Parent $copiesDir) } -Pattern 'Refusing'
+Assert-That -Name 'Remove-PtRuntimeFolder removes the copies folder (only that folder)' -Condition (
+    (Remove-PtRuntimeFolder -Path $copiesDir) -and -not (Test-Path -LiteralPath $copiesDir) -and (Test-Path -LiteralPath (Split-Path -Parent $copiesDir)) -and
     (Test-Path -LiteralPath $checkNode -PathType Leaf))
 
-if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
-    $userId = Get-HbCurrentUserId
+if ((Test-PtWindows) -and (Test-PtScheduledTasksAvailable)) {
+    $userId = Get-PtCurrentUserId
     $expectedSettings = {
         param($Settings)
         $Settings.ExecutionTimeLimit -eq 'PT0S' -and $Settings.DisallowStartIfOnBatteries -eq $false -and
@@ -474,34 +474,34 @@ if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
         $Settings.RestartInterval -eq 'PT1M' -and $Settings.AllowDemandStart -eq $true
     }
 
-    $browserTask = New-HbTaskDefinition -RepoRoot $fakeRoot -NodeExe 'C:\Program Files\nodejs\node.exe' -UserId $userId
+    $browserTask = New-PtTaskDefinition -RepoRoot $fakeRoot -NodeExe 'C:\Program Files\nodejs\node.exe' -UserId $userId
     $action = @($browserTask.Actions)[0]
     Assert-That -Name 'task action runs conhost --headless node supervisor.ts' -Condition (
         $action.Execute -eq "$env:SystemRoot\System32\conhost.exe" -and
         $action.Arguments -eq '--headless "C:\Program Files\nodejs\node.exe" "C:\Repo\Portly\server\src\supervisor.ts"' -and
         $action.WorkingDirectory -eq $fakeRoot) -Detail "$($action.Execute) $($action.Arguments) [$($action.WorkingDirectory)]"
     Assert-That -Name 'Browser mode (the default): the task has no trigger at all' -Condition (
-        @(@($browserTask.Triggers) | Where-Object { $null -ne $_ }).Count -eq 0 -and (Get-HbTaskTriggerMode -Task $browserTask) -eq 'Browser')
+        @(@($browserTask.Triggers) | Where-Object { $null -ne $_ }).Count -eq 0 -and (Get-PtTaskTriggerMode -Task $browserTask) -eq 'Browser')
     Assert-That -Name 'Browser mode: description and trigger text name the native host' -Condition (
-        $browserTask.Description -match 'com\.portly\.launcher' -and (Format-HbTaskTrigger -Task $browserTask) -match '^none - Browser mode')
+        $browserTask.Description -match 'com\.portly\.launcher' -and (Format-PtTaskTrigger -Task $browserTask) -match '^none - Browser mode')
     Assert-That -Name 'task principal is the current user, Interactive, Limited' -Condition (
         $browserTask.Principal.UserId -eq $userId -and "$($browserTask.Principal.LogonType)" -eq 'Interactive' -and
         "$($browserTask.Principal.RunLevel)" -eq 'Limited')
     Assert-That -Name 'Browser mode: settings match ARCHITECTURE section 12 and allow on-demand runs' -Condition (
         [bool](& $expectedSettings $browserTask.Settings)) -Detail ($browserTask.Settings | Select-Object ExecutionTimeLimit, DisallowStartIfOnBatteries, StopIfGoingOnBatteries, MultipleInstances, StartWhenAvailable, Priority, RestartCount, RestartInterval, AllowDemandStart | Out-String)
 
-    $logonTask = New-HbTaskDefinition -RepoRoot $fakeRoot -NodeExe 'C:\Program Files\nodejs\node.exe' -UserId $userId -Trigger Logon
+    $logonTask = New-PtTaskDefinition -RepoRoot $fakeRoot -NodeExe 'C:\Program Files\nodejs\node.exe' -UserId $userId -Trigger Logon
     $logonTriggers = @(@($logonTask.Triggers) | Where-Object { $null -ne $_ })
     Assert-That -Name 'Logon mode: one trigger, at logon of the current user, no delay' -Condition (
         $logonTriggers.Count -eq 1 -and $logonTriggers[0].CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger' -and
-        $logonTriggers[0].UserId -eq $userId -and -not $logonTriggers[0].Delay -and (Get-HbTaskTriggerMode -Task $logonTask) -eq 'Logon')
+        $logonTriggers[0].UserId -eq $userId -and -not $logonTriggers[0].Delay -and (Get-PtTaskTriggerMode -Task $logonTask) -eq 'Logon')
     Assert-That -Name 'Logon mode: same action, principal and settings' -Condition (
         @($logonTask.Actions)[0].Arguments -eq $action.Arguments -and $logonTask.Principal.UserId -eq $userId -and
         [bool](& $expectedSettings $logonTask.Settings) -and $logonTask.Description -match 'at logon')
-    $delayed = New-HbTaskDefinition -RepoRoot $fakeRoot -NodeExe 'C:\Program Files\nodejs\node.exe' -UserId $userId -Trigger Logon -LogonDelaySeconds 90
+    $delayed = New-PtTaskDefinition -RepoRoot $fakeRoot -NodeExe 'C:\Program Files\nodejs\node.exe' -UserId $userId -Trigger Logon -LogonDelaySeconds 90
     $delayedTrigger = @(@($delayed.Triggers) | Where-Object { $null -ne $_ })[0]
     Assert-That -Name 'Logon mode: -LogonDelaySeconds 90 becomes the trigger delay PT1M30S' -Condition (
-        $delayedTrigger.Delay -eq 'PT1M30S' -and (Format-HbTaskTrigger -Task $delayed) -match 'delay PT1M30S') -Detail "$($delayedTrigger.Delay)"
+        $delayedTrigger.Delay -eq 'PT1M30S' -and (Format-PtTaskTrigger -Task $delayed) -match 'delay PT1M30S') -Detail "$($delayedTrigger.Delay)"
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -542,10 +542,10 @@ Assert-That -Name 'Test-InstNewer: only a certainly newer version' -Condition (
     (Test-InstNewer -Candidate '0.2.0-alpha.10' -Than '0.2.0-alpha.9') -and -not (Test-InstNewer -Candidate '0.2.0-alpha.9' -Than '0.2.0-alpha.10') -and
     -not (Test-InstNewer -Candidate '0.2.0-alpha.7' -Than '0.2.0-alpha.7'))
 
-Assert-That -Name 'ConvertTo-HbMaskedLine masks a home folder anywhere, and any C:\Users path' -Condition (
-    (ConvertTo-HbMaskedLine -Line 'Could not move D:\Profiles\You\x to y' -HomeDir 'd:\profiles\you') -ceq 'Could not move ~\x to y' -and
-    (ConvertTo-HbMaskedLine -Line 'in C:\Users\Riley Hollis\AppData\Local\Portly' -HomeDir '') -ceq 'in C:\Users\~\AppData\Local\Portly' -and
-    (ConvertTo-HbMaskedLine -Line 'plain text' -HomeDir '') -ceq 'plain text' -and (ConvertTo-HbMaskedLine -Line '' -HomeDir '') -ceq '')
+Assert-That -Name 'ConvertTo-PtMaskedLine masks a home folder anywhere, and any C:\Users path' -Condition (
+    (ConvertTo-PtMaskedLine -Line 'Could not move D:\Profiles\You\x to y' -HomeDir 'd:\profiles\you') -ceq 'Could not move ~\x to y' -and
+    (ConvertTo-PtMaskedLine -Line 'in C:\Users\Riley Hollis\AppData\Local\Portly' -HomeDir '') -ceq 'in C:\Users\~\AppData\Local\Portly' -and
+    (ConvertTo-PtMaskedLine -Line 'plain text' -HomeDir '') -ceq 'plain text' -and (ConvertTo-PtMaskedLine -Line '' -HomeDir '') -ceq '')
 
 $fakeInstaller = Join-Path $workDir 'fake-installer.ps1'
 [System.IO.File]::WriteAllLines($fakeInstaller, [string[]]@(
@@ -554,18 +554,18 @@ $fakeInstaller = Join-Path $workDir 'fake-installer.ps1'
         '[Console]::Error.WriteLine("Error in $env:USERPROFILE\stderr")',
         'exit 7'))
 $updateLog = Join-Path $workDir 'update-logs\update.log'
-$loggedCode = Invoke-HbLoggedInstall -Powershell (Get-Process -Id $PID).Path -Installer $fakeInstaller -Arguments @() -LogFile $updateLog
+$loggedCode = Invoke-PtLoggedInstall -Powershell (Get-Process -Id $PID).Path -Installer $fakeInstaller -Arguments @() -LogFile $updateLog
 $loggedText = [System.IO.File]::ReadAllText($updateLog)
-Assert-That -Name 'Invoke-HbLoggedInstall passes the exit code on and keeps every kind of output, with the home folder masked' -Condition (
+Assert-That -Name 'Invoke-PtLoggedInstall passes the exit code on and keeps every kind of output, with the home folder masked' -Condition (
     $loggedCode -eq 7 -and $loggedText.Contains('Unpacking into ~\app.new') -and $loggedText.Contains('~\warned') -and $loggedText.Contains('~\stderr') -and
     $loggedText.IndexOf($env:USERPROFILE, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) -Detail "exit $loggedCode`n$loggedText"
-$null = Invoke-HbLoggedInstall -Powershell (Get-Process -Id $PID).Path -Installer $fakeInstaller -Arguments @() -LogFile $updateLog
-Assert-That -Name 'Invoke-HbLoggedInstall replaces the log on each run' -Condition (
+$null = Invoke-PtLoggedInstall -Powershell (Get-Process -Id $PID).Path -Installer $fakeInstaller -Arguments @() -LogFile $updateLog
+Assert-That -Name 'Invoke-PtLoggedInstall replaces the log on each run' -Condition (
     ([regex]::Matches([System.IO.File]::ReadAllText($updateLog), 'Unpacking')).Count -eq 1)
 
 # What --unattended hands the installer, without running one.
-$realLoggedInstall = ${function:Invoke-HbLoggedInstall}
-function Invoke-HbLoggedInstall {
+$realLoggedInstall = ${function:Invoke-PtLoggedInstall}
+function Invoke-PtLoggedInstall {
     param($Powershell, $Installer, $Arguments, $LogFile)
     $script:loggedArguments = @($Arguments)
     $script:loggedFile = $LogFile
@@ -574,19 +574,19 @@ function Invoke-HbLoggedInstall {
 $unattendedRoot = Join-Path $workDir 'unattended\app'
 $null = New-Item -ItemType Directory -Path (Join-Path $unattendedRoot 'scripts') -Force
 [System.IO.File]::WriteAllText((Join-Path $unattendedRoot 'scripts\install.ps1'), 'exit 0')
-$unattendedCode = Invoke-HbReleaseUpdate -RepoRoot $unattendedRoot -Info ([pscustomobject]@{ releaseRepo = 'example/portly' }) -Options @('--unattended')
+$unattendedCode = Invoke-PtReleaseUpdate -RepoRoot $unattendedRoot -Info ([pscustomobject]@{ releaseRepo = 'example/portly' }) -Options @('--unattended')
 $statusIndex = [array]::IndexOf($script:loggedArguments, '-StatusFile')
 Assert-That -Name 'portly --update --unattended: only a newer version, no browser, the status file and update.log in the data folder' -Condition (
     $unattendedCode -eq 7 -and $script:loggedArguments -contains '-OnlyNewer' -and $script:loggedArguments -contains '-NoBrowser' -and
     $statusIndex -ge 0 -and $script:loggedArguments[$statusIndex + 1] -like '*\update-status.json' -and
     $script:loggedFile -like '*\logs\update.log' -and $script:loggedArguments -notcontains '-Force' -and
     $script:loggedArguments[0] -eq '-InstallDir' -and $script:loggedArguments[1] -eq (Split-Path -Parent $unattendedRoot)) -Detail ($script:loggedArguments -join ' ')
-${function:Invoke-HbLoggedInstall} = $realLoggedInstall
+${function:Invoke-PtLoggedInstall} = $realLoggedInstall
 
-if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
+if ((Test-PtWindows) -and (Test-PtScheduledTasksAvailable)) {
     $updaterRoot = 'C:\Install\app'
-    $updaterUser = Get-HbCurrentUserId
-    $updater = New-HbUpdaterDefinition -RepoRoot $updaterRoot -UserId $updaterUser
+    $updaterUser = Get-PtCurrentUserId
+    $updater = New-PtUpdaterDefinition -RepoRoot $updaterRoot -UserId $updaterUser
     $updaterAction = @($updater.Actions)[0]
     Assert-That -Name 'the updater task runs conhost --headless powershell portly.ps1 --update --unattended, with nothing else on its command line' -Condition (
         $updaterAction.Execute -eq "$env:SystemRoot\System32\conhost.exe" -and
@@ -600,9 +600,9 @@ if ((Test-HbWindows) -and (Test-HbScheduledTasksAvailable)) {
         $updater.Settings.ExecutionTimeLimit -eq 'PT15M' -and $updater.Settings.DisallowStartIfOnBatteries -eq $false -and
         $updater.Settings.StopIfGoingOnBatteries -eq $false -and "$($updater.Settings.MultipleInstances)" -eq 'IgnoreNew' -and
         $updater.Settings.AllowDemandStart -eq $true -and $updater.Settings.RestartCount -eq 0) -Detail "$($updater.Settings.ExecutionTimeLimit) $($updater.Settings.RestartCount)"
-    Assert-That -Name 'Test-HbUpdaterCurrent: the same definition is current, none or another install is not' -Condition (
-        (Test-HbUpdaterCurrent -Task $updater -Definition $updater) -and -not (Test-HbUpdaterCurrent -Task $null -Definition $updater) -and
-        -not (Test-HbUpdaterCurrent -Task (New-HbUpdaterDefinition -RepoRoot 'C:\Other\app' -UserId $updaterUser) -Definition $updater))
+    Assert-That -Name 'Test-PtUpdaterCurrent: the same definition is current, none or another install is not' -Condition (
+        (Test-PtUpdaterCurrent -Task $updater -Definition $updater) -and -not (Test-PtUpdaterCurrent -Task $null -Definition $updater) -and
+        -not (Test-PtUpdaterCurrent -Task (New-PtUpdaterDefinition -RepoRoot 'C:\Other\app' -UserId $updaterUser) -Definition $updater))
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -613,42 +613,42 @@ Write-Host 'Extension ID and native host' -ForegroundColor White
 # GenerateId hashes its input as GenerateIdFromPublicKey hashes the DER key. They pin the
 # hash -> a-p mapping to the browser's implementation, not to ours.
 foreach ($vector in @(@('test', 'jpignaibiiemhngfjkcpokkamffknabf'), @('_', 'ncocknphbhhlhkikpnnlmbcnbgdempcd'))) {
-    $vectorHash = Get-HbSha256 -Bytes ([System.Text.Encoding]::ASCII.GetBytes($vector[0]))
-    Assert-That -Name "ConvertTo-HbExtensionId matches Chromium's vector for '$($vector[0])'" -Condition (
-        (ConvertTo-HbExtensionId -Hash $vectorHash) -ceq $vector[1]) -Detail (ConvertTo-HbExtensionId -Hash $vectorHash)
+    $vectorHash = Get-PtSha256 -Bytes ([System.Text.Encoding]::ASCII.GetBytes($vector[0]))
+    Assert-That -Name "ConvertTo-PtExtensionId matches Chromium's vector for '$($vector[0])'" -Condition (
+        (ConvertTo-PtExtensionId -Hash $vectorHash) -ceq $vector[1]) -Detail (ConvertTo-PtExtensionId -Hash $vectorHash)
 }
 # The ID Chrome gives an extension folder loaded unpacked without a "key" (SHA-256 of the UTF-16LE
-# path), for the folder's placeholder path before the rename: computed, quoted in the docs as the
+# path), for a placeholder path: computed, and the ID the docs may quote as the
 # old ID.
-$pathHash = Get-HbSha256 -Bytes ([System.Text.Encoding]::Unicode.GetBytes('C:\Users\you\Coding\Homebase\extension'))
-Assert-That -Name 'ConvertTo-HbExtensionId gives the path-derived ID the docs quote' -Condition (
-    (ConvertTo-HbExtensionId -Hash $pathHash) -ceq 'daklamdnkmbdeegnkhmpeccgggbgiole') -Detail (ConvertTo-HbExtensionId -Hash $pathHash)
+$pathHash = Get-PtSha256 -Bytes ([System.Text.Encoding]::Unicode.GetBytes('C:\Users\you\Coding\Portly\extension'))
+Assert-That -Name 'ConvertTo-PtExtensionId gives the path-derived ID the docs quote' -Condition (
+    (ConvertTo-PtExtensionId -Hash $pathHash) -ceq 'nlcmhdhddjfnkoghpbkgbneedjlphmbl') -Detail (ConvertTo-PtExtensionId -Hash $pathHash)
 # A fixed RSA-2048 public key and its ID, computed independently with Node's crypto.
 $vectorKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwSv/UP1vJ8MyvwqBWm4lcTFePyJYPWixf8yHB9liQC7X0XyYLooDgSv2xh0VeWPLaoGwwg5AR4n4ngv0MAi5YtQzStMwY64ClckW+d490mOiQzZkz9dFPFELVhxqqcXg+AlYwmO2y1NnI0FGoCxdyyoZ/5LcBzeFWyArHOUI+hl6leGBcCJSgeF4qFpk2jliql05TCoEDvk54DgVzrE5UPIQtu+ZxPNj/ynpliG0kFGgB5RWp6c8S3OjOuYmMG95le14WLoDN8o5K43IkjBhucwyHoJ/uCjInoJtKEY9Co2V6ZwJGjO1EovHqYW7JO9YIa1dXd19GHeLSwPScWtknQIDAQAB'
 $vectorId = 'fndafcppdecimanmjfaoopdcbomgldng'
-Assert-That -Name 'Get-HbExtensionIdFromKey matches the fixed key vector' -Condition ((Get-HbExtensionIdFromKey -Key $vectorKey) -ceq $vectorId)
-Assert-That -Name 'Get-HbExtensionIdFromKey ignores whitespace in the key' -Condition (
-    (Get-HbExtensionIdFromKey -Key ($vectorKey.Substring(0, 100) + "`r`n  " + $vectorKey.Substring(100))) -ceq $vectorId)
-Assert-That -Name 'Get-HbExtensionIdFromKey ignores PEM armour lines (as Chrome and extension-id.mjs do)' -Condition (
-    (Get-HbExtensionIdFromKey -Key ("-----BEGIN PUBLIC KEY-----`n" + $vectorKey.Substring(0, 64) + "`n" + $vectorKey.Substring(64) + "`n-----END PUBLIC KEY-----`n")) -ceq $vectorId)
-Assert-Throws -Name 'Get-HbExtensionIdFromKey rejects invalid base64' -Action { Get-HbExtensionIdFromKey -Key 'not base64!' } -Pattern 'base64'
-Assert-Throws -Name 'Get-HbExtensionIdFromKey rejects an empty key' -Action { Get-HbExtensionIdFromKey -Key "-----BEGIN PUBLIC KEY-----`n-----END PUBLIC KEY-----" } -Pattern 'base64'
-Assert-Throws -Name 'Get-HbExtensionIdFromKey rejects data that is not a public key' -Action { Get-HbExtensionIdFromKey -Key ([System.Convert]::ToBase64String((New-Object byte[] 300))) } -Pattern 'public key'
+Assert-That -Name 'Get-PtExtensionIdFromKey matches the fixed key vector' -Condition ((Get-PtExtensionIdFromKey -Key $vectorKey) -ceq $vectorId)
+Assert-That -Name 'Get-PtExtensionIdFromKey ignores whitespace in the key' -Condition (
+    (Get-PtExtensionIdFromKey -Key ($vectorKey.Substring(0, 100) + "`r`n  " + $vectorKey.Substring(100))) -ceq $vectorId)
+Assert-That -Name 'Get-PtExtensionIdFromKey ignores PEM armour lines (as Chrome and extension-id.mjs do)' -Condition (
+    (Get-PtExtensionIdFromKey -Key ("-----BEGIN PUBLIC KEY-----`n" + $vectorKey.Substring(0, 64) + "`n" + $vectorKey.Substring(64) + "`n-----END PUBLIC KEY-----`n")) -ceq $vectorId)
+Assert-Throws -Name 'Get-PtExtensionIdFromKey rejects invalid base64' -Action { Get-PtExtensionIdFromKey -Key 'not base64!' } -Pattern 'base64'
+Assert-Throws -Name 'Get-PtExtensionIdFromKey rejects an empty key' -Action { Get-PtExtensionIdFromKey -Key "-----BEGIN PUBLIC KEY-----`n-----END PUBLIC KEY-----" } -Pattern 'base64'
+Assert-Throws -Name 'Get-PtExtensionIdFromKey rejects data that is not a public key' -Action { Get-PtExtensionIdFromKey -Key ([System.Convert]::ToBase64String((New-Object byte[] 300))) } -Pattern 'public key'
 
 $manifestWithKey = Join-Path $workDir 'manifest-key.json'
 [System.IO.File]::WriteAllText($manifestWithKey, ('{"manifest_version":3,"name":"x","key":"' + $vectorKey + '"}'))
 $manifestNoKey = Join-Path $workDir 'manifest-nokey.json'
 [System.IO.File]::WriteAllText($manifestNoKey, '{"manifest_version":3,"name":"x"}')
-Assert-That -Name 'Get-HbExtensionIdFromManifest reads the "key"' -Condition ((Get-HbExtensionIdFromManifest -ManifestPath $manifestWithKey) -ceq $vectorId)
-Assert-Throws -Name 'Get-HbExtensionIdFromManifest fails clearly without a "key"' -Action { Get-HbExtensionIdFromManifest -ManifestPath $manifestNoKey } -Pattern 'has no "key" entry.*-NoNativeHost'
-Assert-Throws -Name 'Get-HbExtensionIdFromManifest fails clearly for a missing manifest' -Action { Get-HbExtensionIdFromManifest -ManifestPath (Join-Path $workDir 'none.json') } -Pattern 'missing'
+Assert-That -Name 'Get-PtExtensionIdFromManifest reads the "key"' -Condition ((Get-PtExtensionIdFromManifest -ManifestPath $manifestWithKey) -ceq $vectorId)
+Assert-Throws -Name 'Get-PtExtensionIdFromManifest fails clearly without a "key"' -Action { Get-PtExtensionIdFromManifest -ManifestPath $manifestNoKey } -Pattern 'has no "key" entry.*-NoNativeHost'
+Assert-Throws -Name 'Get-PtExtensionIdFromManifest fails clearly for a missing manifest' -Action { Get-PtExtensionIdFromManifest -ManifestPath (Join-Path $workDir 'none.json') } -Pattern 'missing'
 
 # Cross-check the repository's own manifest against Node's crypto (same algorithm, other code).
 $realManifest = Join-Path $repoRoot 'extension\manifest.json'
-$realManifestKey = Get-HbProperty ([System.IO.File]::ReadAllText($realManifest) | ConvertFrom-Json) 'key'
+$realManifestKey = Get-PtProperty ([System.IO.File]::ReadAllText($realManifest) | ConvertFrom-Json) 'key'
 $repoExtensionId = $null
 if ($realManifestKey -is [string] -and $realManifestKey) {
-    $repoExtensionId = Get-HbExtensionIdFromManifest -ManifestPath $realManifest
+    $repoExtensionId = Get-PtExtensionIdFromManifest -ManifestPath $realManifest
     $nodeScript = "const fs=require('fs'),c=require('crypto');const k=JSON.parse(fs.readFileSync(process.argv[1],'utf8')).key;" +
         "process.stdout.write([...c.createHash('sha256').update(Buffer.from(k,'base64')).digest('hex').slice(0,32)].map(x=>String.fromCharCode(97+parseInt(x,16))).join(''));"
     $nodeScript = $nodeScript.Replace('process.argv[1]', 'process.argv[2]')
@@ -666,7 +666,7 @@ if ($realManifestKey -is [string] -and $realManifestKey) {
         Assert-That -Name 'extension\lib\launcher.js PINNED_EXTENSION_ID is the ID the installer allows' -Condition (
             $pinned.Success -and $pinned.Groups[1].Value -ceq $repoExtensionId) -Detail $(if ($pinned.Success) { $pinned.Groups[1].Value } else { 'PINNED_EXTENSION_ID not found' })
     }
-    $oldPathId = 'daklamdnkmbdeegnkhmpeccgggbgiole'
+    $oldPathId = 'nlcmhdhddjfnkoghpbkgbneedjlphmbl'
     $docFiles = @(
         @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'docs') -Filter '*.md' -Recurse -File) +
         @(foreach ($name in @('README.md', 'native-host\README.md', 'scripts\README.md', 'extension\README.md')) {
@@ -686,26 +686,26 @@ if ($realManifestKey -is [string] -and $realManifestKey) {
     Write-Host '  note  extension\manifest.json has no "key" yet; the installer will refuse to register the native host' -ForegroundColor DarkYellow
 }
 
-Assert-That -Name 'ConvertTo-HbJsonString escapes quotes, backslashes, controls and non-ASCII' -Condition (
-    (ConvertTo-HbJsonString ('a"b\c' + [char]0xE9 + "`t")) -ceq '"a\"b\\c\u00e9\u0009"' -and
-    ((ConvertTo-HbJsonString ('C:\Users\Jos' + [char]0xE9)) | ConvertFrom-Json) -ceq ('C:\Users\Jos' + [char]0xE9))
+Assert-That -Name 'ConvertTo-PtJsonString escapes quotes, backslashes, controls and non-ASCII' -Condition (
+    (ConvertTo-PtJsonString ('a"b\c' + [char]0xE9 + "`t")) -ceq '"a\"b\\c\u00e9\u0009"' -and
+    ((ConvertTo-PtJsonString ('C:\Users\Jos' + [char]0xE9)) | ConvertFrom-Json) -ceq ('C:\Users\Jos' + [char]0xE9))
 $ibm437 = [System.Text.Encoding]::GetEncoding(437, [System.Text.EncoderFallback]::ExceptionFallback, [System.Text.DecoderFallback]::ExceptionFallback)
 # (Functions that return an array with "return , $array" are assigned, never wrapped in @().)
-$asciiBytes = ConvertTo-HbBatchBytes -Text 'abc'
-$oemBytes = ConvertTo-HbBatchBytes -Text ('Jos' + [char]0xE9) -Encoding $ibm437
-Assert-That -Name 'ConvertTo-HbBatchBytes: ASCII stays ASCII, other text uses the OEM code page' -Condition (
+$asciiBytes = ConvertTo-PtBatchBytes -Text 'abc'
+$oemBytes = ConvertTo-PtBatchBytes -Text ('Jos' + [char]0xE9) -Encoding $ibm437
+Assert-That -Name 'ConvertTo-PtBatchBytes: ASCII stays ASCII, other text uses the OEM code page' -Condition (
     ($asciiBytes -join ',') -eq '97,98,99' -and ($oemBytes -join ',') -eq '74,111,115,130') -Detail "$($asciiBytes -join ',') / $($oemBytes -join ',')"
-Assert-Throws -Name 'ConvertTo-HbBatchBytes fails clearly for characters the code page lacks' -Action {
-    ConvertTo-HbBatchBytes -Text ('C:\' + [char]0x4E2D + '\node.exe') -Encoding $ibm437 } -Pattern '-NodePath'
+Assert-Throws -Name 'ConvertTo-PtBatchBytes fails clearly for characters the code page lacks' -Action {
+    ConvertTo-PtBatchBytes -Text ('C:\' + [char]0x4E2D + '\node.exe') -Encoding $ibm437 } -Pattern '-NodePath'
 
 $hostId = 'abcdefghijklmnopabcdefghijklmnop'
 $hostOrigin = "chrome-extension://$hostId/"
 $hostDir = Join-Path $workDir 'profile with spaces\Portly\native-host'
 $percentNode = 'C:\Tools 100%\node.exe'
-$plan = New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId $hostId -Destination $hostDir
+$plan = New-PtNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId $hostId -Destination $hostDir
 $planFiles = @{}
 foreach ($file in @($plan.Files)) { $planFiles[$file.Name] = $file }
-Assert-That -Name 'New-HbNativeHostPlan: launcher.cmd, launcher.mjs, host manifest and config.json in the folder' -Condition (
+Assert-That -Name 'New-PtNativeHostPlan: launcher.cmd, launcher.mjs, host manifest and config.json in the folder' -Condition (
     @($plan.Files).Count -eq 4 -and $planFiles.ContainsKey('launcher.cmd') -and $planFiles.ContainsKey('launcher.mjs') -and
     $planFiles.ContainsKey('com.portly.launcher.json') -and $planFiles.ContainsKey('config.json') -and
     @(@($plan.Files) | Where-Object { (Split-Path -Parent $_.Path) -ne $hostDir }).Count -eq 0)
@@ -729,63 +729,63 @@ Assert-That -Name 'registry: HKCU Chrome and Edge NativeMessagingHosts keys -> t
     'Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher|Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher' -and
     @($plan.Registry | Where-Object { $_.Value -cne $plan.ManifestPath }).Count -eq 0)
 Assert-That -Name 'the default folder is %LOCALAPPDATA%\Portly\native-host' -Condition (
-    (Get-HbNativeHostDir) -eq (Join-Path ([System.Environment]::GetFolderPath('LocalApplicationData')) 'Portly\native-host'))
-Assert-Throws -Name 'New-HbNativeHostPlan rejects an upper-case extension ID' -Action { New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId $hostId.ToUpperInvariant() -Destination $hostDir } -Pattern 'Not an extension ID'
-Assert-Throws -Name 'New-HbNativeHostPlan rejects a short extension ID' -Action { New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId 'abc' -Destination $hostDir } -Pattern 'Not an extension ID'
+    (Get-PtNativeHostDir) -eq (Join-Path ([System.Environment]::GetFolderPath('LocalApplicationData')) 'Portly\native-host'))
+Assert-Throws -Name 'New-PtNativeHostPlan rejects an upper-case extension ID' -Action { New-PtNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId $hostId.ToUpperInvariant() -Destination $hostDir } -Pattern 'Not an extension ID'
+Assert-Throws -Name 'New-PtNativeHostPlan rejects a short extension ID' -Action { New-PtNativeHostPlan -RepoRoot $repoRoot -NodeExe $percentNode -ExtensionId 'abc' -Destination $hostDir } -Pattern 'Not an extension ID'
 
 # Install into the temporary folder with the real node.exe and a fake registry.
-$livePlan = New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $checkNode -ExtensionId $hostId -Destination $hostDir
+$livePlan = New-PtNativeHostPlan -RepoRoot $repoRoot -NodeExe $checkNode -ExtensionId $hostId -Destination $hostDir
 $fakeRegistry = @{}
 $writer = { param([string]$SubKey, [string]$Value) $fakeRegistry[$SubKey] = $Value }
-Install-HbNativeHost -Plan $livePlan -RegistryWriter $writer
-Install-HbNativeHost -Plan $livePlan -RegistryWriter $writer
+Install-PtNativeHost -Plan $livePlan -RegistryWriter $writer
+Install-PtNativeHost -Plan $livePlan -RegistryWriter $writer
 $writtenOk = @(@($livePlan.Files) | Where-Object {
         -not (Test-Path -LiteralPath $_.Path -PathType Leaf) -or
         [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($_.Path)) -cne [System.Convert]::ToBase64String([byte[]]$_.Bytes)
     }).Count -eq 0
-Assert-That -Name 'Install-HbNativeHost writes every file (twice: idempotent) and both registry values' -Condition (
+Assert-That -Name 'Install-PtNativeHost writes every file (twice: idempotent) and both registry values' -Condition (
     $writtenOk -and $fakeRegistry.Count -eq 2 -and $fakeRegistry['Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher'] -ceq $livePlan.ManifestPath -and
     $fakeRegistry['Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher'] -ceq $livePlan.ManifestPath)
-Assert-That -Name 'Get-HbLauncherNodePath reads node.exe back from launcher.cmd' -Condition ((Get-HbLauncherNodePath -LauncherCmd $livePlan.LauncherPath) -ceq $checkNode)
-$freshCopy = Test-HbInstalledLauncherCurrent -InstalledDir $hostDir -RepoRoot $repoRoot
+Assert-That -Name 'Get-PtLauncherNodePath reads node.exe back from launcher.cmd' -Condition ((Get-PtLauncherNodePath -LauncherCmd $livePlan.LauncherPath) -ceq $checkNode)
+$freshCopy = Test-PtInstalledLauncherCurrent -InstalledDir $hostDir -RepoRoot $repoRoot
 $staleCopyDir = Join-Path $workDir 'old-copy\native-host'
 $null = New-Item -ItemType Directory -Path $staleCopyDir -Force
 [System.IO.File]::WriteAllText((Join-Path $staleCopyDir 'launcher.mjs'), '// an older launcher')
-$staleCopy = Test-HbInstalledLauncherCurrent -InstalledDir $staleCopyDir -RepoRoot $repoRoot
-$noCopy = Test-HbInstalledLauncherCurrent -InstalledDir (Join-Path $workDir 'no-copy') -RepoRoot $repoRoot
-Assert-That -Name 'Test-HbInstalledLauncherCurrent: true for a fresh copy, false for an older one, null without one' -Condition (
+$staleCopy = Test-PtInstalledLauncherCurrent -InstalledDir $staleCopyDir -RepoRoot $repoRoot
+$noCopy = Test-PtInstalledLauncherCurrent -InstalledDir (Join-Path $workDir 'no-copy') -RepoRoot $repoRoot
+Assert-That -Name 'Test-PtInstalledLauncherCurrent: true for a fresh copy, false for an older one, null without one' -Condition (
     $freshCopy -is [bool] -and $freshCopy -and $staleCopy -is [bool] -and -not $staleCopy -and $null -eq $noCopy) -Detail "$freshCopy / $staleCopy / $noCopy"
 
 $reader = { param([string]$SubKey) if ($fakeRegistry.ContainsKey($SubKey)) { $fakeRegistry[$SubKey] } else { $null } }
-$hostStatus = Get-HbNativeHostStatus -ExpectedId $hostId -RegistryReader $reader
-Assert-That -Name 'Get-HbNativeHostStatus: both browsers registered, no problems' -Condition (
+$hostStatus = Get-PtNativeHostStatus -ExpectedId $hostId -RegistryReader $reader
+Assert-That -Name 'Get-PtNativeHostStatus: both browsers registered, no problems' -Condition (
     @($hostStatus).Count -eq 2 -and @($hostStatus | Where-Object { $_.Registered -and @($_.Problems).Count -eq 0 }).Count -eq 2) -Detail (($hostStatus | ForEach-Object { "$($_.Browser): $(@($_.Problems) -join '; ')" }) -join ' / ')
 $otherId = 'ponmlkjihgfedcbaponmlkjihgfedcba'
-$wrongId = Get-HbNativeHostStatus -ExpectedId $otherId -RegistryReader $reader
-Assert-That -Name 'Get-HbNativeHostStatus: reports allowed_origins and config.json not naming the current extension ID' -Condition (
+$wrongId = Get-PtNativeHostStatus -ExpectedId $otherId -RegistryReader $reader
+Assert-That -Name 'Get-PtNativeHostStatus: reports allowed_origins and config.json not naming the current extension ID' -Condition (
     @($wrongId | Where-Object { (@($_.Problems) -join ' ') -match 'allowed_origins lists chrome-extension://abcdefghijklmnopabcdefghijklmnop/, not chrome-extension://ponm' -and (@($_.Problems) -join ' ') -match 'config\.json does not allow' }).Count -eq 2)
-$partial = Get-HbNativeHostStatus -ExpectedId $hostId -RegistryReader {
+$partial = Get-PtNativeHostStatus -ExpectedId $hostId -RegistryReader {
     param([string]$SubKey)
     if ($SubKey -like '*Google*') { return $null }
     return ''
 }
-Assert-That -Name 'Get-HbNativeHostStatus: a missing key is "not registered", an empty one is a problem' -Condition (
+Assert-That -Name 'Get-PtNativeHostStatus: a missing key is "not registered", an empty one is a problem' -Condition (
     -not $partial[0].Registered -and @($partial[0].Problems).Count -eq 0 -and $partial[1].Registered -and (@($partial[1].Problems) -join ' ') -match 'no default value')
-$missingManifest = Get-HbNativeHostStatus -ExpectedId $hostId -RegistryReader { param([string]$SubKey) Join-Path $workDir 'gone\com.portly.launcher.json' }
-Assert-That -Name 'Get-HbNativeHostStatus: reports a registered manifest that does not exist' -Condition (
+$missingManifest = Get-PtNativeHostStatus -ExpectedId $hostId -RegistryReader { param([string]$SubKey) Join-Path $workDir 'gone\com.portly.launcher.json' }
+Assert-That -Name 'Get-PtNativeHostStatus: reports a registered manifest that does not exist' -Condition (
     @($missingManifest | Where-Object { (@($_.Problems) -join ' ') -match 'does not exist' }).Count -eq 2)
 $staleDir = Join-Path $workDir 'stale\native-host'
-$stalePlan = New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe (Join-Path $workDir 'old-node\node.exe') -ExtensionId $hostId -Destination $staleDir
-Install-HbNativeHost -Plan $stalePlan -RegistryWriter { param($SubKey, $Value) }
-$stale = Get-HbNativeHostStatus -ExpectedId $hostId -RegistryReader { param([string]$SubKey) $stalePlan.ManifestPath }
-Assert-That -Name 'Get-HbNativeHostStatus: reports a launcher whose node.exe no longer exists' -Condition (
+$stalePlan = New-PtNativeHostPlan -RepoRoot $repoRoot -NodeExe (Join-Path $workDir 'old-node\node.exe') -ExtensionId $hostId -Destination $staleDir
+Install-PtNativeHost -Plan $stalePlan -RegistryWriter { param($SubKey, $Value) }
+$stale = Get-PtNativeHostStatus -ExpectedId $hostId -RegistryReader { param([string]$SubKey) $stalePlan.ManifestPath }
+Assert-That -Name 'Get-PtNativeHostStatus: reports a launcher whose node.exe no longer exists' -Condition (
     @($stale | Where-Object { (@($_.Problems) -join ' ') -match 'node\.exe no longer exists' }).Count -eq 2)
 
 # The generated launcher.cmd, run exactly as Chrome runs a native host. schtasks.exe is always
 # replaced by scripts\tests\schtasks-stub.mjs (preloaded through NODE_OPTIONS, which reaches node
 # through launcher.cmd like the browser's environment; it fails closed), so these checks can never
 # run the real "Portly Server" task. The stub appends each call to $StubLog.
-function Invoke-HbHostLikeChrome {
+function Invoke-PtHostLikeChrome {
     param(
         [Parameter(Mandatory)][string]$LauncherCmd,
         [Parameter(Mandatory)][string]$Origin,
@@ -869,11 +869,11 @@ function Invoke-HbHostLikeChrome {
     }
 }
 
-$ping = Invoke-HbHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson '{"action":"ping"}'
+$ping = Invoke-PtHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson '{"action":"ping"}'
 Assert-That -Name 'launcher.cmd run like Chrome: ping -> exactly one pong frame, exit code 0' -Condition (
     $ping.ExitCode -eq 0 -and @($ping.Frames).Count -eq 1 -and $ping.Frames[0].ok -eq $true -and $ping.Frames[0].state -ceq 'pong' -and
     $ping.Frames[0].version -eq 1) -Detail "exit $($ping.ExitCode), $($ping.Raw) bytes, $($ping.Error)"
-$foreign = Invoke-HbHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin "chrome-extension://$otherId/" -RequestJson '{"action":"ping"}'
+$foreign = Invoke-PtHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin "chrome-extension://$otherId/" -RequestJson '{"action":"ping"}'
 Assert-That -Name 'launcher.cmd run like Chrome: another extension gets bad_origin' -Condition (
     @($foreign.Frames).Count -eq 1 -and $foreign.Frames[0].ok -eq $false -and $foreign.Frames[0].error -ceq 'bad_origin') -Detail "$($foreign.Error)"
 $launcherLog = Join-Path $hostDir 'launcher.log'
@@ -882,13 +882,13 @@ Assert-That -Name 'the launcher logs each request to launcher.log next to it' -C
 
 # Nothing answers on a free port: the launcher asks Task Scheduler (here: the stub) to run the task.
 $closedPort = Get-FreePort
-$starting = Invoke-HbHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $closedPort + '}')
+$starting = Invoke-PtHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $closedPort + '}')
 $startCall = @($starting.SchtasksCalls)
 Assert-That -Name 'launcher.cmd run like Chrome: start with nothing answering -> starting, via schtasks.exe /run /tn "\Portly Server" (stubbed)' -Condition (
     @($starting.Frames).Count -eq 1 -and $starting.Frames[0].ok -eq $true -and $starting.Frames[0].state -ceq 'starting' -and
     $startCall.Count -eq 1 -and $startCall[0].file -eq "$env:SystemRoot\System32\schtasks.exe" -and
     (@($startCall[0].args) -join '|') -ceq '/run|/tn|\Portly Server') -Detail "$($starting.Error) calls: $(@($startCall | ForEach-Object { "$($_.file) $(@($_.args) -join ' ')" }) -join '; ')"
-$missingTask = Invoke-HbHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $closedPort + '}') -Schtasks missing
+$missingTask = Invoke-PtHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $closedPort + '}') -Schtasks missing
 Assert-That -Name 'launcher.cmd run like Chrome: start without the task -> task_missing' -Condition (
     @($missingTask.Frames).Count -eq 1 -and $missingTask.Frames[0].ok -eq $false -and $missingTask.Frames[0].error -ceq 'task_missing') -Detail "$($missingTask.Error)"
 
@@ -905,7 +905,7 @@ try {
 }
 if ($utf8Console) {
     try {
-        $utf8Ping = Invoke-HbHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson '{"action":"ping"}'
+        $utf8Ping = Invoke-PtHostLikeChrome -LauncherCmd $livePlan.LauncherPath -Origin $hostOrigin -RequestJson '{"action":"ping"}'
     } finally {
         try { [Console]::InputEncoding = $consoleEncoding } catch { }
     }
@@ -924,28 +924,28 @@ $null = New-Item -ItemType Junction -Path (Join-Path $hostDir 'junction') -Targe
 $removed = $false
 $removeError = ''
 try {
-    $removed = Uninstall-HbNativeHost -Destination $hostDir -RegistryRemover { param([string]$SubKey) $removedKeys.Add($SubKey) }
+    $removed = Uninstall-PtNativeHost -Destination $hostDir -RegistryRemover { param([string]$SubKey) $removedKeys.Add($SubKey) }
 } catch {
     $removeError = $_.Exception.Message
 }
-Assert-That -Name 'Uninstall-HbNativeHost removes both registry keys and the folder, not what a link inside points to' -Detail $removeError -Condition (
+Assert-That -Name 'Uninstall-PtNativeHost removes both registry keys and the folder, not what a link inside points to' -Detail $removeError -Condition (
     $removed -and -not (Test-Path -LiteralPath $hostDir) -and (Test-Path -LiteralPath (Join-Path $linkTarget 'keep.txt')) -and
     ($removedKeys -join '|') -ceq 'Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher|Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher' -and
     (Test-Path -LiteralPath (Split-Path -Parent $hostDir)))
-Assert-That -Name 'Uninstall-HbNativeHost is fine when nothing is installed' -Condition (-not (Uninstall-HbNativeHost -Destination $hostDir -RegistryRemover { param($SubKey) }))
-Assert-Throws -Name 'Remove-HbNativeHostFolder refuses any folder not named native-host' -Action { Remove-HbNativeHostFolder -Path (Split-Path -Parent $hostDir) } -Pattern 'Refusing'
+Assert-That -Name 'Uninstall-PtNativeHost is fine when nothing is installed' -Condition (-not (Uninstall-PtNativeHost -Destination $hostDir -RegistryRemover { param($SubKey) }))
+Assert-Throws -Name 'Remove-PtNativeHostFolder refuses any folder not named native-host' -Action { Remove-PtNativeHostFolder -Path (Split-Path -Parent $hostDir) } -Pattern 'Refusing'
 
 # ---------------------------------------------------------------------------------------------
 Write-Host ''
 Write-Host 'Browser-only build and publish-static.ps1' -ForegroundColor White
 # publish-static.ps1 replaces a repository only when it holds nothing but names an earlier Portly
-# publish has (Get-HbPublishedNames). A build that gains a top-level file not on that list is
+# publish has (Get-PtPublishedNames). A build that gains a top-level file not on that list is
 # published once, and every later publish is then refused as "not part of a Portly build". That
 # function, the helpers that work the clone (fetch and fast-forward, the .gitattributes, the
 # replacement of the tracked files) and the lists they use are loaded from the script without
 # running it.
-$publishFunctionNames = @('Invoke-HbGit', 'Get-HbPublishedNames', 'Get-HbPublishSyncState', 'Invoke-HbPublishFastForward', 'Get-HbGitAttributesText', 'Update-HbPublishTree')
-$publishVariableNames = @('$HbPublishKeep', '$HbNoJekyll', '$HbGitAttributes', '$HbGitAttributesLines')
+$publishFunctionNames = @('Invoke-PtGit', 'Get-PtPublishedNames', 'Get-PtPublishSyncState', 'Invoke-PtPublishFastForward', 'Get-PtGitAttributesText', 'Update-PtPublishTree')
+$publishVariableNames = @('$PtPublishKeep', '$PtNoJekyll', '$PtGitAttributes', '$PtGitAttributesLines')
 $publishTokens = $null
 $publishErrors = $null
 $publishAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'publish-static.ps1'), [ref]$publishTokens, [ref]$publishErrors)
@@ -959,13 +959,13 @@ Assert-That -Name "publish-static.ps1 defines $($publishFunctionNames -join ', '
 foreach ($node in $publishNodes) { . ([scriptblock]::Create($node.Extent.Text)) }
 $distStatic = Join-Path $repoRoot 'web\dist-static'
 if (Test-Path -LiteralPath (Join-Path $distStatic 'index.html') -PathType Leaf) {
-    $publishedNames = Get-HbPublishedNames -RepoRoot $repoRoot
+    $publishedNames = Get-PtPublishedNames -RepoRoot $repoRoot
     $buildNames = @(Get-ChildItem -LiteralPath $distStatic -Force | ForEach-Object { $_.Name })
     $unknownNames = @($buildNames | Where-Object { $publishedNames -cnotcontains $_ })
     Assert-That -Name 'every top-level file of web\dist-static is one publish-static.ps1 knows from a Portly publish' -Condition (
-        $unknownNames.Count -eq 0) -Detail "not on Get-HbPublishedNames: $($unknownNames -join ', ')"
+        $unknownNames.Count -eq 0) -Detail "not on Get-PtPublishedNames: $($unknownNames -join ', ')"
     $missingNames = @(@('index.html', 'assets', 'install.ps1', 'setup.ps1', 'get-extension.ps1', 'portly-extension.zip', 'portly-extension.json') | Where-Object { $buildNames -cnotcontains $_ })
-    Assert-That -Name 'web\dist-static holds the names Get-HbPublishedNames lists for the build (index.html, assets, install.ps1, setup.ps1, get-extension.ps1, the extension download)' -Condition (
+    Assert-That -Name 'web\dist-static holds the names Get-PtPublishedNames lists for the build (index.html, assets, install.ps1, setup.ps1, get-extension.ps1, the extension download)' -Condition (
         $missingNames.Count -eq 0) -Detail "missing: $($missingNames -join ', ')"
 } else {
     Write-Host '  skip  web\dist-static is not built (npm run build:static; CI builds it before this check)' -ForegroundColor DarkYellow
@@ -1014,13 +1014,13 @@ if ($null -eq $unitGit) {
     $unitMarker = '<!doctype html><html><head><meta name="portly-build" content="static"></head></html>'
 
     # The .gitattributes text: Portly's lines once, after whatever else the clone's file holds.
-    $ownAttributes = Get-HbGitAttributesText -Existing $null
-    $mixedAttributes = Get-HbGitAttributesText -Existing "*.md text`r`n# Portly (an earlier publish): x`r`n*.ps1 -text`r`n`r`n"
-    Assert-That -Name 'Get-HbGitAttributesText: Portly''s lines alone, or after the clone''s own lines (Portly''s earlier ones dropped); the same text when run on its output' -Condition (
-        $ownAttributes -ceq (($HbGitAttributesLines -join "`n") + "`n") -and
+    $ownAttributes = Get-PtGitAttributesText -Existing $null
+    $mixedAttributes = Get-PtGitAttributesText -Existing "*.md text`r`n# Portly (an earlier publish): x`r`n*.ps1 -text`r`n`r`n"
+    Assert-That -Name 'Get-PtGitAttributesText: Portly''s lines alone, or after the clone''s own lines (Portly''s earlier ones dropped); the same text when run on its output' -Condition (
+        $ownAttributes -ceq (($PtGitAttributesLines -join "`n") + "`n") -and
         $mixedAttributes -ceq ("*.md text`n`n" + $ownAttributes) -and
-        (Get-HbGitAttributesText -Existing $mixedAttributes) -ceq $mixedAttributes -and
-        $HbGitAttributesLines -ccontains '*.ps1 -text') -Detail "$ownAttributes|$mixedAttributes"
+        (Get-PtGitAttributesText -Existing $mixedAttributes) -ceq $mixedAttributes -and
+        $PtGitAttributesLines -ccontains '*.ps1 -text') -Detail "$ownAttributes|$mixedAttributes"
 
     # A clone with core.autocrlf=true (the Git for Windows default): without the attributes git
     # stores install.ps1 with LF endings (the finding of roadmap item 1.3); with them, byte for
@@ -1040,54 +1040,54 @@ if ($null -eq $unitGit) {
         $controlEol -match '^i/lf\s') -Detail $controlEol
     $attrClone = & $unitRepo 'publish-attributes' @{ '.gitattributes' = "*.md text`n"; 'index.html' = 'old' }
     $null = & $unitGitIn $attrClone @('config', 'core.autocrlf', 'true')
-    $staged = Update-HbPublishTree -Git $unitGit.Source -TargetRoot $attrClone -DistStatic $attrDist -ToRemove @('.gitattributes', 'index.html')
+    $staged = Update-PtPublishTree -Git $unitGit.Source -TargetRoot $attrClone -DistStatic $attrDist -ToRemove @('.gitattributes', 'index.html')
     $null = & $unitGitIn $attrClone @('commit', '-q', '-m', 'publish')
     $attrEol = & $unitGitIn $attrClone @('ls-files', '--eol', 'install.ps1', 'setup.ps1')
     $attrTracked = & $unitGitIn $attrClone @('ls-files')
     $attrText = [System.IO.File]::ReadAllText((Join-Path $attrClone '.gitattributes'))
-    Assert-That -Name 'Update-HbPublishTree writes and stages .gitattributes (the clone''s own line kept) with the build and .nojekyll; install.ps1 and setup.ps1 are committed with CRLF endings' -Condition (
-        $staged.Count -eq 6 -and @(@('assets', 'index.html', 'install.ps1', 'setup.ps1', $HbNoJekyll, $HbGitAttributes) | Where-Object { $staged -cnotcontains $_ }).Count -eq 0 -and
+    Assert-That -Name 'Update-PtPublishTree writes and stages .gitattributes (the clone''s own line kept) with the build and .nojekyll; install.ps1 and setup.ps1 are committed with CRLF endings' -Condition (
+        $staged.Count -eq 6 -and @(@('assets', 'index.html', 'install.ps1', 'setup.ps1', $PtNoJekyll, $PtGitAttributes) | Where-Object { $staged -cnotcontains $_ }).Count -eq 0 -and
         $attrEol -match '(?m)^i/crlf\s+w/crlf\s+attr/-text\s+install\.ps1$' -and $attrEol -match '(?m)^i/crlf\s+w/crlf\s+attr/-text\s+setup\.ps1$' -and
         $attrText -ceq ("*.md text`n`n" + $ownAttributes) -and
         $attrTracked -match '(?m)^\.gitattributes$' -and $attrTracked -match '(?m)^\.nojekyll$' -and $attrTracked -match '(?m)^assets/app\.js$' -and
         (& $unitGitIn $attrClone @('status', '--porcelain', '--untracked-files=all')) -eq '') -Detail "$($staged -join ',')`n$attrEol`n$attrTracked`n$attrText"
-    $null = Update-HbPublishTree -Git $unitGit.Source -TargetRoot $attrClone -DistStatic $attrDist -ToRemove @('.gitattributes', '.nojekyll', 'assets/app.js', 'index.html', 'install.ps1', 'setup.ps1')
+    $null = Update-PtPublishTree -Git $unitGit.Source -TargetRoot $attrClone -DistStatic $attrDist -ToRemove @('.gitattributes', '.nojekyll', 'assets/app.js', 'index.html', 'install.ps1', 'setup.ps1')
     $null = & $unitGitIn $attrClone @('diff', '--cached', '--quiet')
     $attrAgain = $LASTEXITCODE
-    Assert-That -Name 'Update-HbPublishTree again with the same build stages no change (a publish then says nothing changed)' -Condition ($attrAgain -eq 0) -Detail "git diff --cached --quiet: $attrAgain"
+    Assert-That -Name 'Update-PtPublishTree again with the same build stages no change (a publish then says nothing changed)' -Condition ($attrAgain -eq 0) -Detail "git diff --cached --quiet: $attrAgain"
 
     # A clone behind its origin (a publish from elsewhere): fetched, counted and fast-forwarded;
     # with a commit of its own as well it has diverged (the script then refuses).
     $syncOrigin = & $unitRepo 'publish-sync-origin' @{ 'index.html' = $unitMarker; '.nojekyll' = '' }
     $syncClone = & $unitClone $syncOrigin 'publish-sync-clone'
-    $syncLevel = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    $syncLevel = Get-PtPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
     & $unitCommit $syncOrigin @{ 'assets/new.js' = 'new' } 'published elsewhere'
-    $syncBehind = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
-    $forwarded = Invoke-HbPublishFastForward -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
-    $syncAfter = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
-    Assert-That -Name 'Get-HbPublishSyncState fetches and counts (level, then 1 behind); Invoke-HbPublishFastForward brings the clone level with its origin' -Condition (
+    $syncBehind = Get-PtPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    $forwarded = Invoke-PtPublishFastForward -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    $syncAfter = Get-PtPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    Assert-That -Name 'Get-PtPublishSyncState fetches and counts (level, then 1 behind); Invoke-PtPublishFastForward brings the clone level with its origin' -Condition (
         $syncLevel.Upstream -ceq 'origin/main' -and $syncLevel.Ahead -eq 0 -and $syncLevel.Behind -eq 0 -and
         $syncBehind.Ahead -eq 0 -and $syncBehind.Behind -eq 1 -and
         $forwarded -ceq (& $unitGitIn $syncOrigin @('rev-parse', '--short', 'HEAD')) -and
         $syncAfter.Ahead -eq 0 -and $syncAfter.Behind -eq 0 -and (Test-Path -LiteralPath (Join-Path $syncClone 'assets\new.js') -PathType Leaf)) -Detail "level $($syncLevel.Ahead)/$($syncLevel.Behind), behind $($syncBehind.Ahead)/$($syncBehind.Behind), forwarded to $forwarded, after $($syncAfter.Ahead)/$($syncAfter.Behind)"
     & $unitCommit $syncClone @{ 'README.md' = 'mine' } 'local'
-    $syncAhead = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    $syncAhead = Get-PtPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
     & $unitCommit $syncOrigin @{ 'assets/more.js' = 'more' } 'published elsewhere again'
-    $syncDiverged = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
-    $syncNone = Get-HbPublishSyncState -Git $unitGit.Source -Directory $syncOrigin -Upstream $null
-    Assert-That -Name 'Get-HbPublishSyncState: 1 ahead after a local commit; 1 ahead and 1 behind once the origin moved too (diverged); nothing without an upstream' -Condition (
+    $syncDiverged = Get-PtPublishSyncState -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main'
+    $syncNone = Get-PtPublishSyncState -Git $unitGit.Source -Directory $syncOrigin -Upstream $null
+    Assert-That -Name 'Get-PtPublishSyncState: 1 ahead after a local commit; 1 ahead and 1 behind once the origin moved too (diverged); nothing without an upstream' -Condition (
         $syncAhead.Ahead -eq 1 -and $syncAhead.Behind -eq 0 -and $syncDiverged.Ahead -eq 1 -and $syncDiverged.Behind -eq 1 -and
         $null -eq $syncNone.Upstream -and $syncNone.Ahead -eq 0 -and $syncNone.Behind -eq 0) -Detail "ahead $($syncAhead.Ahead)/$($syncAhead.Behind), diverged $($syncDiverged.Ahead)/$($syncDiverged.Behind)"
-    Assert-Throws -Name 'Invoke-HbPublishFastForward refuses a diverged clone (git: not possible to fast-forward)' -Action {
-        Invoke-HbPublishFastForward -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main' } -Pattern 'fast-forward'
+    Assert-Throws -Name 'Invoke-PtPublishFastForward refuses a diverged clone (git: not possible to fast-forward)' -Action {
+        Invoke-PtPublishFastForward -Git $unitGit.Source -Directory $syncClone -Upstream 'origin/main' } -Pattern 'fast-forward'
     # An origin that cannot be reached (offline, or gone): a real run stops at the fetch; the dry
     # run (-AllowFetchFailure) reports it in FetchError and counts nothing.
     $offlineClone = & $unitClone $syncOrigin 'publish-sync-offline'
     $null = & $unitGitIn $offlineClone @('remote', 'set-url', 'origin', (Join-Path $workDir 'publish-sync-missing'))
-    Assert-Throws -Name 'Get-HbPublishSyncState throws when the fetch fails (a real run stops there, naming the upstream)' -Action {
-        Get-HbPublishSyncState -Git $unitGit.Source -Directory $offlineClone -Upstream 'origin/main' } -Pattern 'git fetch failed .* origin/main'
-    $syncOffline = Get-HbPublishSyncState -Git $unitGit.Source -Directory $offlineClone -Upstream 'origin/main' -AllowFetchFailure
-    Assert-That -Name 'Get-HbPublishSyncState -AllowFetchFailure (the dry run) puts the failed fetch into FetchError and counts nothing; a fetch that works leaves it empty' -Condition (
+    Assert-Throws -Name 'Get-PtPublishSyncState throws when the fetch fails (a real run stops there, naming the upstream)' -Action {
+        Get-PtPublishSyncState -Git $unitGit.Source -Directory $offlineClone -Upstream 'origin/main' } -Pattern 'git fetch failed .* origin/main'
+    $syncOffline = Get-PtPublishSyncState -Git $unitGit.Source -Directory $offlineClone -Upstream 'origin/main' -AllowFetchFailure
+    Assert-That -Name 'Get-PtPublishSyncState -AllowFetchFailure (the dry run) puts the failed fetch into FetchError and counts nothing; a fetch that works leaves it empty' -Condition (
         $syncOffline.Upstream -ceq 'origin/main' -and "$($syncOffline.FetchError)".StartsWith('git fetch failed (exit code ') -and
         $syncOffline.Ahead -eq 0 -and $syncOffline.Behind -eq 0 -and $null -eq $syncLevel.FetchError) -Detail "FetchError: $($syncOffline.FetchError)"
 }
@@ -1110,7 +1110,7 @@ $notesFixture = (@(
         '# Changelog', '', 'Intro.', '',
         '## 0.3.0 (2026-11-02)', '', 'Later.', '',
         '## 0.2.0-alpha.1 (not released yet)', '', 'First alpha.', '',
-        '### Known limits', '- See [SETUP](docs/SETUP.md#coming-from-homebase), [here](./README.md), [the site](https://example.com/a), [top](#changelog) and [mail](mailto:someone@example.invalid).', '',
+        '### Known limits', '- See [SETUP](docs/SETUP.md#updating), [here](./README.md), [the site](https://example.com/a), [top](#changelog) and [mail](mailto:someone@example.invalid).', '',
         '## 0.1.0', '', 'Old.', '',
         '## 0.2.0', ''
     ) -join "`r`n")
@@ -1121,7 +1121,7 @@ Assert-That -Name 'Get-PublishChangelogNotes takes the lines under "## <version>
     $notesAlpha.Text.Contains("`n### Known limits`n") -and -not $notesAlpha.Text.Contains('Old.') -and -not $notesAlpha.Text.Contains('Later.') -and
     -not $notesAlpha.Text.Contains("`r")) -Detail $notesAlpha.Text
 Assert-That -Name 'Get-PublishChangelogNotes points relative links at the commit on github.com and keeps absolute links and anchors' -Condition (
-    $notesAlpha.Text.Contains("[SETUP]($($notesBase)docs/SETUP.md#coming-from-homebase)") -and
+    $notesAlpha.Text.Contains("[SETUP]($($notesBase)docs/SETUP.md#updating)") -and
     $notesAlpha.Text.Contains("[here]($($notesBase)README.md)") -and $notesAlpha.Text.Contains('[the site](https://example.com/a)') -and
     $notesAlpha.Text.Contains('[top](#changelog)') -and $notesAlpha.Text.Contains('[mail](mailto:someone@example.invalid)')) -Detail $notesAlpha.Text
 Assert-That -Name 'Get-PublishChangelogNotes stops at the next "## " heading of a later section' -Condition (
@@ -1179,27 +1179,27 @@ try {
 
     Write-Host ''
     Write-Host 'Health checks' -ForegroundColor White
-    $okHealth = Test-HbHealth -Port $ports.ok
-    Assert-That -Name 'Test-HbHealth reads a Portly health answer' -Condition (
+    $okHealth = Test-PtHealth -Port $ports.ok
+    Assert-That -Name 'Test-PtHealth reads a Portly health answer' -Condition (
         $okHealth.Ok -and $okHealth.App -eq 'portly' -and $okHealth.Version -eq '9.9.9-fixture' -and $okHealth.Vault -eq 'locked') -Detail "$($okHealth.Error)"
-    Assert-That -Name 'Format-HbHealth (ok)' -Condition (
-        (Format-HbHealth $okHealth) -eq "running at http://localhost:$($ports.ok) (version 9.9.9-fixture, vault locked)")
-    $notJson = Test-HbHealth -Port $ports.notJson
-    Assert-That -Name 'Test-HbHealth rejects a non-Portly answer' -Condition (
+    Assert-That -Name 'Format-PtHealth (ok)' -Condition (
+        (Format-PtHealth $okHealth) -eq "running at http://localhost:$($ports.ok) (version 9.9.9-fixture, vault locked)")
+    $notJson = Test-PtHealth -Port $ports.notJson
+    Assert-That -Name 'Test-PtHealth rejects a non-Portly answer' -Condition (
         -not $notJson.Ok -and $notJson.Error -match 'not a Portly health check') -Detail "$($notJson.Error)"
-    $error503 = Test-HbHealth -Port $ports.error
-    Assert-That -Name 'Test-HbHealth reports HTTP errors' -Condition (
+    $error503 = Test-PtHealth -Port $ports.error
+    Assert-That -Name 'Test-PtHealth reports HTTP errors' -Condition (
         -not $error503.Ok -and $error503.Error -match '^HTTP 503') -Detail "$($error503.Error)"
-    $hang = Test-HbHealth -Port $ports.hang -TimeoutSeconds 1
-    Assert-That -Name 'Test-HbHealth times out' -Condition (
+    $hang = Test-PtHealth -Port $ports.hang -TimeoutSeconds 1
+    Assert-That -Name 'Test-PtHealth times out' -Condition (
         -not $hang.Ok -and $hang.Error -eq 'no answer within 1 s') -Detail "$($hang.Error)"
     $freePort = Get-FreePort
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
-    $closed = Test-HbHealth -Port $freePort
-    Assert-That -Name 'Test-HbHealth reports a closed port at once' -Condition (
+    $closed = Test-PtHealth -Port $freePort
+    Assert-That -Name 'Test-PtHealth reports a closed port at once' -Condition (
         -not $closed.Ok -and $closed.Error -eq "nothing is listening on port $freePort" -and $watch.ElapsedMilliseconds -lt 1500) -Detail "$($closed.Error) ($($watch.ElapsedMilliseconds) ms)"
-    Assert-That -Name 'Format-HbPortOwners names the listening process' -Condition (
-        (Format-HbPortOwners $notJson.Listeners) -eq "node (PID $($fixture.Id))") -Detail (Format-HbPortOwners $notJson.Listeners)
+    Assert-That -Name 'Format-PtPortOwners names the listening process' -Condition (
+        (Format-PtPortOwners $notJson.Listeners) -eq "node (PID $($fixture.Id))") -Detail (Format-PtPortOwners $notJson.Listeners)
     # What Windows build 26300 answered for a running server: wrong states on the listeners.
     function global:Get-NetTCPConnection {
         [CmdletBinding()]
@@ -1209,18 +1209,18 @@ try {
         [pscustomobject]@{ LocalAddress = '127.0.0.1'; RemoteAddress = '127.0.0.1'; State = 'Listen'; OwningProcess = 22 }
     }
     try {
-        $wrongStates = Get-HbPortListeners -Port 5757
+        $wrongStates = Get-PtPortListeners -Port 5757
     } finally {
         Remove-Item -LiteralPath 'Function:\Get-NetTCPConnection'
     }
-    Assert-That -Name 'Get-HbPortListeners finds the sockets with no remote end, whatever state Windows reports' -Condition (
+    Assert-That -Name 'Get-PtPortListeners finds the sockets with no remote end, whatever state Windows reports' -Condition (
         $wrongStates.Count -eq 2 -and @($wrongStates | Where-Object { $_.ProcessId -ne 11 }).Count -eq 0) -Detail "$($wrongStates.Count) listener(s)"
 
     # The installed-like launcher answers "running" for a port where Portly answers.
     $runningDir = Join-Path $workDir 'running\native-host'
-    $runningPlan = New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $checkNode -ExtensionId $hostId -Destination $runningDir
-    Install-HbNativeHost -Plan $runningPlan -RegistryWriter { param($SubKey, $Value) }
-    $alreadyUp = Invoke-HbHostLikeChrome -LauncherCmd $runningPlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $ports.ok + '}')
+    $runningPlan = New-PtNativeHostPlan -RepoRoot $repoRoot -NodeExe $checkNode -ExtensionId $hostId -Destination $runningDir
+    Install-PtNativeHost -Plan $runningPlan -RegistryWriter { param($SubKey, $Value) }
+    $alreadyUp = Invoke-PtHostLikeChrome -LauncherCmd $runningPlan.LauncherPath -Origin $hostOrigin -RequestJson ('{"action":"start","port":' + $ports.ok + '}')
     Assert-That -Name 'launcher.cmd run like Chrome: start on a port where Portly answers -> running (task not touched)' -Condition (
         @($alreadyUp.Frames).Count -eq 1 -and $alreadyUp.Frames[0].ok -eq $true -and $alreadyUp.Frames[0].state -ceq 'running' -and
         @($alreadyUp.SchtasksCalls).Count -eq 0) -Detail "$($alreadyUp.Error)"
@@ -1235,19 +1235,19 @@ try {
 
         # Snapshot of everything a real install/uninstall would change.
         $snapshot = {
-            $task = Get-HbTask
-            $taskState = if ($null -ne $task) { "$($task.State)/$(Get-HbTaskTriggerMode -Task $task)" } else { 'absent' }
+            $task = Get-PtTask
+            $taskState = if ($null -ne $task) { "$($task.State)/$(Get-PtTaskTriggerMode -Task $task)" } else { 'absent' }
             $keys = foreach ($entry in $PortlyNativeHostRegistry) {
-                $value = Get-HbRegistryDefaultValue -SubKey $entry.SubKey
+                $value = Get-PtRegistryDefaultValue -SubKey $entry.SubKey
                 "$($entry.Browser)=$(if ($null -eq $value) { '<absent>' } else { $value })"
             }
-            $folder = Get-HbNativeHostDir
+            $folder = Get-PtNativeHostDir
             # (launcher.log* is left out: a real browser may use an installed launcher meanwhile.)
             $files = if (Test-Path -LiteralPath $folder) {
                 (@(Get-ChildItem -LiteralPath $folder -Force | Where-Object { $_.Name -notlike 'launcher.log*' } |
                         ForEach-Object { "$($_.Name):$($_.Length):$($_.LastWriteTimeUtc.Ticks)" }) -join ',')
             } else { '<absent>' }
-            $copiesFolder = Get-HbRuntimeDir
+            $copiesFolder = Get-PtRuntimeDir
             $copies = if (Test-Path -LiteralPath $copiesFolder) {
                 (@(Get-ChildItem -LiteralPath $copiesFolder -Force | ForEach-Object { "$($_.Name):$($_.Length):$($_.LastWriteTimeUtc.Ticks)" }) -join ',')
             } else { '<absent>' }
@@ -1304,13 +1304,13 @@ try {
                 }
             }
 
-            $supervisorCopy = Join-Path (Get-HbRuntimeDir) $PortlySupervisorProgram
+            $supervisorCopy = Join-Path (Get-PtRuntimeDir) $PortlySupervisorProgram
             $common = @(
                 'Scheduled task definition (dry run - not registered)',
                 "$env:SystemRoot\System32\conhost.exe",
                 ('--headless "{0}" "{1}"' -f $supervisorCopy, (Join-Path $repoRoot 'server\src\supervisor.ts')),
                 "If $PortlySupervisorProgram cannot be made or does not run, the task runs $checkNode instead.",
-                "$PortlySupervisorProgram and $PortlyServerProgram in $(Get-HbRuntimeDir)",
+                "$PortlySupervisorProgram and $PortlyServerProgram in $(Get-PtRuntimeDir)",
                 "- check that $PortlySupervisorProgram runs and reports Node.js v$checkNodeVersion",
                 'LogonType Interactive, RunLevel Limited',
                 'IgnoreNew',
@@ -1323,17 +1323,17 @@ try {
             )
             $hostLines = @(
                 'Native messaging host (dry run - nothing written)',
-                (Join-Path (Get-HbNativeHostDir) 'launcher.cmd'),
-                (Join-Path (Get-HbNativeHostDir) 'launcher.mjs'),
-                (Join-Path (Get-HbNativeHostDir) 'com.portly.launcher.json'),
-                (Join-Path (Get-HbNativeHostDir) 'config.json'),
+                (Join-Path (Get-PtNativeHostDir) 'launcher.cmd'),
+                (Join-Path (Get-PtNativeHostDir) 'launcher.mjs'),
+                (Join-Path (Get-PtNativeHostDir) 'com.portly.launcher.json'),
+                (Join-Path (Get-PtNativeHostDir) 'config.json'),
                 '| @echo off',
                 '"%~dp0launcher.mjs" %*',
                 '|   "description": "Portly launcher (starts the Portly Server scheduled task)",',
                 '|   "type": "stdio",',
                 'HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher',
                 'HKEY_CURRENT_USER\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher',
-                ('(default) REG_SZ = ' + (Join-Path (Get-HbNativeHostDir) 'com.portly.launcher.json'))
+                ('(default) REG_SZ = ' + (Join-Path (Get-PtNativeHostDir) 'com.portly.launcher.json'))
             )
 
             # Browser mode (the default), with the ID from extension\manifest.json. The dry run says
@@ -1341,8 +1341,8 @@ try {
             # installed: expect the wording that fits this PC.
             if ($null -ne $repoExtensionId) {
                 $install = & $run 'install-autostart.ps1' @('-DryRun')
-                $installTaskStep = "- register the task '$PortlyTaskName' for $(Get-HbCurrentUserId) (Browser mode)"
-                if ($null -ne (Get-HbTask)) { $installTaskStep = "- replace the existing task '$PortlyTaskName' (state: " }
+                $installTaskStep = "- register the task '$PortlyTaskName' for $(Get-PtCurrentUserId) (Browser mode)"
+                if ($null -ne (Get-PtTask)) { $installTaskStep = "- replace the existing task '$PortlyTaskName' (state: " }
                 $expected = $common + $hostLines + @(
                     'none - Browser mode: runs on demand only',
                     "chrome-extension://$repoExtensionId/",
@@ -1363,7 +1363,7 @@ try {
             }
 
             $logon = & $run 'install-autostart.ps1' @('-DryRun', '-Trigger', 'Logon', '-LogonDelaySeconds', '30', '-ExtensionId', $fixedId)
-            $expected = $common + $hostLines + @("Logon mode: at log on of $(Get-HbCurrentUserId), delay PT30S", "chrome-extension://$fixedId/", '(-ExtensionId)', 'after 30 s (-Trigger Logon)')
+            $expected = $common + $hostLines + @("Logon mode: at log on of $(Get-PtCurrentUserId), delay PT30S", "chrome-extension://$fixedId/", '(-ExtensionId)', 'after 30 s (-Trigger Logon)')
             $missing = @($expected | Where-Object { -not $logon.Text.Contains($_) })
             Assert-That -Name 'install-autostart.ps1 -DryRun -Trigger Logon -LogonDelaySeconds 30 -ExtensionId exits 0 and prints it all' -Condition (
                 $logon.ExitCode -eq 0 -and $missing.Count -eq 0) -Detail ('missing: ' + ($missing -join ' | ') + "`n" + $logon.Text)
@@ -1392,7 +1392,7 @@ try {
                 $uninstall.ExitCode -eq 0 -and $uninstall.Text.Contains('Dry run complete: nothing was stopped or removed.') -and
                 $uninstall.Text.Contains('Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher') -and
                 $uninstall.Text.Contains('Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher') -and
-                $uninstall.Text.Contains((Get-HbNativeHostDir)) -and $uninstall.Text.Contains((Get-HbRuntimeDir))) -Detail $uninstall.Text
+                $uninstall.Text.Contains((Get-PtNativeHostDir)) -and $uninstall.Text.Contains((Get-PtRuntimeDir))) -Detail $uninstall.Text
             Assert-That -Name 'uninstall-autostart.ps1 -DryRun names the updater task' -Condition (
                 $uninstall.Text.Contains('Updater task') -and $uninstall.Text.Contains('updater task')) -Detail $uninstall.Text
             Assert-That -Name 'uninstall-autostart.ps1 removes the native host before it stops and unregisters the task' -Condition (
@@ -1403,7 +1403,7 @@ try {
                 $status.ExitCode -eq 1 -and $status.Text.Contains('nothing is listening') -and $status.Text.Contains('Supervisor log') -and
                 $status.Text.Contains('Host (Chrome)') -and $status.Text.Contains('Host (Edge)') -and $status.Text.Contains('Extension ID')) -Detail $status.Text
 
-            if ($null -eq (Get-HbTask)) {
+            if ($null -eq (Get-PtTask)) {
                 # Without the task, status checks the configuration this window would start with.
                 $statusBadConfig = Invoke-WithProcessEnv @{ PORTLY_BIND = 'not-an-ip' } { & $run 'status.ps1' @('-Port', "$(Get-FreePort)") }
                 Assert-That -Name 'status.ps1 reports an invalid PORTLY_* configuration' -Condition (
@@ -1528,7 +1528,7 @@ try {
                 $setupNoNode.Text.Contains('Dry run finished; nothing was changed.')) -Detail $setupNoNode.Text
             # Node.js of another major on PATH: the real node.exe, told through a NODE_OPTIONS
             # preload to report v<major+2>.0.0 (setup.ps1 only asks it for process.versions.node).
-            # setup.ps1 stops before installing anything, with the same message as Resolve-HbNode.
+            # setup.ps1 stops before installing anything, with the same message as Resolve-PtNode.
             # winget.exe is hidden from that child's PATH: with it at hand the message would also
             # name the id that carries the pinned major today, a lookup this check keeps off the
             # network.
@@ -1803,7 +1803,7 @@ try {
             # Without a data folder (a CI runner) it stops at that check, before anything else.
             $tryDry = & $run 'try-branch.ps1' @('-DryRun', '-PagesPort', "$(Get-FreePort)")
             $tryPlanned = $tryDry.ExitCode -eq 0 -and $tryDry.Text.Contains('Dry run complete: nothing was built, stopped, copied or started.') -and
-                $tryDry.Text.Contains("without backups, logs and $(Get-HbRuntimeDir)") -and $tryDry.Text.Contains('- build: npm run build')
+                $tryDry.Text.Contains("without backups, logs and $(Get-PtRuntimeDir)") -and $tryDry.Text.Contains('- build: npm run build')
             $tryNoData = $tryDry.ExitCode -eq 1 -and $tryDry.Text.Contains('No data folder at')
             Assert-That -Name 'try-branch.ps1 -DryRun prints the plan (or finds no data folder) and runs nothing' -Condition (
                 ($tryPlanned -or $tryNoData) -and -not $tryDry.Text.Contains('Building the page')) -Detail $tryDry.Text
@@ -1894,7 +1894,7 @@ try {
 } finally {
     $fixture.StandardInput.Close()
     if (-not $fixture.WaitForExit(5000)) { $fixture.Kill() }
-    try { Remove-HbFolderTree -Path $workDir } catch { Write-Warning "Could not remove $workDir : $($_.Exception.Message)" }
+    try { Remove-PtFolderTree -Path $workDir } catch { Write-Warning "Could not remove $workDir : $($_.Exception.Message)" }
 }
 
 Write-Host ''

@@ -50,7 +50,7 @@ export default function ClockWidget({ config, size }: WidgetProps<ClockConfig>) 
         <div className={styles.main}>
           {greeting ? <p className={styles.greeting}>{greeting}</p> : null}
           <time className={styles.time} dateTime={now.toISOString()}>
-            <span className="hb-visually-hidden">{parts.text}</span>
+            <span className="pt-visually-hidden">{parts.text}</span>
             <span className={styles.timeVisual} aria-hidden="true" data-testid="clock-time">
               {parts.dayPeriod && parts.dayPeriodFirst ? <span className={styles.period}>{parts.dayPeriod}</span> : null}
               <span className={styles.digits}>{parts.main}</span>
@@ -134,7 +134,7 @@ function ExtraZones({ zones, now, locale, timeFormat, layout }: ExtraZonesProps)
         const meta = `${day} · ${formatOffsetDiff(diff)}`;
         return (
           <li key={`${zone.tz}-${index}`} className={styles.zone} title={`${zone.tz} · ${meta}`}>
-            <span className="hb-visually-hidden">{`${zone.label}: ${time.text}, ${day.toLocaleLowerCase(locale)}, ${describeOffsetDiff(diff)}`}</span>
+            <span className="pt-visually-hidden">{`${zone.label}: ${time.text}, ${day.toLocaleLowerCase(locale)}, ${describeOffsetDiff(diff)}`}</span>
             <span className={styles.zoneText} aria-hidden="true">
               <span className={styles.zoneLabel}>{zone.label}</span>
               {layout === 'list' ? <span className={styles.zoneMeta}>{meta}</span> : null}
@@ -151,7 +151,7 @@ function ExtraZones({ zones, now, locale, timeFormat, layout }: ExtraZonesProps)
       })}
       {hiddenZones.length > 0 ? (
         <li className={`${styles.zone} ${styles.moreZones}`} title={hiddenZones.map((z) => z.label).join(', ')}>
-          <span className="hb-visually-hidden">{`${hiddenZones.length} more: ${hiddenZones.map((z) => z.label).join(', ')}`}</span>
+          <span className="pt-visually-hidden">{`${hiddenZones.length} more: ${hiddenZones.map((z) => z.label).join(', ')}`}</span>
           <span aria-hidden="true">+{hiddenZones.length}</span>
         </li>
       ) : null}

@@ -1,31 +1,31 @@
 .stack {
   display: grid;
-  gap: var(--hb-space-4);
+  gap: var(--pt-space-4);
 }
 
 .checklist {
   display: grid;
   gap: 2px;
-  margin: calc(var(--hb-space-2) * -1) 0 0;
-  padding: var(--hb-space-2) var(--hb-space-3);
-  border: 1px solid var(--hb-border);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-surface-2);
+  margin: calc(var(--pt-space-2) * -1) 0 0;
+  padding: var(--pt-space-2) var(--pt-space-3);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface-2);
 }
 
 .checkRow {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-height: 32px;
 }
 
 .link {
   display: inline-flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   justify-self: start;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
 }
 
@@ -44,5 +44,5 @@
   width: 8px;
   height: 8px;
   flex: none;
-  border-radius: var(--hb-radius-full);
+  border-radius: var(--pt-radius-full);
 }

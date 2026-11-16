@@ -6,8 +6,8 @@ import type { CSSProperties, ReactNode } from 'react';
 // reads the account through React Query, so it needs PortlyQueryProvider around it.
 const panel: CSSProperties = {
   display: 'flex', flexDirection: 'column', justifyContent: 'center',
-  padding: 'var(--hb-space-4)', borderRadius: 'var(--hb-radius-lg)', border: '1px solid var(--hb-glass-border)',
-  background: 'var(--hb-glass)', boxShadow: 'var(--hb-shadow)', color: 'var(--hb-text)',
+  padding: 'var(--pt-space-4)', borderRadius: 'var(--pt-radius-lg)', border: '1px solid var(--pt-glass-border)',
+  background: 'var(--pt-glass)', boxShadow: 'var(--pt-shadow)', color: 'var(--pt-text)',
 };
 const Panel = ({ children, height }: { children: ReactNode; height?: number }) => (
   <PortlyQueryProvider>

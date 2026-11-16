@@ -343,7 +343,7 @@ function BookmarkForm({ onOpenChange, groups, bookmark, groupId: preselected, in
             id={fileInputId}
             type="file"
             accept={`${UPLOAD_ACCEPT},.ico`}
-            className="hb-visually-hidden"
+            className="pt-visually-hidden"
             onChange={(event) => pickFile(event.currentTarget.files?.[0])}
           />
           <p className={fileError ? styles.fileError : styles.fileHint} role={fileError ? 'alert' : undefined}>

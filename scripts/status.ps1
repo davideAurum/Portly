@@ -62,89 +62,89 @@ function Invoke-Status {
     param([int]$RequestedPort)
     $showStatus = $View -ne 'Settings'
     $showSettings = $View -ne 'Status'
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
     if ($RequestedPort -gt 0) {
         $checkPort = $RequestedPort
         $portText = "$checkPort (-Port)"
     } else {
-        $setting = Get-HbPortSetting -Scope Process
+        $setting = Get-PtPortSetting -Scope Process
         $checkPort = $setting.Port
         $portText = "$checkPort ($($setting.Source))"
     }
-    $dataDir = Get-HbDataDir -Scope Process -RepoRoot $repoRoot
-    $logFile = Get-HbLogFile -DataDir $dataDir
-    $supervisorLog = Get-HbSupervisorLogFile -DataDir $dataDir
-    $windowsTasks = (Test-HbWindows) -and (Test-HbScheduledTasksAvailable)
+    $dataDir = Get-PtDataDir -Scope Process -RepoRoot $repoRoot
+    $logFile = Get-PtLogFile -DataDir $dataDir
+    $supervisorLog = Get-PtSupervisorLogFile -DataDir $dataDir
+    $windowsTasks = (Test-PtWindows) -and (Test-PtScheduledTasksAvailable)
     $task = $null
     $info = $null
     $mode = $null
     $hostLog = $null
     $hostStatus = @()
     if ($windowsTasks) {
-        $task = Get-HbTask
+        $task = Get-PtTask
         if ($null -ne $task) {
             $info = Get-ScheduledTaskInfo -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
-            $mode = Get-HbTaskTriggerMode -Task $task
+            $mode = Get-PtTaskTriggerMode -Task $task
         }
-        $hostLog = Join-Path (Get-HbNativeHostDir) 'launcher.log'
+        $hostLog = Join-Path (Get-PtNativeHostDir) 'launcher.log'
     }
     $expectedId = $null
     $expectedIdError = $null
     try {
-        $expectedId = Get-HbExtensionIdFromManifest -ManifestPath (Join-Path $repoRoot 'extension\manifest.json')
+        $expectedId = Get-PtExtensionIdFromManifest -ManifestPath (Join-Path $repoRoot 'extension\manifest.json')
     } catch {
         $expectedIdError = $_.Exception.Message
     }
-    if ($windowsTasks) { $hostStatus = Get-HbNativeHostStatus -ExpectedId $expectedId }
+    if ($windowsTasks) { $hostStatus = Get-PtNativeHostStatus -ExpectedId $expectedId }
 
     $health = $null
     if ($showStatus) {
-        $health = Test-HbHealth -Port $checkPort -TimeoutSeconds 2
+        $health = Test-PtHealth -Port $checkPort -TimeoutSeconds 2
         Write-StatusSection 'Portly status'
         if ($health.Ok) {
-            Write-Host ('  {0,-15}: {1}' -f 'Health', "OK - $(Format-HbHealth $health)") -ForegroundColor Green
+            Write-Host ('  {0,-15}: {1}' -f 'Health', "OK - $(Format-PtHealth $health)") -ForegroundColor Green
         } else {
-            Write-Host ('  {0,-15}: {1}' -f 'Health', (Format-HbHealth $health)) -ForegroundColor Yellow
+            Write-Host ('  {0,-15}: {1}' -f 'Health', (Format-PtHealth $health)) -ForegroundColor Yellow
             if ($null -ne $health.Listeners -and $health.Listeners.Count -gt 0) {
-                Write-HbField 'Port used by' (Format-HbPortOwners $health.Listeners)
+                Write-PtField 'Port used by' (Format-PtPortOwners $health.Listeners)
             }
         }
         if ($windowsTasks) {
-            Write-HbField 'Processes' (Format-HbProcessList -Trees @(Get-HbSupervisorProcesses -RepoRoot $repoRoot))
+            Write-PtField 'Processes' (Format-PtProcessList -Trees @(Get-PtSupervisorProcesses -RepoRoot $repoRoot))
             if ($null -eq $task) {
-                Write-HbField 'Autostart' 'not installed (scripts\install-autostart.ps1 sets it up)'
+                Write-PtField 'Autostart' 'not installed (scripts\install-autostart.ps1 sets it up)'
             } else {
-                Write-HbField 'Autostart' "$($task.State) ($mode mode)"
+                Write-PtField 'Autostart' "$($task.State) ($mode mode)"
                 $lastRun = if ($info.LastRunTime -and $info.LastRunTime.Year -gt 2000) { $info.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'never' }
-                Write-HbField 'Last run' "$lastRun, result $(Format-HbTaskResult -Code $info.LastTaskResult)"
+                Write-PtField 'Last run' "$lastRun, result $(Format-PtTaskResult -Code $info.LastTaskResult)"
                 $releaseInfo = $null
-                try { $releaseInfo = Get-HbReleaseInfo -RepoRoot $repoRoot } catch { }
+                try { $releaseInfo = Get-PtReleaseInfo -RepoRoot $repoRoot } catch { }
                 if ($null -ne $releaseInfo) {
-                    $updater = Get-HbUpdaterTask
-                    Write-HbField 'Updater' $(if ($null -ne $updater) { "$($updater.State)" } else { 'not set up (portly --update --force sets it up)' })
+                    $updater = Get-PtUpdaterTask
+                    Write-PtField 'Updater' $(if ($null -ne $updater) { "$($updater.State)" } else { 'not set up (portly --update --force sets it up)' })
                 }
-                $taskProgram = Get-HbTaskProgram -Task $task
+                $taskProgram = Get-PtTaskProgram -Task $task
                 if ($taskProgram -and -not (Test-Path -LiteralPath $taskProgram -PathType Leaf)) {
                     Write-Warning "The task's program no longer exists: $taskProgram. Re-run scripts\install-autostart.ps1."
-                } elseif (Test-HbRuntimeProgram -Path $taskProgram) {
+                } elseif (Test-PtRuntimeProgram -Path $taskProgram) {
                     # Portly's copies of node.exe: still the build of the node.exe they came from?
                     $runtimeDir = Split-Path -Parent $taskProgram
-                    $record = Read-HbRuntimeRecord -Destination $runtimeDir
+                    $record = Read-PtRuntimeRecord -Destination $runtimeDir
                     if ($null -ne $record -and (Test-Path -LiteralPath $record.Source -PathType Leaf)) {
-                        $runtimePlan = Get-HbRuntimePlan -NodeExe $record.Source -Destination $runtimeDir
+                        $runtimePlan = Get-PtRuntimePlan -NodeExe $record.Source -Destination $runtimeDir
                         if ($runtimePlan.State -ne 'current') {
                             Write-Warning ("$PortlySupervisorProgram and $PortlyServerProgram are not the same build as $($record.Source) any more " +
                                 '(Node.js was updated?). Run scripts\install-autostart.ps1 again to refresh them (it restarts Portly).')
                         }
                     }
                 } elseif ($taskProgram) {
-                    Write-HbInfo ("The task runs $taskProgram, so Task Manager shows Portly as node.exe. Run scripts\install-autostart.ps1 " +
+                    Write-PtInfo ("The task runs $taskProgram, so Task Manager shows Portly as node.exe. Run scripts\install-autostart.ps1 " +
                         "again to run it as $PortlySupervisorProgram and $PortlyServerProgram.")
                 }
             }
             if (Test-Path -LiteralPath $hostLog -PathType Leaf) {
                 $last = @(Get-Content -LiteralPath $hostLog -Tail 1)
-                if ($last.Count -gt 0) { Write-HbField 'Last launch' "$($last[0])" }
+                if ($last.Count -gt 0) { Write-PtField 'Last launch' "$($last[0])" }
             }
 
             # Native messaging host: registered for both browsers, files present, and allowing the
@@ -152,12 +152,12 @@ function Invoke-Status {
             $hostOk = @($hostStatus | Where-Object { $_.Registered -and @($_.Problems).Count -eq 0 })
             $hostBad = @($hostStatus | Where-Object { -not ($_.Registered -and @($_.Problems).Count -eq 0) })
             if ($hostBad.Count -eq 0) {
-                Write-HbField 'Native host' "OK ($(@($hostOk | ForEach-Object { $_.Browser }) -join ', '))"
+                Write-PtField 'Native host' "OK ($(@($hostOk | ForEach-Object { $_.Browser }) -join ', '))"
             } else {
                 foreach ($entry in $hostBad) {
                     $label = "Host ($($entry.Browser))"
                     if (-not $entry.Registered) {
-                        Write-HbField $label "not registered ($($entry.Key))"
+                        Write-PtField $label "not registered ($($entry.Key))"
                     } else {
                         Write-Host ('  {0,-15}: {1}' -f $label, "PROBLEM - $($entry.ManifestPath)") -ForegroundColor Yellow
                         foreach ($problem in @($entry.Problems)) { Write-Host "                   - $problem" -ForegroundColor Yellow }
@@ -168,11 +168,11 @@ function Invoke-Status {
                 Write-Warning ('The task is in Browser mode but no browser can start it (the native host is missing or broken). ' +
                     'Run scripts\install-autostart.ps1 again.')
             } elseif ($hostOk.Count -lt 2 -and $null -ne $task) {
-                Write-HbInfo 'Run scripts\install-autostart.ps1 again to (re)register the native host for both browsers.'
+                Write-PtInfo 'Run scripts\install-autostart.ps1 again to (re)register the native host for both browsers.'
             }
-            $launcherCurrent = Test-HbInstalledLauncherCurrent -InstalledDir (Get-HbNativeHostDir) -RepoRoot $repoRoot
+            $launcherCurrent = Test-PtInstalledLauncherCurrent -InstalledDir (Get-PtNativeHostDir) -RepoRoot $repoRoot
             if ($launcherCurrent -is [bool] -and -not $launcherCurrent) {
-                Write-Warning ("The installed launcher ($(Join-Path (Get-HbNativeHostDir) 'launcher.mjs')) differs from this checkout's " +
+                Write-Warning ("The installed launcher ($(Join-Path (Get-PtNativeHostDir) 'launcher.mjs')) differs from this checkout's " +
                     'native-host\launcher.mjs (Portly was updated?). Run scripts\install-autostart.ps1 again to update it.')
             }
         }
@@ -181,15 +181,15 @@ function Invoke-Status {
             # autostart task does not show - so check it here with the server's own loader.
             $scope = if ($null -ne $task) { 'Task' } else { 'Process' }
             try {
-                $node = Resolve-HbNode -RepoRoot $repoRoot
-                $config = Test-HbServerConfig -NodeExe $node.Path -RepoRoot $repoRoot -Scope $scope
+                $node = Resolve-PtNode -RepoRoot $repoRoot
+                $config = Test-PtServerConfig -NodeExe $node.Path -RepoRoot $repoRoot -Scope $scope
                 if ($config.Ok) {
-                    Write-HbField 'Configuration' 'valid'
+                    Write-PtField 'Configuration' 'valid'
                 } else {
                     Write-Host ('  {0,-15}: {1}' -f 'Configuration', "INVALID - $($config.Error)") -ForegroundColor Red
                 }
             } catch {
-                Write-HbField 'Configuration' "not checked ($($_.Exception.Message))"
+                Write-PtField 'Configuration' "not checked ($($_.Exception.Message))"
             }
         }
         if ($health.Ok -and $health.Vault -eq 'locked') {
@@ -199,72 +199,72 @@ function Invoke-Status {
 
     if ($showSettings) {
         Write-StatusSection 'Portly settings'
-        Write-HbField 'Port' $portText
-        Write-HbField 'URL' "http://localhost:$checkPort"
+        Write-PtField 'Port' $portText
+        Write-PtField 'URL' "http://localhost:$checkPort"
         $release = $null
-        try { $release = Get-HbReleaseInfo -RepoRoot $repoRoot } catch { }
+        try { $release = Get-PtReleaseInfo -RepoRoot $repoRoot } catch { }
         if ($null -ne $release) {
-            Write-HbField 'Installed' "release $($release.version), Node.js $(Get-HbProperty $release 'node') (portly --update)"
-            Write-HbField 'Program' $repoRoot
+            Write-PtField 'Installed' "release $($release.version), Node.js $(Get-PtProperty $release 'node') (portly --update)"
+            Write-PtField 'Program' $repoRoot
         } else {
-            Write-HbField 'Checkout' $repoRoot
+            Write-PtField 'Checkout' $repoRoot
         }
-        Write-HbField 'Data folder' $dataDir
-        Write-HbField 'Server log' (Format-StatusFile -File $logFile)
-        Write-HbField 'Supervisor log' (Format-StatusFile -File $supervisorLog)
-        if ($null -ne $hostLog) { Write-HbField 'Launcher log' (Format-StatusFile -File $hostLog) }
+        Write-PtField 'Data folder' $dataDir
+        Write-PtField 'Server log' (Format-StatusFile -File $logFile)
+        Write-PtField 'Supervisor log' (Format-StatusFile -File $supervisorLog)
+        if ($null -ne $hostLog) { Write-PtField 'Launcher log' (Format-StatusFile -File $hostLog) }
         if ($windowsTasks) {
             if ($null -eq $task) {
-                Write-HbField 'Autostart' 'not installed (scripts\install-autostart.ps1 sets it up)'
+                Write-PtField 'Autostart' 'not installed (scripts\install-autostart.ps1 sets it up)'
             } else {
-                Write-HbField 'Starts' (Format-HbTaskTrigger -Task $task)
+                Write-PtField 'Starts' (Format-PtTaskTrigger -Task $task)
                 $action = @($task.Actions)[0]
-                Write-HbField 'Command' "$($action.Execute) $($action.Arguments)"
-                $taskProgram = Get-HbTaskProgram -Task $task
-                if (Test-HbRuntimeProgram -Path $taskProgram) {
-                    $record = Read-HbRuntimeRecord -Destination (Split-Path -Parent $taskProgram)
+                Write-PtField 'Command' "$($action.Execute) $($action.Arguments)"
+                $taskProgram = Get-PtTaskProgram -Task $task
+                if (Test-PtRuntimeProgram -Path $taskProgram) {
+                    $record = Read-PtRuntimeRecord -Destination (Split-Path -Parent $taskProgram)
                     $source = if ($null -ne $record) { "copies of $($record.Source), Node.js v$($record.NodeVersion)" } else { "$PortlyRuntimeRecord missing" }
-                    Write-HbField 'Runs as' "$PortlySupervisorProgram and $PortlyServerProgram in $(Split-Path -Parent $taskProgram) ($source)"
+                    Write-PtField 'Runs as' "$PortlySupervisorProgram and $PortlyServerProgram in $(Split-Path -Parent $taskProgram) ($source)"
                 } elseif ($taskProgram) {
-                    Write-HbField 'Runs as' "$([System.IO.Path]::GetFileName($taskProgram)) (no Portly-named copies; install-autostart.ps1 makes them)"
+                    Write-PtField 'Runs as' "$([System.IO.Path]::GetFileName($taskProgram)) (no Portly-named copies; install-autostart.ps1 makes them)"
                 }
                 if ($null -ne $release) {
-                    $updater = Get-HbUpdaterTask
+                    $updater = Get-PtUpdaterTask
                     if ($null -ne $updater) {
                         $updaterAction = @($updater.Actions)[0]
-                        Write-HbField 'Updater' "$($updaterAction.Execute) $($updaterAction.Arguments)"
+                        Write-PtField 'Updater' "$($updaterAction.Execute) $($updaterAction.Arguments)"
                     } else {
-                        Write-HbField 'Updater' 'not set up (portly --update --force sets it up)'
+                        Write-PtField 'Updater' 'not set up (portly --update --force sets it up)'
                     }
                 }
             }
         }
         if ($null -ne $expectedId) {
-            Write-HbField 'Extension ID' "$expectedId (from the ""key"" in extension\manifest.json)"
+            Write-PtField 'Extension ID' "$expectedId (from the ""key"" in extension\manifest.json)"
         } else {
-            Write-HbField 'Extension ID' "unknown - $expectedIdError"
+            Write-PtField 'Extension ID' "unknown - $expectedIdError"
         }
         foreach ($entry in $hostStatus) {
             $where = if ($entry.Registered) { $entry.ManifestPath } else { "not registered ($($entry.Key))" }
-            Write-HbField "Host ($($entry.Browser))" $where
+            Write-PtField "Host ($($entry.Browser))" $where
         }
-        $pagesUrl = Get-HbEnvValue -Name 'PORTLY_PAGES_URL' -Scope Task
-        $pagesRepo = Get-HbEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task
+        $pagesUrl = Get-PtEnvValue -Name 'PORTLY_PAGES_URL' -Scope Task
+        $pagesRepo = Get-PtEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task
         $pagesUrlText = if ($pagesUrl) { "$pagesUrl (PORTLY_PAGES_URL)" } else { 'not set (PORTLY_PAGES_URL: the Pages site cannot use this server)' }
         $pagesRepoText = if ($pagesRepo) { "$pagesRepo (PORTLY_PAGES_REPO)" } else { 'not set (PORTLY_PAGES_REPO: portly --rebuild skips publishing)' }
-        Write-HbField 'Pages site' $pagesUrlText
-        if ($null -eq $release) { Write-HbField 'Pages repo' $pagesRepoText }
+        Write-PtField 'Pages site' $pagesUrlText
+        if ($null -eq $release) { Write-PtField 'Pages repo' $pagesRepoText }
         # The variables the task sees (user/machine scope), like the Pages settings above. The default
         # remote port follows the server's rule (config.ts: the port after Portly's own, or the one
         # before it at 65535) from the task's port, not from -Port or this window's PORTLY_PORT.
-        $remoteOrigin = Get-HbEnvValue -Name 'PORTLY_REMOTE_ORIGIN' -Scope Task
-        $remotePort = Get-HbEnvValue -Name 'PORTLY_REMOTE_PORT' -Scope Task
+        $remoteOrigin = Get-PtEnvValue -Name 'PORTLY_REMOTE_ORIGIN' -Scope Task
+        $remotePort = Get-PtEnvValue -Name 'PORTLY_REMOTE_PORT' -Scope Task
         $remoteText = if ($remoteOrigin) {
             $remotePortText = if ($remotePort) {
                 "$remotePort (PORTLY_REMOTE_PORT)"
             } else {
                 $taskPort = $checkPort
-                try { $taskPort = (Get-HbPortSetting -Scope Task).Port } catch { }
+                try { $taskPort = (Get-PtPortSetting -Scope Task).Port } catch { }
                 $defaultRemotePort = if ($taskPort -lt 65535) { $taskPort + 1 } else { $taskPort - 1 }
                 "$defaultRemotePort (default: the port after Portly's own)"
             }
@@ -274,16 +274,16 @@ function Invoke-Status {
         } else {
             'not set (PORTLY_REMOTE_ORIGIN: this PC only; setup.ps1 -RemoteOrigin lets your other PCs in, docs\setup\other-pcs.md)'
         }
-        Write-HbField 'Other PCs' $remoteText
+        Write-PtField 'Other PCs' $remoteText
     }
 
     if ($LogLines -gt 0) {
         Write-Host ''
         if ($null -ne $hostLog -and (Test-Path -LiteralPath $hostLog -PathType Leaf)) {
-            Write-HbLogTail -LogFile $hostLog -Lines ([Math]::Min($LogLines, 10))
+            Write-PtLogTail -LogFile $hostLog -Lines ([Math]::Min($LogLines, 10))
         }
-        Write-HbLogTail -LogFile $supervisorLog -Lines ([Math]::Min($LogLines, 20))
-        Write-HbLogTail -LogFile $logFile -Lines $LogLines
+        Write-PtLogTail -LogFile $supervisorLog -Lines ([Math]::Min($LogLines, 20))
+        Write-PtLogTail -LogFile $logFile -Lines $LogLines
     }
     Write-Host ''
     if ($null -eq $health -or $health.Ok) { return 0 }
@@ -294,6 +294,6 @@ try {
     $exitCode = Invoke-Status -RequestedPort $Port | Select-Object -Last 1
     exit ([int]$exitCode)
 } catch {
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     exit 1
 }

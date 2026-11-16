@@ -2,28 +2,28 @@
 
 .stack {
   display: grid;
-  gap: var(--hb-space-4);
+  gap: var(--pt-space-4);
 }
 
 .note {
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .note strong {
   font-weight: 600;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .group {
   display: grid;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
 }
 
 .groupLabel {
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .labelWithIcon {
@@ -35,7 +35,7 @@
 .labelWithIcon svg {
   width: 15px;
   height: 15px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 /* ---- Selected place ------------------------------------------------------- */
@@ -44,18 +44,18 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--hb-space-3);
-  padding: var(--hb-space-3);
-  border: 1px solid var(--hb-border);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-surface-2);
+  gap: var(--pt-space-3);
+  padding: var(--pt-space-3);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface-2);
 }
 
 .placeCardIcon {
   width: 18px;
   height: 18px;
   flex: none;
-  color: var(--hb-accent);
+  color: var(--pt-accent);
 }
 
 .placeCardText {
@@ -71,15 +71,15 @@
 }
 
 .placeCardMeta {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .placeCardActions {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   margin-left: auto;
 }
 
@@ -93,22 +93,22 @@
 .searchIcon {
   width: 15px;
   height: 15px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .listbox {
   display: grid;
   gap: 1px;
   max-height: 248px;
-  margin: var(--hb-space-1) 0 0;
-  padding: var(--hb-space-1);
+  margin: var(--pt-space-1) 0 0;
+  padding: var(--pt-space-1);
   overflow-y: auto;
   overscroll-behavior: contain;
   list-style: none;
-  border: 1px solid var(--hb-border-strong);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-surface);
-  box-shadow: var(--hb-shadow);
+  border: 1px solid var(--pt-border-strong);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface);
+  box-shadow: var(--pt-shadow);
 }
 
 .listbox[hidden] {
@@ -117,24 +117,24 @@
 
 .option {
   display: block;
-  padding: 7px var(--hb-space-2);
-  border-radius: var(--hb-radius-sm);
+  padding: 7px var(--pt-space-2);
+  border-radius: var(--pt-radius-sm);
   cursor: pointer;
 }
 
 .option[aria-selected='true'] {
-  background: var(--hb-accent-soft);
-  box-shadow: inset 2px 0 0 var(--hb-accent);
+  background: var(--pt-accent-soft);
+  box-shadow: inset 2px 0 0 var(--pt-accent);
 }
 
 .option:hover:not([aria-selected='true']) {
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 .optionBody {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
 }
 
@@ -142,7 +142,7 @@
   width: 15px;
   height: 15px;
   flex: none;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .optionText {
@@ -152,7 +152,7 @@
 }
 
 .optionName {
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -160,8 +160,8 @@
 }
 
 .optionMeta {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -174,8 +174,8 @@
   flex: none;
   max-width: 45%;
   overflow: hidden;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
   white-space: nowrap;
   text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
@@ -188,16 +188,16 @@
 }
 
 .comboStatus {
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .comboStatus:not(:empty) {
-  padding-top: var(--hb-space-2);
+  padding-top: var(--pt-space-2);
 }
 
 .statusRow {
   display: inline-flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }

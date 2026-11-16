@@ -1,6 +1,6 @@
 /**
  * The dashboard grid (§10.2): 12 columns on react-grid-layout v2 (rowHeight 40, margin 12).
- * In edit mode widgets drag by their header (`.hb-drag-handle`) and resize from any corner or edge;
+ * In edit mode widgets drag by their header (`.pt-drag-handle`) and resize from any corner or edge;
  * changed positions are saved with a debounced `PUT /positions` (flushed when edit mode ends),
  * config/frame changes go through `PATCH /widgets/:instanceId` — never whole-layout writes.
  * Below 768 px widgets stack full-width in (y, x) order and editing is disabled.
@@ -248,7 +248,7 @@ export function Grid({ layout, profileId }: GridProps) {
               data-instance-id={item.id}
               data-stack-sizing={stackSizingOf(item.type, item.config)}
               data-just-added={item.id === justAdded ? 'true' : undefined}
-              style={{ '--hb-stack-rows': String(item.h) } as CSSProperties}
+              style={{ '--pt-stack-rows': String(item.h) } as CSSProperties}
             >
               {frameFor(item)}
             </div>
@@ -270,7 +270,7 @@ export function Grid({ layout, profileId }: GridProps) {
         </div>
       ) : null}
 
-      <p className="hb-visually-hidden" aria-live="polite">
+      <p className="pt-visually-hidden" aria-live="polite">
         {announcement}
       </p>
 

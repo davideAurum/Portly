@@ -90,7 +90,7 @@ function ShellLayout() {
                 aria-label="Edit layout"
                 aria-pressed={editMode}
                 aria-disabled={!canEdit || undefined}
-                aria-describedby={canEdit ? undefined : 'hb-edit-unavailable'}
+                aria-describedby={canEdit ? undefined : 'pt-edit-unavailable'}
                 onClick={() => {
                   if (canEdit) toggleEditMode();
                   // A tap on a phone shows no tooltip: say why nothing happens.
@@ -99,7 +99,7 @@ function ShellLayout() {
               >
                 <Pencil aria-hidden="true" />
                 {canEdit ? null : (
-                  <span id="hb-edit-unavailable" className="hb-visually-hidden">
+                  <span id="pt-edit-unavailable" className="pt-visually-hidden">
                     {disabledReason ?? 'Editing is unavailable right now'}
                   </span>
                 )}

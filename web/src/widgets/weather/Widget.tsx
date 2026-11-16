@@ -282,7 +282,7 @@ function WeatherView({ report, meta, placeName, placeDetail, source, namedByOsm 
             {tier !== 'compact' ? <p className={styles.feels}>Feels like {display.temp(current.apparent)}</p> : null}
             {hiLo ? (
               <p className={styles.hiLo}>
-                <span className="hb-visually-hidden">Today: high {display.temp(today!.max)}, low {display.temp(today!.min)}</span>
+                <span className="pt-visually-hidden">Today: high {display.temp(today!.max)}, low {display.temp(today!.min)}</span>
                 <span aria-hidden="true">{hiLo}</span>
               </p>
             ) : null}
@@ -293,7 +293,7 @@ function WeatherView({ report, meta, placeName, placeDetail, source, namedByOsm 
           <ul className={styles.details} aria-label="Conditions">
             <li className={styles.detail}>
               <Wind aria-hidden="true" className={styles.detailIcon} />
-              <span className="hb-visually-hidden">Wind</span>
+              <span className="pt-visually-hidden">Wind</span>
               <span>{formatWind(windSpeed, windUnit, locale)}</span>
               {windSpeed >= 0.5 ? (
                 <span className={styles.windDir}>
@@ -308,19 +308,19 @@ function WeatherView({ report, meta, placeName, placeDetail, source, namedByOsm 
             </li>
             <li className={styles.detail}>
               <Droplets aria-hidden="true" className={styles.detailIcon} />
-              <span className="hb-visually-hidden">Humidity</span>
+              <span className="pt-visually-hidden">Humidity</span>
               <span>{formatPercent(current.humidity, locale)}</span>
             </li>
             {precipNow > 0 ? (
               <li className={styles.detail} data-narrow-optional="true">
                 <Umbrella aria-hidden="true" className={styles.detailIcon} />
-                <span className="hb-visually-hidden">Precipitation now</span>
+                <span className="pt-visually-hidden">Precipitation now</span>
                 <span>{formatPrecip(precipNow, precipUnit, locale)}</span>
               </li>
             ) : today && today.precipProb !== null ? (
               <li className={styles.detail} data-narrow-optional="true">
                 <Umbrella aria-hidden="true" className={styles.detailIcon} />
-                <span className="hb-visually-hidden">Chance of precipitation today</span>
+                <span className="pt-visually-hidden">Chance of precipitation today</span>
                 <span>{formatPercent(today.precipProb, locale)}</span>
               </li>
             ) : null}
@@ -328,10 +328,10 @@ function WeatherView({ report, meta, placeName, placeDetail, source, namedByOsm 
               // One item, so sunrise and sunset wrap together (never a lone sunset on its own line).
               <li className={styles.detail} data-optional="true">
                 <Sunrise aria-hidden="true" className={styles.detailIcon} />
-                <span className="hb-visually-hidden">Sunrise</span>
+                <span className="pt-visually-hidden">Sunrise</span>
                 <span>{clockLabel(today.sunrise, locale, hourCycle, display.zone)}</span>
                 <Sunset aria-hidden="true" className={`${styles.detailIcon} ${styles.sunsetIcon}`} />
-                <span className="hb-visually-hidden">Sunset</span>
+                <span className="pt-visually-hidden">Sunset</span>
                 <span>{clockLabel(today.sunset, locale, hourCycle, display.zone)}</span>
               </li>
             ) : null}
@@ -381,7 +381,7 @@ function HourlyStrip({ hours, report, display, nowLocal }: { hours: WeatherHour[
           const condition = weatherCodeInfo(code, isDay).label;
           return (
             <li key={hour.time} className={styles.hour} data-now={isNow ? 'true' : undefined}>
-              <span className="hb-visually-hidden">{`${label}: ${display.temp(temp)}, ${condition}${precip ? `, ${precip} chance of precipitation` : ''}`}</span>
+              <span className="pt-visually-hidden">{`${label}: ${display.temp(temp)}, ${condition}${precip ? `, ${precip} chance of precipitation` : ''}`}</span>
               <span className={styles.hourTime} aria-hidden="true">
                 {label}
               </span>
@@ -408,7 +408,7 @@ function DayStrip({ days, nowLocal, display }: { days: WeatherDay[]; nowLocal: s
       <ol className={styles.hourList}>
         {days.map((day) => (
           <li key={day.date} className={styles.hour}>
-            <span className="hb-visually-hidden">{`${dayLongLabel(day.date, display.locale)}: ${weatherCodeInfo(day.code).label}, high ${display.temp(day.max)}, low ${display.temp(day.min)}`}</span>
+            <span className="pt-visually-hidden">{`${dayLongLabel(day.date, display.locale)}: ${weatherCodeInfo(day.code).label}, high ${display.temp(day.max)}, low ${display.temp(day.min)}`}</span>
             <span className={styles.hourTime} aria-hidden="true">
               {dayLabel(day.date, nowLocal, display.locale)}
             </span>
@@ -443,10 +443,10 @@ function DailyList({ days, nowLocal, display, currentTemp }: { days: WeatherDay[
         const low = lows[i]!;
         const high = highs[i]!;
         const now = display.tempValue(currentTemp);
-        const rangeStyle = { '--hb-range-from': pos(low), '--hb-range-to': pos(high) } as CSSProperties;
+        const rangeStyle = { '--pt-range-from': pos(low), '--pt-range-to': pos(high) } as CSSProperties;
         return (
           <li key={day.date} className={styles.day} data-today={isToday ? 'true' : undefined}>
-            <span className="hb-visually-hidden">{`${isToday ? dayLabel(day.date, nowLocal, display.locale) : dayLongLabel(day.date, display.locale)}: ${weatherCodeInfo(day.code).label}, low ${display.temp(day.min)}, high ${display.temp(day.max)}${precip ? `, ${precip} chance of precipitation` : ''}`}</span>
+            <span className="pt-visually-hidden">{`${isToday ? dayLabel(day.date, nowLocal, display.locale) : dayLongLabel(day.date, display.locale)}: ${weatherCodeInfo(day.code).label}, low ${display.temp(day.min)}, high ${display.temp(day.max)}${precip ? `, ${precip} chance of precipitation` : ''}`}</span>
             <span className={styles.dayName} aria-hidden="true">
               {dayLabel(day.date, nowLocal, display.locale)}
             </span>
@@ -460,7 +460,7 @@ function DailyList({ days, nowLocal, display, currentTemp }: { days: WeatherDay[
             <span className={styles.dayBar} aria-hidden="true">
               <span className={styles.dayRange} style={rangeStyle} />
               {isToday && now >= low && now <= high ? (
-                <span className={styles.dayNow} style={{ '--hb-range-at': pos(now) } as CSSProperties} />
+                <span className={styles.dayNow} style={{ '--pt-range-at': pos(now) } as CSSProperties} />
               ) : null}
             </span>
             <span className={styles.dayMax} aria-hidden="true">

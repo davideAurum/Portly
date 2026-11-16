@@ -19,15 +19,15 @@
 .cta {
   display: inline-flex;
   align-items: center;
-  gap: var(--hb-space-1);
-  font-size: var(--hb-text-sm);
+  gap: var(--pt-space-1);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
-  color: var(--hb-accent-text);
+  color: var(--pt-accent-text);
 }
 
 .deviceChoices {
   display: grid;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -40,12 +40,12 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--hb-radius-sm);
-  color: var(--hb-text);
+  border-radius: var(--pt-radius-sm);
+  color: var(--pt-text);
 }
 
 .providerLink:hover {
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 .providerMark {
@@ -69,13 +69,13 @@
     'footer footer';
   /* Centred as a block, so spare height becomes even margin instead of a hole in the middle. */
   align-content: center;
-  gap: var(--hb-space-1) var(--hb-space-4);
-  padding: 0 var(--hb-space-4) var(--hb-space-3);
+  gap: var(--pt-space-1) var(--pt-space-4);
+  padding: 0 var(--pt-space-4) var(--pt-space-3);
   overflow: hidden;
 }
 
 .player > .slider {
-  margin-top: var(--hb-space-2);
+  margin-top: var(--pt-space-2);
 }
 
 .player[data-tier='compact'] {
@@ -101,7 +101,7 @@
   height: 72px;
   overflow: hidden;
   border-radius: 4px;
-  background: var(--hb-surface-2);
+  background: var(--pt-surface-2);
   box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
 }
 
@@ -129,7 +129,7 @@
   place-items: center;
   width: 100%;
   height: 100%;
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
 }
 
 .artPlaceholder svg {
@@ -154,10 +154,10 @@
 }
 
 .title {
-  font-size: var(--hb-text-lg);
+  font-size: var(--pt-text-lg);
   font-weight: 700;
   line-height: 1.25;
-  color: var(--hb-text);
+  color: var(--pt-text);
   text-decoration: none;
 }
 
@@ -166,13 +166,13 @@ a.title:hover {
 }
 
 .artists {
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .album {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
 }
 
 .controls {
@@ -180,9 +180,9 @@ a.title:hover {
   align-self: start;
   display: flex;
   align-items: center;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   min-width: 0;
-  margin-top: var(--hb-space-1);
+  margin-top: var(--pt-space-1);
 }
 
 .player:not([data-tier='compact']) .meta {
@@ -196,11 +196,11 @@ a.title:hover {
   align-self: start;
   display: flex;
   align-items: center;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   min-width: 0;
   margin: 0;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .creditIcon {
@@ -227,11 +227,11 @@ a.title:hover {
 .footer {
   grid-area: footer;
   align-self: start;
-  margin-top: var(--hb-space-1);
+  margin-top: var(--pt-space-1);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
 }
 
@@ -251,7 +251,7 @@ a.title:hover {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: var(--hb-space-1);
+  gap: var(--pt-space-1);
   min-width: 90px;
   max-width: 160px;
 }
@@ -264,11 +264,11 @@ a.title:hover {
   flex: none;
   width: 15px;
   height: 15px;
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
 }
 
 .settingsNote {
   margin: 0;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }

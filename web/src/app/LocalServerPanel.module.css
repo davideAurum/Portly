@@ -1,7 +1,7 @@
 /* The local server panel: the footer indicator's popover and a card in Settings → About. */
 .panel {
   display: grid;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
   width: min(340px, calc(100vw - 56px));
 }
 
@@ -10,30 +10,30 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }
 
 .title {
   margin: 0;
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
   font-weight: 650;
 }
 
 .body {
   display: grid;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
   min-width: 0;
 }
 
 .text {
   margin: 0;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
   max-width: 70ch;
 }
 
 .text strong {
-  color: var(--hb-text);
+  color: var(--pt-text);
   font-weight: 600;
 }
 
@@ -47,17 +47,17 @@
   display: grid;
   gap: 4px;
   margin: 0;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
 }
 
 .fact {
   display: flex;
   justify-content: space-between;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
 }
 
 .fact dt {
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .fact dd {
@@ -71,35 +71,35 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }
 
 .details summary {
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
   cursor: pointer;
 }
 
 .details[open] summary {
-  margin-bottom: var(--hb-space-2);
+  margin-bottom: var(--pt-space-2);
 }
 
 .addsSection {
   display: grid;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }
 
 .addsTitle {
   margin: 0;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
 }
 
 .adds {
   margin: 0;
   padding-left: 1.25em;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .adds li + li {
@@ -107,8 +107,8 @@
 }
 
 .note {
-  margin: var(--hb-space-2) 0 0;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-subtle);
+  margin: var(--pt-space-2) 0 0;
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-subtle);
   max-width: 70ch;
 }

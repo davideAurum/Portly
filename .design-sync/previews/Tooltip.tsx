@@ -4,12 +4,12 @@ import type { CSSProperties, ReactNode } from 'react';
 
 // The dashboard header toolbar: glass chips over the page backdrop.
 const bar: CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: 'var(--hb-space-2)',
-  padding: 'var(--hb-space-2)', borderRadius: 'var(--hb-radius-lg)', border: '1px solid var(--hb-glass-border)',
-  background: 'var(--hb-glass)', boxShadow: 'var(--hb-shadow)', color: 'var(--hb-text)',
+  display: 'inline-flex', alignItems: 'center', gap: 'var(--pt-space-2)',
+  padding: 'var(--pt-space-2)', borderRadius: 'var(--pt-radius-lg)', border: '1px solid var(--pt-glass-border)',
+  background: 'var(--pt-glass)', boxShadow: 'var(--pt-shadow)', color: 'var(--pt-text)',
 };
 const Bar = ({ children }: { children: ReactNode }) => (
-  <div style={{ padding: 'var(--hb-space-4)', minHeight: 160 }}>
+  <div style={{ padding: 'var(--pt-space-4)', minHeight: 160 }}>
     <div style={bar}>{children}</div>
   </div>
 );
@@ -30,7 +30,7 @@ export const OnFocus = () => (
 );
 
 export const AboveTrigger = () => (
-  <div style={{ padding: '56px var(--hb-space-4) var(--hb-space-4)', minHeight: 160 }}>
+  <div style={{ padding: '56px var(--pt-space-4) var(--pt-space-4)', minHeight: 160 }}>
     <div style={bar}>
       <Tooltip side="top" content="Couldn't refresh. Click to retry.">
         <Button size="sm" autoFocus>Updated 2 hours ago</Button>

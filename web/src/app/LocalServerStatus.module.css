@@ -6,7 +6,7 @@
 }
 
 .trigger {
-  --dot: var(--hb-text-subtle);
+  --dot: var(--pt-text-subtle);
 
   display: inline-flex;
   align-items: center;
@@ -15,14 +15,14 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
   font: inherit;
   cursor: pointer;
 }
 
 .trigger:hover,
 .trigger[data-state='open'] {
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .trigger:hover .label {
@@ -30,19 +30,19 @@
 }
 
 .trigger[data-tone='accent'] {
-  --dot: var(--hb-accent);
+  --dot: var(--pt-accent);
 }
 
 .trigger[data-tone='success'] {
-  --dot: var(--hb-success);
+  --dot: var(--pt-success);
 }
 
 .trigger[data-tone='warning'] {
-  --dot: var(--hb-warning);
+  --dot: var(--pt-warning);
 }
 
 .trigger[data-tone='danger'] {
-  --dot: var(--hb-danger);
+  --dot: var(--pt-danger);
 }
 
 .dot {
@@ -58,7 +58,7 @@
    can last indefinitely, so that state shows a steady dot. */
 .trigger[data-status='checking'] .dot,
 .trigger[data-status='reconnecting'] .dot {
-  animation: hb-local-server-pulse 1.4s ease-in-out 3;
+  animation: pt-local-server-pulse 1.4s ease-in-out 3;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -75,7 +75,7 @@
   white-space: nowrap;
 }
 
-@keyframes hb-local-server-pulse {
+@keyframes pt-local-server-pulse {
   50% {
     opacity: 0.35;
   }

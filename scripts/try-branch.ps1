@@ -50,21 +50,21 @@ param(
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 $ErrorActionPreference = 'Stop'
 
-$checkout = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+$checkout = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
 # The normal Portly runs from the main folder: for a worktree that is three levels up.
 $mainRoot = $checkout
-if (Test-HbWorktreePath $checkout) {
+if (Test-PtWorktreePath $checkout) {
     $mainRoot = [System.IO.Path]::GetFullPath((Join-Path $checkout '..\..\..'))
 }
 # Where the normal Portly really runs from: the folder its task starts in. A release install lives
 # in <install folder>pp, not in the main checkout, so both are searched for processes to stop.
-function Get-HbNormalRoots {
+function Get-PtNormalRoots {
     param($Task, [Parameter(Mandatory)][string]$MainRoot)
     $roots = New-Object System.Collections.Generic.List[string]
     $roots.Add($MainRoot)
     if ($null -ne $Task) {
         $action = @($Task.Actions)[0]
-        $dir = "$(Get-HbProperty $action 'WorkingDirectory')".Trim().Trim('"')
+        $dir = "$(Get-PtProperty $action 'WorkingDirectory')".Trim().Trim('"')
         if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) {
             $full = [System.IO.Path]::GetFullPath($dir).TrimEnd('')
             if (-not ($roots | Where-Object { $_.TrimEnd('') -ieq $full })) { $roots.Add($full) }
@@ -73,58 +73,58 @@ function Get-HbNormalRoots {
     return $roots.ToArray()
 }
 
-$port = (Get-HbPortSetting -Scope Task).Port
+$port = (Get-PtPortSetting -Scope Task).Port
 if ($port -ne $PortlyDefaultPort) {
-    Write-HbInfo "Your Portly uses port $port; the test server takes it over the same way."
+    Write-PtInfo "Your Portly uses port $port; the test server takes it over the same way."
 }
-$realData = Get-HbDataDir -Scope Task -RepoRoot $mainRoot
+$realData = Get-PtDataDir -Scope Task -RepoRoot $mainRoot
 $testData = Join-Path ([System.IO.Path]::GetTempPath()) ("portly-try-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 $pagesUrl = "http://localhost:$PagesPort/"
-$node = (Resolve-HbNode).Path
+$node = (Resolve-PtNode).Path
 $vite = Join-Path $checkout 'node_modules\vite\bin\vite.js'
 
-Write-HbStep "Trying $checkout"
-Write-HbField 'Your data' "$realData (only read)"
-Write-HbField 'Test copy' $testData
-Write-HbField 'Test server' "http://localhost:$port"
-Write-HbField 'Stand-in Pages site' $pagesUrl
+Write-PtStep "Trying $checkout"
+Write-PtField 'Your data' "$realData (only read)"
+Write-PtField 'Test copy' $testData
+Write-PtField 'Test server' "http://localhost:$port"
+Write-PtField 'Stand-in Pages site' $pagesUrl
 
 if (-not (Test-Path -LiteralPath $realData -PathType Container)) {
-    Write-HbFailure "No data folder at $realData."
+    Write-PtFailure "No data folder at $realData."
     exit 1
 }
-$busy = Get-HbPortListeners -Port $PagesPort
+$busy = Get-PtPortListeners -Port $PagesPort
 if ($null -ne $busy -and $busy.Count -gt 0) {
-    Write-HbFailure "Port $PagesPort is in use by $(Format-HbPortOwners $busy). Pick another with -PagesPort."
+    Write-PtFailure "Port $PagesPort is in use by $(Format-PtPortOwners $busy). Pick another with -PagesPort."
     exit 1
 }
 
 if ($DryRun) {
-    $dryTask = Get-HbTask
-    Write-HbStep 'Steps a real run would take'
+    $dryTask = Get-PtTask
+    Write-PtStep 'Steps a real run would take'
     if ($SkipBuild) {
-        Write-HbInfo '- use the builds already in web\dist and web\dist-static (-SkipBuild)'
+        Write-PtInfo '- use the builds already in web\dist and web\dist-static (-SkipBuild)'
     } else {
-        if (-not (Test-Path -LiteralPath $vite -PathType Leaf)) { Write-HbInfo '- install the dependencies: npm ci' }
-        Write-HbInfo "- build: npm run build, then npm run build:static (PORTLY_STATIC_SERVER=http://127.0.0.1:$port)"
+        if (-not (Test-Path -LiteralPath $vite -PathType Leaf)) { Write-PtInfo '- install the dependencies: npm ci' }
+        Write-PtInfo "- build: npm run build, then npm run build:static (PORTLY_STATIC_SERVER=http://127.0.0.1:$port)"
     }
-    if ($null -ne $dryTask -and $dryTask.State -ne 'Disabled') { Write-HbInfo "- disable the task '$PortlyTaskName' for the test" }
-    $dryRoots = @(Get-HbNormalRoots -Task $dryTask -MainRoot $mainRoot)
+    if ($null -ne $dryTask -and $dryTask.State -ne 'Disabled') { Write-PtInfo "- disable the task '$PortlyTaskName' for the test" }
+    $dryRoots = @(Get-PtNormalRoots -Task $dryTask -MainRoot $mainRoot)
     foreach ($root in $dryRoots) {
-        Write-HbInfo "- stop the Portly processes started from $root`: $(Format-HbProcessList -Trees @(Get-HbSupervisorProcesses -RepoRoot $root))"
+        Write-PtInfo "- stop the Portly processes started from $root`: $(Format-PtProcessList -Trees @(Get-PtSupervisorProcesses -RepoRoot $root))"
     }
-    Write-HbInfo "- copy $realData to $testData, without backups, logs and $(Get-HbRuntimeDir)"
-    Write-HbInfo "- start $node server\src\index.ts in $checkout on port $port with the copy, and the stand-in Pages site on port $PagesPort"
+    Write-PtInfo "- copy $realData to $testData, without backups, logs and $(Get-PtRuntimeDir)"
+    Write-PtInfo "- start $node server\src\index.ts in $checkout on port $port with the copy, and the stand-in Pages site on port $PagesPort"
     $deleteCopy = if ($KeepData) { 'keep the copy (-KeepData)' } else { 'delete the copy' }
-    Write-HbInfo "- wait for Enter, then stop both and $deleteCopy"
+    Write-PtInfo "- wait for Enter, then stop both and $deleteCopy"
     if ($null -ne $dryTask) {
-        if ($dryTask.State -ne 'Disabled') { Write-HbInfo "- enable the task '$PortlyTaskName' again" }
-        $note = Sync-HbTaskRuntime -Task $dryTask -DryRun
-        if ($note) { Write-HbInfo "- $note" }
-        Write-HbInfo "- start the task '$PortlyTaskName' and wait for your normal Portly"
+        if ($dryTask.State -ne 'Disabled') { Write-PtInfo "- enable the task '$PortlyTaskName' again" }
+        $note = Sync-PtTaskRuntime -Task $dryTask -DryRun
+        if ($note) { Write-PtInfo "- $note" }
+        Write-PtInfo "- start the task '$PortlyTaskName' and wait for your normal Portly"
     }
     Write-Host ''
-    Write-HbOk 'Dry run complete: nothing was built, stopped, copied or started.'
+    Write-PtOk 'Dry run complete: nothing was built, stopped, copied or started.'
     exit 0
 }
 
@@ -132,12 +132,12 @@ if ($DryRun) {
 Push-Location $checkout
 try {
     if (-not (Test-Path -LiteralPath $vite -PathType Leaf)) {
-        Write-HbStep 'Installing dependencies (npm ci)'
+        Write-PtStep 'Installing dependencies (npm ci)'
         & npm ci --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw 'npm ci failed.' }
     }
     if (-not $SkipBuild) {
-        Write-HbStep 'Building the page and the Pages build'
+        Write-PtStep 'Building the page and the Pages build'
         & npm run build
         if ($LASTEXITCODE -ne 0) { throw 'npm run build failed.' }
         $previousStatic = $env:PORTLY_STATIC_SERVER
@@ -153,47 +153,47 @@ try {
     Pop-Location
 }
 
-$task = Get-HbTask
+$task = Get-PtTask
 $taskWasEnabled = $false
 $server = $null
 $pages = $null
 $savedEnv = @{}
 try {
     # --- 2. Pause the normal Portly ----------------------------------------------------------
-    Write-HbStep 'Pausing your normal Portly'
+    Write-PtStep 'Pausing your normal Portly'
     if ($null -ne $task -and $task.State -ne 'Disabled') {
         try {
             Disable-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath | Out-Null
             $taskWasEnabled = $true
-            Write-HbOk "Task '$PortlyTaskName' disabled for the test."
+            Write-PtOk "Task '$PortlyTaskName' disabled for the test."
         } catch {
-            Write-HbInfo "Could not disable the '$PortlyTaskName' task ($($_.Exception.Message)). If the extension starts it during the test, it finds the port taken and stops."
+            Write-PtInfo "Could not disable the '$PortlyTaskName' task ($($_.Exception.Message)). If the extension starts it during the test, it finds the port taken and stops."
         }
     }
     $stopped = @()
-    foreach ($root in @(Get-HbNormalRoots -Task $task -MainRoot $mainRoot)) {
-        $stopped += @(Stop-HbSupervisorProcesses -RepoRoot $root)
+    foreach ($root in @(Get-PtNormalRoots -Task $task -MainRoot $mainRoot)) {
+        $stopped += @(Stop-PtSupervisorProcesses -RepoRoot $root)
     }
-    if ($stopped.Count -gt 0) { Write-HbOk "Stopped PID $($stopped -join ', ')." }
+    if ($stopped.Count -gt 0) { Write-PtOk "Stopped PID $($stopped -join ', ')." }
     $deadline = [System.DateTime]::UtcNow.AddSeconds(15)
     do {
-        $listeners = Get-HbPortListeners -Port $port
+        $listeners = Get-PtPortListeners -Port $port
         if ($null -eq $listeners -or $listeners.Count -eq 0) { break }
         Start-Sleep -Milliseconds 500
     } while ([System.DateTime]::UtcNow -lt $deadline)
     if ($null -ne $listeners -and $listeners.Count -gt 0) {
-        throw "Port $port is still in use by $(Format-HbPortOwners $listeners). Stop that program and try again."
+        throw "Port $port is still in use by $(Format-PtPortOwners $listeners). Stop that program and try again."
     }
 
     # --- 3. Copy the data --------------------------------------------------------------------
-    Write-HbStep 'Copying your data folder'
+    Write-PtStep 'Copying your data folder'
     # Not Portly's copies of node.exe either (%LOCALAPPDATA%\Portly\node, about 90 MB).
-    & robocopy $realData $testData /E /XD (Join-Path $realData 'backups') (Join-Path $realData 'logs') (Get-HbRuntimeDir) /NFL /NDL /NJH /NJS /NP | Out-Null
+    & robocopy $realData $testData /E /XD (Join-Path $realData 'backups') (Join-Path $realData 'logs') (Get-PtRuntimeDir) /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "Copying the data folder failed (robocopy exit code $LASTEXITCODE)." }
-    Write-HbOk 'Copied.'
+    Write-PtOk 'Copied.'
 
     # --- 4. Start the test server and the stand-in Pages site ----------------------------------
-    Write-HbStep 'Starting the test server and the stand-in Pages site'
+    Write-PtStep 'Starting the test server and the stand-in Pages site'
     $testEnv = @{
         PORTLY_PORT      = "$port"
         PORTLY_DATA_DIR  = $testData
@@ -212,23 +212,23 @@ try {
     $pages = Start-Process -FilePath $node -ArgumentList "`"$vite`"", 'preview', '--mode', 'static' -WorkingDirectory (Join-Path $checkout 'web') -PassThru -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $testData 'try-pages.out.log') -RedirectStandardError (Join-Path $testData 'try-pages.err.log')
 
-    $health = Wait-HbHealth -Port $port -TimeoutSeconds 30 -ContinueWhile { -not $server.HasExited }
+    $health = Wait-PtHealth -Port $port -TimeoutSeconds 30 -ContinueWhile { -not $server.HasExited }
     if (-not $health.Ok) {
-        Write-HbLogTail -LogFile (Join-Path $testData 'try-server.err.log')
-        throw "The test server did not start: $(Format-HbHealth $health)"
+        Write-PtLogTail -LogFile (Join-Path $testData 'try-server.err.log')
+        throw "The test server did not start: $(Format-PtHealth $health)"
     }
-    Write-HbOk "Test server $(Format-HbHealth $health)"
+    Write-PtOk "Test server $(Format-PtHealth $health)"
     $deadline = [System.DateTime]::UtcNow.AddSeconds(20)
     do {
-        $listeners = Get-HbPortListeners -Port $PagesPort
+        $listeners = Get-PtPortListeners -Port $PagesPort
         if ($null -ne $listeners -and $listeners.Count -gt 0) { break }
         Start-Sleep -Milliseconds 500
     } while (-not $pages.HasExited -and [System.DateTime]::UtcNow -lt $deadline)
     if ($pages.HasExited -or $null -eq $listeners -or $listeners.Count -eq 0) {
-        Write-HbLogTail -LogFile (Join-Path $testData 'try-pages.err.log')
+        Write-PtLogTail -LogFile (Join-Path $testData 'try-pages.err.log')
         throw "The stand-in Pages site did not start on port $PagesPort."
     }
-    Write-HbOk "Stand-in Pages site at $pagesUrl"
+    Write-PtOk "Stand-in Pages site at $pagesUrl"
 
     Write-Host ''
     Write-Host 'Ready. Try it in your browser:' -ForegroundColor Green
@@ -241,7 +241,7 @@ try {
     [void](Read-Host 'Press Enter to stop the test and restart your normal Portly')
 } finally {
     # --- 5. Clean up and restore ---------------------------------------------------------------
-    Write-HbStep 'Stopping the test and restoring your normal Portly'
+    Write-PtStep 'Stopping the test and restoring your normal Portly'
     foreach ($process in @($server, $pages)) {
         if ($null -ne $process -and -not $process.HasExited) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
@@ -253,23 +253,23 @@ try {
     }
     if (Test-Path -LiteralPath $testData) {
         if ($KeepData) {
-            Write-HbInfo "Kept the test copy: $testData (delete it when you are done; it holds your encrypted credentials)."
+            Write-PtInfo "Kept the test copy: $testData (delete it when you are done; it holds your encrypted credentials)."
         } else {
             Remove-Item -LiteralPath $testData -Recurse -Force -ErrorAction SilentlyContinue
-            if (Test-Path -LiteralPath $testData) { Write-HbInfo "Could not delete $testData completely; delete it by hand." }
-            else { Write-HbOk 'Deleted the test copy.' }
+            if (Test-Path -LiteralPath $testData) { Write-PtInfo "Could not delete $testData completely; delete it by hand." }
+            else { Write-PtOk 'Deleted the test copy.' }
         }
     }
     if ($taskWasEnabled) {
         Enable-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath | Out-Null
-        Write-HbOk "Task '$PortlyTaskName' enabled again."
+        Write-PtOk "Task '$PortlyTaskName' enabled again."
     }
     if ($null -ne $task) {
-        Start-HbTask
-        $back = Wait-HbHealth -Port $port -TimeoutSeconds 60
-        if ($back.Ok) { Write-HbOk "Your Portly is $(Format-HbHealth $back)" }
-        else { Write-HbFailure "Your Portly did not come back: $(Format-HbHealth $back). Try: portly --start" }
+        Start-PtTask
+        $back = Wait-PtHealth -Port $port -TimeoutSeconds 60
+        if ($back.Ok) { Write-PtOk "Your Portly is $(Format-PtHealth $back)" }
+        else { Write-PtFailure "Your Portly did not come back: $(Format-PtHealth $back). Try: portly --start" }
     } else {
-        Write-HbInfo "No '$PortlyTaskName' task is installed: start your Portly the way you usually do."
+        Write-PtInfo "No '$PortlyTaskName' task is installed: start your Portly the way you usually do."
     }
 }

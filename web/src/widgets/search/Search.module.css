@@ -5,7 +5,7 @@
   align-items: center;
   height: 100%;
   min-height: 50px;
-  padding: 3px var(--hb-space-3);
+  padding: 3px var(--pt-space-3);
 }
 
 .skeleton {
@@ -27,31 +27,31 @@
   min-width: 0;
   height: 44px;
   padding: 0 4px;
-  border: 1px solid var(--hb-border-strong);
-  border-radius: var(--hb-radius-full);
-  background: var(--hb-surface);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--hb-text) 6%, transparent);
+  border: 1px solid var(--pt-border-strong);
+  border-radius: var(--pt-radius-full);
+  background: var(--pt-surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--pt-text) 6%, transparent);
   transition:
-    border-color var(--hb-hover-duration) var(--hb-ease),
-    box-shadow var(--hb-duration) var(--hb-ease);
+    border-color var(--pt-hover-duration) var(--pt-ease),
+    box-shadow var(--pt-duration) var(--pt-ease);
 }
 
 .shell:hover {
-  border-color: color-mix(in srgb, var(--hb-accent) 35%, var(--hb-border-strong));
+  border-color: color-mix(in srgb, var(--pt-accent) 35%, var(--pt-border-strong));
 }
 
 .shell:focus-within {
-  border-color: var(--hb-accent);
+  border-color: var(--pt-accent);
   box-shadow:
-    0 0 0 3px var(--hb-accent-soft),
-    0 4px 16px -8px color-mix(in srgb, var(--hb-accent) 45%, transparent);
+    0 0 0 3px var(--pt-accent-soft),
+    0 4px 16px -8px color-mix(in srgb, var(--pt-accent) 45%, transparent);
 }
 
 .leadingIcon {
   width: 18px;
   height: 18px;
   margin-left: 10px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .chip {
@@ -63,28 +63,28 @@
   height: 34px;
   padding: 0 8px 0 7px;
   border: 0;
-  border-radius: var(--hb-radius-full);
-  background: var(--hb-surface-2);
-  color: var(--hb-text);
-  font-size: var(--hb-text-sm);
+  border-radius: var(--pt-radius-full);
+  background: var(--pt-surface-2);
+  color: var(--pt-text);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
   white-space: nowrap;
-  transition: background var(--hb-hover-duration) var(--hb-ease);
+  transition: background var(--pt-hover-duration) var(--pt-ease);
 }
 
 button.chip:hover,
 button.chip[data-state='open'] {
-  background: var(--hb-surface-3);
+  background: var(--pt-surface-3);
 }
 
 button.chip:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: 1px;
 }
 
 .shell[data-switched='true'] .chip {
-  background: var(--hb-accent-soft);
-  color: var(--hb-accent-text);
+  background: var(--pt-accent-soft);
+  color: var(--pt-accent-text);
 }
 
 .chipName {
@@ -95,7 +95,7 @@ button.chip:focus-visible {
 .chipChevron {
   width: 14px;
   height: 14px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .chipClear {
@@ -107,13 +107,13 @@ button.chip:focus-visible {
   margin-right: -2px;
   padding: 0;
   border: 0;
-  border-radius: var(--hb-radius-full);
+  border-radius: var(--pt-radius-full);
   background: transparent;
   color: inherit;
 }
 
 .chipClear:hover {
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 .chipClear svg {
@@ -129,12 +129,12 @@ button.chip:focus-visible {
   border: 0;
   outline: none;
   background: transparent;
-  color: var(--hb-text);
-  font-size: var(--hb-text-lg);
+  color: var(--pt-text);
+  font-size: var(--pt-text-lg);
 }
 
 .input::placeholder {
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
 }
 
 .input:focus-visible {
@@ -142,7 +142,7 @@ button.chip:focus-visible {
 }
 
 .clear {
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .shell .submit,
@@ -151,13 +151,13 @@ button.chip:focus-visible {
   width: 34px;
   height: 34px;
   padding: 0;
-  border-radius: var(--hb-radius-full);
+  border-radius: var(--pt-radius-full);
 }
 
 .menuEngine {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
   width: 100%;
 }
@@ -174,7 +174,7 @@ button.chip:focus-visible {
   max-width: 17rem;
   margin: 0;
   padding: 4px 8px 6px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -200,8 +200,8 @@ button.chip:focus-visible {
 
 .sectionLabel {
   padding: 8px 10px 4px;
-  color: var(--hb-text-subtle);
-  font-size: var(--hb-text-xs);
+  color: var(--pt-text-subtle);
+  font-size: var(--pt-text-xs);
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -214,26 +214,26 @@ button.chip:focus-visible {
   min-width: 0;
   min-height: 36px;
   padding: 7px 10px;
-  border-radius: var(--hb-radius-md);
-  color: var(--hb-text);
-  font-size: var(--hb-text-md);
+  border-radius: var(--pt-radius-md);
+  color: var(--pt-text);
+  font-size: var(--pt-text-md);
   cursor: pointer;
   user-select: none;
 }
 
 .option[aria-selected='true'] {
-  background: var(--hb-accent-soft);
+  background: var(--pt-accent-soft);
 }
 
 .option:hover:not([aria-selected='true']) {
-  background: var(--hb-hover);
+  background: var(--pt-hover);
 }
 
 .optionIcon {
   width: 16px;
   height: 16px;
   flex: none;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .optionText {
@@ -255,8 +255,8 @@ button.chip:focus-visible {
   flex: none;
   max-width: 45%;
   overflow: hidden;
-  color: var(--hb-text-muted);
-  font-size: var(--hb-text-xs);
+  color: var(--pt-text-muted);
+  font-size: var(--pt-text-xs);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -271,19 +271,19 @@ button.chip:focus-visible {
   width: 14px;
   height: 14px;
   flex: none;
-  color: var(--hb-text-subtle);
+  color: var(--pt-text-subtle);
 }
 
 .hint {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   margin: 0 0 4px;
   padding: 8px 10px;
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-surface-2);
-  color: var(--hb-text-muted);
-  font-size: var(--hb-text-sm);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface-2);
+  color: var(--pt-text-muted);
+  font-size: var(--pt-text-sm);
 }
 
 @container (max-width: 420px) {
@@ -296,7 +296,7 @@ button.chip:focus-visible {
   }
 
   .input {
-    font-size: var(--hb-text-md);
+    font-size: var(--pt-text-md);
   }
 }
 

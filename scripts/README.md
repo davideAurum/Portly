@@ -70,15 +70,15 @@ task does not run `node.exe` itself but copies named for Portly, in `%LOCALAPPDA
 | `runtime.json` | `{"version":1,"source":"<node.exe>","nodeVersion":"<x.y.z>"}`: what they were copied from. |
 
 The copies are not modified, so the Processes tab still says "Node.js JavaScript Runtime" and the
-signature stays valid. `Update-HbRuntimeCopies` (in `lib\Common.ps1`) makes them current (same
+signature stays valid. `Update-PtRuntimeCopies` (in `lib\Common.ps1`) makes them current (same
 size and modification time as the source), checks that `portly-supervisor.exe` runs and reports
 the source's version, and writes `runtime.json`. Windows PowerShell 5.1 opens a file for writing
 to set its modification time, which fails while another program (a virus scanner reading the new
-copy) has it open, so that step is tried again for up to 1.5 s (`Invoke-HbSharingRetry`); a copy
+copy) has it open, so that step is tried again for up to 1.5 s (`Invoke-PtSharingRetry`); a copy
 that stays in use is still reported. `install-autostart.ps1` runs it before registering
 the task and again after stopping a Portly that runs from them; when they cannot be made or do not
 run (for example a policy that blocks programs in `%LOCALAPPDATA%`), the task runs `node.exe`
-itself. `Start-HbTask` (used by `update.ps1`, `portly --start` and `try-branch.ps1`) refreshes them first when the source was updated (`Sync-HbTaskRuntime`).
+itself. `Start-PtTask` (used by `update.ps1`, `portly --start` and `try-branch.ps1`) refreshes them first when the source was updated (`Sync-PtTaskRuntime`).
 `status.ps1` shows what the task runs as and warns about a missing or out-of-date copy;
 `uninstall-autostart.ps1` deletes the folder after the task; `install.ps1` also stops copies whose
 command line names its `app\` folder.
@@ -90,7 +90,7 @@ command line names its `app\` folder.
 | Name | `com.portly.launcher` |
 | Files | `%LOCALAPPDATA%\Portly\native-host\`: `launcher.cmd` (generated from `native-host\launcher.cmd` with the absolute `node.exe`), `launcher.mjs` (copied from `native-host\`), `com.portly.launcher.json` (host manifest: name, description, absolute `path` to `launcher.cmd`, `type: stdio`, `allowed_origins: ["chrome-extension://<id>/"]`), `config.json` (the same allowed origin, checked again by the launcher); `launcher.log` is written by the launcher |
 | Registry | Default value of `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.portly.launcher` and `HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.portly.launcher` = path of the host manifest |
-| Extension ID | Computed from the `key` in `extension\manifest.json`: SHA-256 of the base64-decoded key, first 16 bytes as hex, digits 0-f mapped to a-p (`Get-HbExtensionIdFromKey`). The installer refuses to register the host when the manifest has no `key` (`-NoNativeHost` skips it, `-ExtensionId` overrides it). |
+| Extension ID | Computed from the `key` in `extension\manifest.json`: SHA-256 of the base64-decoded key, first 16 bytes as hex, digits 0-f mapped to a-p (`Get-PtExtensionIdFromKey`). The installer refuses to register the host when the manifest has no `key` (`-NoNativeHost` skips it, `-ExtensionId` overrides it). |
 
 The host never starts the server itself: it only runs `%SystemRoot%\System32\schtasks.exe /run /tn
 "\Portly Server"`, so the server is created by the Task Scheduler service and is not part of the

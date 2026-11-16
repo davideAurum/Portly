@@ -7,7 +7,7 @@
 .field[data-inline='true'] {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: var(--hb-space-4);
+  column-gap: var(--pt-space-4);
 }
 
 .field[data-inline='true'] .help,
@@ -17,13 +17,13 @@
 }
 
 .label {
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .required {
-  color: var(--hb-danger);
+  color: var(--pt-danger);
 }
 
 .control {
@@ -31,14 +31,14 @@
 }
 
 .help {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 .error {
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 500;
-  color: var(--hb-danger);
+  color: var(--pt-danger);
 }
 
 .group {
@@ -50,18 +50,18 @@
 
 .legend {
   padding: 0;
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
   font-weight: 650;
 }
 
 .groupDescription {
   margin-top: 2px;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .groupBody {
   display: grid;
-  gap: var(--hb-space-4);
-  margin-top: var(--hb-space-3);
+  gap: var(--pt-space-4);
+  margin-top: var(--pt-space-3);
 }

@@ -38,7 +38,7 @@ export default function SearchSettings({ value, onChange }: WidgetSettingsProps<
       </Field>
       {value.engineIds !== 'all' ? (
         <fieldset className={styles.checklist}>
-          <legend className="hb-visually-hidden">Engines in this widget</legend>
+          <legend className="pt-visually-hidden">Engines in this widget</legend>
           {engines.map((engine) => (
             <div key={engine.id} className={styles.checkRow}>
               <SiteIcon label={engine.name} iconId={engine.iconId} size={18} />

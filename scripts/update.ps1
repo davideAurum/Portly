@@ -91,7 +91,7 @@ function Invoke-UpdateGit {
 # True when npm ci must run: no install yet, or package-lock.json changed since the last one.
 function Test-UpdateDependenciesStale {
     param([Parameter(Mandatory)][string]$RepoRoot)
-    if (-not (Test-HbDependenciesInstalled -RepoRoot $RepoRoot)) { return $true }
+    if (-not (Test-PtDependenciesInstalled -RepoRoot $RepoRoot)) { return $true }
     $installed = Join-Path $RepoRoot 'node_modules\.package-lock.json'
     if (-not (Test-Path -LiteralPath $installed -PathType Leaf)) { return $true }
     $lock = Get-Item -LiteralPath (Join-Path $RepoRoot 'package-lock.json')
@@ -110,13 +110,13 @@ function Test-UpdateTaskRunsHere {
 
 function Stop-UpdateServer {
     param([Parameter(Mandatory)][string]$RepoRoot)
-    $task = Get-HbTask
+    $task = Get-PtTask
     if ($null -ne $task -and "$($task.State)" -eq 'Running') {
         Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
     }
-    $stopped = @(Stop-HbSupervisorProcesses -RepoRoot $RepoRoot)
+    $stopped = @(Stop-PtSupervisorProcesses -RepoRoot $RepoRoot)
     if ($stopped.Count -gt 0) {
-        Write-HbInfo "Stopped PID $($stopped -join ', ')"
+        Write-PtInfo "Stopped PID $($stopped -join ', ')"
         Start-Sleep -Milliseconds 500
     }
 }
@@ -124,16 +124,16 @@ function Stop-UpdateServer {
 function Start-UpdateServer {
     param([Parameter(Mandatory)][int]$Port)
     # Refreshes Portly's copies of node.exe first, when the task runs them and they are out of date.
-    Start-HbTask
-    Write-HbInfo "Waiting up to $TimeoutSeconds s for http://localhost:$Port/api/health ..."
-    $health = Wait-HbHealth -Port $Port -TimeoutSeconds $TimeoutSeconds
-    if (-not $health.Ok) { throw "The server did not come back: $(Format-HbHealth $health). Run scripts\status.ps1 -LogLines 30." }
-    Write-HbOk "Server $(Format-HbHealth $health)"
+    Start-PtTask
+    Write-PtInfo "Waiting up to $TimeoutSeconds s for http://localhost:$Port/api/health ..."
+    $health = Wait-PtHealth -Port $Port -TimeoutSeconds $TimeoutSeconds
+    if (-not $health.Ok) { throw "The server did not come back: $(Format-PtHealth $health). Run scripts\status.ps1 -LogLines 30." }
+    Write-PtOk "Server $(Format-PtHealth $health)"
 }
 
 function Invoke-Update {
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
-    if (Test-HbWorktreePath -Path $repoRoot) {
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
+    if (Test-PtWorktreePath -Path $repoRoot) {
         throw ("This is a temporary worktree ($repoRoot). Merge into main and run the script from the main checkout " +
             '(the folder that holds .claude\worktrees) instead.')
     }
@@ -141,7 +141,7 @@ function Invoke-Update {
 
     $branch = Invoke-UpdateGit -RepoRoot $repoRoot -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')
     $commit = Invoke-UpdateGit -RepoRoot $repoRoot -Arguments @('log', '-1', '--format=%h %s')
-    if ($null -ne $commit) { Write-HbStep "${prefix}Updating Portly from $($branch -join '') at $($commit -join '')" }
+    if ($null -ne $commit) { Write-PtStep "${prefix}Updating Portly from $($branch -join '') at $($commit -join '')" }
     if ($null -ne $branch -and ($branch -join '') -ne 'main') {
         Write-Warning "The checked-out branch is '$($branch -join '')', not main."
     }
@@ -158,9 +158,9 @@ function Invoke-Update {
         Write-Warning "Building and publishing $dirtyCount uncommitted change(s) as they are (-AllowDirty)."
     }
 
-    $port = (Get-HbPortSetting -Scope Task).Port
+    $port = (Get-PtPortSetting -Scope Task).Port
     $task = $null
-    if (Test-HbScheduledTasksAvailable) { $task = Get-HbTask }
+    if (Test-PtScheduledTasksAvailable) { $task = Get-PtTask }
     $restart = $false
     $taskElsewhere = $false
     if (-not $SkipServer -and $null -ne $task) {
@@ -168,16 +168,16 @@ function Invoke-Update {
             $taskElsewhere = $true
             Write-Warning "The '$PortlyTaskName' task runs another folder, so the server is not restarted. Re-run install-autostart.ps1 from $repoRoot to fix that."
         } else {
-            $restart = "$($task.State)" -eq 'Running' -or @(Get-HbSupervisorProcesses -RepoRoot $repoRoot).Count -gt 0
+            $restart = "$($task.State)" -eq 'Running' -or @(Get-PtSupervisorProcesses -RepoRoot $repoRoot).Count -gt 0
         }
     }
     $stopped = $false
 
     if (Test-UpdateDependenciesStale -RepoRoot $repoRoot) {
-        Write-HbStep "${prefix}Installing dependencies (package-lock.json changed): npm ci"
+        Write-PtStep "${prefix}Installing dependencies (package-lock.json changed): npm ci"
         if (-not $DryRun) {
             if ($restart) {
-                Write-HbInfo 'Stopping the server first (it runs from node_modules)'
+                Write-PtInfo 'Stopping the server first (it runs from node_modules)'
                 Stop-UpdateServer -RepoRoot $repoRoot
                 $stopped = $true
             }
@@ -185,39 +185,39 @@ function Invoke-Update {
         }
     }
 
-    Write-HbStep "${prefix}Building the local page (web\dist): npm run build"
+    Write-PtStep "${prefix}Building the local page (web\dist): npm run build"
     if (-not $DryRun) {
         Invoke-UpdateNpm -RepoRoot $repoRoot -Arguments @('run', 'build')
-        Write-HbOk 'Built web\dist'
+        Write-PtOk 'Built web\dist'
     }
 
     if ($restart) {
-        Write-HbStep "${prefix}Restarting the server (task '$PortlyTaskName', port $port)"
+        Write-PtStep "${prefix}Restarting the server (task '$PortlyTaskName', port $port)"
         if ($DryRun) {
-            $note = Sync-HbTaskRuntime -Task $task -DryRun
-            if ($note) { Write-HbInfo $note }
+            $note = Sync-PtTaskRuntime -Task $task -DryRun
+            if ($note) { Write-PtInfo $note }
         } else {
             if (-not $stopped) { Stop-UpdateServer -RepoRoot $repoRoot }
             Start-UpdateServer -Port $port
         }
     } elseif (-not $SkipServer -and -not $taskElsewhere) {
-        Write-HbInfo 'The server is not running; it uses the new code the next time it starts.'
+        Write-PtInfo 'The server is not running; it uses the new code the next time it starts.'
     }
 
     if ($SkipPublish) { return 0 }
     if ([string]::IsNullOrWhiteSpace($PublicRepoPath)) {
-        $PublicRepoPath = Get-HbEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task
+        $PublicRepoPath = Get-PtEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task
     }
     if ([string]::IsNullOrWhiteSpace($PublicRepoPath)) {
         Write-Warning 'GitHub Pages not published: pass -PublicRepoPath or set the PORTLY_PAGES_REPO user environment variable.'
         return 0
     }
-    Write-HbStep "${prefix}Publishing the GitHub Pages site from $PublicRepoPath"
+    Write-PtStep "${prefix}Publishing the GitHub Pages site from $PublicRepoPath"
     $publishArgs = @{ PublicRepoPath = $PublicRepoPath }
     if ($DryRun) { $publishArgs.DryRun = $true }
     & (Join-Path $PSScriptRoot 'publish-static.ps1') @publishArgs
     if ($LASTEXITCODE -ne 0) { throw "publish-static.ps1 failed (exit code $LASTEXITCODE)." }
-    if (-not $DryRun) { Write-HbOk 'Everything is updated. Reload open Portly tabs with Ctrl+F5.' }
+    if (-not $DryRun) { Write-PtOk 'Everything is updated. Reload open Portly tabs with Ctrl+F5.' }
     return 0
 }
 
@@ -229,7 +229,7 @@ try {
     [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
     $exitCode = Invoke-Update | Select-Object -Last 1
 } catch {
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     $exitCode = 1
 } finally {
     try { [Console]::OutputEncoding = $savedOutputEncoding } catch { }

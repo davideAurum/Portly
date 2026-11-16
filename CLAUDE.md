@@ -9,8 +9,7 @@ A single-user browser home page for Windows 11. A Node 24 server bound to loopba
 `node:sqlite`, DPAPI-protected vault) serves a React 19 + Vite 8 app. A Manifest V3 extension
 makes it the New Tab page and starts the server through a native messaging host and a per-user
 scheduled task. The same app also builds as a browser-only static site (GitHub Pages) that can
-use a paired local server ("hybrid mode", ARCHITECTURE section 16). Portly was previously named
-Homebase; see "Renamed from Homebase".
+use a paired local server ("hybrid mode", ARCHITECTURE section 16).
 
 ## Layout
 | Path | What |
@@ -72,8 +71,7 @@ Homebase; see "Renamed from Homebase".
   editors and `sed` silently write LF; `check-scripts.ps1` catches it.
 - Must run in Windows PowerShell 5.1 and PowerShell 7 under `Set-StrictMode -Version 3.0`.
 - A function returning `return , $array` must be assigned, never wrapped in `@(...)`.
-- Helpers keep their `Hb` prefix (`Get-HbRepoRoot`, ...) from before the rename. This is
-  intentional.
+- Helpers use the `Pt` prefix (`Get-PtRepoRoot`, ...).
 - Every script that changes the machine has a side-effect-free `-DryRun`. Self-checks use only
   dry runs and fakes, and must never register a task, write the registry or start a real server.
 - Run as `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\<name>.ps1`.
@@ -105,19 +103,7 @@ Homebase; see "Renamed from Homebase".
 - Versions come from `package.json`. A release tags the exact commit it was built from, and a
   version can be published once.
 
-## Renamed from Homebase (ARCHITECTURE section 19)
-Everything user-facing and internal is Portly. The code that copied a Homebase install over is
-gone; 0.2.0-alpha.5 is the last version that has it. What is left stays on purpose:
-- import of `homebase-export` files;
-- the redirect pages in `davideAurum/homebase-site`. The 0.2.0-alpha.1 footer and old consent
-  screens link there, so keep that repository and its Pages site up.
-
-Do not rename:
-- the vault canary `homebase-vault-canary-v1`;
-- the bookmark import source seed;
-- the `--hb-*` CSS custom properties and `hb-*` classes in `web/src`. They keep the old prefix
-  on purpose, like the PowerShell `Hb` helpers.
-
+## Fixed names
 Never change the extension `key` in `extension/manifest.json`. Its ID is pinned in the
 extension, the native host and the docs.
 

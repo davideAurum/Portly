@@ -21,23 +21,23 @@
   gap: 10px;
   flex: 1 1 0;
   min-height: 0;
-  padding: 6px var(--hb-space-4) var(--hb-space-2);
+  padding: 6px var(--pt-space-4) var(--pt-space-2);
 }
 
 .root[data-tier='large'] .layout {
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
 }
 
 .root[data-tier='compact'] .layout {
   justify-content: center;
-  padding-block: var(--hb-space-2);
+  padding-block: var(--pt-space-2);
 }
 
 /* Short but wide cards: the current conditions and a short hourly strip side by side. */
 .root[data-tier='compact'][data-wide='true'] .layout {
   flex-direction: row;
   align-items: center;
-  gap: var(--hb-space-4);
+  gap: var(--pt-space-4);
 }
 
 .root[data-tier='compact'][data-wide='true'] .current {
@@ -54,31 +54,31 @@
 
 .weatherIcon {
   flex: none;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .weatherIcon[data-tone='sun'] {
-  color: var(--hb-warning);
+  color: var(--pt-warning);
 }
 
 .weatherIcon[data-tone='partly'] {
-  color: color-mix(in srgb, var(--hb-warning) 70%, var(--hb-text-muted));
+  color: color-mix(in srgb, var(--pt-warning) 70%, var(--pt-text-muted));
 }
 
 .weatherIcon[data-tone='moon'] {
-  color: color-mix(in srgb, var(--hb-accent) 45%, var(--hb-text-muted));
+  color: color-mix(in srgb, var(--pt-accent) 45%, var(--pt-text-muted));
 }
 
 .weatherIcon[data-tone='rain'] {
-  color: var(--hb-accent);
+  color: var(--pt-accent);
 }
 
 .weatherIcon[data-tone='snow'] {
-  color: color-mix(in srgb, var(--hb-accent) 55%, var(--hb-text));
+  color: color-mix(in srgb, var(--pt-accent) 55%, var(--pt-text));
 }
 
 .weatherIcon[data-tone='storm'] {
-  color: color-mix(in srgb, var(--hb-warning) 60%, var(--hb-text));
+  color: color-mix(in srgb, var(--pt-warning) 60%, var(--pt-text));
 }
 
 /* ---- Current conditions ------------------------------------------------- */
@@ -86,7 +86,7 @@
 .current {
   display: flex;
   align-items: center;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
   min-width: 0;
   flex: none;
 }
@@ -111,7 +111,7 @@
   display: flex;
   align-items: flex-start;
   line-height: 1;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .tempValue {
@@ -127,14 +127,14 @@
 .tempUnit {
   margin-top: 4px;
   margin-left: 1px;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .condition {
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -142,7 +142,7 @@
 
 .compactPlace {
   display: none;
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -158,8 +158,8 @@
   min-width: 0;
   margin-left: auto;
   text-align: right;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .place {
@@ -169,14 +169,14 @@
   max-width: 100%;
   min-width: 0;
   font-weight: 600;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .placeIcon {
   width: 13px;
   height: 13px;
   flex: none;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .placeName,
@@ -189,7 +189,7 @@
 }
 
 .placeDetail {
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
 }
 
 .feels,
@@ -202,13 +202,13 @@
 .details {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px var(--hb-space-4);
+  gap: 4px var(--pt-space-4);
   flex: none;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text);
 }
 
 .detail {
@@ -221,7 +221,7 @@
 .detailIcon {
   width: 14px;
   height: 14px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .sunsetIcon {
@@ -232,7 +232,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .windDir abbr {
@@ -253,16 +253,16 @@
 
   position: relative;
   flex: none;
-  margin-inline: calc(var(--hb-space-4) * -1);
-  padding-inline: var(--hb-space-4);
-  scroll-padding-inline: var(--hb-space-4);
+  margin-inline: calc(var(--pt-space-4) * -1);
+  padding-inline: var(--pt-space-4);
+  scroll-padding-inline: var(--pt-space-4);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   /* No scrollbar (it would cost the card ~10 px of height): faded edges show there is more,
      and wheel, touch, drag-scroll and arrow keys all scroll the strip. */
   scrollbar-width: none;
-  border-radius: var(--hb-radius-md);
+  border-radius: var(--pt-radius-md);
   mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent 100%);
 }
 
@@ -279,7 +279,7 @@
 }
 
 .hourly:focus-visible {
-  outline: 2px solid var(--hb-focus);
+  outline: 2px solid var(--pt-focus);
   outline-offset: -2px;
 }
 
@@ -297,23 +297,23 @@
   gap: 3px;
   min-width: 46px;
   padding: 5px 4px;
-  border-radius: var(--hb-radius-md);
+  border-radius: var(--pt-radius-md);
   scroll-snap-align: start;
 }
 
 .hour[data-now='true'] {
-  background: color-mix(in srgb, var(--hb-text) 6%, transparent);
+  background: color-mix(in srgb, var(--pt-text) 6%, transparent);
 }
 
 .hourTime {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
   white-space: nowrap;
 }
 
 .hour[data-now='true'] .hourTime {
   font-weight: 650;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .hourIcon {
@@ -322,7 +322,7 @@
 }
 
 .hourTemp {
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
   font-weight: 600;
 }
 
@@ -335,12 +335,12 @@
 
 .hourPrecip {
   font-weight: 600;
-  color: var(--hb-accent-text);
+  color: var(--pt-accent-text);
 }
 
 .dayStripMin {
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
 }
 
 /* ---- 7-day list ---------------------------------------------------------- */
@@ -352,31 +352,31 @@
   gap: 2px;
   flex: 1;
   min-height: 0;
-  margin: 0 calc(var(--hb-space-2) * -1);
-  padding: var(--hb-space-2) 0 0;
+  margin: 0 calc(var(--pt-space-2) * -1);
+  padding: var(--pt-space-2) 0 0;
   overflow-y: auto;
   list-style: none;
-  border-top: 1px solid var(--hb-border);
+  border-top: 1px solid var(--pt-border);
 }
 
 .day {
   display: grid;
   grid-template-columns: minmax(3.2em, auto) 22px 2.6em 2.4em minmax(40px, 1fr) 2.4em;
   align-items: center;
-  column-gap: var(--hb-space-2);
+  column-gap: var(--pt-space-2);
   min-height: 28px;
-  padding: 0 var(--hb-space-2);
-  border-radius: var(--hb-radius-sm);
-  font-size: var(--hb-text-sm);
+  padding: 0 var(--pt-space-2);
+  border-radius: var(--pt-radius-sm);
+  font-size: var(--pt-text-sm);
 }
 
 .day[data-today='true'] .dayName {
   font-weight: 650;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .dayName {
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -388,14 +388,14 @@
 }
 
 .dayPrecip {
-  font-size: var(--hb-text-xs);
+  font-size: var(--pt-text-xs);
   font-weight: 600;
-  color: var(--hb-accent-text);
+  color: var(--pt-accent-text);
 }
 
 .dayMin {
   text-align: right;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .dayMax {
@@ -405,29 +405,29 @@
 .dayBar {
   position: relative;
   height: 6px;
-  border-radius: var(--hb-radius-full);
-  background: color-mix(in srgb, var(--hb-text) 9%, transparent);
+  border-radius: var(--pt-radius-full);
+  background: color-mix(in srgb, var(--pt-text) 9%, transparent);
 }
 
 .dayRange {
   position: absolute;
   inset-block: 0;
-  left: var(--hb-range-from);
-  right: calc(100% - var(--hb-range-to));
+  left: var(--pt-range-from);
+  right: calc(100% - var(--pt-range-to));
   min-width: 6px;
   border-radius: inherit;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--hb-accent) 80%, var(--hb-surface)), var(--hb-warning));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pt-accent) 80%, var(--pt-surface)), var(--pt-warning));
 }
 
 .dayNow {
   position: absolute;
   top: 50%;
-  left: var(--hb-range-at);
+  left: var(--pt-range-at);
   width: 8px;
   height: 8px;
-  border: 2px solid var(--hb-surface);
+  border: 2px solid var(--pt-surface);
   border-radius: 50%;
-  background: var(--hb-text);
+  background: var(--pt-text);
   transform: translate(-50%, -50%);
 }
 
@@ -436,13 +436,13 @@
 /* One small muted line; it tucks into the layout's bottom padding so it costs ~13 px of height. */
 .attribution {
   flex: none;
-  margin: calc(var(--hb-space-1) * -1) 0 0;
-  padding: 0 var(--hb-space-4) 3px;
+  margin: calc(var(--pt-space-1) * -1) 0 0;
+  padding: 0 var(--pt-space-4) 3px;
   font-size: 11px;
   line-height: 1.25;
   text-align: right;
   white-space: nowrap;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .attribution .attributionLink {
@@ -452,7 +452,7 @@
 }
 
 .attribution .attributionLink:hover {
-  color: var(--hb-text);
+  color: var(--pt-text);
   text-decoration: underline;
 }
 
@@ -468,22 +468,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   height: 100%;
-  padding: var(--hb-space-4);
-  font-size: var(--hb-text-sm);
-  color: var(--hb-text-muted);
+  padding: var(--pt-space-4);
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
 }
 
 .statusIcon {
   width: 18px;
   height: 18px;
-  color: var(--hb-accent);
+  color: var(--pt-accent);
   /* Finite: an endless pulse keeps the GPU producing frames. */
-  animation: hb-weather-pulse 1.4s ease-in-out 3;
+  animation: pt-weather-pulse 1.4s ease-in-out 3;
 }
 
-@keyframes hb-weather-pulse {
+@keyframes pt-weather-pulse {
   50% {
     opacity: 0.35;
   }
@@ -504,7 +504,7 @@
 
 .skeletonStrip {
   display: flex;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   overflow: hidden;
 }
 
@@ -559,7 +559,7 @@
   }
 
   .details {
-    gap: 2px var(--hb-space-3);
+    gap: 2px var(--pt-space-3);
   }
 
   .windDir,
@@ -580,7 +580,7 @@
   }
 
   .layout {
-    padding-inline: var(--hb-space-3);
+    padding-inline: var(--pt-space-3);
   }
 }
 
@@ -603,7 +603,7 @@
 /* Short cards: tighten the vertical rhythm. */
 @container weather (max-height: 90px) {
   .layout {
-    gap: var(--hb-space-1);
+    gap: var(--pt-space-1);
   }
 
   .condition {
@@ -622,7 +622,7 @@
 
 @container weather (max-height: 180px) {
   .root:not([data-tier='compact']) .layout {
-    gap: var(--hb-space-2);
+    gap: var(--pt-space-2);
   }
 
   .placeDetail {

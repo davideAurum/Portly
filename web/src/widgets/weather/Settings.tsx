@@ -131,8 +131,8 @@ export default function WeatherSettings({ value, onChange }: WidgetSettingsProps
         }}
       />
 
-      <div className={styles.group} role="group" aria-labelledby="hb-weather-show">
-        <p id="hb-weather-show" className={styles.groupLabel}>
+      <div className={styles.group} role="group" aria-labelledby="pt-weather-show">
+        <p id="pt-weather-show" className={styles.groupLabel}>
           Show
         </p>
         <Switch

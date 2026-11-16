@@ -28,7 +28,7 @@ import { isMoveKey, type MoveKey } from './layout.ts';
 import { WidgetFrameContext, type WidgetFrameContextValue } from './WidgetContext.tsx';
 import styles from './WidgetFrame.module.css';
 
-export const DRAG_HANDLE_CLASS = 'hb-drag-handle';
+export const DRAG_HANDLE_CLASS = 'pt-drag-handle';
 
 export interface WidgetFrameProps {
   instance: WidgetInstance;
@@ -95,7 +95,7 @@ export const WidgetFrame = memo(function WidgetFrame({ instance, profileId, edit
                 >
                   <GripVertical aria-hidden="true" />
                 </div>
-                <span id={moveHelpId} className="hb-visually-hidden">
+                <span id={moveHelpId} className="pt-visually-hidden">
                   Drag to move. With the keyboard, use the arrow keys to move and Shift with the arrow keys to resize.
                 </span>
               </>

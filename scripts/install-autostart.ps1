@@ -110,7 +110,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 
 # The same options, for the "run it again as administrator" hint.
-function Format-HbInstallArguments {
+function Format-PtInstallArguments {
     param([System.Collections.IDictionary]$Bound = @{})
     $parts = foreach ($name in @('Trigger', 'LogonDelaySeconds', 'NoNativeHost', 'ExtensionId', 'NodePath', 'TimeoutSeconds', 'NoStart')) {
         if (-not $Bound.ContainsKey($name)) { continue }
@@ -128,18 +128,18 @@ function Format-HbInstallArguments {
 
 function Invoke-Install {
     param([System.Collections.IDictionary]$Bound = @{})
-    if (-not (Test-HbWindows)) { throw 'Autostart uses Windows Task Scheduler and only works on Windows.' }
-    if (-not (Test-HbScheduledTasksAvailable)) {
+    if (-not (Test-PtWindows)) { throw 'Autostart uses Windows Task Scheduler and only works on Windows.' }
+    if (-not (Test-PtScheduledTasksAvailable)) {
         throw 'The ScheduledTasks PowerShell module is not available (it ships with Windows 8 and later).'
     }
     if ($Trigger -ne 'Logon' -and $Bound.ContainsKey('LogonDelaySeconds')) {
         throw '-LogonDelaySeconds only applies with -Trigger Logon.'
     }
 
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
     $scriptPath = Join-Path $PSScriptRoot 'install-autostart.ps1'
 
-    $hintArguments = Format-HbInstallArguments -Bound $Bound
+    $hintArguments = Format-PtInstallArguments -Bound $Bound
     $problems = New-Object System.Collections.Generic.List[string]
 
     if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'server\src\index.ts') -PathType Leaf)) {
@@ -149,26 +149,26 @@ function Invoke-Install {
     if (-not (Test-Path -LiteralPath $supervisor -PathType Leaf)) {
         $problems.Add("The supervisor is missing: $supervisor")
     }
-    if (-not (Test-HbDependenciesInstalled -RepoRoot $repoRoot)) {
+    if (-not (Test-PtDependenciesInstalled -RepoRoot $repoRoot)) {
         $problems.Add("Dependencies are not installed. In $repoRoot run: npm ci")
     }
     # A release install links node_modules\@portly\shared itself (install.ps1); put it back if
     # it went missing, before the configuration check below loads the server's code.
-    if (-not $DryRun -and $null -ne (Get-HbReleaseInfo -RepoRoot $repoRoot)) { $null = Initialize-HbReleaseLinks -RepoRoot $repoRoot }
+    if (-not $DryRun -and $null -ne (Get-PtReleaseInfo -RepoRoot $repoRoot)) { $null = Initialize-PtReleaseLinks -RepoRoot $repoRoot }
     $conhost = "$env:SystemRoot\System32\conhost.exe"
     if (-not (Test-Path -LiteralPath $conhost -PathType Leaf)) {
         $problems.Add("conhost.exe was not found at $conhost")
     }
 
-    $node = Resolve-HbNode -NodePath $NodePath -RepoRoot $repoRoot
+    $node = Resolve-PtNode -NodePath $NodePath -RepoRoot $repoRoot
     # Portly's named copies of node.exe, for Task Manager (made or refreshed below).
-    $runtimePlan = Get-HbRuntimePlan -NodeExe $node.Path
-    $portSetting = Get-HbPortSetting -Scope Task
+    $runtimePlan = Get-PtRuntimePlan -NodeExe $node.Path
+    $portSetting = Get-PtPortSetting -Scope Task
     $port = $portSetting.Port
-    $dataDir = Get-HbDataDir -Scope Task -RepoRoot $repoRoot
+    $dataDir = Get-PtDataDir -Scope Task -RepoRoot $repoRoot
     # The server's own config loader, with the environment the task gets: its output would be
     # lost there, so a value it rejects must be caught now.
-    $serverConfig = Test-HbServerConfig -NodeExe $node.Path -RepoRoot $repoRoot -Scope Task
+    $serverConfig = Test-PtServerConfig -NodeExe $node.Path -RepoRoot $repoRoot -Scope Task
     if ($serverConfig.Ok) {
         $port = $serverConfig.Port
         $dataDir = $serverConfig.DataDir
@@ -187,10 +187,10 @@ function Invoke-Install {
                 $allowedId = $ExtensionId
                 $idSource = '-ExtensionId'
             } else {
-                $allowedId = Get-HbExtensionIdFromManifest -ManifestPath (Join-Path $repoRoot 'extension\manifest.json')
+                $allowedId = Get-PtExtensionIdFromManifest -ManifestPath (Join-Path $repoRoot 'extension\manifest.json')
                 $idSource = 'from the "key" in extension\manifest.json'
             }
-            $nativeHost = New-HbNativeHostPlan -RepoRoot $repoRoot -NodeExe $node.Path -ExtensionId $allowedId
+            $nativeHost = New-PtNativeHostPlan -RepoRoot $repoRoot -NodeExe $node.Path -ExtensionId $allowedId
             $nativeHostText = "$PortlyNativeHostName for extension $allowedId ($idSource)"
         } catch {
             $problems.Add($_.Exception.Message)
@@ -198,13 +198,13 @@ function Invoke-Install {
         }
     }
 
-    $logFile = Get-HbLogFile -DataDir $dataDir
-    $supervisorLog = Get-HbSupervisorLogFile -DataDir $dataDir
-    $userId = Get-HbCurrentUserId
-    $webBuilt = Test-HbWebBuilt -RepoRoot $repoRoot
-    $existing = Get-HbTask
-    $releaseInstall = $null -ne (Get-HbReleaseInfo -RepoRoot $repoRoot)
-    $running = @(Get-HbSupervisorProcesses -RepoRoot $repoRoot)
+    $logFile = Get-PtLogFile -DataDir $dataDir
+    $supervisorLog = Get-PtSupervisorLogFile -DataDir $dataDir
+    $userId = Get-PtCurrentUserId
+    $webBuilt = Test-PtWebBuilt -RepoRoot $repoRoot
+    $existing = Get-PtTask
+    $releaseInstall = $null -ne (Get-PtReleaseInfo -RepoRoot $repoRoot)
+    $running = @(Get-PtSupervisorProcesses -RepoRoot $repoRoot)
     $startsText = if ($Trigger -eq 'Logon') {
         if ($LogonDelaySeconds -gt 0) { "at sign-in of $userId, after $LogonDelaySeconds s (-Trigger Logon)" } else { "at sign-in of $userId (-Trigger Logon)" }
     } else {
@@ -213,28 +213,28 @@ function Invoke-Install {
 
     Write-Host ''
     Write-Host 'Portly autostart' -ForegroundColor White
-    Write-HbField 'Repository' $repoRoot
-    Write-HbField 'Node.js' "$($node.Path) (v$($node.Version))"
-    Write-HbField 'Runs as' (Format-HbRuntimePlan -Plan $runtimePlan)
-    Write-HbField 'User' $userId
-    Write-HbField 'Starts' $startsText
-    Write-HbField 'Native host' $nativeHostText
-    Write-HbField 'Port' "$port ($($portSetting.Source))"
-    Write-HbField 'Data folder' $dataDir
-    Write-HbField 'Log files' "$logFile, $supervisorLog"
-    Write-HbField 'Configuration' $configText
+    Write-PtField 'Repository' $repoRoot
+    Write-PtField 'Node.js' "$($node.Path) (v$($node.Version))"
+    Write-PtField 'Runs as' (Format-PtRuntimePlan -Plan $runtimePlan)
+    Write-PtField 'User' $userId
+    Write-PtField 'Starts' $startsText
+    Write-PtField 'Native host' $nativeHostText
+    Write-PtField 'Port' "$port ($($portSetting.Source))"
+    Write-PtField 'Data folder' $dataDir
+    Write-PtField 'Log files' "$logFile, $supervisorLog"
+    Write-PtField 'Configuration' $configText
     if ($null -ne $existing) {
-        Write-HbField 'Existing task' "$($existing.State), $(Get-HbTaskTriggerMode -Task $existing) mode - it will be replaced"
+        Write-PtField 'Existing task' "$($existing.State), $(Get-PtTaskTriggerMode -Task $existing) mode - it will be replaced"
     } else {
-        Write-HbField 'Existing task' 'none'
+        Write-PtField 'Existing task' 'none'
     }
-    Write-HbField 'Running now' (Format-HbProcessList -Trees $running)
+    Write-PtField 'Running now' (Format-PtProcessList -Trees $running)
     Write-Host ''
 
     if ($node.LooksTemporary) {
         Write-Warning "$($node.Path) looks like a temporary, per-shell path (fnm/nvm shims). Pass -NodePath with a permanent node.exe so the task and the native host still work after a reboot."
     }
-    if (Test-HbTruthy (Get-HbEnvValue -Name 'PORTLY_DEV' -Scope Task)) {
+    if (Test-PtTruthy (Get-PtEnvValue -Name 'PORTLY_DEV' -Scope Task)) {
         Write-Warning 'PORTLY_DEV is set for your user, so the autostarted server would run in development mode (it expects the Vite dev server). Remove that environment variable unless you mean it.'
     }
     if ($port -lt 1024) {
@@ -244,7 +244,7 @@ function Invoke-Install {
         Write-Warning ('-Trigger Browser with -NoNativeHost: the task has no trigger and the browser cannot start it, so nothing starts Portly by itself. ' +
             "Start it with Start-ScheduledTask -TaskName '$PortlyTaskName', or drop -NoNativeHost.")
     }
-    foreach ($mismatch in @(Get-HbEnvMismatches)) {
+    foreach ($mismatch in @(Get-PtEnvMismatches)) {
         $inWindow = if ($null -ne $mismatch.Process) { "'$($mismatch.Process)'" } else { 'not set' }
         $forTask = if ($null -ne $mismatch.Task) { "'$($mismatch.Task)'" } else { 'not set' }
         Write-Warning ("$($mismatch.Name) is $inWindow in this PowerShell window but $forTask in your user/machine environment, " +
@@ -254,153 +254,153 @@ function Invoke-Install {
 
     $newDefinition = {
         param([string]$Program)
-        New-HbTaskDefinition -RepoRoot $repoRoot -NodeExe $Program -UserId $userId -Trigger $Trigger -LogonDelaySeconds $LogonDelaySeconds
+        New-PtTaskDefinition -RepoRoot $repoRoot -NodeExe $Program -UserId $userId -Trigger $Trigger -LogonDelaySeconds $LogonDelaySeconds
     }
 
     if ($DryRun) {
-        Write-HbStep 'Scheduled task definition (dry run - not registered)'
-        Write-HbTaskDefinition -Task (& $newDefinition $runtimePlan.SupervisorExe)
-        Write-HbInfo "(If $PortlySupervisorProgram cannot be made or does not run, the task runs $($node.Path) instead.)"
+        Write-PtStep 'Scheduled task definition (dry run - not registered)'
+        Write-PtTaskDefinition -Task (& $newDefinition $runtimePlan.SupervisorExe)
+        Write-PtInfo "(If $PortlySupervisorProgram cannot be made or does not run, the task runs $($node.Path) instead.)"
         Write-Host ''
         if ($null -ne $nativeHost) {
-            Write-HbStep 'Native messaging host (dry run - nothing written)'
-            Write-HbNativeHostPlan -Plan $nativeHost
+            Write-PtStep 'Native messaging host (dry run - nothing written)'
+            Write-PtNativeHostPlan -Plan $nativeHost
             Write-Host ''
         }
         if ($releaseInstall) {
-            Write-HbStep 'Updater task (dry run - not registered)'
-            Write-HbUpdaterDefinition -Task (New-HbUpdaterDefinition -RepoRoot $repoRoot -UserId $userId)
+            Write-PtStep 'Updater task (dry run - not registered)'
+            Write-PtUpdaterDefinition -Task (New-PtUpdaterDefinition -RepoRoot $repoRoot -UserId $userId)
             Write-Host ''
         }
-        Write-HbStep 'Steps a real run would take'
+        Write-PtStep 'Steps a real run would take'
         foreach ($problem in $problems) { Write-Warning "Must be fixed first: $problem" }
         if ($webBuilt) {
-            Write-HbInfo '- web\dist is present; no build needed'
+            Write-PtInfo '- web\dist is present; no build needed'
         } else {
-            Write-HbInfo '- build the web app: npm run build (web\dist is missing)'
+            Write-PtInfo '- build the web app: npm run build (web\dist is missing)'
         }
         $copies = "$PortlySupervisorProgram (and $PortlyServerProgram, a hard link of it) in $($runtimePlan.Destination)"
         switch ($runtimePlan.State) {
-            'current' { Write-HbInfo "- keep $copies`: up to date with $($node.Path)" }
-            'stale' { Write-HbInfo "- refresh $copies from $($node.Path) (once Portly is stopped, if they are in use)" }
-            default { Write-HbInfo "- copy $($node.Path) to $copies, so Task Manager shows Portly by name" }
+            'current' { Write-PtInfo "- keep $copies`: up to date with $($node.Path)" }
+            'stale' { Write-PtInfo "- refresh $copies from $($node.Path) (once Portly is stopped, if they are in use)" }
+            default { Write-PtInfo "- copy $($node.Path) to $copies, so Task Manager shows Portly by name" }
         }
-        Write-HbInfo "- check that $PortlySupervisorProgram runs and reports Node.js v$($node.Version), and record its source in $($runtimePlan.RecordPath)"
+        Write-PtInfo "- check that $PortlySupervisorProgram runs and reports Node.js v$($node.Version), and record its source in $($runtimePlan.RecordPath)"
         if ($null -ne $existing) {
-            Write-HbInfo "- replace the existing task '$PortlyTaskName' (state: $($existing.State), $(Get-HbTaskTriggerMode -Task $existing) mode) with the $Trigger mode task"
+            Write-PtInfo "- replace the existing task '$PortlyTaskName' (state: $($existing.State), $(Get-PtTaskTriggerMode -Task $existing) mode) with the $Trigger mode task"
         } else {
-            Write-HbInfo "- register the task '$PortlyTaskName' for $userId ($Trigger mode)"
+            Write-PtInfo "- register the task '$PortlyTaskName' for $userId ($Trigger mode)"
         }
         if ($releaseInstall) {
-            if (Test-HbUpdaterCurrent -Task (Get-HbUpdaterTask) -Definition (New-HbUpdaterDefinition -RepoRoot $repoRoot -UserId $userId)) {
-                Write-HbInfo "- leave the task '$PortlyUpdaterTaskName' as it is: it is current"
+            if (Test-PtUpdaterCurrent -Task (Get-PtUpdaterTask) -Definition (New-PtUpdaterDefinition -RepoRoot $repoRoot -UserId $userId)) {
+                Write-PtInfo "- leave the task '$PortlyUpdaterTaskName' as it is: it is current"
             } else {
-                Write-HbInfo "- register the task '$PortlyUpdaterTaskName' for $userId"
+                Write-PtInfo "- register the task '$PortlyUpdaterTaskName' for $userId"
             }
         }
         if ($null -ne $nativeHost) {
-            Write-HbInfo "- write the $(@($nativeHost.Files).Count) native host files to $($nativeHost.Destination)"
+            Write-PtInfo "- write the $(@($nativeHost.Files).Count) native host files to $($nativeHost.Destination)"
             foreach ($entry in @($nativeHost.Registry)) {
-                Write-HbInfo "- set the default value of $($entry.Display) ($($entry.Browser))"
+                Write-PtInfo "- set the default value of $($entry.Display) ($($entry.Browser))"
             }
         } elseif ($NoNativeHost) {
-            Write-HbInfo '- leave the native messaging host alone (-NoNativeHost)'
+            Write-PtInfo '- leave the native messaging host alone (-NoNativeHost)'
         }
         if ($running.Count -gt 0) {
-            Write-HbInfo "- stop the Portly processes started from this folder: $(Format-HbProcessList -Trees $running)"
+            Write-PtInfo "- stop the Portly processes started from this folder: $(Format-PtProcessList -Trees $running)"
         }
         if ($NoStart) {
-            Write-HbInfo '- leave Portly stopped (-NoStart)'
+            Write-PtInfo '- leave Portly stopped (-NoStart)'
         } else {
-            Write-HbInfo "- start the task and wait up to $TimeoutSeconds s for http://localhost:$port/api/health"
+            Write-PtInfo "- start the task and wait up to $TimeoutSeconds s for http://localhost:$port/api/health"
         }
         Write-Host ''
-        Write-HbOk 'Dry run complete: nothing was registered, written, built, stopped or started.'
+        Write-PtOk 'Dry run complete: nothing was registered, written, built, stopped or started.'
         if ($problems.Count -gt 0) {
-            Write-HbFailure "$($problems.Count) problem(s) above must be fixed before a real run."
+            Write-PtFailure "$($problems.Count) problem(s) above must be fixed before a real run."
             return 1
         }
         return 0
     }
 
     if ($problems.Count -gt 0) {
-        foreach ($problem in $problems) { Write-HbFailure $problem }
+        foreach ($problem in $problems) { Write-PtFailure $problem }
         return 1
     }
-    if (Test-HbElevated) {
-        Write-HbInfo "Running as administrator; the task is still registered for $userId with RunLevel Limited."
+    if (Test-PtElevated) {
+        Write-PtInfo "Running as administrator; the task is still registered for $userId with RunLevel Limited."
     }
 
     if (-not $webBuilt) {
-        Write-HbStep 'Building the web app (web\dist is missing): npm run build'
-        Invoke-HbWebBuild -RepoRoot $repoRoot
-        Write-HbOk 'Web app built'
+        Write-PtStep 'Building the web app (web\dist is missing): npm run build'
+        Invoke-PtWebBuild -RepoRoot $repoRoot
+        Write-PtOk 'Web app built'
     }
 
     # Portly's named copies of node.exe. A copy the running Portly uses cannot be replaced yet: it
     # is kept (it works) and replaced once Portly is stopped, below.
-    Write-HbStep "Preparing $PortlySupervisorProgram and $PortlyServerProgram (copies of node.exe that Task Manager shows by name)"
-    $runtime = Update-HbRuntimeCopies -Plan $runtimePlan -NodeVersion $node.Version
+    Write-PtStep "Preparing $PortlySupervisorProgram and $PortlyServerProgram (copies of node.exe that Task Manager shows by name)"
+    $runtime = Update-PtRuntimeCopies -Plan $runtimePlan -NodeVersion $node.Version
     $taskProgram = $node.Path
     $retryRuntime = $false
     if ($runtime.Ok) {
         $taskProgram = $runtimePlan.SupervisorExe
         $how = if ($runtime.Linked) { 'a hard link of it' } else { 'a second copy' }
         if ($runtime.Changed) {
-            Write-HbOk "Copied $($node.Path) to $($runtimePlan.SupervisorExe) ($PortlyServerProgram is $how)"
+            Write-PtOk "Copied $($node.Path) to $($runtimePlan.SupervisorExe) ($PortlyServerProgram is $how)"
         } else {
-            Write-HbOk "$($runtimePlan.SupervisorExe) and $PortlyServerProgram ($how) are up to date with $($node.Path)"
+            Write-PtOk "$($runtimePlan.SupervisorExe) and $PortlyServerProgram ($how) are up to date with $($node.Path)"
         }
     } elseif ($runtime.Usable) {
         $taskProgram = $runtimePlan.SupervisorExe
         $retryRuntime = $true
-        Write-HbInfo "Not updated yet ($($runtime.Error)); trying again once Portly is stopped."
+        Write-PtInfo "Not updated yet ($($runtime.Error)); trying again once Portly is stopped."
     } else {
         Write-Warning ("Could not make Portly's copies of node.exe ($($runtime.Error)). The task runs $($node.Path) " +
             'itself instead, so Task Manager shows node.exe. Portly works the same.')
     }
     $definition = & $newDefinition $taskProgram
 
-    Write-HbStep "Registering scheduled task '$PortlyTaskName' ($Trigger mode)"
+    Write-PtStep "Registering scheduled task '$PortlyTaskName' ($Trigger mode)"
     try {
         $null = Register-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath -InputObject $definition -Force
     } catch {
-        if (Test-HbAccessDenied $_) {
-            Write-HbAccessDeniedHint -ScriptPath $scriptPath -Arguments $hintArguments
+        if (Test-PtAccessDenied $_) {
+            Write-PtAccessDeniedHint -ScriptPath $scriptPath -Arguments $hintArguments
             return 5
         }
         throw
     }
     if ($Trigger -eq 'Logon') {
-        Write-HbOk "Registered: it starts Portly whenever $userId signs in"
+        Write-PtOk "Registered: it starts Portly whenever $userId signs in"
     } else {
-        Write-HbOk 'Registered: no sign-in trigger; it runs when the browser extension asks for it'
+        Write-PtOk 'Registered: no sign-in trigger; it runs when the browser extension asks for it'
     }
 
     if ($null -ne $nativeHost) {
-        Write-HbStep "Registering the native messaging host $PortlyNativeHostName (Chrome and Edge)"
-        Install-HbNativeHost -Plan $nativeHost
-        Write-HbOk "Wrote $($nativeHost.Destination) and the registry keys for Chrome and Edge (allowed extension: $($nativeHost.ExtensionId))"
+        Write-PtStep "Registering the native messaging host $PortlyNativeHostName (Chrome and Edge)"
+        Install-PtNativeHost -Plan $nativeHost
+        Write-PtOk "Wrote $($nativeHost.Destination) and the registry keys for Chrome and Edge (allowed extension: $($nativeHost.ExtensionId))"
     }
 
-    if ($releaseInstall) { Install-HbUpdaterTask -RepoRoot $repoRoot -UserId $userId }
+    if ($releaseInstall) { Install-PtUpdaterTask -RepoRoot $repoRoot -UserId $userId }
 
     # Replace whatever the previous registration started. Stop-ScheduledTask ends only conhost,
     # so the node supervisor/server started from this folder are stopped explicitly.
-    $current = Get-HbTask
+    $current = Get-PtTask
     if ($null -ne $current -and "$($current.State)" -eq 'Running') {
-        Write-HbStep 'Stopping the running task'
+        Write-PtStep 'Stopping the running task'
         Stop-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
     }
-    $stopped = @(Stop-HbSupervisorProcesses -RepoRoot $repoRoot)
+    $stopped = @(Stop-PtSupervisorProcesses -RepoRoot $repoRoot)
     if ($stopped.Count -gt 0) {
-        Write-HbInfo "Stopped the previous Portly processes (PID $($stopped -join ', '))"
+        Write-PtInfo "Stopped the previous Portly processes (PID $($stopped -join ', '))"
         Start-Sleep -Milliseconds 500
     }
     if ($retryRuntime) {
-        $runtime = Update-HbRuntimeCopies -Plan (Get-HbRuntimePlan -NodeExe $node.Path) -NodeVersion $node.Version
+        $runtime = Update-PtRuntimeCopies -Plan (Get-PtRuntimePlan -NodeExe $node.Path) -NodeVersion $node.Version
         if ($runtime.Ok) {
-            Write-HbOk "Updated $($runtimePlan.SupervisorExe) and $PortlyServerProgram from $($node.Path)"
+            Write-PtOk "Updated $($runtimePlan.SupervisorExe) and $PortlyServerProgram from $($node.Path)"
         } elseif ($runtime.Usable) {
             Write-Warning "Could not update Portly's copies of node.exe ($($runtime.Error)). Portly runs the copies it has; run this script again later."
         } else {
@@ -413,80 +413,80 @@ function Invoke-Install {
 
     $nextStart = if ($Trigger -eq 'Logon') { 'at your next sign-in' } else { 'when Chrome or Edge next opens (or a new tab finds it not running)' }
     if ($NoStart) {
-        Write-HbOk "Not started now (-NoStart). It starts $nextStart, or any time with: Start-ScheduledTask -TaskName '$PortlyTaskName'"
-        Write-HbExtensionReminder -Plan $nativeHost
+        Write-PtOk "Not started now (-NoStart). It starts $nextStart, or any time with: Start-ScheduledTask -TaskName '$PortlyTaskName'"
+        Write-PtExtensionReminder -Plan $nativeHost
         return 0
     }
 
-    $already = Test-HbHealth -Port $port -TimeoutSeconds 2
+    $already = Test-PtHealth -Port $port -TimeoutSeconds 2
     if ($already.Ok -and $already.App -eq 'portly') {
-        Write-Warning ("Portly is already $(Format-HbHealth $already), started outside the task (npm start or scripts\start.ps1?). " +
+        Write-Warning ("Portly is already $(Format-PtHealth $already), started outside the task (npm start or scripts\start.ps1?). " +
             "The task will start Portly $nextStart. To switch now, stop the other instance (Ctrl+C in its window) and run: " +
             "Start-ScheduledTask -TaskName '$PortlyTaskName'")
-        Write-HbExtensionReminder -Plan $nativeHost
+        Write-PtExtensionReminder -Plan $nativeHost
         return 0
     }
     if ($null -ne $already.Listeners -and $already.Listeners.Count -gt 0) {
         $what = if ($already.Ok) { "a server that answers as '$($already.App)', not Portly" } else { 'does not answer as Portly' }
-        Write-HbFailure "Port $port is in use by $(Format-HbPortOwners $already.Listeners), which $what, so Portly cannot start there."
-        Write-HbInfo "The task is registered. Stop that program (or set the PORTLY_PORT user environment variable to a free port and run this script again), then run: Start-ScheduledTask -TaskName '$PortlyTaskName'"
+        Write-PtFailure "Port $port is in use by $(Format-PtPortOwners $already.Listeners), which $what, so Portly cannot start there."
+        Write-PtInfo "The task is registered. Stop that program (or set the PORTLY_PORT user environment variable to a free port and run this script again), then run: Start-ScheduledTask -TaskName '$PortlyTaskName'"
         return 1
     }
 
-    Write-HbStep 'Starting the task (checks the installation end to end)'
+    Write-PtStep 'Starting the task (checks the installation end to end)'
     Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
     $startedAt = [System.DateTime]::UtcNow
-    Write-HbInfo "Waiting up to $TimeoutSeconds s for http://localhost:$port/api/health ..."
-    $health = Wait-HbHealth -Port $port -TimeoutSeconds $TimeoutSeconds -ContinueWhile {
+    Write-PtInfo "Waiting up to $TimeoutSeconds s for http://localhost:$port/api/health ..."
+    $health = Wait-PtHealth -Port $port -TimeoutSeconds $TimeoutSeconds -ContinueWhile {
         # Give the task a few seconds to show as Running; after that, stop waiting if it exited.
-        $task = Get-HbTask
+        $task = Get-PtTask
         (([System.DateTime]::UtcNow - $startedAt).TotalSeconds -lt 5) -or ($null -ne $task -and "$($task.State)" -eq 'Running')
     }
 
     if ($health.Ok -and $health.App -eq 'portly') {
-        Write-HbOk "Portly is $(Format-HbHealth $health)"
+        Write-PtOk "Portly is $(Format-PtHealth $health)"
         if ($health.Vault -eq 'locked') {
             Write-Warning 'The credential vault is locked: open Portly > Settings > Accounts and follow the banner.'
         }
         Write-Host ''
-        Write-HbInfo "From now on it starts $nextStart."
+        Write-PtInfo "From now on it starts $nextStart."
         if ($taskProgram -ne $node.Path) {
-            Write-HbInfo "Task Manager (Details tab) shows it as $PortlySupervisorProgram and $PortlyServerProgram."
+            Write-PtInfo "Task Manager (Details tab) shows it as $PortlySupervisorProgram and $PortlyServerProgram."
         }
-        Write-HbExtensionReminder -Plan $nativeHost
-        Write-HbInfo "Open http://localhost:$port - or install the new-tab extension (docs\setup\extension.md)."
-        Write-HbInfo 'Check on it later with: scripts\status.ps1   Remove it with: scripts\uninstall-autostart.ps1'
+        Write-PtExtensionReminder -Plan $nativeHost
+        Write-PtInfo "Open http://localhost:$port - or install the new-tab extension (docs\setup\extension.md)."
+        Write-PtInfo 'Check on it later with: scripts\status.ps1   Remove it with: scripts\uninstall-autostart.ps1'
         return 0
     }
 
-    Write-HbFailure "Portly did not come up: $(Format-HbHealth $health)"
-    $task = Get-HbTask
+    Write-PtFailure "Portly did not come up: $(Format-PtHealth $health)"
+    $task = Get-PtTask
     if ($null -ne $task) {
         $info = Get-ScheduledTaskInfo -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
-        Write-HbField 'Task state' "$($task.State)"
-        Write-HbField 'Last result' (Format-HbTaskResult -Code $info.LastTaskResult)
+        Write-PtField 'Task state' "$($task.State)"
+        Write-PtField 'Last result' (Format-PtTaskResult -Code $info.LastTaskResult)
     }
-    Write-HbInfo 'Everything stays registered. Troubleshooting: docs\setup\troubleshooting.md'
-    Write-HbLogTail -LogFile $supervisorLog -Lines 10
-    Write-HbLogTail -LogFile $logFile -Lines 20
+    Write-PtInfo 'Everything stays registered. Troubleshooting: docs\setup\troubleshooting.md'
+    Write-PtLogTail -LogFile $supervisorLog -Lines 10
+    Write-PtLogTail -LogFile $logFile -Lines 20
     return 1
 }
 
 # Registers the Portly Updater task, or leaves it alone. An update runs this script from inside that
 # task, and what replacing a running task does is unknown, so a running one always stays as it is:
 # a changed definition then arrives with the next update.
-function Install-HbUpdaterTask {
+function Install-PtUpdaterTask {
     param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)][string]$UserId)
     try {
-        $definition = New-HbUpdaterDefinition -RepoRoot $RepoRoot -UserId $UserId
-        $current = Get-HbUpdaterTask
-        if (Test-HbUpdaterCurrent -Task $current -Definition $definition) {
-            Write-HbOk "The '$PortlyUpdaterTaskName' task is up to date"
+        $definition = New-PtUpdaterDefinition -RepoRoot $RepoRoot -UserId $UserId
+        $current = Get-PtUpdaterTask
+        if (Test-PtUpdaterCurrent -Task $current -Definition $definition) {
+            Write-PtOk "The '$PortlyUpdaterTaskName' task is up to date"
         } elseif ($null -ne $current -and "$($current.State)" -eq 'Running') {
-            Write-HbInfo "The '$PortlyUpdaterTaskName' task is running, so it stays as it is until the next update."
+            Write-PtInfo "The '$PortlyUpdaterTaskName' task is running, so it stays as it is until the next update."
         } else {
             $null = Register-ScheduledTask -TaskName $PortlyUpdaterTaskName -TaskPath $PortlyTaskPath -InputObject $definition -Force
-            Write-HbOk "Registered the '$PortlyUpdaterTaskName' task: it runs when you press Update in Settings > About"
+            Write-PtOk "Registered the '$PortlyUpdaterTaskName' task: it runs when you press Update in Settings > About"
         }
     } catch {
         Write-Warning "Could not register the '$PortlyUpdaterTaskName' task ($($_.Exception.Message)). Portly works without it; only the Update button does not. portly --update --force tries again."
@@ -494,10 +494,10 @@ function Install-HbUpdaterTask {
 }
 
 # The one-time extension step after the ID was pinned with a manifest "key".
-function Write-HbExtensionReminder {
+function Write-PtExtensionReminder {
     param($Plan)
     if ($null -eq $Plan) { return }
-    Write-HbInfo ("New-tab extension: its ID is now fixed ($($Plan.ExtensionId)). If you loaded it before this version, " +
+    Write-PtInfo ("New-tab extension: its ID is now fixed ($($Plan.ExtensionId)). If you loaded it before this version, " +
         'remove it once on chrome://extensions (or edge://extensions) and Load unpacked again - see docs\setup\extension.md.')
 }
 
@@ -505,10 +505,10 @@ try {
     $exitCode = Invoke-Install -Bound $PSBoundParameters | Select-Object -Last 1
     exit ([int]$exitCode)
 } catch {
-    if (Test-HbAccessDenied $_) {
-        Write-HbAccessDeniedHint -ScriptPath (Join-Path $PSScriptRoot 'install-autostart.ps1') -Arguments (Format-HbInstallArguments -Bound $PSBoundParameters)
+    if (Test-PtAccessDenied $_) {
+        Write-PtAccessDeniedHint -ScriptPath (Join-Path $PSScriptRoot 'install-autostart.ps1') -Arguments (Format-PtInstallArguments -Bound $PSBoundParameters)
         exit 5
     }
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     exit 1
 }

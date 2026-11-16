@@ -3,20 +3,20 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
   height: 100%;
   min-height: 0;
-  padding: var(--hb-space-4);
+  padding: var(--pt-space-4);
   text-align: center;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .root[data-compact='true'] {
   flex-direction: row;
   flex-wrap: wrap;
   align-content: center;
-  gap: var(--hb-space-2) var(--hb-space-3);
-  padding: var(--hb-space-2) var(--hb-space-3);
+  gap: var(--pt-space-2) var(--pt-space-3);
+  padding: var(--pt-space-2) var(--pt-space-3);
   text-align: left;
 }
 
@@ -38,8 +38,8 @@
   height: 44px;
   flex: none;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--hb-text) 6%, transparent);
-  color: var(--hb-text-muted);
+  background: color-mix(in srgb, var(--pt-text) 6%, transparent);
+  color: var(--pt-text-muted);
 }
 
 .icon {
@@ -64,13 +64,13 @@
 }
 
 .title {
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
   font-weight: 600;
-  color: var(--hb-text);
+  color: var(--pt-text);
 }
 
 .body {
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
   max-width: 38ch;
   margin-inline: auto;
 }
@@ -79,7 +79,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
 }
 
 /* Narrow widgets: drop the icon so the text fits. */

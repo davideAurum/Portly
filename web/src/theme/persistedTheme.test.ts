@@ -27,7 +27,7 @@ function storageWith(items: Record<string, string>): Pick<Storage, 'getItem'> {
 }
 
 function accent(): string {
-  return document.documentElement.style.getPropertyValue('--hb-accent');
+  return document.documentElement.style.getPropertyValue('--pt-accent');
 }
 
 describe('applyPersistedTheme', () => {

@@ -3,13 +3,13 @@ import type { CSSProperties, ReactNode } from 'react';
 
 // Spinners show inline progress inside a glass widget panel.
 const panel: CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 'var(--hb-space-3)',
-  padding: 'var(--hb-space-4)', borderRadius: 'var(--hb-radius-lg)', border: '1px solid var(--hb-glass-border)',
-  background: 'var(--hb-glass)', boxShadow: 'var(--hb-shadow)', color: 'var(--hb-text)',
+  display: 'flex', flexDirection: 'column', gap: 'var(--pt-space-3)',
+  padding: 'var(--pt-space-4)', borderRadius: 'var(--pt-radius-lg)', border: '1px solid var(--pt-glass-border)',
+  background: 'var(--pt-glass)', boxShadow: 'var(--pt-shadow)', color: 'var(--pt-text)',
 };
 const Panel = ({ children }: { children: ReactNode }) => <div style={panel}>{children}</div>;
-const row: CSSProperties = { display: 'flex', alignItems: 'center', gap: 'var(--hb-space-2)', fontSize: 14 };
-const muted: CSSProperties = { ...row, color: 'var(--hb-text-muted)' };
+const row: CSSProperties = { display: 'flex', alignItems: 'center', gap: 'var(--pt-space-2)', fontSize: 14 };
+const muted: CSSProperties = { ...row, color: 'var(--pt-text-muted)' };
 
 export const WithLabel = () => (
   <Panel>
@@ -26,7 +26,7 @@ export const WithLabel = () => (
 
 export const Sizes = () => (
   <Panel>
-    <div style={{ ...row, gap: 'var(--hb-space-4)' }}>
+    <div style={{ ...row, gap: 'var(--pt-space-4)' }}>
       <Spinner size={12} />
       <Spinner size={16} />
       <Spinner size={24} />
@@ -42,7 +42,7 @@ export const WidgetLoading = () => (
       <strong style={{ fontSize: 14 }}>Weather</strong>
       <Spinner size={14} label="Refreshing" />
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--hb-space-2)', padding: 'var(--hb-space-4) 0', color: 'var(--hb-text-muted)', fontSize: 13 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--pt-space-2)', padding: 'var(--pt-space-4) 0', color: 'var(--pt-text-muted)', fontSize: 13 }}>
       <Spinner size={28} label="Loading forecast" />
       <span>Getting the forecast for your location</span>
     </div>
@@ -51,7 +51,7 @@ export const WidgetLoading = () => (
 
 export const InButton = () => (
   <Panel>
-    <div style={{ display: 'flex', gap: 'var(--hb-space-2)', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 'var(--pt-space-2)', alignItems: 'center' }}>
       <Button variant="primary" loading>Connecting</Button>
       <Button loading>Importing bookmarks</Button>
     </div>

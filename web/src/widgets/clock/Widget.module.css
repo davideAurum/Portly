@@ -15,10 +15,10 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: var(--hb-space-3);
+  gap: var(--pt-space-3);
   height: 100%;
   min-height: 0;
-  padding: var(--hb-space-3) var(--hb-space-4);
+  padding: var(--pt-space-3) var(--pt-space-4);
   text-align: center;
 }
 
@@ -32,9 +32,9 @@
 .greeting {
   max-width: 100%;
   overflow: hidden;
-  font-size: clamp(var(--hb-text-sm), 5.5cqw, var(--hb-text-lg));
+  font-size: clamp(var(--pt-text-sm), 5.5cqw, var(--pt-text-lg));
   font-weight: 500;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -42,7 +42,7 @@
 .time {
   display: block;
   max-width: 100%;
-  color: var(--hb-text);
+  color: var(--pt-text);
   line-height: 1;
 }
 
@@ -89,25 +89,25 @@
   font-size: 0.34em;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .date {
   max-width: 100%;
   overflow: hidden;
-  font-size: clamp(var(--hb-text-sm), 5cqw, var(--hb-text-lg));
-  color: var(--hb-text-muted);
+  font-size: clamp(var(--pt-text-sm), 5cqw, var(--pt-text-lg));
+  color: var(--pt-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .root[data-tier='compact'] .date {
-  font-size: var(--hb-text-sm);
+  font-size: var(--pt-text-sm);
 }
 
 .root[data-tier='compact'] .layout {
-  gap: var(--hb-space-1);
-  padding-block: var(--hb-space-2);
+  gap: var(--pt-space-1);
+  padding-block: var(--pt-space-2);
 }
 
 /* ---- Extra zones -------------------------------------------------------- */
@@ -117,7 +117,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   flex: none;
   min-height: 0;
   margin: 0;
@@ -129,7 +129,7 @@
 .zone {
   display: flex;
   align-items: baseline;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
 }
 
@@ -141,7 +141,7 @@
 
 .moreZones {
   font-weight: 600;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
   cursor: default;
 }
 
@@ -149,9 +149,9 @@
   height: 28px;
   align-items: center;
   padding: 0 10px;
-  border-radius: var(--hb-radius-full);
-  background: color-mix(in srgb, var(--hb-text) 6%, transparent);
-  font-size: var(--hb-text-sm);
+  border-radius: var(--pt-radius-full);
+  background: color-mix(in srgb, var(--pt-text) 6%, transparent);
+  font-size: var(--pt-text-sm);
 }
 
 /* List: one line per zone (label, day/offset, time). */
@@ -164,14 +164,14 @@
   max-width: 520px;
   margin-inline: auto;
   overflow-y: auto;
-  border-top: 1px solid var(--hb-border);
+  border-top: 1px solid var(--pt-border);
 }
 
 .zones[data-layout='list'] .zone {
   justify-content: space-between;
   min-height: 30px;
   padding: 4px 2px;
-  border-bottom: 1px solid var(--hb-border);
+  border-bottom: 1px solid var(--pt-border);
 }
 
 .zones[data-layout='list'] .zone:last-child {
@@ -181,7 +181,7 @@
 .zoneText {
   display: flex;
   align-items: baseline;
-  gap: var(--hb-space-2);
+  gap: var(--pt-space-2);
   min-width: 0;
   overflow: hidden;
 }
@@ -195,13 +195,13 @@
 
 .zones[data-layout='chips'] .zoneLabel {
   font-weight: 500;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .zoneMeta {
   flex: none;
-  font-size: var(--hb-text-xs);
-  color: var(--hb-text-muted);
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
   white-space: nowrap;
 }
 
@@ -213,20 +213,20 @@
 }
 
 .zones[data-layout='list'] .zoneTime {
-  font-size: var(--hb-text-md);
+  font-size: var(--pt-text-md);
 }
 
 .zonePeriod {
   font-size: 0.75em;
   font-weight: 600;
-  color: var(--hb-text-muted);
+  color: var(--pt-text-muted);
 }
 
 .zoneDay {
   margin-left: 1px;
   font-size: 0.65em;
   font-weight: 700;
-  color: var(--hb-accent-text);
+  color: var(--pt-accent-text);
 }
 
 /* ---- Container refinements ---------------------------------------------- */
@@ -234,7 +234,7 @@
 /* Height priorities: time > date > zones > greeting. */
 @container clock (max-height: 150px) {
   .layout {
-    gap: var(--hb-space-2);
+    gap: var(--pt-space-2);
   }
 
   .layout:has(.zones) .greeting {
@@ -272,7 +272,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-evenly;
-    gap: var(--hb-space-5);
+    gap: var(--pt-space-5);
   }
 
   .layout:has(.zones[data-layout='list']) .timeVisual {
@@ -292,7 +292,7 @@
 
 @container clock (max-width: 200px) {
   .layout {
-    padding-inline: var(--hb-space-2);
+    padding-inline: var(--pt-space-2);
   }
 
   .zones[data-layout='chips'] .zone {

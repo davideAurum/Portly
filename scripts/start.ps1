@@ -43,50 +43,50 @@ function Get-StartPlan {
     param([int]$RequestedPort, [string]$RequestedDataDir)
     if ($Rebuild -and $NoBuild) { throw '-Rebuild and -NoBuild cannot be used together.' }
 
-    $repoRoot = Get-HbRepoRoot -ScriptRoot $PSScriptRoot
+    $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
     $index = Join-Path $repoRoot 'server\src\index.ts'
     if (-not (Test-Path -LiteralPath $index -PathType Leaf)) {
         throw "This script must stay in the scripts folder of a Portly checkout (no server\src\index.ts under $repoRoot)."
     }
-    if (-not (Test-HbDependenciesInstalled -RepoRoot $repoRoot)) {
+    if (-not (Test-PtDependenciesInstalled -RepoRoot $repoRoot)) {
         throw "Dependencies are not installed. In $repoRoot run: npm ci"
     }
     # A release install's link to the shared package (install.ps1 makes it), in case it went missing.
-    if ($null -ne (Get-HbReleaseInfo -RepoRoot $repoRoot)) { $null = Initialize-HbReleaseLinks -RepoRoot $repoRoot }
-    $node = Resolve-HbNode -RepoRoot $repoRoot
+    if ($null -ne (Get-PtReleaseInfo -RepoRoot $repoRoot)) { $null = Initialize-PtReleaseLinks -RepoRoot $repoRoot }
+    $node = Resolve-PtNode -RepoRoot $repoRoot
 
     if ($RequestedPort -gt 0) {
         $port = $RequestedPort
     } else {
-        $port = (Get-HbPortSetting -Scope Process).Port
+        $port = (Get-PtPortSetting -Scope Process).Port
     }
     if ($RequestedDataDir) {
         $dataDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RequestedDataDir)
     } else {
-        $dataDir = Get-HbDataDir -Scope Process -RepoRoot $repoRoot
+        $dataDir = Get-PtDataDir -Scope Process -RepoRoot $repoRoot
     }
 
-    $already = Test-HbHealth -Port $port -TimeoutSeconds 2
+    $already = Test-PtHealth -Port $port -TimeoutSeconds 2
     if ($already.Ok) {
-        Write-HbFailure "Portly is already $(Format-HbHealth $already)."
-        Write-HbInfo 'It may be the autostart task (see scripts\status.ps1). Open that URL, or stop the other copy first.'
+        Write-PtFailure "Portly is already $(Format-PtHealth $already)."
+        Write-PtInfo 'It may be the autostart task (see scripts\status.ps1). Open that URL, or stop the other copy first.'
         return 3
     }
     if ($null -ne $already.Listeners -and $already.Listeners.Count -gt 0) {
-        Write-HbFailure "Port $port is already in use by $(Format-HbPortOwners $already.Listeners), which does not answer as Portly."
-        Write-HbInfo 'Stop that program, or use another port: -Port <n> here and the same port in the extension options.'
+        Write-PtFailure "Port $port is already in use by $(Format-PtPortOwners $already.Listeners), which does not answer as Portly."
+        Write-PtInfo 'Stop that program, or use another port: -Port <n> here and the same port in the extension options.'
         return 3
     }
 
-    if (Test-HbTruthy (Get-HbEnvValue -Name 'PORTLY_DEV' -Scope Process)) {
+    if (Test-PtTruthy (Get-PtEnvValue -Name 'PORTLY_DEV' -Scope Process)) {
         Write-Warning 'PORTLY_DEV is set: the server runs in development mode and expects the Vite dev server (npm run dev).'
     }
 
-    $built = Test-HbWebBuilt -RepoRoot $repoRoot
+    $built = Test-PtWebBuilt -RepoRoot $repoRoot
     if ($Rebuild -or (-not $built -and -not $NoBuild)) {
         $reason = if ($Rebuild) { '-Rebuild' } else { 'web\dist is missing' }
-        Write-HbStep "Building the web app ($reason): npm run build"
-        Invoke-HbWebBuild -RepoRoot $repoRoot
+        Write-PtStep "Building the web app ($reason): npm run build"
+        Invoke-PtWebBuild -RepoRoot $repoRoot
     } elseif (-not $built) {
         throw 'web\dist is missing and -NoBuild was given. Run: npm run build'
     }
@@ -103,7 +103,7 @@ function Get-StartPlan {
 try {
     $plan = Get-StartPlan -RequestedPort $Port -RequestedDataDir $DataDir | Select-Object -Last 1
 } catch {
-    Write-HbFailure $_.Exception.Message
+    Write-PtFailure $_.Exception.Message
     exit 1
 }
 if ($plan -is [int]) { exit $plan }
@@ -119,9 +119,9 @@ Push-Location -LiteralPath $plan.RepoRoot
 try {
     [System.Environment]::SetEnvironmentVariable('PORTLY_PORT', "$($plan.Port)", 'Process')
     [System.Environment]::SetEnvironmentVariable('PORTLY_DATA_DIR', $plan.DataDir, 'Process')
-    Write-HbStep "Starting Portly on http://localhost:$($plan.Port) (Node.js v$($plan.Node.Version)) - press Ctrl+C to stop"
-    Write-HbInfo "Data folder: $($plan.DataDir)"
-    Write-HbInfo "Log file:    $(Get-HbLogFile -DataDir $plan.DataDir)"
+    Write-PtStep "Starting Portly on http://localhost:$($plan.Port) (Node.js v$($plan.Node.Version)) - press Ctrl+C to stop"
+    Write-PtInfo "Data folder: $($plan.DataDir)"
+    Write-PtInfo "Log file:    $(Get-PtLogFile -DataDir $plan.DataDir)"
     $ErrorActionPreference = 'Continue'
     & $plan.Node.Path $plan.Index
     $exitCode = $LASTEXITCODE
@@ -133,8 +133,8 @@ try {
 }
 
 switch ($exitCode) {
-    0 { Write-HbOk 'Portly stopped' }
-    3 { Write-HbFailure "Port $($plan.Port) is already in use by another program or another Portly instance." }
-    default { Write-HbFailure "Portly exited with code $exitCode. See the output above and docs\setup\troubleshooting.md." }
+    0 { Write-PtOk 'Portly stopped' }
+    3 { Write-PtFailure "Port $($plan.Port) is already in use by another program or another Portly instance." }
+    default { Write-PtFailure "Portly exited with code $exitCode. See the output above and docs\setup\troubleshooting.md." }
 }
 exit $exitCode

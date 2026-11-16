@@ -1,9 +1,9 @@
 /* Launch pad settings: extras on top of the shared widget settings styles (search/Settings.module.css). */
 
 .heading {
-  margin: var(--hb-space-2) 0 calc(var(--hb-space-2) * -1);
-  color: var(--hb-text-muted);
-  font-size: var(--hb-text-xs);
+  margin: var(--pt-space-2) 0 calc(var(--pt-space-2) * -1);
+  color: var(--pt-text-muted);
+  font-size: var(--pt-text-xs);
   font-weight: 650;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -26,20 +26,20 @@
 
 .widths {
   display: grid;
-  gap: var(--hb-space-2);
-  margin: calc(var(--hb-space-2) * -1) 0 0;
-  padding: var(--hb-space-2) var(--hb-space-3);
-  border: 1px solid var(--hb-border);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-surface-2);
+  gap: var(--pt-space-2);
+  margin: calc(var(--pt-space-2) * -1) 0 0;
+  padding: var(--pt-space-2) var(--pt-space-3);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface-2);
 }
 
 .widthRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--hb-space-3);
-  font-size: var(--hb-text-sm);
+  gap: var(--pt-space-3);
+  font-size: var(--pt-text-sm);
 }
 
 .widthRow select {
@@ -49,6 +49,6 @@
 
 .hint {
   margin: 0;
-  color: var(--hb-text-muted);
-  font-size: var(--hb-text-xs);
+  color: var(--pt-text-muted);
+  font-size: var(--pt-text-xs);
 }

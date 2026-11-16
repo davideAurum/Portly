@@ -2,7 +2,7 @@
 
 Portly is a browser home page: a dashboard of glass widgets (weather, calendar, mail, feeds,
 links) over a full-page backdrop. Build screens from `window.PortlyUI.*` and style your own layout
-glue with the `--hb-*` CSS custom properties. There are no utility classes.
+glue with the `--pt-*` CSS custom properties. There are no utility classes.
 
 ## Setup
 - Link `styles.css` once. It carries the tokens, the base styles and every component's styles. No
@@ -10,7 +10,7 @@ glue with the `--hb-*` CSS custom properties. There are no utility classes.
 - `ErrorState`, `ReconnectButton`, `QueryView` and `AccountPicker` read server state through React
   Query and throw without a client. Wrap the screen once in `<PortlyQueryProvider>` (exported by
   the bundle); the other components don't need it.
-- `base.css` paints the page backdrop on `body::before` (`--hb-backdrop`, a dark teal gradient by
+- `base.css` paints the page backdrop on `body::before` (`--pt-backdrop`, a dark teal gradient by
   default). Text placed straight on the page has no surface behind it. Put content on a glass panel
   (below), as Portly's widgets do.
 - Theme switches are attributes on `<html>`: `data-theme="dark"` (or none, which follows the OS),
@@ -28,17 +28,17 @@ invent your own class vocabulary. For layout, use inline styles or your own CSS 
 
 | Family | Tokens |
 | --- | --- |
-| Surfaces | `--hb-bg`, `--hb-surface`, `--hb-surface-2`, `--hb-surface-3`, `--hb-surface-raised`, `--hb-glass`, `--hb-glass-strong`, `--hb-glass-border` |
-| Text | `--hb-text`, `--hb-text-muted`, `--hb-text-subtle` |
-| Lines | `--hb-border`, `--hb-border-strong` |
-| Brand / status | `--hb-accent`, `--hb-accent-soft`, `--hb-accent-text`, `--hb-accent-contrast`, `--hb-danger(-soft)`, `--hb-warning(-soft)`, `--hb-success(-soft)` |
-| Spacing | `--hb-space-1` 4px, `-2` 8, `-3` 12, `-4` 16, `-5` 24, `-6` 32 |
-| Radius | `--hb-radius-sm` 6, `-md` 10, `-lg` 12, `-full` |
-| Type | `--hb-font-sans`, `--hb-font-mono`, `--hb-text-xs` 12, `-sm` 13, `-md` 14, `-lg` 17, `-xl` 22, `-2xl` 30 |
-| Elevation | `--hb-shadow`, `--hb-shadow-lg`, `--hb-overlay` |
-| Controls / motion | `--hb-control-h` 36px, `--hb-control-h-sm` 30px, `--hb-duration`, `--hb-ease` |
+| Surfaces | `--pt-bg`, `--pt-surface`, `--pt-surface-2`, `--pt-surface-3`, `--pt-surface-raised`, `--pt-glass`, `--pt-glass-strong`, `--pt-glass-border` |
+| Text | `--pt-text`, `--pt-text-muted`, `--pt-text-subtle` |
+| Lines | `--pt-border`, `--pt-border-strong` |
+| Brand / status | `--pt-accent`, `--pt-accent-soft`, `--pt-accent-text`, `--pt-accent-contrast`, `--pt-danger(-soft)`, `--pt-warning(-soft)`, `--pt-success(-soft)` |
+| Spacing | `--pt-space-1` 4px, `-2` 8, `-3` 12, `-4` 16, `-5` 24, `-6` 32 |
+| Radius | `--pt-radius-sm` 6, `-md` 10, `-lg` 12, `-full` |
+| Type | `--pt-font-sans`, `--pt-font-mono`, `--pt-text-xs` 12, `-sm` 13, `-md` 14, `-lg` 17, `-xl` 22, `-2xl` 30 |
+| Elevation | `--pt-shadow`, `--pt-shadow-lg`, `--pt-overlay` |
+| Controls / motion | `--pt-control-h` 36px, `--pt-control-h-sm` 30px, `--pt-duration`, `--pt-ease` |
 
-The only global helper classes are `hb-visually-hidden` (screen-reader-only text) and `hb-tabular`
+The only global helper classes are `pt-visually-hidden` (screen-reader-only text) and `pt-tabular`
 (tabular numbers).
 
 ## Where the truth lives
@@ -50,9 +50,9 @@ The only global helper classes are `hb-visually-hidden` (screen-reader-only text
 ```jsx
 const { Banner, Button } = window.PortlyUI;
 const panel = {
-  display: 'flex', flexDirection: 'column', gap: 'var(--hb-space-3)', padding: 'var(--hb-space-4)',
-  borderRadius: 'var(--hb-radius-lg)', border: '1px solid var(--hb-glass-border)',
-  background: 'var(--hb-glass)', boxShadow: 'var(--hb-shadow)', color: 'var(--hb-text)',
+  display: 'flex', flexDirection: 'column', gap: 'var(--pt-space-3)', padding: 'var(--pt-space-4)',
+  borderRadius: 'var(--pt-radius-lg)', border: '1px solid var(--pt-glass-border)',
+  background: 'var(--pt-glass)', boxShadow: 'var(--pt-shadow)', color: 'var(--pt-text)',
 };
 
 <div style={panel}>
@@ -60,7 +60,7 @@ const panel = {
     actions={<Button size="sm" variant="primary">Reconnect</Button>}>
     Access was revoked on the provider's side. Reconnect to resume syncing.
   </Banner>
-  <div style={{ display: 'flex', gap: 'var(--hb-space-2)', justifyContent: 'flex-end' }}>
+  <div style={{ display: 'flex', gap: 'var(--pt-space-2)', justifyContent: 'flex-end' }}>
     <Button variant="ghost">Skip for now</Button>
     <Button variant="primary">Save changes</Button>
   </div>
