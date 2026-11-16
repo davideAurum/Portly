@@ -8,6 +8,46 @@
   padding: 2px var(--hb-space-2) var(--hb-space-2);
 }
 
+/* ---- Folder chips ------------------------------------------------------ */
+
+.folderBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hb-space-1);
+  padding: var(--hb-space-1) var(--hb-space-2) 0;
+}
+.chip {
+  padding: 2px var(--hb-space-2);
+  border: 1px solid var(--hb-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hb-text-subtle);
+  font: inherit;
+  font-size: var(--hb-text-xs);
+  cursor: pointer;
+}
+.chip:hover {
+  background: var(--hb-hover);
+}
+.chip[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--hb-hover);
+  color: var(--hb-accent-text);
+  font-weight: 600;
+}
+.chip[aria-disabled='true'] {
+  cursor: default;
+}
+.chip:focus-visible {
+  outline: 2px solid var(--hb-focus);
+  outline-offset: 1px;
+}
+.folderTag {
+  flex: none;
+  font-size: var(--hb-text-xs);
+  color: var(--hb-text-subtle);
+}
+
 /* ---- Account sidebar (several accounts) -------------------------------- */
 
 .shell {

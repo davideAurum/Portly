@@ -137,7 +137,7 @@ describe('IMAP listing', () => {
     await provider.list(yahoo(), { maxMessages: 5, unreadOnly: false, signal: signal() });
     await provider.list(yahoo(), { maxMessages: 5, unreadOnly: false, signal: signal() });
     expect(server.log.filter((c) => c === 'LIST')).toHaveLength(1);
-    expect(ctx.memo.get(foldersKey('y1'))).toEqual({ trash: 'Trash', archive: 'Archive' });
+    expect(ctx.memo.get(foldersKey('y1'))).toEqual({ trash: 'Trash', archive: 'Archive', sent: null, drafts: null, junk: null });
   });
 
   it('canArchive is false without an Archive folder or without MOVE/UIDPLUS', async () => {
@@ -256,17 +256,36 @@ describe('special-use resolution (§4.10)', () => {
         listEntry('Old', { flags: ['\\Archive'] }),
         listEntry('Archive'),
       ]),
-    ).toEqual({ trash: '[Gmail]/Bin', archive: 'Old' });
+    ).toEqual({ trash: '[Gmail]/Bin', archive: 'Old', sent: null, drafts: null, junk: null });
   });
 
   it('falls back to the exact names Trash, Deleted Items, Deleted Messages, Bin / Archive', () => {
-    expect(resolveFolders([listEntry('INBOX'), listEntry('Deleted Items'), listEntry('Archive')])).toEqual({ trash: 'Deleted Items', archive: 'Archive' });
-    expect(resolveFolders([listEntry('INBOX'), listEntry('Deleted Messages')])).toEqual({ trash: 'Deleted Messages', archive: null });
+    expect(resolveFolders([listEntry('INBOX'), listEntry('Deleted Items'), listEntry('Archive')])).toEqual({ trash: 'Deleted Items', archive: 'Archive', sent: null, drafts: null, junk: null });
+    expect(resolveFolders([listEntry('INBOX'), listEntry('Deleted Messages')])).toEqual({ trash: 'Deleted Messages', archive: null, sent: null, drafts: null, junk: null });
     expect(resolveFolders([listEntry('INBOX'), listEntry('Bin')]).trash).toBe('Bin');
     // Namespace-prefixed servers (INBOX.Trash).
     expect(resolveFolders([listEntry('INBOX'), listEntry('INBOX.Trash'), listEntry('INBOX.Archive')])).toEqual({
       trash: 'INBOX.Trash',
       archive: 'INBOX.Archive',
+      sent: null,
+      drafts: null,
+      junk: null,
+    });
+  });
+
+  it('resolves Sent, Drafts and Junk by special use, then by common names', () => {
+    expect(
+      resolveFolders([
+        listEntry('INBOX'),
+        listEntry('Outbox', { flags: ['\\Sent'] }),
+        listEntry('Notes', { flags: ['\\Drafts'] }),
+        listEntry('Bulk Mail', { flags: ['\\Junk'] }),
+      ]),
+    ).toMatchObject({ sent: 'Outbox', drafts: 'Notes', junk: 'Bulk Mail' });
+    expect(resolveFolders([listEntry('INBOX'), listEntry('Sent Items'), listEntry('Drafts'), listEntry('Junk E-mail')])).toMatchObject({
+      sent: 'Sent Items',
+      drafts: 'Drafts',
+      junk: 'Junk E-mail',
     });
   });
 
@@ -280,7 +299,7 @@ describe('special-use resolution (§4.10)', () => {
         listEntry('Archives'),
         listEntry('trash'),
       ]),
-    ).toEqual({ trash: null, archive: null });
+    ).toEqual({ trash: null, archive: null, sent: null, drafts: null, junk: null });
     expect(resolveFolders([listEntry('Gone', { flags: ['\\Trash', '\\NonExistent'] }), listEntry('Bin')]).trash).toBe('Bin');
   });
 

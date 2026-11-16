@@ -351,18 +351,19 @@ export function createImapProvider(deps: ImapDeps): MailProvider {
     new HttpError(502, 'provider_error', { message: 'The mail server returned an error', accountId: account.id });
 
   return {
-    async list(account, { maxMessages, unreadOnly, signal, onStage }) {
+    async list(account, { maxMessages, unreadOnly, folder = 'inbox', signal, onStage }) {
       const folders = cachedFolders(account);
-      const output = await session(account, signal, { op: 'list', maxMessages, unreadOnly, folders }, onStage);
+      const output = await session(account, signal, { op: 'list', maxMessages, unreadOnly, folder, folders }, onStage);
       if (output.op !== 'list') throw unexpected(account);
       rememberFolders(account, folders, output.folders);
       const { mailbox } = output;
-      const messages = output.fetched
+      const messages = (mailbox === null ? [] : output.fetched)
         .filter((f: ImapFetched) => !(unreadOnly && f.flags?.has('\\Seen')))
         .sort((a, b) => b.uid - a.uid)
         .slice(0, maxMessages)
-        .map((f) => mapImapMessage(f, account, { path: mailbox.path, uidValidity: mailbox.uidValidity }, now))
-        .filter((m): m is MailMessage => m !== null);
+        .map((f) => (mailbox === null ? null : mapImapMessage(f, account, { path: mailbox.path, uidValidity: mailbox.uidValidity }, now)))
+        .filter((m): m is MailMessage => m !== null)
+        .map((m) => (folder === 'inbox' ? m : { ...m, folder }));
       return {
         unread: output.unseen ?? messages.filter((m) => m.unread).length,
         messages,

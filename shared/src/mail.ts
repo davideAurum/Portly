@@ -12,6 +12,11 @@ export const MAIL_TEXT_LIMITS = {
 export const MIN_MAIL_MESSAGES = 5;
 export const MAX_MAIL_MESSAGES = 20;
 
+/** The folders the widget can list, per account (each provider maps them to its own folder/label). */
+export const MAIL_FOLDERS = ['inbox', 'sent', 'drafts', 'spam', 'trash'] as const;
+export type MailFolder = (typeof MAIL_FOLDERS)[number];
+export const MailFolderSchema = z.enum(MAIL_FOLDERS);
+
 export interface MailAddress {
   name: string;
   address: string;
@@ -28,6 +33,8 @@ export interface MailMessage {
   /** ISO date-time. */
   date: string;
   unread: boolean;
+  /** The folder it was listed from; absent means the inbox (older answers). */
+  folder?: MailFolder;
   /** Host-allowlisted webmail link, or null. */
   webUrl: string | null;
 }
@@ -38,6 +45,7 @@ export interface MailAccountSummary {
   label: string;
   email: string | null;
   color: string | null;
+  /** Unread messages in the inbox (0 when the inbox was not requested). */
   unread: number;
   messages: MailMessage[];
   webmailUrl: string | null;

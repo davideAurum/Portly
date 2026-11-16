@@ -26,6 +26,7 @@ import {
   type AccountKind,
   type ItemError,
   type MailAccountSummary,
+  type MailFolder,
   type MailMessage,
 } from '@portly/shared';
 import type { AppContext } from '../../context.ts';
@@ -68,6 +69,8 @@ export interface SummaryQuery {
   unreadOnly: boolean;
   /** Only these accounts (the widget's selection); all mail accounts when omitted. */
   accountIds?: readonly string[] | undefined;
+  /** Folders to list per account (merged newest first); the inbox when omitted. */
+  folders?: readonly MailFolder[] | undefined;
 }
 
 export interface MailService {
@@ -87,8 +90,8 @@ export function listKeyPrefix(accountId: string): string {
  * so a listing that was already in flight (and read the mailbox before an action) can neither be
  * joined by a later request nor be served after it lands — it is stored under a dead key.
  */
-export function listKey(accountId: string, generation: number, maxMessages: number, unreadOnly: boolean): string {
-  return `${listKeyPrefix(accountId)}${generation}:${maxMessages}:${unreadOnly ? 'unread' : 'all'}`;
+export function listKey(accountId: string, generation: number, maxMessages: number, unreadOnly: boolean, folder: MailFolder = 'inbox'): string {
+  return `${listKeyPrefix(accountId)}${generation}:${maxMessages}:${unreadOnly ? 'unread' : 'all'}:${folder}`;
 }
 
 export function allowKey(accountId: string): string {
@@ -108,6 +111,11 @@ function hasMail(account: Account): boolean {
 
 function byDateDesc(a: MailMessage, b: MailMessage): number {
   return Date.parse(b.date) - Date.parse(a.date);
+}
+
+/** The requested folders without repeats; the inbox when none are given. */
+export function uniqueFolders(folders: readonly MailFolder[] | undefined): MailFolder[] {
+  return folders === undefined || folders.length === 0 ? ['inbox'] : [...new Set(folders)];
 }
 
 export function clampMaxMessages(value: number): number {
@@ -310,12 +318,12 @@ export function createMailService(ctx: MailServiceContext, options: MailServiceO
   };
 
   /** Lists `account` from its provider (a memo miss) and records the outcome as `mail:<accountId>`. */
-  const freshListing = async (account: Account, provider: MailProvider, query: SummaryQuery): Promise<ProviderListing> => {
+  const freshListing = async (account: Account, provider: MailProvider, query: SummaryQuery, folder: MailFolder): Promise<ProviderListing> => {
     const tracker = createStageTracker();
     const started = now();
     try {
       const fresh = await withTimeout(
-        (signal) => provider.list(account, { maxMessages: query.maxMessages, unreadOnly: query.unreadOnly, signal, onStage: tracker.report }),
+        (signal) => provider.list(account, { maxMessages: query.maxMessages, unreadOnly: query.unreadOnly, folder, signal, onStage: tracker.report }),
         { ms: accountTimeoutMs, accountId: account.id, what: PROVIDER_NAMES[account.kind], op: 'list', tracker, log },
       );
       const listing = { ...fresh, messages: [...fresh.messages].sort(byDateDesc).slice(0, query.maxMessages) };
@@ -354,21 +362,34 @@ export function createMailService(ctx: MailServiceContext, options: MailServiceO
     try {
       // The memo's single-flight body runs in the first caller's context; the key is per account,
       // so that context already names this account.
-      const listing = await memo.getOrSet<ProviderListing>(
-        listKey(account.id, generation(account.id), query.maxMessages, query.unreadOnly),
-        LIST_TTL_MS,
-        () => freshListing(account, provider, query),
+      const folders = uniqueFolders(query.folders);
+      const settled = await Promise.allSettled(
+        folders.map((folder) =>
+          memo.getOrSet<ProviderListing>(
+            listKey(account.id, generation(account.id), query.maxMessages, query.unreadOnly, folder),
+            LIST_TTL_MS,
+            () => freshListing(account, provider, query, folder),
+          ),
+        ),
       );
+      // The inbox failing is the account's failure; another folder failing alone just stays empty.
+      const failure = settled.find((r, i) => r.status === 'rejected' && (folders[i] === 'inbox' || settled.every((o) => o.status === 'rejected')));
+      if (failure?.status === 'rejected') throw failure.reason;
+      const listings = settled.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+      const first = listings[0] as ProviderListing;
+      const inbox = folders.indexOf('inbox');
+      const messages = listings.flatMap((l) => l.messages).sort(byDateDesc);
       remember(
         account.id,
-        listing.messages.map((m) => m.id),
+        messages.map((m) => m.id),
       );
       return {
         ...base,
-        unread: listing.unread,
-        messages: listing.messages,
-        canArchive: listing.canArchive,
-        canTrash: listing.canTrash ?? true,
+        // Only the inbox has an unread count worth showing.
+        unread: inbox >= 0 ? ((settled[inbox] as PromiseFulfilledResult<ProviderListing>).value.unread) : 0,
+        messages,
+        canArchive: first.canArchive,
+        canTrash: first.canTrash ?? true,
       };
     } catch (err) {
       return { ...base, unread: 0, messages: [], canArchive: false, canTrash: false, error: itemError(err, account) };

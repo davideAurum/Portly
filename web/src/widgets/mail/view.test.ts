@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MailAccountSummary, MailMessage } from '@portly/shared';
 import { applyMailAction, mailSummaryKey, mailSummaryPath } from '../../api/mail.ts';
-import { accountGroups, failedAccounts, mergedRows, rowHref, senderLabel, toggleHidden, totalUnread, visibleSummaries } from './view.ts';
+import { accountGroups, failedAccounts, folderOf, mergedRows, rowHref, senderLabel, toggleFolder, toggleHidden, totalUnread, visibleSummaries } from './view.ts';
 
 function msg(id: string, accountId: string, date: string, extra: Partial<MailMessage> = {}): MailMessage {
   return {
@@ -125,5 +125,35 @@ describe('sidebar visibility', () => {
     expect(toggleHidden([], 'a', false, ['a', 'b'])).toEqual(['a']);
     expect(toggleHidden(['a'], 'a', true, ['a', 'b'])).toEqual([]);
     expect(toggleHidden(['gone', 'a'], 'b', false, ['a', 'b'])).toEqual(['a', 'b']);
+  });
+});
+
+describe('folders', () => {
+  it('toggleFolder adds in the fixed order and never switches off the last folder', () => {
+    expect(toggleFolder(['inbox'], 'trash', true)).toEqual(['inbox', 'trash']);
+    expect(toggleFolder(['trash'], 'sent', true)).toEqual(['sent', 'trash']);
+    expect(toggleFolder(['inbox', 'sent'], 'inbox', false)).toEqual(['sent']);
+    expect(toggleFolder(['sent'], 'sent', false)).toEqual(['sent']);
+  });
+
+  it('folderOf defaults to the inbox', () => {
+    expect(folderOf(msg('x', 'a', '2026-09-24T10:00:00Z'))).toBe('inbox');
+    expect(folderOf(msg('x', 'a', '2026-09-24T10:00:00Z', { folder: 'spam' }))).toBe('spam');
+  });
+
+  it('puts the folders in the request path and key only when they are not just the inbox', () => {
+    const base = { maxMessages: 10, unreadOnly: false, accountIds: 'all' } as const;
+    expect(mailSummaryPath({ ...base, folders: ['inbox'] })).toBe('/api/mail/summary?maxMessages=10&unreadOnly=false');
+    expect(mailSummaryPath({ ...base, folders: ['trash', 'inbox', 'sent'] })).toBe(
+      '/api/mail/summary?maxMessages=10&unreadOnly=false&folders=inbox%2Csent%2Ctrash',
+    );
+    expect(mailSummaryKey({ ...base, folders: ['inbox'] })).toEqual(mailSummaryKey(base));
+    expect(mailSummaryKey({ ...base, folders: ['sent'] })).toEqual(['mail', 'summary', { maxMessages: 10, unreadOnly: false, accountIds: 'all', folders: 'sent' }]);
+  });
+
+  it('actions on other folders leave the inbox unread count alone', () => {
+    const sent = summary('s', [msg('s1', 's', '2026-09-24T10:00:00Z', { unread: true, folder: 'sent' })], { unread: 4 });
+    expect(applyMailAction([sent], { accountId: 's', messageId: 's1', action: 'read' })[0]?.unread).toBe(4);
+    expect(applyMailAction([sent], { accountId: 's', messageId: 's1', action: 'trash' })[0]?.unread).toBe(4);
   });
 });

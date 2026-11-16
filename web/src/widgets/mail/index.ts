@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Mail } from 'lucide-react';
 import { z } from 'zod';
-import { MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES } from '@portly/shared';
+import { MAX_MAIL_MESSAGES, MIN_MAIL_MESSAGES, MailFolderSchema } from '@portly/shared';
 import { lazyWithPreload } from '../lazyWidget.ts';
 import type { WidgetDefinition } from '../types.ts';
 
@@ -12,6 +12,8 @@ export const mailConfigSchema = z.object({
   grouping: z.enum(['merged', 'byAccount']).default('merged'),
   /** Accounts switched off in the sidebar: still fetched (so a switch is instant), not shown. */
   hiddenAccountIds: z.array(z.string().min(1).max(512)).max(50).default([]),
+  /** Folders listed per account (at least one), toggled from the chips above the list. */
+  folders: z.array(MailFolderSchema).min(1).max(5).default(['inbox']),
   /** The account sidebar is folded to a narrow rail of colored dots. */
   sidebarCollapsed: z.boolean().default(false),
 });

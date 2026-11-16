@@ -6,7 +6,7 @@
  * Outbound purposes: `graph.mail.folder`, `graph.mail.list`, `graph.mail.update`, `graph.mail.move`.
  */
 import { z } from 'zod';
-import type { Account, MailMessage } from '@portly/shared';
+import type { Account, MailFolder, MailMessage } from '@portly/shared';
 import { HttpError } from '../../../lib/errors.ts';
 import { cleanPreview, cleanSubject, mailAddress, toIsoDate } from '../text.ts';
 import { allowlistedWebUrl } from '../weburl.ts';
@@ -60,7 +60,16 @@ function odataQuery(params: readonly (readonly [string, string])[]): string {
   return params.map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
 }
 
-export function graphListUrl(maxMessages: number, unreadOnly: boolean): string {
+/** The Graph well-known folder name of each folder. */
+export const GRAPH_FOLDER_NAMES: Readonly<Record<MailFolder, string>> = Object.freeze({
+  inbox: 'inbox',
+  sent: 'sentitems',
+  drafts: 'drafts',
+  spam: 'junkemail',
+  trash: 'deleteditems',
+});
+
+export function graphListUrl(maxMessages: number, unreadOnly: boolean, folder: MailFolder = 'inbox'): string {
   const params: [string, string][] = [
     ['$top', String(maxMessages)],
     ['$orderby', 'receivedDateTime desc'],
@@ -68,7 +77,7 @@ export function graphListUrl(maxMessages: number, unreadOnly: boolean): string {
   ];
   // Graph requires $orderby properties to appear first in $filter ("InefficientFilter" otherwise).
   if (unreadOnly) params.push(['$filter', 'receivedDateTime ge 1900-01-01T00:00:00Z and isRead eq false']);
-  return `${GRAPH_API}/me/mailFolders/inbox/messages?${odataQuery(params)}`;
+  return `${GRAPH_API}/me/mailFolders/${GRAPH_FOLDER_NAMES[folder]}/messages?${odataQuery(params)}`;
 }
 
 export function createGraphProvider(deps: RestDeps & { now?: () => number }): MailProvider {
@@ -76,16 +85,17 @@ export function createGraphProvider(deps: RestDeps & { now?: () => number }): Ma
   const headers = { Prefer: GRAPH_PREFER };
 
   return {
-    async list(account, { maxMessages, unreadOnly, signal, onStage }) {
+    async list(account, { maxMessages, unreadOnly, folder = 'inbox', signal, onStage }) {
       const get = (url: string, purpose: string) => restCall(deps, NAME, account.id, url, { kind: 'list', purpose, signal, onStage, headers });
       const [folderData, listData] = await Promise.all([
-        get(`${GRAPH_API}/me/mailFolders/inbox?$select=unreadItemCount`, 'graph.mail.folder'),
-        get(graphListUrl(maxMessages, unreadOnly), 'graph.mail.list'),
+        get(`${GRAPH_API}/me/mailFolders/${GRAPH_FOLDER_NAMES[folder]}?$select=unreadItemCount`, 'graph.mail.folder'),
+        get(graphListUrl(maxMessages, unreadOnly, folder), 'graph.mail.list'),
       ]);
       const messages = (ListSchema.safeParse(listData).data?.value ?? [])
         .map((raw) => mapGraphMessage(raw, account, now))
         .filter((m): m is MailMessage => m !== null)
-        .slice(0, maxMessages);
+        .slice(0, maxMessages)
+        .map((m) => (folder === 'inbox' ? m : { ...m, folder }));
       const counted = FolderSchema.safeParse(folderData).data?.unreadItemCount;
       return { unread: counted ?? messages.filter((m) => m.unread).length, messages, canArchive: true };
     },

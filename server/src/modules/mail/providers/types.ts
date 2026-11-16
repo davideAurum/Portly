@@ -4,7 +4,7 @@
  * allowlisted links) and throw `HttpError`s with §7a codes; the service adds caching, the id
  * allowlist, per-account timeouts, error aggregation and health (§17: `mail:<accountId>`).
  */
-import type { Account, MailMessage } from '@portly/shared';
+import type { Account, MailFolder, MailMessage } from '@portly/shared';
 
 /**
  * Reports the step a provider call has reached, so a failure or a timeout names it in logs and
@@ -19,6 +19,8 @@ export interface ListOptions {
   /** 5–20. */
   maxMessages: number;
   unreadOnly: boolean;
+  /** Which folder to list; the inbox when omitted. A folder the account lacks lists as empty. */
+  folder?: MailFolder;
   /** Aborted when the per-account timeout expires (providers stop work and close connections). */
   signal: AbortSignal;
   /** See {@link StageReporter}. */
@@ -26,7 +28,7 @@ export interface ListOptions {
 }
 
 export interface ProviderListing {
-  /** Unread messages in the inbox (provider count, not just the listed ones). */
+  /** Unread messages in the listed folder (provider count, not just the listed ones). */
   unread: number;
   /** Newest first. */
   messages: MailMessage[];
