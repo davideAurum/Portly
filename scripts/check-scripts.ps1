@@ -1871,6 +1871,11 @@ try {
                 $updateDry.ExitCode -eq 0 -and $updateDry.Text.Contains('[dry run] Installing dependencies') -and
                 $updateDry.Text.Contains('[dry run] Building the local page') -and
                 -not (Test-Path -LiteralPath (Join-Path $updateCopies.plain 'node_modules'))) -Detail $updateDry.Text
+            $updateSkipDeps = & $run (Join-Path $updateCopies.plain 'scripts\update.ps1') @('-DryRun', '-SkipPublish', '-SkipServer', '-SkipDependencies')
+            Assert-That -Name 'update.ps1 -SkipDependencies warns about outdated dependencies and plans no npm ci' -Condition (
+                $updateSkipDeps.ExitCode -eq 0 -and $updateSkipDeps.Text.Contains('Skipping npm ci') -and
+                -not $updateSkipDeps.Text.Contains('Installing dependencies') -and
+                $updateSkipDeps.Text.Contains('[dry run] Building the local page')) -Detail $updateSkipDeps.Text
 
             # try-branch.ps1 -DryRun: only reads (the snapshot below checks the task was not disabled).
             # Without a data folder (a CI runner) it stops at that check, before anything else.

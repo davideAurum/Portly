@@ -927,6 +927,35 @@ function Test-PtDependenciesInstalled {
     return Test-Path -LiteralPath (Join-Path $RepoRoot 'node_modules\hono\package.json') -PathType Leaf
 }
 
+# True when npm ci must run: no install yet, or package-lock.json changed since the last one.
+function Test-PtDependenciesStale {
+    param([Parameter(Mandatory)][string]$RepoRoot)
+    if (-not (Test-PtDependenciesInstalled -RepoRoot $RepoRoot)) { return $true }
+    $installed = Join-Path $RepoRoot 'node_modules\.package-lock.json'
+    if (-not (Test-Path -LiteralPath $installed -PathType Leaf)) { return $true }
+    $lock = Get-Item -LiteralPath (Join-Path $RepoRoot 'package-lock.json')
+    return $lock.LastWriteTimeUtc -gt (Get-Item -LiteralPath $installed).LastWriteTimeUtc
+}
+
+# True when a person can answer a prompt: neither input nor output is redirected.
+function Test-PtCanPrompt {
+    try {
+        return (-not [System.Console]::IsInputRedirected) -and (-not [System.Console]::IsOutputRedirected)
+    } catch {
+        return $false
+    }
+}
+
+# Asks a yes/no question (Enter = yes). Returns $true for yes.
+function Read-PtYesNo {
+    param([Parameter(Mandatory)][string]$Question)
+    while ($true) {
+        $answer = (Read-Host "$Question [Y/n]").Trim().ToLowerInvariant()
+        if ($answer -in '', 'y', 'yes') { return $true }
+        if ($answer -in 'n', 'no') { return $false }
+    }
+}
+
 # Runs `npm run build` in the repository (builds web\dist).
 function Invoke-PtWebBuild {
     param([Parameter(Mandatory)][string]$RepoRoot)

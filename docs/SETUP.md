@@ -270,7 +270,7 @@ first.
 
 A release install: `portly update` (see [Install](#install)).
 
-From the source code, in one go: after `git pull`, `portly update` (in a checkout) runs `scripts\update.ps1`: `npm ci` when the lockfile changed, the build, a
+From the source code, in one go: after `git pull`, `portly update` (in a checkout) runs `scripts\update.ps1`: `npm ci` when the lockfile changed (it asks first; `--yes` skips the question), the build, a
 restart of the server if it was running, and the Pages publish when `PORTLY_PAGES_REPO` is set.
 It refuses a checkout with uncommitted changes, so what it builds and publishes is always a
 commit; `--allow-dirty` builds and publishes them as they are, and `--dry-run` shows the plan.

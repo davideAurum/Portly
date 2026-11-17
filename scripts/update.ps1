@@ -8,8 +8,9 @@
        session ends) and shows the branch and commit being deployed. Uncommitted changes are
        refused too, so what is built and published is always a commit; -AllowDirty builds and
        publishes them as they are (with a warning). A branch other than main is only a warning.
-    2. Installs dependencies (npm ci) when package-lock.json is newer than node_modules. The
-       server is stopped first, since it runs from node_modules.
+    2. Checks the dependencies and, when they are missing or package-lock.json is newer than
+       node_modules, asks whether to install them (npm ci). Without a person to ask (piped
+       or unattended) it installs. The server is stopped first, since it runs from node_modules.
     3. Builds web\dist (npm run build), the page served at http://localhost:<port>.
     4. Restarts the Portly Server scheduled task when it was running, so server code changes
        take effect, and waits for /api/health. Skipped when the task runs another folder. Before
@@ -32,6 +33,12 @@
     Build and publish uncommitted changes too (by default they are refused). `portly update
     --allow-dirty` in a checkout.
 
+.PARAMETER InstallDependencies
+    Install missing or outdated dependencies without asking. `portly update --yes`.
+
+.PARAMETER SkipDependencies
+    Do not install dependencies, and do not ask. `portly update --skip-dependencies`.
+
 .PARAMETER DryRun
     Print what would run and change nothing (the publish step runs publish-static.ps1 -DryRun).
     Refuses what a real run refuses (a worktree, uncommitted changes without -AllowDirty).
@@ -49,6 +56,8 @@ param(
     [switch]$SkipPublish,
     [switch]$SkipServer,
     [switch]$AllowDirty,
+    [switch]$InstallDependencies,
+    [switch]$SkipDependencies,
     [switch]$DryRun,
     [ValidateRange(5, 600)][int]$TimeoutSeconds = 60
 )
@@ -86,16 +95,6 @@ function Invoke-UpdateGit {
     } finally {
         $ErrorActionPreference = $previous
     }
-}
-
-# True when npm ci must run: no install yet, or package-lock.json changed since the last one.
-function Test-UpdateDependenciesStale {
-    param([Parameter(Mandatory)][string]$RepoRoot)
-    if (-not (Test-PtDependenciesInstalled -RepoRoot $RepoRoot)) { return $true }
-    $installed = Join-Path $RepoRoot 'node_modules\.package-lock.json'
-    if (-not (Test-Path -LiteralPath $installed -PathType Leaf)) { return $true }
-    $lock = Get-Item -LiteralPath (Join-Path $RepoRoot 'package-lock.json')
-    return $lock.LastWriteTimeUtc -gt (Get-Item -LiteralPath $installed).LastWriteTimeUtc
 }
 
 # Whether the scheduled task starts this checkout's supervisor (not some other folder's).
@@ -173,7 +172,19 @@ function Invoke-Update {
     }
     $stopped = $false
 
-    if (Test-UpdateDependenciesStale -RepoRoot $repoRoot) {
+    $installDependencies = $false
+    if (Test-PtDependenciesStale -RepoRoot $repoRoot) {
+        $installDependencies = -not $SkipDependencies
+        # Asked only when a person can answer; unattended and piped runs install, as before.
+        if ($installDependencies -and -not $InstallDependencies -and -not $DryRun -and (Test-PtCanPrompt)) {
+            Write-PtWarn 'Dependencies are missing or out of date (package-lock.json changed since the last npm ci).'
+            $installDependencies = Read-PtYesNo -Question 'Install them now (npm ci)?'
+        }
+        if (-not $installDependencies) {
+            Write-Warning 'Skipping npm ci: dependencies are missing or out of date, so the build or the server may fail. Run npm ci, or update again and answer yes.'
+        }
+    }
+    if ($installDependencies) {
         Write-PtStep "${prefix}Installing dependencies (package-lock.json changed): npm ci"
         if (-not $DryRun) {
             if ($restart) {

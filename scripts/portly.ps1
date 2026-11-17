@@ -12,11 +12,13 @@
         node.exe, portly-supervisor.exe and portly-server.exe, when they are out of date) and
         wait until it answers.
     portly update [--dry-run] [--version <x>] [--force] [--allow-dirty] [--no-publish]
+                  [--yes] [--skip-dependencies]
         Release install: download and install the newest release (or <x>; --force reinstalls)
         with scripts\install.ps1, run from a temporary copy. Git checkout: update everything
         from the code checked out (scripts\update.ps1): dependencies, the local page, the
         server and the GitHub Pages site. Uncommitted changes are refused unless --allow-dirty;
-        --no-publish leaves the Pages site alone.
+        --no-publish leaves the Pages site alone. Missing or outdated dependencies: asks before
+        npm ci (--yes installs without asking, --skip-dependencies skips them).
     portly dev [<folder>] [--pages-port <n>] [--keep-data] [--skip-build] [--dry-run]
         Build and run a local Git checkout (the shell's current one, a worktree included, or
         <folder>) with its own scripts\try-branch.ps1: on a copy of your data, with your normal
@@ -59,7 +61,9 @@ $PortlyCliCommands = @(
             @('--version <x>', 'release: install release <x> instead'),
             @('--force', 'release: reinstall even the installed version'),
             @('--allow-dirty', 'checkout: build and publish uncommitted changes too'),
-            @('--no-publish', 'checkout: leave the GitHub Pages site alone'))
+            @('--no-publish', 'checkout: leave the GitHub Pages site alone'),
+            @('--yes', 'checkout: install outdated dependencies without asking'),
+            @('--skip-dependencies', 'checkout: do not install them, do not ask'))
     },
     [pscustomobject]@{
         Name = 'dev'; Args = '[folder]'; Text = @('Build and run a checkout (this folder''s, or <folder>) on a', 'COPY of your data; your Portly is back when you press Enter.')
@@ -171,7 +175,7 @@ function Invoke-PtReleaseUpdate {
                 $arguments.Add('-Version')
                 $arguments.Add($Options[$i])
             }
-            { $_ -in '--allow-dirty', '--no-publish', '--skip-publish', '--skip-server' } {
+            { $_ -in '--allow-dirty', '--no-publish', '--skip-publish', '--skip-server', '--yes', '--skip-dependencies' } {
                 Write-PtFailure "$($Options[$i]) is for a Git checkout; this is a release install."
                 return 2
             }
@@ -233,8 +237,17 @@ function Invoke-PtCheckoutUpdate {
         '--skip-publish' = @{ Name = 'SkipPublish'; Value = $true }
         '--skip-server'  = @{ Name = 'SkipServer'; Value = $true }
         '--allow-dirty'  = @{ Name = 'AllowDirty'; Value = $true }
+        '--yes'          = @{ Name = 'InstallDependencies'; Value = $true }
+        '--skip-dependencies' = @{ Name = 'SkipDependencies'; Value = $true }
     }
     if ($null -eq $mapped) { return 2 }
+    # The streamed child has no usable console, so the dependency question is asked here.
+    if (-not $mapped.ContainsKey('InstallDependencies') -and -not $mapped.ContainsKey('SkipDependencies') -and
+        -not $mapped.ContainsKey('DryRun') -and (Test-PtFancyOutput) -and (Test-PtCanPrompt) -and
+        (Test-PtDependenciesStale -RepoRoot (Get-PtRepoRoot -ScriptRoot $PSScriptRoot))) {
+        Write-PtWarn 'Dependencies are missing or out of date (package-lock.json changed since the last npm ci).'
+        if (Read-PtYesNo -Question 'Install them now (npm ci)?') { $mapped['InstallDependencies'] = $true } else { $mapped['SkipDependencies'] = $true }
+    }
     if (Test-PtFancyOutput) { return Invoke-PtCliScriptStreamed -Script 'update.ps1' -Parameters $mapped -Activity 'Updating from the checkout' }
     return Invoke-PtCliScript -Script 'update.ps1' -Parameters $mapped
 }
