@@ -111,7 +111,10 @@ The scripts share their output helpers (`Write-PtStep`, `Write-PtOk`, `Write-PtF
 - **In a terminal** (Windows Terminal, or a console that understands ANSI escapes) they use the
   **Harbor** theme: 24-bit colors (teal headings, coral errors, amber warnings, mint for done),
   icons (an anchor in the banner, arrows for steps, check and cross marks), a spinner while a
-  step works, and a progress bar while Portly is starting (`Wait-PtHealth`). `portly update`
+  step works, and a progress bar while Portly is starting (`Wait-PtHealth`). The banner names
+  the command and what it does; for `portly status` it shows a light with the overall state
+  instead: Healthy, Warnings (the vault is not ready, or other Portly servers run), Not running
+  or Errors (`Get-PtOverallStatus`). `portly -v` shows the kind of install. `portly update`
   runs the installer or `update.ps1` in a child PowerShell and shows its lines in the theme,
   with a spinner and the step's elapsed time while it is quiet (`Invoke-PtStreamedProcess`).
 - **Everywhere else** (output redirected to a file or another program, the scheduled tasks,

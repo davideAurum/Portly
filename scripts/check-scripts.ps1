@@ -266,6 +266,16 @@ $portlyFound = Select-PtPortlyListeners -Processes (@($staleProcesses) + @($prev
 $portlyText = (@($portlyFound | ForEach-Object { "$($_.ProcessId):$($_.Kind):$($_.SupervisorId):$($_.Ports -join '+')" }) -join ',')
 Assert-That -Name 'Select-PtPortlyListeners sorts Portly listeners into task, server and vite, with the task server''s supervisor' -Condition (
     $portlyText -eq '42:task:41:5757,50:server::5790,60:vite::5175') -Detail $portlyText
+$okHealth = [pscustomobject]@{ Ok = $true; Vault = 'ready'; Listeners = @() }
+$overallTexts = @(
+    (Get-PtOverallStatus -Health $okHealth -Strays @()),
+    (Get-PtOverallStatus -Health $okHealth -Strays @([pscustomobject]@{ ProcessId = 1 })),
+    (Get-PtOverallStatus -Health ([pscustomobject]@{ Ok = $true; Vault = 'locked'; Listeners = @() }) -Strays $null),
+    (Get-PtOverallStatus -Health ([pscustomobject]@{ Ok = $false; Vault = $null; Listeners = @() }) -Strays @()),
+    (Get-PtOverallStatus -Health ([pscustomobject]@{ Ok = $false; Vault = $null; Listeners = @([pscustomobject]@{ ProcessId = 9 }) }) -Strays @())
+) | ForEach-Object { "$($_.State):$($_.Text):$($_.Detail)" }
+Assert-That -Name 'Get-PtOverallStatus: Healthy, Warnings (other servers, vault), Not running, Errors' -Condition (
+    ($overallTexts -join '|') -eq 'Ok:Healthy:|Warn:Warnings:1 other server|Warn:Warnings:vault locked|Bad:Not running:portly start starts it|Bad:Errors:the port is taken but Portly does not answer') -Detail ($overallTexts -join '|')
 Assert-That -Name 'Format-PtStrayServers names each stray Portly process with its ports' -Condition (
     $strayText -eq 'Portly server node.exe PID 50 on port 5790; Vite node.exe PID 60 on ports 5175, 5176' -and
     (Format-PtStrayServers -Strays @()) -eq 'none' -and (Format-PtStrayServers -Strays $null) -eq 'unknown') -Detail $strayText

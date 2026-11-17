@@ -157,12 +157,25 @@ function Format-PtElapsed {
     return ('{0}s' -f [int][Math]::Floor($Span.TotalSeconds))
 }
 
-# The first line of a command's output: the anchor, "Portly", the version and a subtitle.
+# The first line of a command's output: the anchor, "Portly", the version and a subtitle, then
+# either a status light with its word (-State Ok, Warn or Bad and -StateText, then -Detail) or a
+# line on what the command does (-Detail alone).
 function Write-PtBanner {
-    param([Parameter(Mandatory)][string]$Version, [string]$Subtitle = '')
+    param(
+        [Parameter(Mandatory)][string]$Version,
+        [string]$Subtitle = '',
+        [ValidateSet('', 'Ok', 'Warn', 'Bad')][string]$State = '',
+        [string]$StateText = '',
+        [string]$Detail = ''
+    )
     if (-not (Test-PtFancyOutput)) { return }
     $line = (Format-PtStyle Coral $PtIcons.Anchor) + ' ' + (Format-PtStyle Foam 'Portly' -Bold) + ' ' + (Format-PtStyle Teal $Version)
     if ($Subtitle) { $line += '  ' + (Format-PtStyle Mist "$($PtIcons.Middot) $Subtitle") }
+    if ($State) {
+        $color = (@{ Ok = 'Mint'; Warn = 'Amber'; Bad = 'Coral' })[$State]
+        $line += '  ' + (Format-PtStyle $color "$($PtIcons.Dot) $StateText" -Bold)
+    }
+    if ($Detail) { $line += '  ' + (Format-PtStyle Mist "$($PtIcons.Middot) $Detail") }
     Write-Host ''
     Write-Host $line
     Write-Host (Format-PtStyle Deep ($PtIcons.Rule * 60) -Dim)
@@ -1617,6 +1630,26 @@ function Format-PtStrayServers {
         "$kind $($stray.Name) PID $($stray.ProcessId) on $portText"
     }
     return ($parts -join '; ')
+}
+
+# Pure: the overall state for the status banner from a Test-PtHealth result and the stray servers.
+# Healthy (answers, vault ready, nothing stray), Warnings (answers, but the vault is not ready or
+# other Portly servers run), Not running (nothing listens), Errors (something listens but Portly
+# does not answer).
+function Get-PtOverallStatus {
+    param([Parameter(Mandatory)]$Health, [AllowNull()][AllowEmptyCollection()][object[]]$Strays)
+    $strayCount = if ($null -eq $Strays) { 0 } else { @($Strays).Count }
+    $notes = @()
+    if (-not $Health.Ok) {
+        if ($null -ne $Health.Listeners -and @($Health.Listeners).Count -gt 0) {
+            return [pscustomobject]@{ State = 'Bad'; Text = 'Errors'; Detail = 'the port is taken but Portly does not answer' }
+        }
+        return [pscustomobject]@{ State = 'Bad'; Text = 'Not running'; Detail = 'portly start starts it' }
+    }
+    if ($Health.Vault -and $Health.Vault -ne 'ready') { $notes += "vault $($Health.Vault)" }
+    if ($strayCount -gt 0) { $notes += $(if ($strayCount -eq 1) { '1 other server' } else { "$strayCount other servers" }) }
+    if ($notes.Count -gt 0) { return [pscustomobject]@{ State = 'Warn'; Text = 'Warnings'; Detail = ($notes -join ', ') } }
+    return [pscustomobject]@{ State = 'Ok'; Text = 'Healthy'; Detail = '' }
 }
 
 # Stops stale Portly servers holding $Port (see Select-PtStaleServers) so the task can start.

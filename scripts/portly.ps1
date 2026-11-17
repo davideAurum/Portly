@@ -308,11 +308,19 @@ function Write-PtVersion {
     return 0
 }
 
+# The banner of a command: its name and what it does (-Detail), or for status the overall state
+# as a light (-State, -StateText). portly -v shows the kind of install.
 function Write-PtCliBanner {
-    param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)][string]$Subtitle)
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$Subtitle,
+        [string]$Detail = '',
+        [ValidateSet('', 'Ok', 'Warn', 'Bad')][string]$State = '',
+        [string]$StateText = ''
+    )
     if (-not (Test-PtFancyOutput)) { return }
     $version = Get-PtCliVersion -RepoRoot $RepoRoot
-    Write-PtBanner -Version $version.Version -Subtitle "$Subtitle $($PtIcons.Middot) $($version.Kind)"
+    Write-PtBanner -Version $version.Version -Subtitle $Subtitle -State $State -StateText $StateText -Detail $Detail
 }
 
 # The Git checkout to try: the folder given, else the one the shell is in (a worktree counts),
@@ -513,26 +521,30 @@ function Invoke-PtCli {
             }
             if ($null -eq $mapped) { return 2 }
             if (-not $mapped.ContainsKey('View')) { $mapped.View = 'Status' }
-            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'status'
+            if (Test-PtFancyOutput) {
+                $overall = Get-PtOverallStatus -Health (Test-PtHealth -Port (Get-PtPortSetting -Scope Process).Port -TimeoutSeconds 2) -Strays (Get-PtStrayServers)
+                Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'status' -State $overall.State -StateText $overall.Text -Detail $overall.Detail
+            }
             return Invoke-PtCliScript -Script 'status.ps1' -Parameters $mapped
         }
         { $_ -in 'settings', 'config' } {
             $mapped = ConvertTo-PtCliParameters -Options $rest -Map @{}
             if ($null -eq $mapped) { return 2 }
             $mapped.View = 'Settings'
-            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'settings'
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'settings' -Detail 'how Portly is set up'
             return Invoke-PtCliScript -Script 'status.ps1' -Parameters $mapped
         }
         'start' {
-            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'start'
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'start' -Detail 'start the server and wait until it answers'
             return Invoke-PtStart -Options $rest
         }
         'stop' {
-            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'stop'
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'stop' -Detail 'stop the Portly processes on a port'
             return Invoke-PtStop -Options $rest
         }
         'update' {
-            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'update'
+            $updateDetail = if ($null -ne $release) { 'install the newest release' } else { 'rebuild everything from this checkout' }
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'update' -Detail $updateDetail
             if ($null -ne $release) { return Invoke-PtReleaseUpdate -RepoRoot $repoRoot -Info $release -Options $rest }
             return Invoke-PtCheckoutUpdate -Options $rest
         }
@@ -541,7 +553,7 @@ function Invoke-PtCli {
                 Write-PtFailure "This is a release install (Portly $($release.version)), not a Git checkout: use portly update."
                 return 1
             }
-            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'update'
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'update' -Detail 'rebuild everything from this checkout'
             return Invoke-PtCheckoutUpdate -Options $rest
         }
         'release' {
@@ -549,11 +561,11 @@ function Invoke-PtCli {
                 Write-PtFailure "This is a release install (Portly $($release.version)), not a Git checkout: portly release builds and publishes from a checkout."
                 return 1
             }
-            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'release'
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'release' -Detail 'build and publish a release'
             return Invoke-PtRelease -RepoRoot $repoRoot -Options $rest
         }
         'dev' {
-            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'dev'
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'dev' -Detail 'try a checkout on a copy of your data'
             return Invoke-PtDev -DefaultRoot $repoRoot -Options $rest
         }
         { $_ -in 'version', 'v' } {
