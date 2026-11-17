@@ -1530,6 +1530,95 @@ function Select-PtStaleServers {
     return $result.ToArray()
 }
 
+# Pure selection like Select-PtStaleServers: the listening processes that are Vite run from a
+# Portly checkout's node_modules (the stand-in Pages site of `portly dev`, `npm run dev`,
+# `npm run preview:static`), such as one left over from an earlier run. Any other program, Vite
+# from another project included, is never selected.
+function Select-PtStaleViteServers {
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Processes,
+        [AllowNull()][AllowEmptyCollection()][object[]]$Listeners
+    )
+    $result = New-Object System.Collections.Generic.List[object]
+    if ($null -eq $Listeners) { return $result.ToArray() }
+    foreach ($id in @($Listeners | ForEach-Object { [int]$_.ProcessId } | Sort-Object -Unique)) {
+        $process = $Processes | Where-Object { [int](Get-PtProperty $_ 'ProcessId') -eq $id } | Select-Object -First 1
+        if ($null -eq $process) { continue }
+        $commandLine = "$(Get-PtProperty $process 'CommandLine')".Replace('/', '\').ToLowerInvariant()
+        $at = $commandLine.IndexOf('node_modules\vite\bin\vite.js')
+        if ($at -gt 0 -and $commandLine.Substring(0, $at).Contains('portly')) { $result.Add($process) }
+    }
+    return $result.ToArray()
+}
+
+# Pure selection over Win32_Process-like objects and listeners (ProcessId, optional Port): every
+# listening Portly process. Kind 'task' is the task's server (its parent runs supervisor.ts;
+# SupervisorId names it), 'server' a Portly server with no supervisor (Select-PtStaleServers),
+# 'vite' Vite run from a Portly checkout (Select-PtStaleViteServers). Any other program is never
+# selected. Each item: ProcessId, Name, Kind, SupervisorId, Ports (sorted; empty without Port).
+function Select-PtPortlyListeners {
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Processes,
+        [AllowNull()][AllowEmptyCollection()][object[]]$Listeners
+    )
+    $result = New-Object System.Collections.Generic.List[object]
+    if ($null -eq $Listeners) { return , $result.ToArray() }
+    $stale = @(@(Select-PtStaleServers -Processes $Processes -Listeners $Listeners) | ForEach-Object { [int](Get-PtProperty $_ 'ProcessId') })
+    $vite = @(@(Select-PtStaleViteServers -Processes $Processes -Listeners $Listeners) | ForEach-Object { [int](Get-PtProperty $_ 'ProcessId') })
+    foreach ($id in @($Listeners | ForEach-Object { [int]$_.ProcessId } | Sort-Object -Unique)) {
+        $process = $Processes | Where-Object { [int](Get-PtProperty $_ 'ProcessId') -eq $id } | Select-Object -First 1
+        if ($null -eq $process) { continue }
+        $kind = $null
+        $supervisorId = $null
+        if ($vite -contains $id) { $kind = 'vite' }
+        elseif ($stale -contains $id) { $kind = 'server' }
+        elseif ("$(Get-PtProperty $process 'CommandLine')".Replace('/', '\').ToLowerInvariant().Contains('server\src\index.ts')) {
+            $kind = 'task'
+            $supervisorId = [int](Get-PtProperty $process 'ParentProcessId')
+        }
+        if ($null -eq $kind) { continue }
+        $ports = @($Listeners | Where-Object { [int]$_.ProcessId -eq $id -and $null -ne (Get-PtProperty $_ 'Port') } |
+                ForEach-Object { [int](Get-PtProperty $_ 'Port') } | Sort-Object -Unique)
+        $result.Add([pscustomobject]@{ ProcessId = $id; Name = "$(Get-PtProperty $process 'Name')"; Kind = $kind; SupervisorId = $supervisorId; Ports = $ports })
+    }
+    return , $result.ToArray()
+}
+
+# The listening Portly processes (Select-PtPortlyListeners) on $Port, or on every port without it.
+# $null when this cannot be determined (no NetTCPIP module).
+function Get-PtPortlyListeners {
+    param([ValidateRange(0, 65535)][int]$Port = 0)
+    if ($null -eq (Get-Command -Name 'Get-NetTCPConnection' -ErrorAction SilentlyContinue)) { return $null }
+    $rows = if ($Port -gt 0) { @(Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue) } else { @(Get-NetTCPConnection -ErrorAction SilentlyContinue) }
+    $listeners = @($rows | Where-Object { $_.RemoteAddress -eq '0.0.0.0' -or $_.RemoteAddress -eq '::' } |
+            ForEach-Object { [pscustomobject]@{ Address = "$($_.LocalAddress)"; ProcessId = [int]$_.OwningProcess; Port = [int]$_.LocalPort } })
+    if ($listeners.Count -eq 0) { return , @() }
+    $all = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue |
+            Select-Object ProcessId, ParentProcessId, Name, CommandLine)
+    return , (Select-PtPortlyListeners -Processes $all -Listeners $listeners)
+}
+
+# Every listening Portly process the task did not start, on any port (kinds 'server' and 'vite').
+function Get-PtStrayServers {
+    $found = Get-PtPortlyListeners
+    if ($null -eq $found) { return $null }
+    return , @($found | Where-Object { $_.Kind -ne 'task' })
+}
+
+# "Portly server node.exe PID 50 on port 5790; Vite node.exe PID 60 on ports 5175, 5176"
+function Format-PtStrayServers {
+    param([AllowNull()][AllowEmptyCollection()][object[]]$Strays)
+    if ($null -eq $Strays) { return 'unknown' }
+    if ($Strays.Count -eq 0) { return 'none' }
+    $parts = foreach ($stray in $Strays) {
+        $kind = switch ($stray.Kind) { 'vite' { 'Vite' } 'task' { 'Portly (task)' } default { 'Portly server' } }
+        $ports = @($stray.Ports)
+        $portText = if ($ports.Count -eq 1) { "port $($ports[0])" } else { "ports $($ports -join ', ')" }
+        "$kind $($stray.Name) PID $($stray.ProcessId) on $portText"
+    }
+    return ($parts -join '; ')
+}
+
 # Stops stale Portly servers holding $Port (see Select-PtStaleServers) so the task can start.
 # Returns the stopped ids; shows a warning for each (program name and PID only).
 function Stop-PtStaleServers {

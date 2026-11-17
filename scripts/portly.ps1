@@ -11,6 +11,11 @@
         Start the Portly Server scheduled task (first refreshing Portly's named copies of
         node.exe, portly-supervisor.exe and portly-server.exe, when they are out of date, and
         stopping stale development servers that hold the port) and wait until it answers.
+    portly stop [<port>] [--all] [--dry-run]
+        Stop the Portly processes listening on Portly's port (or <port>; --all: on every port):
+        the task's server (its supervisor first), development servers and Vite run from a
+        Portly checkout. Any other program is left alone. The task stays installed, so the
+        extension starts Portly again at the next new tab; portly start starts it now.
     portly update [--dry-run] [--version <x>] [--force] [--allow-dirty] [--no-publish]
                   [--yes] [--skip-dependencies]
         Release install: download and install the newest release (or <x>; --force reinstalls)
@@ -57,6 +62,12 @@ $PortlyCliCommands = @(
     [pscustomobject]@{
         Name = 'start'; Args = ''; Text = @('Start the Portly server and wait until it answers.')
         Options = @()
+    },
+    [pscustomobject]@{
+        Name = 'stop'; Args = '[port]'; Text = @('Stop the Portly processes on Portly''s port (or <port>): the server,', 'development servers and Portly''s own Vite. Nothing else is touched.')
+        Options = @(
+            @('--all', 'on every port'),
+            @('--dry-run', 'show what would be stopped, stop nothing'))
     },
     [pscustomobject]@{
         Name = 'update'; Args = ''; Text = @('Release install: install the newest release.', 'Git checkout: rebuild everything from the checked-out code.')
@@ -422,6 +433,61 @@ function Invoke-PtStart {
     return 1
 }
 
+function Invoke-PtStop {
+    param([AllowEmptyCollection()][string[]]$Options)
+    $all = $false
+    $dryRun = $false
+    $port = 0
+    foreach ($option in $Options) {
+        $number = 0
+        switch -Regex ($option.ToLowerInvariant()) {
+            '^--?all$' { $all = $true; break }
+            '^--dry-?run$' { $dryRun = $true; break }
+            '^\d+$' {
+                if ($port -gt 0 -or -not [int]::TryParse($option, [ref]$number) -or $number -lt 1 -or $number -gt 65535) {
+                    Write-PtFailure 'Give one port number (1-65535), for example portly stop 5757.'
+                    return 2
+                }
+                $port = $number
+                break
+            }
+            default { Write-PtFailure "Unknown option '$option'."; return 2 }
+        }
+    }
+    if ($all -and $port -gt 0) { Write-PtFailure 'Give a port or --all, not both.'; return 2 }
+    if (-not $all -and $port -eq 0) { $port = (Get-PtPortSetting -Scope Task).Port }
+    $where = if ($all) { 'on any port' } else { "on port $port" }
+    $found = if ($all) { Get-PtPortlyListeners } else { Get-PtPortlyListeners -Port $port }
+    if ($null -eq $found) { Write-PtFailure 'Cannot list listening ports here (no Get-NetTCPConnection).'; return 1 }
+    if ($found.Count -eq 0) { Write-PtOk "No Portly process is listening $where."; return 0 }
+    Write-PtInfo "Portly processes listening $where`: $(Format-PtStrayServers -Strays $found)"
+    if ($dryRun) { Write-PtOk 'Dry run: nothing was stopped.'; return 0 }
+    $stopped = New-Object System.Collections.Generic.List[int]
+    foreach ($item in $found) {
+        # The task's server: its supervisor first, or it would start the server again.
+        $ids = @()
+        if ($item.Kind -eq 'task' -and $null -ne $item.SupervisorId) { $ids += [int]$item.SupervisorId }
+        $ids += [int]$item.ProcessId
+        foreach ($id in $ids) {
+            if ($stopped -contains $id) { continue }
+            try {
+                Stop-Process -Id $id -Force -ErrorAction Stop
+                $stopped.Add($id)
+            } catch {
+                if (Get-Process -Id $id -ErrorAction SilentlyContinue) {
+                    Write-PtFailure "Could not stop PID $id`: $($_.Exception.Message)"
+                    return 1
+                }
+            }
+        }
+    }
+    Write-PtOk "Stopped PID $($stopped -join ', ')."
+    if (@($found | Where-Object { $_.Kind -eq 'task' }).Count -gt 0) {
+        Write-PtInfo "The '$PortlyTaskName' task is still installed: the extension starts Portly again at the next new tab, portly start starts it now."
+    }
+    return 0
+}
+
 function Invoke-PtCli {
     param([AllowEmptyCollection()][string[]]$CliArgs)
     $command = 'status'
@@ -460,6 +526,10 @@ function Invoke-PtCli {
         'start' {
             Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'start'
             return Invoke-PtStart -Options $rest
+        }
+        'stop' {
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'stop'
+            return Invoke-PtStop -Options $rest
         }
         'update' {
             Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'update'

@@ -9,7 +9,8 @@
     1. builds this checkout's page and its Pages (static) build;
     2. pauses your normal Portly: stops its server (node.exe, or portly-supervisor.exe and
        portly-server.exe) and disables the 'Portly Server' task, so the extension cannot start it
-       again meanwhile (port 5757 must be free: Google only accepts sign-ins that come back to
+       again meanwhile, and stops any other Portly server on the port, such as a leftover
+       `npm run dev` (port 5757 must be free: Google only accepts sign-ins that come back to
        localhost:5757);
     3. copies your data folder (without backups, logs and Portly's copies of node.exe) to a
        temporary folder;
@@ -95,6 +96,31 @@ if (-not (Test-Path -LiteralPath $realData -PathType Container)) {
 }
 $busy = Get-PtPortListeners -Port $PagesPort
 if ($null -ne $busy -and $busy.Count -gt 0) {
+    # Portly's own Vite left over from an earlier run (portly dev, npm run dev) is stopped; a dry run
+    # only reports it.
+    $all = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId, ParentProcessId, Name, CommandLine)
+    $stalePreviews = @(Select-PtStaleViteServers -Processes $all -Listeners $busy)
+    $staleIds = @($stalePreviews | ForEach-Object { [int]$_.ProcessId })
+    foreach ($stale in $stalePreviews) {
+        if ($DryRun) {
+            Write-PtInfo "A dry run leaves the leftover Portly Vite server on port $PagesPort ($($stale.Name), PID $($stale.ProcessId)); a real run stops it."
+        } else {
+            Stop-Process -Id ([int]$stale.ProcessId) -Force -ErrorAction Stop
+            Write-PtWarn "Stopped a leftover Portly Vite server on port $PagesPort ($($stale.Name), PID $($stale.ProcessId))."
+        }
+    }
+    if (-not $DryRun) {
+        $deadline = [System.DateTime]::UtcNow.AddSeconds(5)
+        do {
+            $busy = Get-PtPortListeners -Port $PagesPort
+            if ($null -eq $busy -or $busy.Count -eq 0) { break }
+            Start-Sleep -Milliseconds 300
+        } while ([System.DateTime]::UtcNow -lt $deadline)
+    } else {
+        $busy = @($busy | Where-Object { $staleIds -notcontains [int]$_.ProcessId })
+    }
+}
+if ($null -ne $busy -and $busy.Count -gt 0) {
     Write-PtFailure "Port $PagesPort is in use by $(Format-PtPortOwners $busy). Pick another with -PagesPort."
     exit 1
 }
@@ -112,6 +138,13 @@ if ($DryRun) {
     $dryRoots = @(Get-PtNormalRoots -Task $dryTask -MainRoot $mainRoot)
     foreach ($root in $dryRoots) {
         Write-PtInfo "- stop the Portly processes started from $root`: $(Format-PtProcessList -Trees @(Get-PtSupervisorProcesses -RepoRoot $root))"
+    }
+    $dryListeners = Get-PtPortListeners -Port $port
+    if ($null -ne $dryListeners -and $dryListeners.Count -gt 0) {
+        $dryAll = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId, ParentProcessId, Name, CommandLine)
+        foreach ($stale in @(Select-PtStaleServers -Processes $dryAll -Listeners $dryListeners)) {
+            Write-PtInfo "- stop the other Portly server on port $port ($($stale.Name), PID $($stale.ProcessId))"
+        }
     }
     Write-PtInfo "- copy $realData to $testData, without backups, logs and $(Get-PtRuntimeDir)"
     Write-PtInfo "- start $node server\src\index.ts in $checkout on port $port with the copy, and the stand-in Pages site on port $PagesPort"
@@ -175,6 +208,9 @@ try {
         $stopped += @(Stop-PtSupervisorProcesses -RepoRoot $root)
     }
     if ($stopped.Count -gt 0) { Write-PtOk "Stopped PID $($stopped -join ', ')." }
+    # Other Portly servers on the port, such as a leftover `npm run dev` or another checkout's
+    # server (Portly's index.ts with no supervisor above it); each one gets a warning line.
+    $null = Stop-PtStaleServers -Port $port
     $deadline = [System.DateTime]::UtcNow.AddSeconds(15)
     do {
         $listeners = Get-PtPortListeners -Port $port

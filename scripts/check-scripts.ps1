@@ -246,6 +246,29 @@ Assert-That -Name 'Get-PtPagesSubfolder takes the one path segment of a <user>.g
     (Get-PtPagesSubfolder -PagesUrl 'https://me.github.io/portly/' -PublicRepoPath 'C:Codeportly-pages') -eq '' -and
     (Get-PtPagesSubfolder -PagesUrl 'https://me.github.io/a/b/' -PublicRepoPath 'C:Codeme.github.io') -eq '' -and
     (Get-PtPagesSubfolder -PagesUrl $null -PublicRepoPath 'C:Codeme.github.io') -eq '')
+$previewProcesses = @(
+    [pscustomobject]@{ ProcessId = 60; ParentProcessId = 3; Name = 'node.exe'; CommandLine = '"C:\nvm4w\nodejs\node.exe" "C:\Code\Portly\node_modules\vite\bin\vite.js" preview --mode static' }
+    [pscustomobject]@{ ProcessId = 61; ParentProcessId = 3; Name = 'node.exe'; CommandLine = '"node.exe" "C:\Code\Other\node_modules\vite\bin\vite.js" preview --mode static' }
+    [pscustomobject]@{ ProcessId = 62; ParentProcessId = 3; Name = 'node.exe'; CommandLine = '"node.exe" "C:\Code\Portly\node_modules\vite\bin\vite.js" --port 5175' }
+    [pscustomobject]@{ ProcessId = 63; ParentProcessId = 3; Name = 'svchost.exe'; CommandLine = 'C:\Windows\System32\svchost.exe -k netsvcs' }
+)
+$previewListeners = @(60, 61, 62, 63) | ForEach-Object { [pscustomobject]@{ Address = '::1'; ProcessId = $_ } }
+$previewIds = (@(Select-PtStaleViteServers -Processes $previewProcesses -Listeners $previewListeners | ForEach-Object { $_.ProcessId }) -join ',')
+Assert-That -Name 'Select-PtStaleViteServers picks only Vite run from a Portly checkout' -Condition (
+    $previewIds -eq '60,62' -and @(Select-PtStaleViteServers -Processes $previewProcesses -Listeners $null).Count -eq 0) -Detail $previewIds
+$strayText = Format-PtStrayServers -Strays @(
+    [pscustomobject]@{ ProcessId = 50; Name = 'node.exe'; Kind = 'server'; Ports = @(5790) }
+    [pscustomobject]@{ ProcessId = 60; Name = 'node.exe'; Kind = 'vite'; Ports = @(5175, 5176) })
+$portlyFound = Select-PtPortlyListeners -Processes (@($staleProcesses) + @($previewProcesses)) -Listeners @(
+        [pscustomobject]@{ ProcessId = 42; Port = 5757 }, [pscustomobject]@{ ProcessId = 50; Port = 5790 },
+        [pscustomobject]@{ ProcessId = 51; Port = 135 }, [pscustomobject]@{ ProcessId = 60; Port = 5175 },
+        [pscustomobject]@{ ProcessId = 61; Port = 5200 })
+$portlyText = (@($portlyFound | ForEach-Object { "$($_.ProcessId):$($_.Kind):$($_.SupervisorId):$($_.Ports -join '+')" }) -join ',')
+Assert-That -Name 'Select-PtPortlyListeners sorts Portly listeners into task, server and vite, with the task server''s supervisor' -Condition (
+    $portlyText -eq '42:task:41:5757,50:server::5790,60:vite::5175') -Detail $portlyText
+Assert-That -Name 'Format-PtStrayServers names each stray Portly process with its ports' -Condition (
+    $strayText -eq 'Portly server node.exe PID 50 on port 5790; Vite node.exe PID 60 on ports 5175, 5176' -and
+    (Format-PtStrayServers -Strays @()) -eq 'none' -and (Format-PtStrayServers -Strays $null) -eq 'unknown') -Detail $strayText
 Assert-That -Name 'Select-PtStaleServers handles no listeners' -Condition (
     @(Select-PtStaleServers -Processes $staleProcesses -Listeners @()).Count -eq 0 -and @(Select-PtStaleServers -Processes $staleProcesses -Listeners $null).Count -eq 0)
 Assert-That -Name 'Format-PtTaskResult 0x80070002 names the task''s program' -Condition ((Format-PtTaskResult 2147942402) -match 'portly-supervisor\.exe is missing')

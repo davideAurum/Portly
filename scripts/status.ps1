@@ -6,7 +6,8 @@
     Read-only. Two sections:
 
     Status - is it working right now: the /api/health check, the supervisor and server
-    processes (with their program names), the "Portly Server" task state and last result, a
+    processes (with their program names), other Portly servers on any port that the task did not
+    start (development servers, Portly's own Vite), the "Portly Server" task state and last result, a
     warning when the task's program is missing or Portly's copies of node.exe are out of date,
     the last launcher request, the native host for Chrome and Edge (OK, or what is wrong), and
     the server configuration check when Portly does not answer.
@@ -105,6 +106,13 @@ function Invoke-Status {
         }
         if ($windowsTasks) {
             Write-PtField 'Processes' (Format-PtProcessList -Trees @(Get-PtSupervisorProcesses -RepoRoot $repoRoot))
+            $strays = Get-PtStrayServers
+            if ($null -ne $strays -and $strays.Count -gt 0) {
+                Write-PtFieldState 'Other servers' (Format-PtStrayServers -Strays $strays) -State Warn
+                Write-PtInfo 'Not started by the task (portly dev, npm run dev, a leftover); portly stop <port> or portly stop --all stops them.'
+            } else {
+                Write-PtField 'Other servers' (Format-PtStrayServers -Strays $strays)
+            }
             if ($null -eq $task) {
                 Write-PtField 'Autostart' 'not installed (scripts\install-autostart.ps1 sets it up)'
             } else {

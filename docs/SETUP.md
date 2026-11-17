@@ -60,7 +60,10 @@ After the extension is loaded:
   button) to rearrange it, and open **Settings** to set your name, theme, search engines,
   weather location and so on.
 - **The `portly` command** works in terminals opened after the install (`portly status`
-  checks everything).
+  checks everything, including Portly servers the task did not start, such as a leftover
+  development server). `portly stop` stops the Portly processes on Portly's port,
+  `portly stop <port>` those on another port and `portly stop --all` every one; other programs
+  are never touched.
 
 **Updating:** **Update** in Settings → About, or `portly update`, installs the newest release: it copies your database to
 `backups\` first, keeps the previous version in `app.previous`, and puts both back if the new one
@@ -278,9 +281,10 @@ commit; `--allow-dirty` builds and publishes them as they are, and `--dry-run` s
 
 To see a change before you commit or merge it, run `portly dev` in the checkout (a worktree
 works too), or `portly dev <folder>` from anywhere. It builds that checkout and runs it on a
-copy of your data, with your normal Portly paused until you press Enter (it is
-`scripts\try-branch.ps1`; `--pages-port`, `--keep-data`, `--skip-build` and `--dry-run` are
-passed on). Nothing is published and your real data is only read.
+copy of your data, with your normal Portly paused until you press Enter. Any other Portly
+server on the port (a leftover `npm run dev`, say) and a leftover Portly Vite server are
+stopped first. It is `scripts\try-branch.ps1`; `--pages-port`, `--keep-data`, `--skip-build`
+and `--dry-run` are passed on. Nothing is published and your real data is only read.
 
 Or by hand:
 
