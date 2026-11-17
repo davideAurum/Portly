@@ -178,7 +178,7 @@ With a Pages site, every PC opens the same address: on another PC the site conne
 | `native-host/` | — | Native messaging host the extension uses to start Portly |
 | `scripts/` | — | PowerShell scripts: setup, start, autostart install/remove, status, the `portly` command, update, try-branch, release package install/build/check/publish, publishing the browser-only site, and their checks |
 | `site/` | — | Static home, privacy and terms pages for the Google and Microsoft consent screens |
-| `docs/` | — | Architecture, setup guides, roadmap and brand assets |
+| `docs/` | — | Architecture, setup guides, roadmap, and the design system in `docs/brand/` (brand book, tokens, component guides, logos) |
 
 ## npm scripts
 
