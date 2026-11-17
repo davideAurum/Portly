@@ -78,7 +78,7 @@ copy) has it open, so that step is tried again for up to 1.5 s (`Invoke-PtSharin
 that stays in use is still reported. `install-autostart.ps1` runs it before registering
 the task and again after stopping a Portly that runs from them; when they cannot be made or do not
 run (for example a policy that blocks programs in `%LOCALAPPDATA%`), the task runs `node.exe`
-itself. `Start-PtTask` (used by `update.ps1`, `portly start` and `try-branch.ps1`) refreshes them first when the source was updated (`Sync-PtTaskRuntime`).
+itself. `Start-PtTask` (used by `update.ps1`, `portly start` and `try-branch.ps1`) refreshes them first when the source was updated (`Sync-PtTaskRuntime`), and stops stale Portly servers first (`Stop-PtStaleServers`): a process listening on Portly's port that runs `server\src\index.ts` with no supervisor above it, such as a leftover development run, would otherwise keep the task's server from starting. The task's own server and any other program are never touched; it warns with the program name and PID for each one it stops.
 `status.ps1` shows what the task runs as and warns about a missing or out-of-date copy;
 `uninstall-autostart.ps1` deletes the folder after the task; `install.ps1` also stops copies whose
 command line names its `app\` folder.

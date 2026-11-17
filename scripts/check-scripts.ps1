@@ -226,6 +226,22 @@ $namedTrees = @(Select-PtSupervisorProcesses -Processes $namedProcesses -RepoRoo
 Assert-That -Name 'Select-PtSupervisorProcesses finds portly-supervisor.exe and its portly-server.exe (not conhost)' -Condition (
     $namedTrees.Count -eq 1 -and $namedTrees[0].SupervisorId -eq 41 -and (@($namedTrees[0].ChildIds) -join ',') -eq '42' -and
     (Format-PtProcessList -Trees $namedTrees) -eq 'supervisor portly-supervisor.exe PID 41 (server portly-server.exe PID 42)') -Detail (Format-PtProcessList -Trees $namedTrees)
+# Stale servers: a listener running index.ts with no supervisor above it.
+$staleProcesses = @($namedProcesses) + @(
+    [pscustomobject]@{ ProcessId = 50; ParentProcessId = 3; Name = 'node.exe'; CommandLine = '"C:\nvm4w\nodejs\node.exe" server\src\index.ts' }
+    [pscustomobject]@{ ProcessId = 51; ParentProcessId = 3; Name = 'svchost.exe'; CommandLine = 'C:\Windows\System32\svchost.exe -k netsvcs' }
+    [pscustomobject]@{ ProcessId = 52; ParentProcessId = 999; Name = 'node.exe'; CommandLine = 'node C:\Other\Portly\server\src\index.ts' }
+)
+$staleListeners = @(
+    [pscustomobject]@{ Address = '127.0.0.1'; ProcessId = 42 }
+    [pscustomobject]@{ Address = '::1'; ProcessId = 50 }
+    [pscustomobject]@{ Address = '::1'; ProcessId = 51 }
+    [pscustomobject]@{ Address = '::1'; ProcessId = 52 }
+)
+$staleIds = (@(Select-PtStaleServers -Processes $staleProcesses -Listeners $staleListeners | ForEach-Object { $_.ProcessId }) -join ',')
+Assert-That -Name 'Select-PtStaleServers picks listening index.ts processes without a supervisor, not the task''s server or other programs' -Condition ($staleIds -eq '50,52') -Detail $staleIds
+Assert-That -Name 'Select-PtStaleServers handles no listeners' -Condition (
+    @(Select-PtStaleServers -Processes $staleProcesses -Listeners @()).Count -eq 0 -and @(Select-PtStaleServers -Processes $staleProcesses -Listeners $null).Count -eq 0)
 Assert-That -Name 'Format-PtTaskResult 0x80070002 names the task''s program' -Condition ((Format-PtTaskResult 2147942402) -match 'portly-supervisor\.exe is missing')
 $logLine = '{"t":"2026-10-11T09:00:00.000Z","lvl":"warn","msg":"feeds failing","area":"feeds","tags":["feeds"],"key":"feed:0123456789","code":"timeout","count":2}'
 Assert-That -Name 'Format-PtLogLine shows a JSON record as time, level, area, message and its other fields' -Condition ((Format-PtLogLine -Line $logLine) -eq '2026-10-11T09:00:00.000Z WARN  [feeds] feeds failing {"key":"feed:0123456789","code":"timeout","count":2}') -Detail (Format-PtLogLine -Line $logLine)

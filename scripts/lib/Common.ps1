@@ -1395,10 +1395,16 @@ function Sync-PtTaskRuntime {
     }
 }
 
-# Starts the task, after Sync-PtTaskRuntime (its line, if any, is shown).
+# Starts the task, after Sync-PtTaskRuntime (its line, if any, is shown) and after stopping stale
+# Portly servers that hold the port (Stop-PtStaleServers).
 function Start-PtTask {
     $note = Sync-PtTaskRuntime -Task (Get-PtTask)
     if ($note) { Write-PtInfo $note }
+    try {
+        $null = Stop-PtStaleServers -Port (Get-PtPortSetting -Scope Task).Port
+    } catch {
+        Write-Warning "Could not check for stale servers: $($_.Exception.Message)"
+    }
     Start-ScheduledTask -TaskName $PortlyTaskName -TaskPath $PortlyTaskPath
 }
 
@@ -1484,6 +1490,49 @@ function Stop-PtSupervisorProcesses {
             }
         }
     }
+    return $stopped.ToArray()
+}
+
+# Pure selection over Win32_Process-like objects (ProcessId, ParentProcessId, Name, CommandLine)
+# and port listeners (ProcessId): the listening processes that are Portly servers
+# (server\src\index.ts on the command line) with no supervisor above them, such as a leftover
+# `node server\src\index.ts` from a development run. The task's own server has a supervisor as its
+# parent and is never selected; neither is any program that is not running Portly's index.ts.
+function Select-PtStaleServers {
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Processes,
+        [AllowNull()][AllowEmptyCollection()][object[]]$Listeners
+    )
+    $result = New-Object System.Collections.Generic.List[object]
+    if ($null -eq $Listeners) { return $result.ToArray() }
+    foreach ($id in @($Listeners | ForEach-Object { [int]$_.ProcessId } | Sort-Object -Unique)) {
+        $process = $Processes | Where-Object { [int](Get-PtProperty $_ 'ProcessId') -eq $id } | Select-Object -First 1
+        if ($null -eq $process) { continue }
+        $commandLine = "$(Get-PtProperty $process 'CommandLine')".Replace('/', '\').ToLowerInvariant()
+        if (-not $commandLine.Contains('server\src\index.ts')) { continue }
+        $parent = $Processes | Where-Object { [int](Get-PtProperty $_ 'ProcessId') -eq [int](Get-PtProperty $process 'ParentProcessId') } | Select-Object -First 1
+        if ($null -ne $parent -and "$(Get-PtProperty $parent 'CommandLine')".Replace('/', '\').ToLowerInvariant().Contains('supervisor.ts')) { continue }
+        $result.Add($process)
+    }
+    return $result.ToArray()
+}
+
+# Stops stale Portly servers holding $Port (see Select-PtStaleServers) so the task can start.
+# Returns the stopped ids; shows a warning for each (program name and PID only).
+function Stop-PtStaleServers {
+    param([Parameter(Mandatory)][ValidateRange(1, 65535)][int]$Port)
+    $listeners = Get-PtPortListeners -Port $Port
+    if ($null -eq $listeners -or $listeners.Count -eq 0) { return @() }
+    $all = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue |
+            Select-Object ProcessId, ParentProcessId, Name, CommandLine)
+    $stopped = New-Object System.Collections.Generic.List[int]
+    foreach ($stale in @(Select-PtStaleServers -Processes $all -Listeners $listeners)) {
+        $id = [int]$stale.ProcessId
+        Stop-Process -Id $id -Force -ErrorAction Stop
+        $stopped.Add($id)
+        Write-PtWarn "Stopped a stale Portly server on port $Port ($($stale.Name), PID $id): it was not started by the Portly Server task."
+    }
+    if ($stopped.Count -gt 0) { Start-Sleep -Milliseconds 500 }
     return $stopped.ToArray()
 }
 

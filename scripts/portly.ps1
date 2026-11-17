@@ -9,8 +9,8 @@
         PCs); --logs adds the log tails.
     portly start
         Start the Portly Server scheduled task (first refreshing Portly's named copies of
-        node.exe, portly-supervisor.exe and portly-server.exe, when they are out of date) and
-        wait until it answers.
+        node.exe, portly-supervisor.exe and portly-server.exe, when they are out of date, and
+        stopping stale development servers that hold the port) and wait until it answers.
     portly update [--dry-run] [--version <x>] [--force] [--allow-dirty] [--no-publish]
                   [--yes] [--skip-dependencies]
         Release install: download and install the newest release (or <x>; --force reinstalls)
