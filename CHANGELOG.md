@@ -4,6 +4,15 @@ What changed in each version of Portly, newest first. The app's version is the o
 `package.json`. The new-tab extension has its own version (in `extension/manifest.json`) and only
 gets a new one when its own code changes. Each entry names the extension version it ships with.
 
+## 0.2.0-alpha.11 (2026-11-16)
+
+The eleventh alpha: a new `portly` command and a question before `portly update` installs dependencies. Ships with new-tab extension 0.5.4 (unchanged, so no reload of the extension is needed).
+
+### Changes
+- **The `portly` command has five commands**: `status` (what plain `portly` shows; `--full` adds the settings, `--logs` the log tails), `start`, `update`, `dev` and `help`; `portly -v` prints the version. The old spellings (`--status`, `--update`, `--rebuild`, ...) still work, and the Portly Updater task is unchanged.
+- **The Harbor theme.** In a terminal the scripts use colors, icons, a spinner while a step works and a progress bar while Portly starts. Redirected output, the scheduled tasks and `NO_COLOR` keep plain text.
+- **`portly update` in a Git checkout asks before installing dependencies.** When they are missing or `package-lock.json` is newer than `node_modules`, it asks "Install them now (npm ci)?" (Enter = yes). `--yes` installs without asking, `--skip-dependencies` does not install and does not ask. Unattended runs install as before.
+
 ## 0.2.0-alpha.10 (2026-11-16)
 
 The tenth alpha: Portly moves to Node.js 26. Ships with new-tab extension 0.5.4 (unchanged, so no reload of the extension is needed).
