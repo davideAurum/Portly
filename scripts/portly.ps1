@@ -19,6 +19,10 @@
         server and the GitHub Pages site. Uncommitted changes are refused unless --allow-dirty;
         --no-publish leaves the Pages site alone. Missing or outdated dependencies: asks before
         npm ci (--yes installs without asking, --skip-dependencies skips them).
+    portly release [--dry-run] [--skip-build] [--skip-pages] [--yes]
+        Git checkout only: builds the release package (scripts\build-release.ps1), then publishes
+        it as a GitHub release and publishes the Pages site (scripts\publish-release.ps1). Asks
+        before publishing, which is public, unless --yes; --dry-run publishes nothing.
     portly dev [<folder>] [--pages-port <n>] [--keep-data] [--skip-build] [--dry-run]
         Build and run a local Git checkout (the shell's current one, a worktree included, or
         <folder>) with its own scripts\try-branch.ps1: on a copy of your data, with your normal
@@ -72,6 +76,14 @@ $PortlyCliCommands = @(
             @('--keep-data', 'keep the temporary data copy'),
             @('--skip-build', 'use the builds already in web\dist'),
             @('--dry-run', 'show what would happen, change nothing'))
+    },
+    [pscustomobject]@{
+        Name = 'release'; Args = ''; Text = @('Git checkout: build the release package, then publish it as a GitHub', 'release and publish the Pages site (build-release.ps1, publish-release.ps1).')
+        Options = @(
+            @('--dry-run', 'build, then show what would be published; publish nothing'),
+            @('--skip-build', 'publish the package already in dist-release'),
+            @('--skip-pages', 'leave the GitHub Pages site alone'),
+            @('--yes', 'do not ask before publishing (it is public)'))
     },
     [pscustomobject]@{
         Name = 'help'; Args = ''; Text = @('This text.  portly -v shows the version.')
@@ -317,6 +329,46 @@ function Resolve-PtDevCheckout {
     return $full
 }
 
+# portly release in a Git checkout: scripts\build-release.ps1, then scripts\publish-release.ps1
+# (the release on GitHub and the Pages site). Publishing is public: asked first unless --yes.
+function Invoke-PtRelease {
+    param([Parameter(Mandatory)][string]$RepoRoot, [AllowEmptyCollection()][string[]]$Options)
+    $dryRun = $false; $skipBuild = $false; $skipPages = $false; $yes = $false
+    foreach ($option in $Options) {
+        switch ($option.ToLowerInvariant()) {
+            '--dry-run' { $dryRun = $true }
+            '--skip-build' { $skipBuild = $true }
+            '--skip-pages' { $skipPages = $true }
+            '--yes' { $yes = $true }
+            default { Write-PtFailure "Unknown option '$option'."; return 2 }
+        }
+    }
+    if (Test-PtWorktreePath -Path $RepoRoot) {
+        Write-PtFailure "This is a temporary worktree ($RepoRoot). Merge into main and run portly release from the main checkout."
+        return 1
+    }
+    $version = "$(([System.IO.File]::ReadAllText((Join-Path $RepoRoot 'package.json')) | ConvertFrom-Json).version)"
+    if (-not $skipBuild) {
+        Write-PtStep "Building the release package for $version (scripts\build-release.ps1)"
+        $code = Invoke-PtCliScript -Script 'build-release.ps1' -Parameters @{}
+        if ($code -ne 0) { return $code }
+    }
+    if (-not $dryRun -and -not $yes) {
+        if (-not (Test-PtCanPrompt)) {
+            Write-PtFailure 'Publishing is public: run portly release in a terminal to confirm it, or pass --yes.'
+            return 1
+        }
+        if (-not (Read-PtYesNo -Question "Publish Portly $version to GitHub (public)$(if (-not $skipPages) { ' and the Pages site' })?")) {
+            Write-PtInfo 'Nothing published. The package stays in dist-release.'
+            return 0
+        }
+    }
+    $parameters = @{}
+    if ($dryRun) { $parameters.DryRun = $true }
+    if ($skipPages) { $parameters.SkipPages = $true }
+    return Invoke-PtCliScript -Script 'publish-release.ps1' -Parameters $parameters
+}
+
 # portly dev: builds and runs a local checkout (this folder's, or the one given) with its own
 # try-branch.ps1, on a copy of the real data. The installed Portly is paused meanwhile. It runs
 # here (not streamed): try-branch.ps1 waits for Enter.
@@ -421,6 +473,14 @@ function Invoke-PtCli {
             }
             Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'update'
             return Invoke-PtCheckoutUpdate -Options $rest
+        }
+        'release' {
+            if ($null -ne $release) {
+                Write-PtFailure "This is a release install (Portly $($release.version)), not a Git checkout: portly release builds and publishes from a checkout."
+                return 1
+            }
+            Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'release'
+            return Invoke-PtRelease -RepoRoot $repoRoot -Options $rest
         }
         'dev' {
             Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'dev'

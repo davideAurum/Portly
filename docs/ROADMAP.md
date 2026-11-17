@@ -2023,6 +2023,7 @@ date and the outcome once a row has been run for real.
 | The Calendar widget's sidebar in a real browser: its look in light and dark, the floating layout below 420px, the eye toggles with real Google, Outlook.com and ICS calendars, and the saved open state after a reload; only unit tests ran | this commit, 2026-11-08 | the owner's next look at the Calendar widget | not yet |
 | The question before `npm ci` in `portly update` (a checkout), typed at a real terminal: Enter and n, and `--yes` / `--skip-dependencies` on a real outdated install; only dry runs and the non-interactive self-check ran | this commit, 2026-11-16 | the next `portly update` in the main checkout after a lockfile change | not yet |
 | `portly start` stopping a real stale `node serversrcindex.ts` that holds the port (Stop-PtStaleServers, Get-CimInstance and Stop-Process on a real process); only the selection was run, on fake process lists | this commit, 2026-11-17 | the next time a development server is left running | not yet |
+| `publish-release.ps1` publishing the Pages site after a real release (`publish-static.ps1` into the real Pages repository, the release-commit check); only parsed, not run | this commit, 2026-11-17 | the next release | not yet |
 
 ### Closed
 

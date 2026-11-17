@@ -225,6 +225,8 @@ function Invoke-Update {
     }
     Write-PtStep "${prefix}Publishing the GitHub Pages site from $PublicRepoPath"
     $publishArgs = @{ PublicRepoPath = $PublicRepoPath }
+    $subfolder = Get-PtPagesSubfolder -PagesUrl (Get-PtEnvValue -Name 'PORTLY_PAGES_URL' -Scope Task) -PublicRepoPath $PublicRepoPath
+    if ($subfolder) { $publishArgs.Subfolder = $subfolder }
     if ($DryRun) { $publishArgs.DryRun = $true }
     & (Join-Path $PSScriptRoot 'publish-static.ps1') @publishArgs
     if ($LASTEXITCODE -ne 0) { throw "publish-static.ps1 failed (exit code $LASTEXITCODE)." }

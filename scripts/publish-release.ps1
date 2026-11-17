@@ -16,6 +16,11 @@
        package was built from (not the working tree), with links to files of the repository made
        absolute. They are printed before anything is published, also in a dry run.
 
+    4. Publishes the GitHub Pages site with scripts\publish-static.ps1 (-PublicRepoPath, or the
+       PORTLY_PAGES_REPO user environment variable), so the site is the released version too. It
+       runs only when this checkout is at the commit the package was built from; otherwise, or
+       without a Pages repository, it is skipped with a warning (-SkipPages leaves it out).
+
     Publishing is public: everyone who can see the repository can download the package.
 
 .PARAMETER OutDir
@@ -29,8 +34,16 @@
     Release notes in Markdown (default: the "## <version>" section of CHANGELOG.md at the
     package's commit, followed by a line naming the commit and Node.js version).
 
+.PARAMETER PublicRepoPath
+    Local clone of the public GitHub Pages repository, passed to publish-static.ps1. Defaults to
+    the PORTLY_PAGES_REPO environment variable.
+
+.PARAMETER SkipPages
+    Do not publish the GitHub Pages site.
+
 .PARAMETER DryRun
-    Check everything and print the gh command, without publishing.
+    Check everything and print the gh command, without publishing (publish-static.ps1 -DryRun
+    for the Pages site).
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -DryRun
@@ -41,6 +54,8 @@ param(
     [string]$OutDir,
     [string]$ReleaseRepo,
     [string]$Notes,
+    [string]$PublicRepoPath,
+    [switch]$SkipPages,
     [switch]$DryRun
 )
 
@@ -112,6 +127,35 @@ function Get-PublishChangelogNotes {
     return [pscustomobject]@{ Heading = $lines[$start].Trim(); Text = $text }
 }
 
+# The Pages site for the release: publish-static.ps1 from this checkout, when it is at the commit
+# the package was built from. Returns $true when it ran (or was planned), $false when skipped.
+function Publish-ReleasePages {
+    param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)][string]$Commit)
+    if ($SkipPages) { return $false }
+    $path = $PublicRepoPath
+    if ([string]::IsNullOrWhiteSpace($path)) { $path = Get-PtEnvValue -Name 'PORTLY_PAGES_REPO' -Scope Task }
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        Write-Warning 'GitHub Pages not published: pass -PublicRepoPath or set the PORTLY_PAGES_REPO user environment variable, then run scripts\publish-static.ps1.'
+        return $false
+    }
+    $git = Get-Command -Name 'git.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    $head = $null
+    if ($null -ne $git) { $head = (& $git.Source -C $RepoRoot rev-parse HEAD 2>$null | Select-Object -First 1) }
+    if ("$head".Trim() -ne $Commit) {
+        Write-Warning "GitHub Pages not published: this checkout is not at the release commit $($Commit.Substring(0, 12)) (check it out, then run scripts\publish-static.ps1)."
+        return $false
+    }
+    Write-PtStep "$(if ($DryRun) { '[dry run] ' } else { '' })Publishing the GitHub Pages site from $path"
+    $arguments = @{ PublicRepoPath = $path }
+    $subfolder = Get-PtPagesSubfolder -PagesUrl (Get-PtEnvValue -Name 'PORTLY_PAGES_URL' -Scope Task) -PublicRepoPath $path
+    if ($subfolder) { $arguments.Subfolder = $subfolder }
+    if ($DryRun) { $arguments.DryRun = $true }
+    $global:LASTEXITCODE = 0
+    & (Join-Path $PSScriptRoot 'publish-static.ps1') @arguments
+    if ($LASTEXITCODE -ne 0) { throw "publish-static.ps1 failed (exit code $LASTEXITCODE). The release itself is published; run scripts\publish-static.ps1 again." }
+    return $true
+}
+
 function Invoke-PublishRelease {
     $repoRoot = Get-PtRepoRoot -ScriptRoot $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($OutDir)) { $OutDir = Join-Path $repoRoot 'dist-release' }
@@ -179,7 +223,11 @@ function Invoke-PublishRelease {
             '--title', "Portly $version", '--notes-file', $notesFile, '--latest')
         Write-PtStep "$(if ($DryRun) { '[dry run] ' } else { '' })Publishing Portly $version to https://github.com/$ReleaseRepo/releases"
         Write-PtInfo "gh $(($arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' ')"
-        if ($DryRun) { Write-PtOk 'Dry run finished; nothing was published.'; return 0 }
+        if ($DryRun) {
+            $null = Publish-ReleasePages -RepoRoot $repoRoot -Commit $commit
+            Write-PtOk 'Dry run finished; nothing was published.'
+            return 0
+        }
         $created = Invoke-PublishGh -Arguments $arguments
     } finally {
         Remove-Item -LiteralPath $notesFile -Force -ErrorAction SilentlyContinue
@@ -188,6 +236,7 @@ function Invoke-PublishRelease {
         throw "gh release create failed (is commit $($commit.Substring(0, 12)) pushed to $ReleaseRepo?): $($created.Text.Trim())"
     }
     Write-PtOk "Published: $($created.Text.Trim())"
+    $null = Publish-ReleasePages -RepoRoot $repoRoot -Commit $commit
     Write-PtInfo "Install: irm https://<your Pages site>/install.ps1 | iex   (or portly update on installed PCs)"
     return 0
 }

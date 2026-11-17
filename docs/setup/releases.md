@@ -107,6 +107,10 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-release.ps1
    ```
 
+   `portly release` runs steps 2 and 4 (and 5) in one go from the main checkout: it builds, asks
+   before publishing (`--yes` skips the question), then publishes the release and the Pages site.
+   `--dry-run` publishes nothing; `--skip-build` and `--skip-pages` leave a step out.
+
 3. **Check** the package end to end — install, start, update, refusals — in a temporary folder
    (never the real task, PATH, data or install folder):
 
@@ -151,9 +155,12 @@ in `%LOCALAPPDATA%\Portly` and is never moved or deleted.
    empty one, and warns while the heading still says "not released yet". `-Notes "<Markdown>"`
    replaces them.
 
-5. **Publish the Pages site** (`scripts\publish-static.ps1`) from the checkout the release was
-   built from, still at its tag, so the site's `install.ps1` and `setup.ps1` are the released
-   ones.
+5. **The Pages site** is published by step 4's `publish-release.ps1` (`publish-static.ps1`, into
+   `-PublicRepoPath` or `PORTLY_PAGES_REPO`), from the checkout the release was built from, so
+   the site's `install.ps1` and `setup.ps1` are the released ones and the page shows the new
+   version. It runs only when the checkout is at the release commit; otherwise it warns, and you
+   run `scripts\publish-static.ps1` from that commit yourself. `-SkipPages` leaves it out. The
+   Release workflow (below) does not publish the site: run `static-pages.yml` or the script.
 
 Or let GitHub Actions do 2–4: **Actions → Release → Run workflow** builds, checks and keeps the
 package as an artifact; tick **publish** and a second job publishes it with the workflow's own token

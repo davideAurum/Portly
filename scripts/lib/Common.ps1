@@ -937,6 +937,19 @@ function Test-PtDependenciesStale {
     return $lock.LastWriteTimeUtc -gt (Get-Item -LiteralPath $installed).LastWriteTimeUtc
 }
 
+# The folder Portly is published in inside a <user>.github.io repository, from the site's URL
+# (https://<user>.github.io/portly/ -> 'portly'); '' for any other repository or URL.
+function Get-PtPagesSubfolder {
+    param([AllowNull()][string]$PagesUrl, [AllowNull()][string]$PublicRepoPath)
+    if ([string]::IsNullOrWhiteSpace($PagesUrl) -or [string]::IsNullOrWhiteSpace($PublicRepoPath)) { return '' }
+    if ((Split-Path -Leaf $PublicRepoPath.TrimEnd('\', '/')) -notlike '*.github.io') { return '' }
+    $uri = $null
+    if (-not [System.Uri]::TryCreate($PagesUrl, [System.UriKind]::Absolute, [ref]$uri)) { return '' }
+    $segments = @($uri.AbsolutePath.Trim('/') -split '/' | Where-Object { $_ })
+    if ($segments.Count -eq 1 -and $segments[0] -match '^[A-Za-z0-9][A-Za-z0-9._-]*$') { return $segments[0] }
+    return ''
+}
+
 # True when a person can answer a prompt: neither input nor output is redirected.
 function Test-PtCanPrompt {
     try {

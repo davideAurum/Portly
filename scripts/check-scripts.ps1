@@ -240,6 +240,12 @@ $staleListeners = @(
 )
 $staleIds = (@(Select-PtStaleServers -Processes $staleProcesses -Listeners $staleListeners | ForEach-Object { $_.ProcessId }) -join ',')
 Assert-That -Name 'Select-PtStaleServers picks listening index.ts processes without a supervisor, not the task''s server or other programs' -Condition ($staleIds -eq '50,52') -Detail $staleIds
+Assert-That -Name 'Get-PtPagesSubfolder takes the one path segment of a <user>.github.io site, nothing for other repositories or URLs' -Condition (
+    (Get-PtPagesSubfolder -PagesUrl 'https://me.github.io/portly/' -PublicRepoPath 'C:Codeme.github.io') -eq 'portly' -and
+    (Get-PtPagesSubfolder -PagesUrl 'https://me.github.io/' -PublicRepoPath 'C:Codeme.github.io') -eq '' -and
+    (Get-PtPagesSubfolder -PagesUrl 'https://me.github.io/portly/' -PublicRepoPath 'C:Codeportly-pages') -eq '' -and
+    (Get-PtPagesSubfolder -PagesUrl 'https://me.github.io/a/b/' -PublicRepoPath 'C:Codeme.github.io') -eq '' -and
+    (Get-PtPagesSubfolder -PagesUrl $null -PublicRepoPath 'C:Codeme.github.io') -eq '')
 Assert-That -Name 'Select-PtStaleServers handles no listeners' -Condition (
     @(Select-PtStaleServers -Processes $staleProcesses -Listeners @()).Count -eq 0 -and @(Select-PtStaleServers -Processes $staleProcesses -Listeners $null).Count -eq 0)
 Assert-That -Name 'Format-PtTaskResult 0x80070002 names the task''s program' -Condition ((Format-PtTaskResult 2147942402) -match 'portly-supervisor\.exe is missing')
