@@ -21,7 +21,7 @@ use a paired local server ("hybrid mode", ARCHITECTURE section 16).
 | `native-host/` | `com.portly.launcher` (`launcher.mjs` + `launcher.cmd` template) |
 | `scripts/` | PowerShell install/start/status/release/publish scripts; helpers in `scripts/lib/Common.ps1` |
 | `site/` | Static home/privacy/terms pages for OAuth consent screens, published to `davideAurum/portly-site` |
-| `docs/` | `ARCHITECTURE.md`, `SETUP.md`, `setup/*.md` |
+| `docs/` | `ARCHITECTURE.md`, `SETUP.md`, `setup/*.md`; `brand/` is the design system (brand book, tokens, component guides, the mark) |
 
 ## Commands
 - Install: `npm ci` only. `.npmrc` sets `ignore-scripts`, `min-release-age=7`, `engine-strict`
@@ -63,6 +63,9 @@ use a paired local server ("hybrid mode", ARCHITECTURE section 16).
   `createFakeFetch()` in `server/src/testing/`. Web: `renderWithProviders()`. Fixtures go in
   `<module>/__fixtures__/`.
 - Widgets meet the definition of done in section 10.7.
+- UI follows `docs/brand/README.md` (voice, colour, type, motion, component guides). A token value
+  changed in `web/src/styles/tokens.css` changes in `docs/brand/tokens.json` in the same commit;
+  `web/build/brandTokens.test.ts` checks it.
 
 ## PowerShell
 - ASCII only: Windows PowerShell 5.1 reads BOM-less files as ANSI, so no em dashes, smart

@@ -100,7 +100,7 @@ personal Microsoft accounts only and the `/consumers` authority is hard-coded).
                        the node test runners check-extension.mjs / check-native-host.mjs (see scripts/README.md)
 /site                  static home, privacy and terms pages for the OAuth consent screens
 /.github/workflows     ci.yml (§13); release.yml (§18) and static-pages.yml (§16), both run by hand, publish publicly
-/docs                  ARCHITECTURE.md, SETUP.md, ROADMAP.md, setup/*.md (user guides), brand/ (the Beacon mark),
+/docs                  ARCHITECTURE.md, SETUP.md, ROADMAP.md, setup/*.md (user guides), brand/ (the design system: brand book, tokens, component guides, the Beacon mark),
                        design/ (proposals not built yet)
 ```
 
@@ -1341,6 +1341,9 @@ buttons, drag handle in edit mode) and sets `container-type: inline-size` on the
 All types allow multiple instances.
 
 ### 10.4 UI kit (`web/src/ui/`)
+The brand book and usage guides for the kit are in `docs/brand/` (README.md, `components/`); its `tokens.json` mirrors
+`web/src/styles/tokens.css` and `web/build/brandTokens.test.ts` keeps the two equal.
+
 As `web/src/ui/index.ts` exports it: Button (primary|secondary|ghost|danger; sm|md; loading), IconButton (required
 aria-label), Input, PasswordInput (show/hide toggle, never autofilled from saved logins), TextArea, Select, Checkbox,
 Switch, SegmentedControl, Slider (native range input with a value readout), Field (label/help/error; `useField` and
