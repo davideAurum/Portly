@@ -16,14 +16,15 @@
  * signed in from the browser with a single-page-app registration) and Todoist.
  *
  * Deep links: `#/settings/accounts?focus=todoist` (and the old `#/settings/todoist`) open Todoist:
- * its Manage dialog when it is connected, else its connect dialog. `?focus=github-status` does the
- * same for GitHub repositories. `?focus=spotify` opens Spotify's connect dialog.
+ * its Manage dialog when it is connected, else its connect dialog. `?focus=github-status` and
+ * `?focus=flightaware` do the same for GitHub repositories and FlightAware. `?focus=spotify` opens Spotify's connect dialog.
  */
 import { useEffect, useState } from 'react';
 import { KeyRound, RotateCcw, Server } from 'lucide-react';
 import { OAUTH_PROVIDERS } from '@portly/shared';
 import { clearHashFocus, hashFocus } from '../../app/router.ts';
 import { useCalendars } from '../../api/calendar.ts';
+import { useFlightsKey } from '../../api/flights.ts';
 import { useGitHubToken } from '../../api/github.ts';
 import { useTodoistToken } from '../../api/todoist.ts';
 import { useResetVault } from '../../api/vault.ts';
@@ -38,6 +39,7 @@ import { AppRegistrations } from './accounts/AppRegistration.tsx';
 import { ConnectDialog } from './accounts/ConnectDialog.tsx';
 import { ConnectedAccounts } from './accounts/ConnectedAccounts.tsx';
 import { availableConnections, connectionServices, servicesSummary, type ConnectionId, type ConnectionInfo } from './accounts/connections.ts';
+import { FlightAwareManageDialog } from './accounts/FlightAware.tsx';
 import { GitHubStatusManageDialog } from './accounts/GitHubStatus.tsx';
 import { TodoistManageDialog } from './accounts/Todoist.tsx';
 import { useVaultLocked } from './accounts/vault.ts';
@@ -48,17 +50,22 @@ export default function AccountsSettings() {
   const [connecting, setConnecting] = useState<ConnectionId | null>(null);
   const [managingTodoist, setManagingTodoist] = useState(false);
   const [managingGitHubStatus, setManagingGitHubStatus] = useState(false);
+  const [managingFlightAware, setManagingFlightAware] = useState(false);
   useConnectionDeepLink('todoist', useTodoistToken().data?.configured, setConnecting, setManagingTodoist);
   useConnectionDeepLink('github-status', useGitHubToken().data?.configured, setConnecting, setManagingGitHubStatus);
+  useConnectionDeepLink('flightaware', useFlightsKey(getCapabilities().flights).data?.configured, setConnecting, setManagingFlightAware);
   useSpotifyDeepLink(setConnecting);
   return (
     <div className={styles.stack}>
       {locked ? <VaultLockedBanner /> : null}
-      <ConnectedAccounts onManageTodoist={() => setManagingTodoist(true)} onManageGitHubStatus={() => setManagingGitHubStatus(true)} />
+      <ConnectedAccounts onManageTodoist={() => setManagingTodoist(true)} onManageGitHubStatus={() => setManagingGitHubStatus(true)}
+        onManageFlightAware={() => setManagingFlightAware(true)}
+      />
       <AddConnection onConnect={setConnecting} />
       <ConnectDialog connection={connecting} onClose={() => setConnecting(null)} />
       <TodoistManageDialog open={managingTodoist} onOpenChange={setManagingTodoist} />
       <GitHubStatusManageDialog open={managingGitHubStatus} onOpenChange={setManagingGitHubStatus} />
+      <FlightAwareManageDialog open={managingFlightAware} onOpenChange={setManagingFlightAware} />
     </div>
   );
 }
@@ -96,6 +103,8 @@ function tileSummary(connection: ConnectionInfo): string {
       return 'Launch pad sync (private repository)';
     case 'github-status':
       return 'Status board of your repositories';
+    case 'flightaware':
+      return 'Flight status (your AeroAPI key)';
     case 'other':
       return 'CalDAV calendar or IMAP mail';
     case 'microsoft':

@@ -38,6 +38,7 @@ describe('capabilitiesFor', () => {
       icsSubscriptions: true,
       mail: true,
       feeds: true,
+      flights: true,
       music: true,
       vault: true,
       browserBookmarkImport: true,
@@ -62,6 +63,7 @@ describe('capabilitiesFor', () => {
       icsSubscriptions: false,
       mail: false,
       feeds: false,
+      flights: false,
       music: true,
       vault: false,
       browserBookmarkImport: false,
@@ -139,8 +141,8 @@ describe('getCapabilities (server build)', () => {
 });
 
 describe('widget availability', () => {
-  it('a browser backend cannot run mail or feeds (the calendar reads Outlook.com, music talks to Spotify); a server backend runs everything', () => {
-    expect([...unavailableWidgetTypes(capabilitiesFor(true, 'browser'))]).toEqual(['mail', 'feeds']);
+  it('a browser backend cannot run mail, feeds or flights (the calendar reads Outlook.com, music talks to Spotify); a server backend runs everything', () => {
+    expect([...unavailableWidgetTypes(capabilitiesFor(true, 'browser'))]).toEqual(['mail', 'feeds', 'flights']);
     expect(unavailableWidgetTypes(capabilitiesFor(true, 'server')).size).toBe(0);
     expect(unavailableWidgetTypes(capabilitiesFor(false, 'server')).size).toBe(0);
     expect(isWidgetTypeAvailable('mail', capabilitiesFor(true, 'browser'))).toBe(false);
@@ -165,7 +167,7 @@ describe('widget availability', () => {
   });
 
   it('BROWSER_UNAVAILABLE_WIDGET_TYPES is the browser backend’s set whatever the page load', () => {
-    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['mail', 'feeds']);
+    expect([...BROWSER_UNAVAILABLE_WIDGET_TYPES]).toEqual(['mail', 'feeds', 'flights']);
     expect(BROWSER_UNAVAILABLE_WIDGET_TYPES).toBe(unavailableWidgetTypes(capabilitiesFor(true, 'browser')));
   });
 });

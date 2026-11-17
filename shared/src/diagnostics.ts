@@ -37,6 +37,7 @@ export const DIAGNOSTIC_AREAS = [
   'feeds',
   'weather',
   'sports',
+  'flights',
   'music',
   'search',
   'bookmarks',

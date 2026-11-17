@@ -887,6 +887,14 @@ checked, classic tokens refused, then GitHub is asked for one repository) · `DE
 `GET /api/github/repos` → `GitHubBoard` (cached 30 s). Declared `paired()`. Launch pad sync's own
 `/api/sync/github` exists only on the in-browser backend and is unrelated.
 
+**Flights** (read-only, §8 FlightAware) — `GET /api/flights/key` → `{configured}` · `PUT /api/flights/key {key}` (shape
+checked, then FlightAware's free `/account/usage` call, before it is stored as vault secret `flightaware:key`) ·
+`DELETE /api/flights/key` · `GET /api/flights/status?ident=&date=` → `FlightStatus` (`ident` a flight number, normalized
+to `UA123`; `date` the local departure date). Answers are kept in `ctx.memo` (memory only: travel plans are not written
+to disk) for `flightRefreshMs` (`shared/src/flights.ts`) and shared by every widget and tab; concurrent requests for one
+flight share one call. Declared `paired()`. The in-browser backend answers them 409 `not_configured`
+(`handlers/unavailable.ts`): the key never reaches the browser.
+
 **Accounts** — `GET /api/accounts` · `PATCH /api/accounts/:id {label?, color?, enabledCapabilities?, sort?}` ·
 `DELETE /api/accounts/:id` · `POST /api/accounts/:id/test` · `GET /api/oauth-clients/:provider` →
 `{clientId|null, hasSecret, redirectUri}` · `PUT /api/oauth-clients/:provider {clientId, clientSecret?}` ·
@@ -1265,6 +1273,22 @@ geocoding `https://geocoding-api.open-meteo.com/v1/search?name=&count=8&language
 below the usage policy's 1 request/second; the server sends its `Portly/<version>` User-Agent. No key. Data © OpenStreetMap
 contributors (ODbL): the widget credits it while it shows such a name.
 
+**FlightAware** — AeroAPI v4, base `https://aeroapi.flightaware.com/aeroapi`, header `x-apikey` (spec 4.17.1, read
+2026-11-16), policy `provider`. `GET /flights/{ident}?ident_type=designator&start&end&max_pages=1`: `start`/`end` compare
+to `scheduled_out`, may reach 10 days back and 2 days ahead; Portly asks for the window covering local date D in every
+zone (D−1 10:00Z to D+1 12:00Z, clipped) and picks the flight whose `scheduled_out` falls on D in the origin's
+`timezone`. A date beyond the window answers `too_early`/`too_old` without a call. Fields read: `ident_iata|ident`,
+`operator_iata|operator`, `origin`/`destination` (`code_iata|code_icao|code_lid|code`, `name`, `city`, `timezone`),
+`scheduled|estimated|actual_out|off|on|in`, `gate_*`, `terminal_*`, `baggage_claim`, `status`, `progress_percent`,
+`cancelled`, `diverted`, `departure_delay`/`arrival_delay` (seconds), `aircraft_type`, `fa_flight_id` (link
+`https://www.flightaware.com/live/flight/id/<id>` only when it matches `[A-Za-z0-9_-]{1,100}`). Text is plain, control
+and bidi characters removed, capped (80; gates and terminals 12). Phase from the actual times (`out` taxiing, `off`
+airborne, `on` landed, `in` arrived). Key check: `GET /account/usage` (free). Errors: 401/403 → `token_rejected`, 429 →
+cooldown (`Retry-After`, else 60 s), 400 → 422, 404 → `not_found`, 5xx → `provider_error`. The spec documents no
+401/403/429 bodies; error text is never shown. Pricing (Personal tier): $0.005 per page of 15 for `/flights/{ident}`,
+$5 free a month, 10 pages a minute; `/flights/{id}/position` ($0.01) is not used — `progress_percent` is enough for
+the bar. CORS is undocumented, and the key must stay on the server anyway.
+
 **Favicons** — resolver (policy `public`): page HTML (≤ 2 MB) → `<link rel~=icon|apple-touch-icon>` + web manifest
 icons, hrefs resolved against the final response URL, prefer largest ≥ 32 px raster or SVG → `/favicon.ico` →
 `https://icons.duckduckgo.com/ip3/<host>.ico` → `https://www.google.com/s2/favicons?domain=<host>&sz=128`
@@ -1329,8 +1353,8 @@ configSchema /* zod, every field defaulted */, Component: lazyWithPreload(() => 
 (`lazyWithPreload` is `React.lazy` plus `preload()`; once preloaded it renders without suspending).
 `description` is the "Add widget" text, a string or `(caps: Capabilities) => string` when it depends on the page
 load's backend (the calendar names Outlook.com alone on the in-browser backend); read it with `widgetDescription()`.
-`web/src/widgets/registry.ts` lists all twelve definitions in "Add widget" order (search, launch pad, calendar, mail,
-Todoist, GitHub, notes, weather, feeds, sports, music, clock) and throws at load when they differ from `WIDGET_TYPES`
+`web/src/widgets/registry.ts` lists all thirteen definitions in "Add widget" order (search, launch pad, calendar, mail,
+Todoist, GitHub, notes, weather, feeds, sports, flights, music, clock) and throws at load when they differ from `WIDGET_TYPES`
 (`shared/src/profiles.ts`); `availableWidgetDefinitions()` leaves out the types this page load's backend cannot run
 (§16 Capabilities).
 `WidgetProps<C> = {instanceId, config: C, setConfig(patch: Partial<C>): Promise<void>, size: {w, h}, editMode: boolean}`;
@@ -1457,7 +1481,8 @@ copy of the same list, show it under "On a launch pad tile", after the page-wide
 4. Stale data kept on refetch failure with "Updated N min ago" and a warning indicator.
 5. Renders at minW×minH and adapts upward via container queries. 6. Light + dark via tokens only.
 7. Keyboard-reachable actions with visible focus. 8. Optimistic mutations with toast (+ Undo where reversible).
-Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, github 60 s; refetch on window focus.
+Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, github 60 s, flights per flight
+(`flightRefreshMs`, at least 60 s); refetch on window focus.
 
 ### 10.8 Widget product specs
 - **Search** — presets: Google, DuckDuckGo, Bing, YouTube, Wikipedia, Google Maps, GitHub, Amazon, Reddit, Perplexity,
@@ -1537,6 +1562,23 @@ Default staleTime: weather 10 min, calendar 60 s, mail 60 s, todoist 30 s, githu
   game shared by two favorites shown once; a row opens the box score (the preview before the start); live and upcoming
   games have a "Where to watch" popover mapping broadcasters to official streaming services (`model.ts`). Works in the
   static build. Not in the default layout (it starts empty).
+- **Flights** (`flights`) — config `{flights: {ident, date}[] (≤ 20; invalid entries dropped, idents normalized),
+  fromCalendar (default on), dismissed: string[] (≤ 100, `<ident>@<date>` of calendar flights the user removed)}`. One
+  query per flight (`GET /api/flights/status`, `meta.persist: false`), refetched after `flightRefreshMs`: 3 h more than a
+  day before departure, 1 h within a day, 15 min within 6 h, 5 min in the last hour, taxiing and after landing, 10 min
+  in cruise and 5 in the last 45 min, not again once arrived or cancelled (about 80 calls for a flight tracked from two
+  days out). With `fromCalendar`, `detectFlightsInText` (`shared/src/flights.ts`) reads the titles and locations of the
+  visible calendars' events from yesterday to 30 days ahead: an upper-case airline code and number (`UA 123`, `DL1234`)
+  when the code is a known airline or the text says "flight"; an airline name with "flight", "Airlines" or `#` ("United
+  flight 456"); quarters next to a year ("Q3 2026") never. The departure date is the event's start date in its own zone.
+  Typed-in flights come first; duplicates and dismissed ones are dropped. Rows, soonest departure first: flight number,
+  route, a calendar mark for detected ones, a status badge (Scheduled, On time within 3 h, Delayed ≥ 15 min, Departed
+  gate, In the air, Landed, Arrived, Cancelled, Diverted), departure and arrival time in each airport's zone with the
+  scheduled time struck through when it moved ≥ 5 min, terminal and gate, a progress bar under way, baggage claim after
+  landing. A row links to flightaware.com; × removes a typed-in flight or dismisses a calendar one. A flight drops off
+  6 h after it arrives or is cancelled, or two days after its date. Not connected, a refused key and a locked vault are
+  setup states with a link to `#/settings/accounts?focus=flightaware`. Default size 4 × 5, min 3 × 3. Server backend
+  only (`caps.flights`). Not in the default layout (it needs a key first). User guide: `docs/setup/flightaware.md`.
 - **Music** (`music`) — config `{accountId: string|null}` (null, or an account that is gone: the first with music on; Settings
   offer a choice from two accounts up). A remote control: the sound plays on the user's own devices in the provider's
   app, so it survives the tab, which is the New Tab page and rarely stays. Spotify's Web Playback SDK, which would play in
@@ -1917,14 +1959,14 @@ is in none of them, and answers about the player (no active device, a refused co
 `backend`, `remoteServer` (Pages + server), `remoteClient` (the server build opened from another PC, §20), `accounts`,
 `calendar` and `music` (every backend: on the browser backend Outlook.com and Spotify sign in, its calendars sync from
 Microsoft Graph and the player is called from the page, `web/src/static/handlers/accounts.ts`, `calendar.ts`, `music.ts`),
-`appPasswordAccounts|icsSubscriptions|mail|feeds|
+`appPasswordAccounts|icsSubscriptions|mail|feeds|flights|
 vault|siteMetaFetch|serverSearchSuggestions` (server backend), `googleAccounts` and `browserBookmarkImport` (server
 backend on the main PC only: off when `remoteClient` is on), `browserBackups` and `launchpadSync` (browser backend: the
 launch pad sync service is offered on Microsoft connections only where the launch pad lives in this browser,
 [design/launchpad-sync.md](design/launchpad-sync.md); its state and **Sync now** are `GET`/`POST /api/sync/launchpad[/now]` of the
 in-browser backend, one sync connection per browser, design 6.10), `iconPolling` (server backend). UI code reads it at render or call time, never at module top level; "data lives in this browser" is
 `backend === 'browser'`, not the build flag. Every settings section shows on every backend. Server-only widgets (mail,
-feeds) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
+feeds, flights) on a browser-backend page show `ServerOnlyNotice` ("needs Portly running on this PC" + Look for it / Pair this
 browser / Switch now / Check again). Without `serverSearchSuggestions` an engine whose suggestions only the server can
 ask (Google, DuckDuckGo, Bing, YouTube) shows none and no request is made, unless this browser turned on **Wikipedia
 suggestions instead** in Settings → Search (`widgets/search/wikipediaFallback.ts`, localStorage

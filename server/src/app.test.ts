@@ -307,7 +307,7 @@ describe('app: modules', () => {
   });
 
   it('registers every module', () => {
-    expect(MODULES.map((m) => m.name)).toEqual(['core', 'accounts', 'bookmarks', 'search', 'weather', 'todoist', 'github', 'calendar', 'mail', 'feeds', 'sports', 'music', 'pairing', 'devices', 'diagnostics', 'update']);
+    expect(MODULES.map((m) => m.name)).toEqual(['core', 'accounts', 'bookmarks', 'search', 'weather', 'todoist', 'github', 'calendar', 'mail', 'feeds', 'sports', 'flights', 'music', 'pairing', 'devices', 'diagnostics', 'update']);
     const { modules } = createApp(ctx, { webDist: null });
     expect(modules.every((m) => m.ok)).toBe(true);
   });
@@ -416,6 +416,11 @@ const ROUTE_ACCESS: Readonly<Record<string, 'paired' | 'same-pc' | 'enrollment' 
   // sports
   'GET /api/sports/teams': 'paired',
   'GET /api/sports/games': 'paired',
+  // flights
+  'GET /api/flights/key': 'paired',
+  'PUT /api/flights/key': 'paired',
+  'DELETE /api/flights/key': 'paired',
+  'GET /api/flights/status': 'paired',
   // music
   'GET /api/music/status': 'paired',
   'GET /api/music/devices': 'paired',

@@ -63,6 +63,8 @@ export interface Capabilities {
   mail: boolean;
   /** RSS / Atom feeds widget (feeds are cross-origin: the server fetches them). */
   feeds: boolean;
+  /** Flight tracker widget and its FlightAware key (the key stays in the server's vault). */
+  flights: boolean;
   /** Music widget and Spotify accounts: the server's, or the browser's own sign-in on the `browser` backend. */
   music: boolean;
   /** The credential vault (and its lock/reset banner). */
@@ -110,6 +112,7 @@ export function capabilitiesFor(pagesBuild: boolean, backend: Backend, remoteCli
     icsSubscriptions: server,
     mail: server,
     feeds: server,
+    flights: server,
     music: true,
     vault: server,
     browserBookmarkImport: mainPc,
@@ -164,7 +167,7 @@ export function setCapabilitiesForTests(caps: Capabilities | null): void {
 }
 
 /** Widget types that may need the server; each one needs the capability of the same name. */
-const SERVER_WIDGET_TYPES = ['calendar', 'mail', 'feeds', 'music'] as const;
+const SERVER_WIDGET_TYPES = ['calendar', 'mail', 'feeds', 'flights', 'music'] as const;
 
 const unavailableCache = new WeakMap<Capabilities, ReadonlySet<string>>();
 

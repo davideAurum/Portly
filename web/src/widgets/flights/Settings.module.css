@@ -1,0 +1,83 @@
+/* Flight tracker settings. */
+
+.stack {
+  display: grid;
+  gap: var(--pt-space-4);
+}
+
+.group {
+  display: grid;
+  gap: var(--pt-space-3);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--pt-space-2);
+}
+
+.groupLabel {
+  font-size: var(--pt-text-sm);
+  font-weight: 600;
+}
+
+.count {
+  font-size: var(--pt-text-xs);
+  color: var(--pt-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  font-size: var(--pt-text-sm);
+  color: var(--pt-text-muted);
+}
+
+.list {
+  display: grid;
+  gap: var(--pt-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--pt-space-3);
+  padding: var(--pt-space-2);
+  border: 1px solid var(--pt-border);
+  border-radius: var(--pt-radius-md);
+  background: var(--pt-surface-2);
+}
+
+.ident {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.date {
+  flex: 1;
+  color: var(--pt-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.addForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--pt-space-2);
+  align-items: end;
+}
+
+.dismissed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pt-space-2);
+}
+
+@media (max-width: 480px) {
+  .addForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

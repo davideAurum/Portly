@@ -75,6 +75,11 @@ export const qk = {
     teams: (league: string) => ['sports', 'teams', league] as const,
     games: (league: string, teamId: string) => ['sports', 'games', league, teamId] as const,
   },
+  flights: {
+    all: () => ['flights'] as const,
+    key: () => ['flights', 'key'] as const,
+    status: (ident: string, date: string) => ['flights', 'status', ident, date] as const,
+  },
   /** The configured Pages address and the browsers paired with it (server's own page only). */
   pairings: () => ['pairings'] as const,
   /** The other PCs connected through the remote origin and the requests waiting (never persisted). */

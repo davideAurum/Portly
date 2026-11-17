@@ -25,6 +25,8 @@ place name of your location), as the [privacy policy](site/privacy.html) lists.
 - **RSS feeds** — the latest headlines from RSS and Atom feeds, merged newest first.
 - **Sports scores** — live scores, recent results and upcoming games for your teams, with box scores
   and where to watch.
+- **Flights** — track your flights by number, typed in or found in your calendar: times, delays,
+  gates and progress in the air, from FlightAware with your own AeroAPI key.
 - **Music** — a remote control for Spotify: what is playing, play, pause, skip, seek, volume and which
   device it plays on. Needs Spotify Premium.
 - **Weather** (Open-Meteo, no key) and a **clock** with greeting and extra time zones.

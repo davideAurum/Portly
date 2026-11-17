@@ -59,6 +59,7 @@ const AREA_GROUPS: readonly { id: string; title: string; matches(key: string): b
   { id: 'weather', title: 'Weather', matches: (key) => key === 'weather' || key.startsWith('weather:') },
   { id: 'search', title: 'Search suggestions', matches: (key) => key.startsWith('suggest:') },
   { id: 'sports', title: 'Sports', matches: (key) => key.startsWith('sports:') },
+  { id: 'flights', title: 'Flights', matches: (key) => key === 'flightaware' },
   { id: 'phone', title: 'Phone helper', matches: (key) => key.startsWith('phone:') },
   { id: 'jobs', title: 'Scheduled jobs', matches: (key) => key.startsWith('job:') },
 ];
@@ -89,6 +90,7 @@ function byAttentionThenOrder(a: HealthItem, b: HealthItem): number {
 function defaultLabel(key: string): string {
   if (key === 'todoist') return 'Todoist';
   if (key === 'github') return 'GitHub';
+  if (key === 'flightaware') return 'FlightAware';
   if (key === 'weather') return 'Weather';
   if (key.startsWith('suggest:')) return `Suggestions from ${key.slice('suggest:'.length)}`;
   if (key.startsWith('phone:')) return 'Phone helper';

@@ -29,6 +29,7 @@ import { Checkbox, SegmentedControl } from '../../../ui/Toggles.tsx';
 import { AppRegistrationForm, PROVIDER_INFO, isClientConfigured } from './AppRegistration.tsx';
 import { connectionInfo, connectionServices, defaultPicked, type ConnectionId, type ServiceInfo } from './connections.ts';
 import { CaldavForm, CreatedResult, ImapForm, YahooForm } from './CredentialForms.tsx';
+import { FlightAwareKeyForm } from './FlightAware.tsx';
 import { GitHubStatusTokenForm } from './GitHubStatus.tsx';
 import { GitHubSyncForm } from './GitHubSync.tsx';
 import { otherSyncConnection, useSyncConnections } from './LaunchpadSync.tsx';
@@ -87,6 +88,8 @@ function ConnectFlow({ connection, onClose }: { connection: ConnectionId; onClos
       return <GitHubSyncForm onSaved={onClose} />;
     case 'github-status':
       return <GitHubStatusTokenForm onSaved={onClose} />;
+    case 'flightaware':
+      return <FlightAwareKeyForm onSaved={onClose} />;
   }
 }
 

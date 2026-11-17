@@ -25,7 +25,7 @@ browser you have paired with it uses Portly's own data and features while it run
 | **Calendar** — your **Outlook.com** calendars, read and written straight from the browser through Microsoft Graph (an app registration you own, see [Outlook.com](microsoft.md#browser-only-build-github-pages)); they sync while the page is open | Google, Yahoo and CalDAV calendars, ICS / webcal subscriptions |
 | **Music** — a remote control for Spotify, straight from the browser: needs Premium and a Spotify app of your own ([Spotify](spotify.md#where-it-runs)) | — |
 | **Themes**, background image upload, **profiles**, **export / import** | — |
-| — | **Mail** and **RSS feeds** widgets, Google, Yahoo, CalDAV and IMAP accounts, the credential vault |
+| — | **Mail**, **RSS feeds** and **Flights** widgets, Google, Yahoo, CalDAV and IMAP accounts, the credential vault |
 
 The parts that are not available are gone from **Add widget** and from Settings. If you import an
 export made on the server build and its layout still has a mail widget, that widget shows *Mail

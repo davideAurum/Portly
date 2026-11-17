@@ -15,6 +15,7 @@ import { useState, type FormEvent } from 'react';
 import { FlaskConical, LogIn, Plus, Settings2, Trash, UserRoundPlus } from 'lucide-react';
 import { CAPABILITIES, type Account, type Capability } from '@portly/shared';
 import { useAccounts, useDeleteAccount, useStartOAuth, useTestAccount, useUpdateAccount } from '../../../api/accounts.ts';
+import { useFlightsKey } from '../../../api/flights.ts';
 import { useGitHubToken } from '../../../api/github.ts';
 import { useGitHubSync } from '../../../api/githubSync.ts';
 import { useLaunchpadSync, type LaunchpadSyncInfo } from '../../../api/launchpadSync.ts';
@@ -37,6 +38,7 @@ import { Switch } from '../../../ui/Toggles.tsx';
 import { ProviderRegistration } from './AppRegistration.tsx';
 import { connectionServices, serviceDescription } from './connections.ts';
 import { summarizeProbes } from './CredentialForms.tsx';
+import { FlightAwareRow } from './FlightAware.tsx';
 import { GitHubStatusRow } from './GitHubStatus.tsx';
 import { GitHubSyncRow } from './GitHubSync.tsx';
 import { LaunchpadSyncNotices, SyncStatusLine, otherSyncConnection, useSyncConnections } from './LaunchpadSync.tsx';
@@ -46,7 +48,15 @@ import styles from '../../../styles/settings.module.css';
 
 const RETURN_TO = '#/settings/accounts';
 
-export function ConnectedAccounts({ onManageTodoist, onManageGitHubStatus }: { onManageTodoist(): void; onManageGitHubStatus(): void }) {
+export function ConnectedAccounts({
+  onManageTodoist,
+  onManageGitHubStatus,
+  onManageFlightAware,
+}: {
+  onManageTodoist(): void;
+  onManageGitHubStatus(): void;
+  onManageFlightAware(): void;
+}) {
   const accounts = useAccounts();
   const todoist = useTodoistToken();
   const [managing, setManaging] = useState<string | null>(null);
@@ -54,13 +64,14 @@ export function ConnectedAccounts({ onManageTodoist, onManageGitHubStatus }: { o
   const todoistConnected = todoist.data?.configured === true;
   const githubConnected = useGitHubSync().data?.configured === true;
   const githubStatusConnected = useGitHubToken().data?.configured === true;
+  const flightAwareConnected = useFlightsKey(getCapabilities().flights).data?.configured === true;
   const sync = useLaunchpadSync().data;
   const managed = list.find((a) => a.id === managing);
 
   let body;
   if (accounts.data === undefined) {
     body = accounts.isError ? <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} /> : <SkeletonList rows={2} />;
-  } else if (list.length === 0 && !todoistConnected && !githubConnected && !githubStatusConnected) {
+  } else if (list.length === 0 && !todoistConnected && !githubConnected && !githubStatusConnected && !flightAwareConnected) {
     body = (
       <EmptyState
         icon={UserRoundPlus}
@@ -99,6 +110,11 @@ export function ConnectedAccounts({ onManageTodoist, onManageGitHubStatus }: { o
         {githubStatusConnected ? (
           <li>
             <GitHubStatusRow onManage={onManageGitHubStatus} />
+          </li>
+        ) : null}
+        {flightAwareConnected ? (
+          <li>
+            <FlightAwareRow onManage={onManageFlightAware} />
           </li>
         ) : null}
       </ul>

@@ -16,6 +16,7 @@ import * as core from './core/index.ts';
 import * as devices from './devices/index.ts';
 import * as diagnostics from './diagnostics/index.ts';
 import * as feeds from './feeds/index.ts';
+import * as flights from './flights/index.ts';
 import * as github from './github/index.ts';
 import * as mail from './mail/index.ts';
 import * as music from './music/index.ts';
@@ -45,6 +46,7 @@ export const MODULES: readonly ModuleEntry[] = Object.freeze([
   { name: 'mail', prefixes: mail.prefixes, register: mail.register },
   { name: 'feeds', prefixes: feeds.prefixes, register: feeds.register },
   { name: 'sports', prefixes: sports.prefixes, register: sports.register },
+  { name: 'flights', prefixes: flights.prefixes, register: flights.register },
   { name: 'music', prefixes: music.prefixes, register: music.register },
   { name: 'pairing', prefixes: pairing.prefixes, register: pairing.register },
   { name: 'devices', prefixes: devices.prefixes, register: devices.register },

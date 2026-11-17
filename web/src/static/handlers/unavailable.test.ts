@@ -1,7 +1,7 @@
 /**
  * Server-only routes in the static build answer `409 not_configured` ("Not set up yet"), with the
  * feature named in the message, for every method + path the web app's app-password account,
- * vault, ICS subscription, mail, feeds and diagnostics API calls use; unknown routes still 404 and wrong methods still
+ * vault, ICS subscription, mail, feeds, flights and diagnostics API calls use; unknown routes still 404 and wrong methods still
  * 400. (Outlook.com accounts and OAuth are answered by handlers/accounts.ts, their calendars by handlers/calendar.ts.)
  */
 import { ApiErrorBodySchema, ERROR_STATUS } from '@portly/shared';
@@ -24,6 +24,10 @@ const CALLS: readonly [method: string, path: string, feature: UnavailableFeature
   ['POST', '/api/mail/acc-1/messages/msg-1/archive', 'Mail'],
   ['POST', '/api/mail/acc-1/messages/msg-1/trash', 'Mail'],
   ['GET', '/api/feeds?url=https%3A%2F%2Fexample.com%2Ffeed.xml', 'Feeds'],
+  ['GET', '/api/flights/key', 'Flight tracking'],
+  ['PUT', '/api/flights/key', 'Flight tracking', { key: 'example' }],
+  ['DELETE', '/api/flights/key', 'Flight tracking'],
+  ['GET', '/api/flights/status?ident=UA123&date=2026-12-03', 'Flight tracking'],
   ['GET', '/api/diagnostics/summary', 'Diagnostics'],
   ['GET', '/api/diagnostics/logs?scope=memory&level=warn&key=account%3Aacc-1&limit=500', 'Diagnostics'],
   ['GET', '/api/diagnostics/health/calendar%3Acal%2F1/history?limit=100', 'Diagnostics'],
@@ -47,6 +51,10 @@ describe('unavailable routes', () => {
       'POST /api/mail/:accountId/messages/:id/archive',
       'POST /api/mail/:accountId/messages/:id/trash',
       'GET /api/feeds',
+      'GET /api/flights/key',
+      'PUT /api/flights/key',
+      'DELETE /api/flights/key',
+      'GET /api/flights/status',
       'GET /api/diagnostics/summary',
       'GET /api/diagnostics/logs',
       'GET /api/diagnostics/health/:key/history',

@@ -63,6 +63,7 @@ describe('Accounts settings — layout', () => {
       'Connect Todoist',
       'Connect Spotify',
       'Connect GitHub repositories',
+      'Connect FlightAware',
       'Connect another account (CalDAV or IMAP)',
     ]);
     expect(within(tiles[1]!).getByText('Outlook.com calendar and mail')).toBeInTheDocument();

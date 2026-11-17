@@ -1,6 +1,6 @@
 /**
- * Client-side default layout (§10.2): every widget type except feeds, sports, notes, music and
- * GitHub, which are empty until the user adds a feed, a team, some text or a connection and so are
+ * Client-side default layout (§10.2): every widget type except feeds, sports, notes, music, GitHub
+ * and flights, which are empty until the user adds a feed, a team, some text, a flight or a connection and so are
  * left to "Add widget". Shown while there are no profiles, and used to seed the first "Home" profile (see
  * seed.ts). Built for this page load's capabilities: the in-browser backend has no mail widget, and leaves the calendar
  * (Outlook.com only, after a one-time app registration) to "Add widget". Either layout fills the

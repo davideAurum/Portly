@@ -190,7 +190,7 @@ The page has two parts:
   color and switches services on or off; **Reconnect** signs in again (Google, Outlook.com, Spotify),
   **Test** checks it, **Remove** disconnects it.
 - **Add a connection** has a tile per provider: **Google**, **Microsoft** (Outlook.com),
-  **Yahoo**, **Todoist**, **Spotify**, **GitHub repositories** and **Other** (a CalDAV calendar or an
+  **Yahoo**, **Todoist**, **Spotify**, **GitHub repositories**, **FlightAware** and **Other** (a CalDAV calendar or an
   IMAP mailbox). A tile walks you through connecting: the one-time app registration (Google,
   Microsoft and Spotify, only the first time),
   then ticking what Portly should use the account for, then signing in (or entering the app
@@ -211,6 +211,7 @@ The page has two parts:
 | Todoist | — | — | [todoist.md](setup/todoist.md) — personal API token |
 | Spotify (the Music widget; needs Premium) | — | — | [spotify.md](setup/spotify.md) — your own Spotify app, ~5 min |
 | GitHub repositories | — | — | [github.md](setup/github.md) — read-only fine-grained token |
+| FlightAware (the Flights widget) | — | — | [flightaware.md](setup/flightaware.md) — your own AeroAPI key; about $0.40 a flight, $5 free a month |
 | Weather | — | — | nothing to set up (Open-Meteo, no key); pick a location in the widget |
 
 Google, Microsoft and Spotify require a one-time registration in their developer consoles because Portly
