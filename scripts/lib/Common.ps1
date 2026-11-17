@@ -1637,7 +1637,7 @@ function Format-PtStrayServers {
 # other Portly servers run), Not running (nothing listens), Errors (something listens but Portly
 # does not answer).
 function Get-PtOverallStatus {
-    param([Parameter(Mandatory)]$Health, [AllowNull()][AllowEmptyCollection()][object[]]$Strays)
+    param([Parameter(Mandatory)]$Health, [AllowNull()][AllowEmptyCollection()][object[]]$Strays, [bool]$HostProblem = $false)
     $strayCount = if ($null -eq $Strays) { 0 } else { @($Strays).Count }
     $notes = @()
     if (-not $Health.Ok) {
@@ -1648,8 +1648,67 @@ function Get-PtOverallStatus {
     }
     if ($Health.Vault -and $Health.Vault -ne 'ready') { $notes += "vault $($Health.Vault)" }
     if ($strayCount -gt 0) { $notes += $(if ($strayCount -eq 1) { '1 other server' } else { "$strayCount other servers" }) }
+    if ($HostProblem) { $notes += 'native host problem' }
     if ($notes.Count -gt 0) { return [pscustomobject]@{ State = 'Warn'; Text = 'Warnings'; Detail = ($notes -join ', ') } }
     return [pscustomobject]@{ State = 'Ok'; Text = 'Healthy'; Detail = '' }
+}
+
+# What `portly status` reports at the top, shared by its banner and its Health line: the health
+# check on $Port, the stray Portly servers, the native host for Chrome and Edge (Windows only;
+# HostProblem when either is missing or broken) and the overall state (Get-PtOverallStatus).
+function Get-PtStatusSnapshot {
+    param([Parameter(Mandatory)][string]$RepoRoot, [Parameter(Mandatory)][ValidateRange(1, 65535)][int]$Port)
+    $health = Test-PtHealth -Port $Port -TimeoutSeconds 2
+    $strays = Get-PtStrayServers
+    $hostStatus = @()
+    if (Test-PtWindows) {
+        $expectedId = $null
+        try { $expectedId = Get-PtExtensionIdFromManifest -ManifestPath (Join-Path $RepoRoot 'extension\manifest.json') } catch { }
+        try { $hostStatus = Get-PtNativeHostStatus -ExpectedId $expectedId } catch { }
+    }
+    $hostProblem = @($hostStatus | Where-Object { -not ($_.Registered -and @($_.Problems).Count -eq 0) }).Count -gt 0
+    return [pscustomobject]@{
+        Health      = $health
+        Strays      = $strays
+        HostStatus  = $hostStatus
+        HostProblem = $hostProblem
+        Overall     = Get-PtOverallStatus -Health $health -Strays $strays -HostProblem $hostProblem
+    }
+}
+
+# "portly-supervisor.exe (PID 41), portly-server.exe (PID 42)": each supervisor, then its
+# servers; 'supervisor' and 'server' stand in for a name that is not known. 'none' for none.
+function Format-PtProcessNames {
+    param([AllowEmptyCollection()][object[]]$Trees)
+    if ($null -eq $Trees -or $Trees.Count -eq 0) { return 'none' }
+    $parts = foreach ($tree in $Trees) {
+        $supervisorName = "$(Get-PtProperty $tree 'SupervisorName')"
+        if (-not $supervisorName) { $supervisorName = 'supervisor' }
+        "$supervisorName (PID $($tree.SupervisorId))"
+        $children = @($tree.ChildIds)
+        $names = Get-PtProperty $tree 'ChildNames'
+        if ($null -eq $names) { $names = @() }
+        $names = @($names)
+        for ($i = 0; $i -lt $children.Count; $i++) {
+            $name = if ($i -lt $names.Count -and $names[$i]) { "$($names[$i])" } else { 'server' }
+            "$name (PID $($children[$i]))"
+        }
+    }
+    return (@($parts) -join ', ')
+}
+
+# A detail line under a field: "- <Text>", lined up with the field values; Warn and Bad in color.
+function Write-PtFieldNote {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Text, [ValidateSet('', 'Ok', 'Warn', 'Bad')][string]$State = '')
+    $pad = ' ' * 18
+    if (Test-PtFancyOutput) {
+        $color = if ($State -eq 'Warn') { 'Amber' } elseif ($State -eq 'Bad') { 'Coral' } else { 'Sand' }
+        Write-Host ($pad + (Format-PtStyle Mist '- ') + (Format-PtStyle $color $Text))
+        return
+    }
+    if ($State -eq 'Warn') { Write-Host "$pad- $Text" -ForegroundColor Yellow }
+    elseif ($State -eq 'Bad') { Write-Host "$pad- $Text" -ForegroundColor Red }
+    else { Write-Host "$pad- $Text" }
 }
 
 # Stops stale Portly servers holding $Port (see Select-PtStaleServers) so the task can start.

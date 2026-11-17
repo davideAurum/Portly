@@ -522,7 +522,7 @@ function Invoke-PtCli {
             if ($null -eq $mapped) { return 2 }
             if (-not $mapped.ContainsKey('View')) { $mapped.View = 'Status' }
             if (Test-PtFancyOutput) {
-                $overall = Get-PtOverallStatus -Health (Test-PtHealth -Port (Get-PtPortSetting -Scope Process).Port -TimeoutSeconds 2) -Strays (Get-PtStrayServers)
+                $overall = (Get-PtStatusSnapshot -RepoRoot $repoRoot -Port (Get-PtPortSetting -Scope Process).Port).Overall
                 Write-PtCliBanner -RepoRoot $repoRoot -Subtitle 'status' -State $overall.State -StateText $overall.Text -Detail $overall.Detail
             }
             return Invoke-PtCliScript -Script 'status.ps1' -Parameters $mapped

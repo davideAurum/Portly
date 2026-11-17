@@ -5,12 +5,13 @@
 .DESCRIPTION
     Read-only. Two sections:
 
-    Status - is it working right now: the /api/health check, the supervisor and server
-    processes (with their program names), other Portly servers on any port that the task did not
-    start (development servers, Portly's own Vite), the "Portly Server" task state and last result, a
+    Status - is it working right now. Health first: the overall state (as in the banner) with a
+    line each for the /api/health check, the vault, the native host for Chrome and Edge and other
+    Portly servers on any port that the task did not start (development servers, Portly's own
+    Vite); then the task's last run, the last launcher request, the supervisor and server
+    processes (with their program names), the "Portly Server" task state, the updater, a
     warning when the task's program is missing or Portly's copies of node.exe are out of date,
-    the last launcher request, the native host for Chrome and Edge (OK, or what is wrong), and
-    the server configuration check when Portly does not answer.
+    and the server configuration check when Portly does not answer.
 
     Settings - how it is set up: port, URL, checkout, data folder and log files, the task's mode
     and command, what it runs as (portly-supervisor.exe and portly-server.exe, copies of which
@@ -94,31 +95,76 @@ function Invoke-Status {
 
     $health = $null
     if ($showStatus) {
-        $health = Test-PtHealth -Port $checkPort -TimeoutSeconds 2
+        # The same facts as the banner's light, so the two always agree.
+        $snapshot = Get-PtStatusSnapshot -RepoRoot $repoRoot -Port $checkPort
+        $health = $snapshot.Health
+        $overall = $snapshot.Overall
         Write-PtSection 'Portly status'
+
+        # Health: the overall state, then what it is made of.
+        $headline = if ($overall.Detail) { "$($overall.Text) ($($overall.Detail))" } else { $overall.Text }
+        Write-PtFieldState 'Health' $headline -State $overall.State
+        $origin = $health.Url -replace '/api/health$', ''
         if ($health.Ok) {
-            Write-PtFieldState 'Health' (Format-PtHealth $health) -State Ok -PlainPrefix 'OK - '
+            $version = if ($health.Version) { "version $($health.Version)" } else { 'version unknown' }
+            Write-PtFieldNote "Portly answers at $origin ($version)."
+            if ($health.Vault -eq 'ready') {
+                Write-PtFieldNote 'Saved credentials are unlocked (vault ready).'
+            } elseif ($health.Vault -eq 'locked') {
+                Write-PtFieldNote 'Saved credentials are locked: open Portly > Settings > Accounts and follow the banner.' -State Warn
+            } else {
+                $vaultText = if ($health.Vault) { $health.Vault } else { 'unknown' }
+                Write-PtFieldNote "Saved credentials: vault $vaultText." -State Warn
+            }
         } else {
-            Write-PtFieldState 'Health' (Format-PtHealth $health) -State Warn
+            Write-PtFieldNote "Nothing answers at $origin ($($health.Error))." -State Bad
             if ($null -ne $health.Listeners -and $health.Listeners.Count -gt 0) {
-                Write-PtField 'Port used by' (Format-PtPortOwners $health.Listeners)
+                Write-PtFieldNote "Port $checkPort is used by $(Format-PtPortOwners $health.Listeners), which is not answering as Portly." -State Bad
+            } else {
+                Write-PtFieldNote 'Nothing listens on the port: portly start starts Portly.'
             }
         }
+        $hostOk = @()
         if ($windowsTasks) {
-            Write-PtField 'Processes' (Format-PtProcessList -Trees @(Get-PtSupervisorProcesses -RepoRoot $repoRoot))
-            $strays = Get-PtStrayServers
-            if ($null -ne $strays -and $strays.Count -gt 0) {
-                Write-PtFieldState 'Other servers' (Format-PtStrayServers -Strays $strays) -State Warn
-                Write-PtInfo 'Not started by the task (portly dev, npm run dev, a leftover); portly stop <port> or portly stop --all stops them.'
-            } else {
-                Write-PtField 'Other servers' (Format-PtStrayServers -Strays $strays)
+            # Native messaging host: registered for both browsers, files present, and allowing the
+            # extension ID pinned by extension\manifest.json. Details are under Settings.
+            $hostOk = @($snapshot.HostStatus | Where-Object { $_.Registered -and @($_.Problems).Count -eq 0 })
+            $hostBad = @($snapshot.HostStatus | Where-Object { -not ($_.Registered -and @($_.Problems).Count -eq 0) })
+            if ($hostOk.Count -gt 0) {
+                Write-PtFieldNote "$(@($hostOk | ForEach-Object { $_.Browser }) -join ' and ') can start Portly from a new tab (native host OK)."
             }
+            foreach ($entry in $hostBad) {
+                if (-not $entry.Registered) {
+                    Write-PtFieldNote "$($entry.Browser) cannot start Portly: the native host is not registered ($($entry.Key))." -State Warn
+                } else {
+                    Write-PtFieldNote "$($entry.Browser) cannot start Portly: the native host at $($entry.ManifestPath) has problems:" -State Warn
+                    foreach ($problem in @($entry.Problems)) { Write-PtFieldNote "  $problem" -State Warn }
+                }
+            }
+            if ($null -eq $snapshot.Strays) {
+                Write-PtFieldNote 'Other Portly servers: cannot tell (no Get-NetTCPConnection).'
+            } elseif ($snapshot.Strays.Count -eq 0) {
+                Write-PtFieldNote 'No other Portly servers are running.'
+            } else {
+                Write-PtFieldNote "Also running, not started by the task: $(Format-PtStrayServers -Strays $snapshot.Strays)." -State Warn
+                Write-PtFieldNote 'portly stop <port> or portly stop --all stops them (portly dev, npm run dev and leftovers).'
+            }
+        }
+
+        if ($windowsTasks) {
+            if ($null -ne $task) {
+                $lastRun = if ($info.LastRunTime -and $info.LastRunTime.Year -gt 2000) { $info.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'never' }
+                Write-PtField 'Last run' "$lastRun, result $(Format-PtTaskResult -Code $info.LastTaskResult)"
+            }
+            if (Test-Path -LiteralPath $hostLog -PathType Leaf) {
+                $last = @(Get-Content -LiteralPath $hostLog -Tail 1)
+                if ($last.Count -gt 0) { Write-PtField 'Last launch' "$($last[0])" }
+            }
+            Write-PtField 'Processes' (Format-PtProcessNames -Trees @(Get-PtSupervisorProcesses -RepoRoot $repoRoot))
             if ($null -eq $task) {
                 Write-PtField 'Autostart' 'not installed (scripts\install-autostart.ps1 sets it up)'
             } else {
                 Write-PtField 'Autostart' "$($task.State) ($mode mode)"
-                $lastRun = if ($info.LastRunTime -and $info.LastRunTime.Year -gt 2000) { $info.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'never' }
-                Write-PtField 'Last run' "$lastRun, result $(Format-PtTaskResult -Code $info.LastTaskResult)"
                 $releaseInfo = $null
                 try { $releaseInfo = Get-PtReleaseInfo -RepoRoot $repoRoot } catch { }
                 if ($null -ne $releaseInfo) {
@@ -142,28 +188,6 @@ function Invoke-Status {
                 } elseif ($taskProgram) {
                     Write-PtInfo ("The task runs $taskProgram, so Task Manager shows Portly as node.exe. Run scripts\install-autostart.ps1 " +
                         "again to run it as $PortlySupervisorProgram and $PortlyServerProgram.")
-                }
-            }
-            if (Test-Path -LiteralPath $hostLog -PathType Leaf) {
-                $last = @(Get-Content -LiteralPath $hostLog -Tail 1)
-                if ($last.Count -gt 0) { Write-PtField 'Last launch' "$($last[0])" }
-            }
-
-            # Native messaging host: registered for both browsers, files present, and allowing the
-            # extension ID pinned by extension\manifest.json. Details are under Settings.
-            $hostOk = @($hostStatus | Where-Object { $_.Registered -and @($_.Problems).Count -eq 0 })
-            $hostBad = @($hostStatus | Where-Object { -not ($_.Registered -and @($_.Problems).Count -eq 0) })
-            if ($hostBad.Count -eq 0) {
-                Write-PtFieldState 'Native host' "OK ($(@($hostOk | ForEach-Object { $_.Browser }) -join ', '))" -State Ok
-            } else {
-                foreach ($entry in $hostBad) {
-                    $label = "Host ($($entry.Browser))"
-                    if (-not $entry.Registered) {
-                        Write-PtField $label "not registered ($($entry.Key))"
-                    } else {
-                        Write-PtFieldState $label "PROBLEM - $($entry.ManifestPath)" -State Warn
-                        foreach ($problem in @($entry.Problems)) { Write-Host "                   - $problem" -ForegroundColor Yellow }
-                    }
                 }
             }
             if ($mode -eq 'Browser' -and $hostOk.Count -eq 0) {
@@ -193,9 +217,6 @@ function Invoke-Status {
             } catch {
                 Write-PtField 'Configuration' "not checked ($($_.Exception.Message))"
             }
-        }
-        if ($health.Ok -and $health.Vault -eq 'locked') {
-            Write-PtWarn 'The credential vault is locked: open Portly > Settings > Accounts and follow the banner.'
         }
     }
 

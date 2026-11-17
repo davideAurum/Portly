@@ -215,6 +215,8 @@ Assert-That -Name 'Select-PtSupervisorProcesses keeps real children, skips recyc
 Assert-That -Name 'Select-PtSupervisorProcesses handles no processes' -Condition (@(Select-PtSupervisorProcesses -Processes @() -RepoRoot $fakeRoot).Count -eq 0)
 Assert-That -Name 'Format-PtProcessList (program names where known)' -Condition (
     (Format-PtProcessList -Trees $trees) -eq 'supervisor node.exe PID 10 (server PID 11); supervisor PID 20' -and (Format-PtProcessList -Trees @()) -eq 'none') -Detail (Format-PtProcessList -Trees $trees)
+Assert-That -Name 'Format-PtProcessNames lists each program with its PID' -Condition (
+    (Format-PtProcessNames -Trees $trees) -eq 'node.exe (PID 10), server (PID 11), supervisor (PID 20)' -and (Format-PtProcessNames -Trees @()) -eq 'none') -Detail (Format-PtProcessNames -Trees $trees)
 # The task running Portly's copies of node.exe: conhost -> portly-supervisor.exe -> portly-server.exe.
 $copyDir = 'C:\Users\you\AppData\Local\Portly\node'
 $namedProcesses = @(
@@ -226,6 +228,8 @@ $namedTrees = @(Select-PtSupervisorProcesses -Processes $namedProcesses -RepoRoo
 Assert-That -Name 'Select-PtSupervisorProcesses finds portly-supervisor.exe and its portly-server.exe (not conhost)' -Condition (
     $namedTrees.Count -eq 1 -and $namedTrees[0].SupervisorId -eq 41 -and (@($namedTrees[0].ChildIds) -join ',') -eq '42' -and
     (Format-PtProcessList -Trees $namedTrees) -eq 'supervisor portly-supervisor.exe PID 41 (server portly-server.exe PID 42)') -Detail (Format-PtProcessList -Trees $namedTrees)
+Assert-That -Name 'Format-PtProcessNames shows portly-supervisor.exe and portly-server.exe with their PIDs' -Condition (
+    (Format-PtProcessNames -Trees $namedTrees) -eq 'portly-supervisor.exe (PID 41), portly-server.exe (PID 42)') -Detail (Format-PtProcessNames -Trees $namedTrees)
 # Stale servers: a listener running index.ts with no supervisor above it.
 $staleProcesses = @($namedProcesses) + @(
     [pscustomobject]@{ ProcessId = 50; ParentProcessId = 3; Name = 'node.exe'; CommandLine = '"C:\nvm4w\nodejs\node.exe" server\src\index.ts' }
@@ -1526,7 +1530,7 @@ try {
 
             $statusOk = & $run 'status.ps1' @('-Port', "$($ports.ok)")
             Assert-That -Name 'status.ps1 exits 0 when Portly answers' -Condition (
-                $statusOk.ExitCode -eq 0 -and $statusOk.Text.Contains('OK - running at') -and $statusOk.Text.Contains('vault is locked')) -Detail $statusOk.Text
+                $statusOk.ExitCode -eq 0 -and $statusOk.Text.Contains('Portly answers at') -and $statusOk.Text.Contains('credentials are locked')) -Detail $statusOk.Text
 
             $statusView = & $run 'status.ps1' @('-Port', "$($ports.ok)", '-View', 'Status')
             $healthAt = $statusView.Text.IndexOf('Health')
