@@ -10,6 +10,7 @@ every new tab. Colors and type are shared with the earlier "Porthole" exploratio
 | `portly-icon-animated.svg` | `portly-icon.svg` with the light making one full turn (about 3 s, plays once, then rests on the still icon). For splash or loading moments at 48 px and up; shows the still icon when the viewer asks for reduced motion. |
 | `portly-mark.svg` | The lighthouse without its tile, for light backgrounds. |
 | `portly-lockup.svg` | Icon plus the "portly" wordmark. The wordmark is live text in Fredoka SemiBold. |
+| `portly-banner.svg` | Wide banner (960 x 200) at the top of the website in `site/`: the beam sweeps across the harbor under the wordmark and the tagline "The steady light in every new tab". Its text is live Fredoka, so the site pages carry the drawing inline (change both together). On narrow screens the site hides the tagline. |
 
 The extension PNGs (`extension/icons/icon-{16,32,48,128}.png`) and `site/icon-128.png` are drawn
 by `extension/tools/generate-icons.mjs`, which mirrors these SVGs. Change both together, then run

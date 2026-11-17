@@ -2044,6 +2044,7 @@ date and the outcome once a row has been run for real.
 | **Open in GitHub Desktop** from a real browser: the browser's prompt, then Desktop opening a cloned repository and offering to clone another. The address was read from GitHub Desktop 3.6.10's own code; the tests only check the address is built | 6e7d1e5, 2026-11-05 | The owner's use of 0.2.0-alpha.8 on 2026-11-06: they report it works and closed this row |
 | The reworked Music widget layout (larger cover art, centred block, larger title) seen in a real browser with a real Spotify account, in light and dark and at several widget sizes; only the stylesheet changed and no test or build ran | this commit, 2026-11-16 | the owner's next look at the widget | not yet |
 | `portly --dev` really building and running a checkout: only `--dev --dry-run`, the argument errors and the self-check ran; the build, the pause of the installed Portly, the data copy and the restore were never run through the new command (try-branch.ps1 itself is older) | this commit, 2026-11-16 | the owner's next look at a branch | not yet |
+| The website banner on the published consent-screen site (`davideAurum/portly-site`): the self-hosted Fredoka loading for the inline banner, and its look in Firefox and on a real phone; only Claude's browser pane on a local copy of `site/` ran, in light and dark and at 375 px | this commit, 2026-11-16 | the next publish of the site pages | not yet |
 
 ## Parked, with reasons
 

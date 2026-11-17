@@ -48,21 +48,21 @@ main {
   padding: 48px 16px 64px;
 }
 
-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 32px;
+/* The banner (docs/brand/portly-banner.svg), inline so its text uses the self-hosted Fredoka. */
+header { margin-bottom: 32px; }
+header a { display: block; border-radius: 14px; }
+header a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+header .banner {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px -10px rgb(7 47 59 / 0.45);
 }
 
-header img { width: 48px; height: 48px; display: block; }
-header a { color: inherit; text-decoration: none; }
-header .name {
-  font-family: Fredoka, system-ui, sans-serif;
-  font-size: 1.9rem;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--heading);
+/* On a phone the tagline would be too small to read: the wordmark carries the banner alone. */
+@media (max-width: 520px) {
+  header .banner .tagline { display: none; }
 }
 
 h1, h2 { font-family: Fredoka, system-ui, sans-serif; color: var(--heading); }
